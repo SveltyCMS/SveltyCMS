@@ -21,7 +21,8 @@ import type { RequestEvent } from "@sveltejs/kit";
 import type { Handle } from "@sveltejs/kit/hooks";
 import { RequestLane } from "./handle-request-classifier";
 import { AppError, handleApiError } from "@utils/error-handling";
-import { isSecureCookieContext, readSessionCookie, isAdmin } from "@src/databases/auth/constants";
+import { isSecureCookieContext, isAdmin } from "@src/databases/auth/constants";
+import { readSessionCookie } from "@utils/security/session-cookie";
 import { validateSessionMfaRequirement } from "@src/databases/auth/permissions";
 import { validateCsrfForRequest } from "@utils/security/csrf-utils";
 import { getTurboAuthContext } from "./handle-turbo-get";
@@ -35,7 +36,12 @@ import { fastSuccessResponse, successResponse } from "@src/routes/api/[...path]/
 import { applyAllSecurityHeaders } from "./handle-security-headers";
 import { handleRateLimit } from "./handle-rate-limit";
 import type { DatabaseId } from "@src/content/types";
-import { prefersMinimalReturn } from "@utils/http-preferences";
+import {
+  unwrapWritePayload,
+  extractExpectedVersion,
+  minimalWriteAck,
+  prefersMinimalReturn,
+} from "@src/services/sdk/namespaces/collections/http-bridge";
 import { parseCollectionQueryParams } from "@utils/api-params";
 import {
   hasPermissionBitmask,
@@ -44,7 +50,6 @@ import {
 import { API_MAX_BODY_SIZE_BYTES, bodyTooLargeMessage } from "@utils/api-body-limits";
 import { isSurfaceStepUp } from "@src/databases/auth/session-user";
 import { recordAuditEntry } from "./handle-audit-logging";
-import { fastEscapeString } from "@utils/fast-json";
 
 /**
  * `SVELTY_SRV_DUR=1` records total server time for the write lane (`x-srv-dur`)
@@ -71,22 +76,6 @@ function stampWriteSplit(headers: Headers, marks: Map<string, number>): void {
 function stampSrvDur(headers: Headers, started: number): void {
   if (!STAMP_SRV_DUR) return;
   headers.set("x-srv-dur", (performance.now() - started).toFixed(2));
-}
-
-function unwrapWritePayload(raw: unknown): unknown {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
-  const obj = raw as Record<string, unknown>;
-  if (obj.data && typeof obj.data === "object" && !Array.isArray(obj.data)) {
-    let hasExtras = false;
-    for (const k in obj) {
-      if (Object.hasOwn(obj, k) && k !== "data" && k !== "tenantId") {
-        hasExtras = true;
-        break;
-      }
-    }
-    if (!hasExtras) return obj.data;
-  }
-  return raw;
 }
 
 const SKIP_COLLECTION_IDS = new Set(["search", "reorder", "warm-cache", "list"]);
@@ -475,21 +464,7 @@ async function executeWarmCollectionWrite(
   const tParse = STAMP_WRITE_SPLIT ? performance.now() : 0;
   const raw = (locals as any).__parsedJsonBody || (await request.json());
   const data = unwrapWritePayload(raw);
-  // 🔒 Optimistic-locking parity with the dispatcher: `If-Match` wins over a body
-  // field, and the field is stripped so it is never written as a schema field.
-  const bodyExpected =
-    data && typeof data === "object"
-      ? (data as Record<string, unknown>).expectedVersion
-      : undefined;
-  if (bodyExpected !== undefined && data && typeof data === "object") {
-    delete (data as Record<string, unknown>).expectedVersion;
-  }
-  const expectedVersion =
-    request.headers.get("if-match") ??
-    (typeof bodyExpected === "string" || typeof bodyExpected === "number"
-      ? bodyExpected
-      : undefined) ??
-    (url.search ? url.searchParams.get("expectedVersion") : null);
+  const expectedVersion = extractExpectedVersion(event, data);
   if (marks) marks.set("parse", performance.now() - tParse);
   const cms = getLaneCms();
   if (!cms) return null;
@@ -545,18 +520,11 @@ async function executeWarmCollectionWrite(
   );
   if (minimal) {
     const isPost = request.method === "POST";
-    const resId = isPost
-      ? (result as any)?.data?._id ||
-        (result as any)?.data?.id ||
-        (result as any)?._id ||
-        (result as any)?.id
-      : entryId;
-    const idStr = String(resId ?? "");
-    const res = fastSuccessResponse(
+    const res = minimalWriteAck(
       event,
-      `{"_id":"${fastEscapeString(idStr)}"}`,
-      { _id: resId },
+      result,
       isPost ? 201 : 200,
+      isPost ? undefined : entryId,
       precompiledHeaders,
     );
     return finishWarmWrite(event, res, marks, srvT0, t0, true);

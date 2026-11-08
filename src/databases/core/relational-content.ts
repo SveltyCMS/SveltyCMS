@@ -797,37 +797,43 @@ export class RelationalContentModule implements IContentAdapter {
   public readonly revisions = {
     create: async (
       revision: EntityCreate<ContentRevision>,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<ContentRevision>> => {
-      return this.crud.insert<ContentRevision>("content_revisions", revision);
+      return this.crud.insert<ContentRevision>("content_revisions", revision, options);
     },
 
     getHistory: async (
       contentId: DatabaseId,
-      options?: PaginationOptions,
+      options?: PaginationOptions & BaseQueryOptions,
     ): Promise<DatabaseResult<PaginatedResult<ContentRevision>>> => {
-      return this.adapter.wrap(async () => {
-        const limit = options?.pageSize || 20;
-        const offset = ((options?.page || 1) - 1) * limit;
+      return this.adapter.wrap(
+        async () => {
+          const limit = options?.pageSize || 20;
+          const offset = ((options?.page || 1) - 1) * limit;
 
-        const results = await this.db
-          .select(this.adapter.getPhysicalSelection(this.schema.contentRevisions))
-          .from(this.schema.contentRevisions)
-          .where(eq(this.schema.contentRevisions.contentId, contentId as string))
-          .limit(limit)
-          .offset(offset)
-          .orderBy(desc(this.schema.contentRevisions.version));
+          const results = await this.getDb(options)
+            .select(this.adapter.getPhysicalSelection(this.schema.contentRevisions))
+            .from(this.schema.contentRevisions)
+            .where(eq(this.schema.contentRevisions.contentId, contentId as string))
+            .limit(limit)
+            .offset(offset)
+            .orderBy(desc(this.schema.contentRevisions.version));
 
-        return {
-          items: convertArrayDatesToISO(results, {
-            table: "contentRevisions",
-          }) as unknown as ContentRevision[],
-          total: results.length,
-          page: options?.page || 1,
-          pageSize: limit,
-          hasNextPage: false,
-          hasPreviousPage: false,
-        };
-      }, "GET_REVISIONS_FAILED");
+          return {
+            items: convertArrayDatesToISO(results, {
+              table: "contentRevisions",
+            }) as unknown as ContentRevision[],
+            total: results.length,
+            page: options?.page || 1,
+            pageSize: limit,
+            hasNextPage: false,
+            hasPreviousPage: false,
+          };
+        },
+        "GET_REVISIONS_FAILED",
+        undefined,
+        { transaction: options?.transaction },
+      );
     },
 
     /**
@@ -884,9 +890,11 @@ export class RelationalContentModule implements IContentAdapter {
     cleanup: async (
       contentId: DatabaseId,
       keepLatest: number,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<{ deletedCount: number }>> => {
       return this.adapter.wrap(async () => {
         const history = await this.revisions.getHistory(contentId, {
+          ...options,
           pageSize: 1000,
         });
         if (!history.success || history.data.items.length <= keepLatest) return { deletedCount: 0 };
@@ -894,10 +902,14 @@ export class RelationalContentModule implements IContentAdapter {
         // oldest version kept. Pruning by version keeps the DELETE bounded and
         // independent of how a row's `_id` is produced or projected.
         const oldestKept = history.data.items[keepLatest - 1].version;
-        const deleteRes = await this.crud.deleteMany("content_revisions", {
-          contentId,
-          version: { $lt: oldestKept },
-        } as any);
+        const deleteRes = await this.crud.deleteMany(
+          "content_revisions",
+          {
+            contentId,
+            version: { $lt: oldestKept },
+          } as any,
+          options,
+        );
         if (!deleteRes.success) throw deleteRes.error;
         return deleteRes.data;
       }, "CLEANUP_REVISIONS_FAILED");

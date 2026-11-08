@@ -25,7 +25,7 @@ import type { Model } from "mongoose";
 import mongoose, { Schema } from "mongoose";
 
 // Widget schema
-export const widgetSchema = new Schema<Widget>(
+const widgetSchema = new Schema<Widget>(
   {
     _id: { type: String, required: true, default: () => generateId() }, // UUID primary key
     name: { type: String, required: true, unique: true }, // Unique name for the widget

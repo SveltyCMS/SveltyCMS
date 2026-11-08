@@ -31,7 +31,7 @@ function loadCacheServiceModule(): Promise<typeof import("@src/databases/cache/c
 
 // Utils
 import type { MediaItem, SystemVirtualFolder } from "@root/src/databases/db-interface";
-import type { MediaAccess } from "@root/src/utils/media/media-models";
+import type { MediaAccess } from "@root/src/utils/media/media-values";
 // Auth
 import { dbAdapter } from "@src/databases/db";
 import {
@@ -48,6 +48,10 @@ import { getImageSizes, moveMediaToTrash } from "@utils/media/media-storage.serv
 import { resolveMediaPublicPath } from "@utils/media/media-utils";
 import type { Actions, PageServerLoad } from "./$types";
 import { matchesJsonPathFilter } from "@utils/json-path-filter";
+import {
+  readMediaStructuredFilters,
+  type MediaStructuredFilters,
+} from "@utils/media/media-query-filters";
 import { toGalleryListItem } from "./gallery-list-item";
 import { syncQueryHash } from "@src/services/sdk/namespaces/collections/read-pipeline";
 import { CacheCategory } from "@src/databases/cache/types";
@@ -74,6 +78,19 @@ function parseGalleryPage(raw: string | null): number {
   const parsed = Number.parseInt(raw ?? "", 10);
   if (!Number.isFinite(parsed) || parsed < 1) return 1;
   return Math.min(parsed, MAX_GALLERY_PAGE);
+}
+
+/** One-line debug summary of the structured filters (never logs the raw URL). */
+function describeMediaFilters(filters: MediaStructuredFilters): string {
+  const parts: string[] = [];
+  if (filters.mimeTypes?.length) parts.push(`mime: ${filters.mimeTypes.join(",")}`);
+  if (filters.minSize !== undefined) parts.push(`minSize: ${filters.minSize}`);
+  if (filters.maxSize !== undefined) parts.push(`maxSize: ${filters.maxSize}`);
+  if (filters.minWidth !== undefined) parts.push(`minWidth: ${filters.minWidth}`);
+  if (filters.maxWidth !== undefined) parts.push(`maxWidth: ${filters.maxWidth}`);
+  if (filters.minHeight !== undefined) parts.push(`minHeight: ${filters.minHeight}`);
+  if (filters.maxHeight !== undefined) parts.push(`maxHeight: ${filters.maxHeight}`);
+  return parts.length > 0 ? `, ${parts.join(", ")}` : "";
 }
 
 export const load: PageServerLoad = async ({ locals, url }) => {
@@ -117,8 +134,13 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     const jsonPath = (url.searchParams.get("jsonPath") || url.searchParams.get("jsonpath") || "")
       .trim()
       .slice(0, 500);
+    // Server-side advanced-search filters (size / dimensions / MIME). Parsed with
+    // the shared validator, so `?minSize=abc` or an inverted range is ignored
+    // here instead of reaching the query builder.
+    const mediaFilters = readMediaStructuredFilters(url.searchParams);
+    const filterLog = describeMediaFilters(mediaFilters);
     logger.debug(
-      `Loading media gallery for folderId: ${folderId || "root"} (recursive: ${recursive}${searchQuery ? `, search: "${searchQuery}"` : ""}${jsonPath ? `, jsonPath` : ""})`,
+      `Loading media gallery for folderId: ${folderId || "root"} (recursive: ${recursive}${searchQuery ? `, search: "${searchQuery}"` : ""}${jsonPath ? `, jsonPath` : ""}${filterLog})`,
     );
 
     // 🚀 Fetch virtual folders with SWR (5 min fresh, 30 min stale)
@@ -182,6 +204,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
             user, // Pass user for ownership filtering
             tenantId, // Explicit scope (raw adapter — see note above)
             ...(searchQuery ? { search: searchQuery } : {}),
+            // Structured advanced-search filters: applied by the adapter before
+            // LIMIT/COUNT, so they cover the whole library, not this page.
+            ...mediaFilters,
             // Push metadata.* clauses into SQLite JSON1 / PG jsonb / Mongo when possible
             ...(jsonPath ? { jsonPath } : {}),
           });
@@ -296,6 +321,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       publishedMediaIds,
       /** Echo server-applied JSON path filter for client sync / shareable URLs */
       jsonPathFilter: jsonPath || "",
+      /** Echo the normalized structured filters so the modal reopens on them */
+      mediaFilters,
       /** Server pagination — `total` is the folder count, not the rendered slice */
       mediaPagination: {
         page: mediaResultPage.page,

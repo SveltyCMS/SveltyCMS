@@ -124,7 +124,7 @@ function coerceWhere(where: unknown): WhereRecord | null {
 }
 
 /** Enforce the `where` shape caps (length, depth, node count) in one pass. */
-export function assertWhereShape(where: WhereRecord): void {
+function assertWhereShape(where: WhereRecord): void {
   let encodedLength = 0;
   try {
     encodedLength = JSON.stringify(where).length;
@@ -211,9 +211,17 @@ function relationList(value: unknown): unknown[] {
 function matchCondition(actual: unknown, condition: unknown): boolean {
   const record = asRecord(condition);
   if (record) {
-    const keys = Object.keys(record);
-    if (keys.length > 0 && keys.every((key) => OPERATOR_ALIASES[key])) {
-      for (const key of keys) {
+    let hasKeys = false;
+    let allValidOps = true;
+    for (const key in record) {
+      hasKeys = true;
+      if (!OPERATOR_ALIASES[key]) {
+        allValidOps = false;
+        break;
+      }
+    }
+    if (hasKeys && allValidOps) {
+      for (const key in record) {
         if (!applyOperator(OPERATOR_ALIASES[key], actual, record[key])) return false;
       }
       return true;
@@ -506,20 +514,43 @@ export function cacheControlFor(
   const plan = getCacheHintPlan(fields);
   if (plan.length === 0) return null;
 
-  const wanted =
-    requestedFields && requestedFields.length > 0
-      ? new Set(requestedFields.map((name) => name.toLowerCase()))
-      : null;
-
   let maxAge: number | null = null;
   let isPrivate = false;
   let found = false;
-  for (let i = 0; i < plan.length; i++) {
-    const { hint, names } = plan[i];
-    if (wanted && names.length > 0 && !names.some((name) => wanted.has(name))) continue;
-    found = true;
-    maxAge = maxAge === null ? hint.maxAge : Math.min(maxAge, hint.maxAge);
-    if (hint.scope === "private") isPrivate = true;
+  const hasReq = requestedFields && requestedFields.length > 0;
+  // Fast path: for common small projections (< 12 fields), avoid allocating a Set and lowercased array
+  if (hasReq && requestedFields.length <= 12) {
+    for (let i = 0; i < plan.length; i++) {
+      const { hint, names } = plan[i];
+      if (names.length > 0) {
+        let matches = false;
+        for (let j = 0; j < names.length; j++) {
+          const nm = names[j];
+          for (let k = 0; k < requestedFields.length; k++) {
+            const req = requestedFields[k];
+            if (nm === req || nm === req.toLowerCase()) {
+              matches = true;
+              break;
+            }
+          }
+          if (matches) break;
+        }
+        if (!matches) continue;
+      }
+      found = true;
+      maxAge = maxAge === null ? hint.maxAge : Math.min(maxAge, hint.maxAge);
+      if (hint.scope === "private") isPrivate = true;
+    }
+  } else {
+    const wanted = hasReq ? new Set(requestedFields.map((name) => name.toLowerCase())) : null;
+
+    for (let i = 0; i < plan.length; i++) {
+      const { hint, names } = plan[i];
+      if (wanted && names.length > 0 && !names.some((name) => wanted.has(name))) continue;
+      found = true;
+      maxAge = maxAge === null ? hint.maxAge : Math.min(maxAge, hint.maxAge);
+      if (hint.scope === "private") isPrivate = true;
+    }
   }
   if (!found || maxAge === null) return null;
   return `${isPrivate ? "private" : "public"}, max-age=${maxAge}`;

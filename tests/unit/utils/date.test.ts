@@ -19,6 +19,8 @@ import {
   isISODateString,
   isoDateStringToDate,
   nowISODateString,
+  ReadableExpireIn,
+  getCurrentDate,
   toISOString,
 } from "@src/utils/date";
 
@@ -194,5 +196,23 @@ describe("Date Utils — Property-Based Round-Trip", () => {
       const back = new Date(iso);
       expect(dateToISODateString(back)).toBe(iso);
     }
+  });
+
+  it("ReadableExpireIn formats remaining duration accurately", () => {
+    // 3600s = 1h
+    expect(ReadableExpireIn("3600")).toBe("1h");
+    // 86400s = 1d
+    expect(ReadableExpireIn("86400")).toBe("1d");
+    // 90060s = 1d 1h 1m
+    expect(ReadableExpireIn("90060")).toBe("1d 1h 1m");
+    // invalid or 0
+    expect(ReadableExpireIn("0")).toBe("");
+    expect(ReadableExpireIn("invalid")).toBe("");
+  });
+
+  it("getCurrentDate returns YYYY-MM-DD matching nowISODateString", () => {
+    const today = getCurrentDate();
+    expect(today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(today).toBe(nowISODateString().slice(0, 10));
   });
 });

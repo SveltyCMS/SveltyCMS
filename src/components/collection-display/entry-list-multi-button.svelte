@@ -25,7 +25,7 @@
 	import Button from '@components/ui/button.svelte';
 	// Components
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
-	import { StatusTypes } from '@src/content/types';
+	import { StatusTypes } from '@src/content/status';
 	import {
 		button_delete,
 		button_loading,
@@ -48,6 +48,7 @@
 	import { onDestroy, onMount } from 'svelte';
 	import { quintOut } from 'svelte/easing';
 	import { scale } from 'svelte/transition';
+	import { nowISODateString } from '@utils/date';
 
 	// --- Types ---
 	type ActionType =
@@ -485,7 +486,7 @@
 					if (exportSelection) await exportSelection();
 					break;
 				case 'schedule': {
-					const now = new Date().toISOString();
+					const now = nowISODateString();
 					schedule(now, 'publish');
 					break;
 				}

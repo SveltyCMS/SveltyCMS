@@ -23,8 +23,9 @@ import type { NumberFieldPlan } from "@src/content/content-utils";
 import type { ConditionExpression } from "@src/widgets/desugar-field";
 import { widgetRegistryService } from "@src/services/core/widget-registry-service";
 import { AppError } from "@utils/error-handling";
-import { fieldDeclaresGuard } from "@utils/field-guard";
+import { fieldDeclaresGuardDeep, collectGuardedFieldPaths } from "@utils/field-guard";
 import type { contentSystem as serverContentSystem } from "@src/content/index.server";
+import { logger } from "@utils/logger";
 
 export type ContentSystem = typeof serverContentSystem;
 
@@ -277,9 +278,13 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
       const name = String(f.name || dbName || "unknown");
       if (key) requiredFields.push({ name, key, showIf });
     }
-    if (fieldDeclaresGuard(f)) {
+    if (fieldDeclaresGuardDeep(f)) {
       hasGuardedFields = true;
-      if (dbName) guardedFieldNames.push(dbName);
+      // Include dotted child paths (`team.salary`) so filter blocking covers the
+      // same fields redaction has to hide.
+      for (const guardedPath of collectGuardedFieldPaths([f as FieldInstance])) {
+        guardedFieldNames.push(guardedPath);
+      }
     }
   }
 
@@ -490,7 +495,9 @@ export function prewarmCollectionSchemas(
           if (dbAdapter.collection?.getModel) {
             void dbAdapter.collection.getModel(s._id).catch(() => {});
           }
-        } catch {}
+        } catch (error) {
+          logger.debug("[schema-store] suppressed error", error);
+        }
       }
     }
   }
@@ -555,7 +562,9 @@ export async function resolveSchema(
         }
       }
     }
-  } catch {}
+  } catch (error) {
+    logger.debug("[schema-store] suppressed error", error);
+  }
 
   const idLower = collectionId.toLowerCase();
   const hasNoFields = !schema?.fields || schema.fields.length === 0;

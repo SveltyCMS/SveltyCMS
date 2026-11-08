@@ -60,7 +60,7 @@ import { contentSystem } from "@src/content/index.server";
 import { AppError } from "@utils/error-handling";
 import { LocalCMS } from "@src/services/sdk";
 import { SQLiteAdapter } from "@src/databases/sqlite/sqlite-adapter";
-import type { Schema } from "@src/content/types";
+import { StatusTypes, type Schema } from "@src/content/types";
 
 const TENANT = "tenant-api-drafts";
 
@@ -285,6 +285,196 @@ describe("collection draft routes", () => {
   });
 });
 
+describe("publish promotion", () => {
+  type PublishCms = {
+    cms: LocalCMS;
+    drafts: { getDraft: ReturnType<typeof vi.fn>; promoteDraft: ReturnType<typeof vi.fn> };
+    collections: { update: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn> };
+  };
+
+  function makePublishCms(
+    options: {
+      draft?: Record<string, unknown> | null;
+      draftLookup?: Record<string, unknown>;
+      promoteResult?: Record<string, unknown>;
+    } = {},
+  ): PublishCms {
+    const drafts = {
+      getDraft: vi
+        .fn()
+        .mockResolvedValue(options.draftLookup ?? { success: true, data: options.draft ?? null }),
+      promoteDraft: vi.fn().mockResolvedValue(
+        options.promoteResult ?? {
+          success: true,
+          data: { _id: "live-1", title: "staged" },
+        },
+      ),
+    };
+    const collections = {
+      update: vi.fn().mockResolvedValue({ success: true, data: { _id: "entry-1", title: "form" } }),
+      create: vi.fn().mockResolvedValue({ success: true, data: { _id: "new-1", title: "form" } }),
+    };
+    return { cms: { drafts, collections } as unknown as LocalCMS, drafts, collections };
+  }
+
+  it("PATCH publish promotes the author's entry draft instead of writing the form", async () => {
+    const { cms, drafts, collections } = makePublishCms({
+      draft: { _id: "draft-1", contentId: "entry-1" },
+    });
+    const event = createMockRequestEvent({
+      method: "PATCH",
+      path: "collections/posts/entry-1?return=representation",
+      body: { title: "form", status: StatusTypes.publish },
+    });
+
+    const response = await callRoute(event, cms, ["collections", "posts", "entry-1"]);
+    expect(response.status).toBe(200);
+    expect((await bodyOf(response)).data).toMatchObject({ _id: "live-1", title: "staged" });
+    expect(drafts.getDraft).toHaveBeenCalledWith("posts", "entry-1", {
+      user: event.locals.user,
+      tenantId: TENANT,
+    });
+    expect(drafts.promoteDraft).toHaveBeenCalledWith(
+      "posts",
+      "draft-1",
+      expect.objectContaining({
+        user: event.locals.user,
+        tenantId: TENANT,
+        status: StatusTypes.publish,
+      }),
+    );
+    // A zero-row UPDATE must surface as a failure (draft survives), which the
+    // adapter's skipReturning fast path cannot detect.
+    expect(drafts.promoteDraft.mock.calls[0]?.[2]).not.toHaveProperty("skipReturning");
+    // One live write: the promotion owns it, the submitted form does not.
+    expect(collections.update).not.toHaveBeenCalled();
+  });
+
+  it("PATCH publish forwards the optimistic-lock token to the promotion", async () => {
+    const { cms, drafts } = makePublishCms({ draft: { _id: "draft-1", contentId: "entry-1" } });
+    const event = createMockRequestEvent({
+      method: "PATCH",
+      path: "collections/posts/entry-1",
+      body: { title: "form", status: StatusTypes.publish },
+      headers: { "if-match": "entry-1-2026-01-01T00:00:00.000Z" },
+    });
+
+    const response = await callRoute(event, cms, ["collections", "posts", "entry-1"]);
+    expect(response.status).toBe(200);
+    expect(drafts.promoteDraft).toHaveBeenCalledWith(
+      "posts",
+      "draft-1",
+      expect.objectContaining({ expectedVersion: "entry-1-2026-01-01T00:00:00.000Z" }),
+    );
+  });
+
+  it("PATCH publish without a draft keeps the historical update path", async () => {
+    const { cms, drafts, collections } = makePublishCms();
+    const event = createMockRequestEvent({
+      method: "PATCH",
+      path: "collections/posts/entry-1",
+      body: { title: "form", status: StatusTypes.publish },
+    });
+
+    const response = await callRoute(event, cms, ["collections", "posts", "entry-1"]);
+    expect(response.status).toBe(200);
+    expect(drafts.getDraft).toHaveBeenCalled();
+    expect(drafts.promoteDraft).not.toHaveBeenCalled();
+    expect(collections.update).toHaveBeenCalledWith(
+      "posts",
+      "entry-1",
+      { title: "form", status: StatusTypes.publish },
+      expect.objectContaining({ tenantId: TENANT, user: event.locals.user }),
+    );
+  });
+
+  it("a non-publish save with a draft present does not promote", async () => {
+    const { cms, drafts, collections } = makePublishCms({
+      draft: { _id: "draft-1", contentId: "entry-1" },
+    });
+    const event = createMockRequestEvent({
+      method: "PATCH",
+      path: "collections/posts/entry-1",
+      body: { title: "form", status: StatusTypes.draft },
+    });
+
+    const response = await callRoute(event, cms, ["collections", "posts", "entry-1"]);
+    expect(response.status).toBe(200);
+    expect(drafts.getDraft).not.toHaveBeenCalled();
+    expect(drafts.promoteDraft).not.toHaveBeenCalled();
+    expect(collections.update).toHaveBeenCalled();
+  });
+
+  it("POST publish promotes the author's new-entry draft instead of creating the form", async () => {
+    const { cms, drafts, collections } = makePublishCms({
+      draft: { _id: "draft-new", contentId: "draft-new" },
+      promoteResult: { success: true, data: { _id: "created-1", title: "staged" } },
+    });
+    const event = createMockRequestEvent({
+      method: "POST",
+      path: "collections/posts?return=representation",
+      body: { title: "form", status: StatusTypes.publish },
+    });
+
+    const response = await callRoute(event, cms, ["collections", "posts"]);
+    expect(response.status).toBe(201);
+    expect((await bodyOf(response)).data).toMatchObject({ _id: "created-1" });
+    expect(drafts.getDraft).toHaveBeenCalledWith("posts", undefined, {
+      user: event.locals.user,
+      tenantId: TENANT,
+    });
+    expect(drafts.promoteDraft).toHaveBeenCalledWith(
+      "posts",
+      "draft-new",
+      expect.objectContaining({
+        user: event.locals.user,
+        tenantId: TENANT,
+        status: StatusTypes.publish,
+      }),
+    );
+    expect(collections.create).not.toHaveBeenCalled();
+  });
+
+  it("POST publish without a new-entry draft keeps the historical create path", async () => {
+    const { cms, drafts, collections } = makePublishCms();
+    const event = createMockRequestEvent({
+      method: "POST",
+      path: "collections/posts",
+      body: { title: "form", status: StatusTypes.publish },
+    });
+
+    const response = await callRoute(event, cms, ["collections", "posts"]);
+    expect(response.status).toBe(201);
+    expect(drafts.promoteDraft).not.toHaveBeenCalled();
+    expect(collections.create).toHaveBeenCalledWith(
+      "posts",
+      { title: "form", status: StatusTypes.publish },
+      expect.objectContaining({ tenantId: TENANT, user: event.locals.user }),
+    );
+  });
+
+  it("fails closed when the draft lookup fails instead of writing over it", async () => {
+    const { cms, drafts, collections } = makePublishCms({
+      draftLookup: {
+        success: false,
+        message: "draft read failed",
+        error: { code: "DRAFT_LOOKUP_FAILED", message: "draft read failed" },
+      },
+    });
+    const event = createMockRequestEvent({
+      method: "PATCH",
+      path: "collections/posts/entry-1",
+      body: { title: "form", status: StatusTypes.publish },
+    });
+
+    const response = await callRoute(event, cms, ["collections", "posts", "entry-1"]);
+    expect(response.status).toBe(400);
+    expect((await bodyOf(response)).success).toBe(false);
+    expect(drafts.promoteDraft).not.toHaveBeenCalled();
+    expect(collections.update).not.toHaveBeenCalled();
+  });
+});
+
 describe("draft endpoint permissions (fail-closed)", () => {
   const draftSegments = ["collections", "posts", "drafts"];
 
@@ -377,7 +567,9 @@ describe("collection draft routes on a real SQLite adapter", () => {
       body: { data: { title: "half typed" } },
     });
     const created = await callRoute(create, cms, ["collections", "drafts_api_contract", "drafts"]);
-    expect(created.status).toBe(201);
+    // Include the response body: a bare status assertion hides which validation /
+    // tenant / table error produced the 400 when another spec runs concurrently.
+    expect(created.status, await created.clone().text()).toBe(201);
     const row = (await bodyOf(created)).data as Record<string, unknown>;
     expect(row.contentId).toBe(row._id);
     expect(row.collectionId).toBe(schema._id);
@@ -438,5 +630,54 @@ describe("collection draft routes on a real SQLite adapter", () => {
     await expect(
       callRoute(event, cms, ["collections", "not-a-collection", "drafts"]),
     ).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("publishes the author's staged draft instead of the submitted form", async () => {
+    const created = await callRoute(
+      createMockRequestEvent({
+        method: "POST",
+        path: "collections/drafts_api_contract",
+        body: { title: "live title", status: "draft" },
+      }),
+      cms,
+      ["collections", "drafts_api_contract"],
+    );
+    expect(created.status, await created.clone().text()).toBe(201);
+    const entryId = String(((await bodyOf(created)).data as Record<string, unknown>)._id);
+
+    const staged = await callRoute(
+      createMockRequestEvent({
+        method: "POST",
+        path: "collections/drafts_api_contract/drafts",
+        body: { entryId, data: { title: "staged title" } },
+      }),
+      cms,
+      ["collections", "drafts_api_contract", "drafts"],
+    );
+    expect(staged.status, await staged.clone().text()).toBe(201);
+
+    const published = await callRoute(
+      createMockRequestEvent({
+        method: "PATCH",
+        path: `collections/drafts_api_contract/${entryId}`,
+        body: { title: "form title", status: "publish" },
+      }),
+      cms,
+      ["collections", "drafts_api_contract", entryId],
+    );
+    expect(published.status, await published.clone().text()).toBe(200);
+    expect((await bodyOf(published)).success).toBe(true);
+
+    const live = await adapter.crud.findOne("drafts_api_contract", { _id: entryId } as never, {
+      tenantId: TENANT as never,
+    });
+    const liveRow = (live.success ? live.data : null) as Record<string, unknown> | null;
+    expect(liveRow?.title).toBe("staged title");
+    expect(liveRow?.status).toBe("publish");
+
+    const remaining = await adapter.content.drafts.getLatestForContent(entryId as never, {
+      tenantId: TENANT as never,
+    });
+    expect(remaining.success ? remaining.data : "read failed").toBeNull();
   });
 });

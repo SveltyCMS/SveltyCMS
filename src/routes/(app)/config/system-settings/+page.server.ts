@@ -21,7 +21,7 @@ import { error, isHttpError } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
 import { rethrow } from "@utils/error-handling";
-import { getSettingGroupsByRole } from "./settings-groups";
+import { getSettingGroupsByRole } from "@src/services/system/settings-groups.server";
 import { hasEmptyConfigFields } from "./settings-utils";
 import type { PageServerLoad } from "./$types";
 
@@ -103,9 +103,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
     const requestedGroupId = url.searchParams.get("group");
     const effectiveGroupId = requestedGroupId ?? groups[0]?.id ?? null;
-    const hasGroup = effectiveGroupId
-      ? groups.some((group) => group.id === effectiveGroupId)
-      : false;
+    const activeGroupIdx = effectiveGroupId
+      ? groups.findIndex((group) => group.id === effectiveGroupId)
+      : -1;
+    const hasGroup = activeGroupIdx >= 0;
 
     const groupsNeedingConfig = groups
       .filter((group) => hasEmptyConfigFields(group.fields, valuesByGroup[group.id] ?? {}))
@@ -119,6 +120,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         ...rest,
       },
       isAdmin: isAdminUser,
+      // Only the active group's descriptor crosses the wire: the navigator uses
+      // the static summaries in `settings-groups.meta.ts`, and shipping the whole
+      // catalog would serialize the ~400-entry timezone option list on every load.
+      activeGroup: hasGroup ? groups[activeGroupIdx] : null,
       activeGroupValues:
         hasGroup && effectiveGroupId ? (valuesByGroup[effectiveGroupId] ?? {}) : null,
       groupsNeedingConfig,

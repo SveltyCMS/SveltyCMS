@@ -342,6 +342,30 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+      # The release bump is an ordinary commit on main; without this back-merge,
+      # next keeps the pre-release version forever. That makes every next
+      # checkout report an outdated version in the admin badge and leaves local
+      # `version:bump` runs deriving from a tag next cannot reach.
+      - name: Back-merge main into next
+        id: back-merge
+        if: steps.version.outputs.skip != 'true' && steps.bump.outputs.pushed != 'false'
+        continue-on-error: true
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin main next
+          git checkout -B next origin/next
+          if git merge --no-edit origin/main; then
+            if git push origin HEAD:next; then
+              echo "✅ back-merged main into next (v${{ steps.version.outputs.value }})"
+            else
+              echo "::warning title=next not updated::The release succeeded, but GitHub Actions may not push to next (required-PR rule). Merge main into next manually so it carries v${{ steps.version.outputs.value }}."
+            fi
+          else
+            git merge --abort
+            echo "::warning title=next not updated::main could not be merged into next cleanly. Resolve it manually so next carries v${{ steps.version.outputs.value }}."
+          fi
+
       - name: Release summary
         if: always()
         env:

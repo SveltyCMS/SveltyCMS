@@ -24,7 +24,6 @@ import { getHardwareProfile } from "@utils/hardware-profile";
 import { PROFILE_WRITE_ENABLED, profileMark } from "@utils/write-profiler";
 import {
   SqlAdapterCore,
-  RAW_DECLINED,
   type ListIndexRequest,
   type RawFindResult,
   type RawPointWireStreamResult,
@@ -39,17 +38,15 @@ import type {
   DatabaseResult,
   DatabaseId,
 } from "../db-interface";
+import { provisionPostgresTable } from "./schema-sync";
 import {
-  isSystemTable,
-  shouldMaterializeField,
-  buildCompositeIndexColumns,
-} from "../core/drizzle-sql-helpers";
-import {
-  applyDeclaredFieldRenames,
-  hasDeclaredFieldRename,
-  materializedSqlType,
-} from "@src/databases/core/collection-module";
-import { eq, getTableColumns, getTableName } from "drizzle-orm";
+  bindPgParam,
+  executePostgresBatchUpdateValues,
+  executePostgresSingleUpdate,
+  resolveUpdateProjection,
+} from "./update-templates";
+import { getPostgresTenantPool, setPostgresTenantPool } from "./tenant-pool";
+import { eq, getTableName } from "drizzle-orm";
 // Namespace import on purpose: the whole module is exposed as `adapter.schema` (public surface).
 // Not dead — removing it breaks adapter construction (verified 2026-09-27).
 import * as schema from "./schema";
@@ -64,101 +61,20 @@ import {
   buildRawTenantClause,
   convertArrayDatesToISO,
   convertDatesToISO,
-  getEffectiveTenantId,
-  normalizePgTimestampText,
   registerTableSchema,
 } from "../core/relational-utils";
-import { normalizeCollectionTableName } from "../core/collection-name";
 import { generateUUID } from "@src/utils/native-utils";
 import { NetworkDbQueueGate } from "../core/network-db-queue-gate";
 import { TenantPoolManager } from "../sql/tenant-pool-manager";
-import { PG_STATEMENT_WARMUP_ENV, IMPOSSIBLE_ID } from "./statement-warmup";
+import { PG_STATEMENT_WARMUP_ENV } from "./statement-warmup";
 
-/**
- * Keep date/timestamp as ISO text. postgres.js default-parses timestamptz to
- * Date; convertDatesToISO then allocates another string. Normalizing PG wire
- * strings ("YYYY-MM-DD HH:mm:ss.sss+00") directly to ISO 8601 at driver parse
- * time avoids Date/regex allocations and lets `convertDatesToISO` take its
- * zero-work fast path on PostgreSQL reads and writes.
- */
-const PG_TEXT_DATE_TYPES = {
-  date: {
-    to: 1184,
-    from: [1082, 1114, 1184],
-    serialize: (x: unknown) => x,
-    parse: normalizePgTimestampText,
-  },
-};
-
-/** VALUES-join UPDATE template size buckets — stable SQL text per bucket. */
-const UPDATE_BATCH_SIZE_BUCKETS = [2, 4, 8, 16];
-/** Largest single chunk executed per multi-row UPDATE statement. */
-const MAX_UPDATE_BATCH_SIZE = UPDATE_BATCH_SIZE_BUCKETS[UPDATE_BATCH_SIZE_BUCKETS.length - 1];
-
-/**
- * Idle reclaim for every postgres.js pool (shared, replica, dedicated tenant).
- *
- * `DATABASE_IDLE_TIMEOUT` is documented in `Dockerfile` / `docker-compose.example.yml`
- * ("0 keeps the pool permanently warm") but was never read — the shared pool hardcoded
- * 30 s and replica/tenant pools left the driver default, so the documented setting was
- * silently ignored. `0` disables the reclaim; non-finite or negative values fall back to
- * 30 s.
- */
-function pgIdleTimeout(override?: unknown): number {
-  const raw = Number(override ?? process.env.DATABASE_IDLE_TIMEOUT ?? 30);
-  return Number.isFinite(raw) && raw >= 0 ? raw : 30;
-}
-
-/**
- * Resolves connection-level PostgreSQL parameters (GUC settings sent at startup).
- *
- * Supports documented tuning knobs:
- * - `PG_SYNCHRONOUS_COMMIT` / `DATABASE_SYNCHRONOUS_COMMIT` (e.g. "off" or "local"
- *   for benchmark & high-throughput local dev, bypassing per-transaction fdatasync)
- * - `PG_WORK_MEM` / `DATABASE_WORK_MEM` (e.g. "32MB" preventing temp disk spill)
- * - `PG_JIT` / `DATABASE_JIT` (defaults to "off" for fast OLTP point reads & updates)
- */
-export function pgConnectionParameters(
-  override?: Record<string, unknown>,
-): Record<string, string | number | boolean | undefined> {
-  const sync =
-    process.env.PG_SYNCHRONOUS_COMMIT ||
-    process.env.DATABASE_SYNCHRONOUS_COMMIT ||
-    process.env.POSTGRES_SYNCHRONOUS_COMMIT;
-  const workMem =
-    process.env.PG_WORK_MEM || process.env.DATABASE_WORK_MEM || process.env.POSTGRES_WORK_MEM;
-  const jit = process.env.PG_JIT || process.env.DATABASE_JIT || process.env.POSTGRES_JIT || "off";
-
-  return {
-    application_name: "sveltycms",
-    statement_timeout: 30000,
-    ...(jit ? { jit } : {}),
-    ...(sync ? { synchronous_commit: sync } : {}),
-    ...(workMem ? { work_mem: workMem } : {}),
-    ...override,
-  } as Record<string, string | number | boolean | undefined>;
-}
-
-/** Ensure an index name does not exceed PostgreSQL's NAMEDATALEN (63 characters). */
-export function pgSafeIndexName(name: string): string {
-  if (name.length <= 63) return name;
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
-  }
-  const suffix = `_${hash.toString(16).padStart(8, "0")}`;
-  return `${name.slice(0, 63 - suffix.length)}${suffix}`;
-}
-
-/** Bind a JS value for postgres.js prepared params. Objects/arrays become JSON text so the driver does not emit PG array literals. */
-function bindPgParam(v: unknown, asJson: boolean): unknown {
-  if (v === undefined) return null;
-  if (asJson) return v === null ? null : typeof v === "string" ? v : JSON.stringify(v);
-  if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") return v;
-  if (v instanceof Date) return v.toISOString();
-  if (v !== null && typeof v === "object") return JSON.stringify(v);
-  return v;
-}
+import {
+  PG_TEXT_DATE_TYPES,
+  pgConnectionParameters,
+  pgIdleTimeout,
+  pgSafeIndexName,
+} from "./postgres-utils";
+export { PG_TEXT_DATE_TYPES, pgConnectionParameters, pgIdleTimeout, pgSafeIndexName };
 
 export abstract class PostgresAdapterCore extends SqlAdapterCore {
   public type = "postgresql";
@@ -191,6 +107,14 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     return this._db;
   }
 
+  public static resolveUpdateProjection(
+    table: any,
+    fields: string[],
+    getColumn: (t: any, name: string) => { name: string } | undefined,
+  ): string[] {
+    return resolveUpdateProjection(table, fields, getColumn);
+  }
+
   protected _db: PostgresJsDatabase<typeof schema> | null = null;
   protected _readDb: PostgresJsDatabase<typeof schema> | null = null;
   private replicaSqls = new Map<string, ReturnType<typeof postgres>>();
@@ -220,16 +144,16 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   // --------------------------------------------------------------------------
 
   /** postgres.js binds timestamptz as ISO text — skip ISO→Date→ISO. */
-  protected get persistTimestampsAsDate(): boolean {
+  public get persistTimestampsAsDate(): boolean {
     return false;
   }
 
   /** PostgreSQL supports RETURNING on INSERT and UPDATE. */
-  protected get insertReturnsRows(): boolean {
+  public get insertReturnsRows(): boolean {
     return true;
   }
 
-  protected get updateReturnsRows(): boolean {
+  public get updateReturnsRows(): boolean {
     return true;
   }
 
@@ -301,13 +225,21 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       const sqlText = `INSERT INTO "${safeTableName}" (${colList}) VALUES (${placeholders.join(", ")})`;
       const unnestSqlText = `INSERT INTO "${safeTableName}" (${colList}) SELECT ${selectCols} FROM UNNEST(${unnestPlaceholders}) AS u(${uAliasCols})`;
       tpl = { synthCols, sqlText, unnestSqlText, isJsonMap };
+      this.evictIfFull(this._insertTemplateCache);
       this._insertTemplateCache.set(key, tpl);
-      if (this._insertTemplateCache.size >= 256) {
-        const oldest = this._insertTemplateCache.keys().next().value;
-        if (oldest !== undefined) this._insertTemplateCache.delete(oldest);
-      }
     }
     return tpl;
+  }
+
+  /**
+   * Clear all cached prepared statements and templates (call after any DDL
+   * that changes table shape: createModel, clearDatabase, migrations).
+   */
+  public override clearStatementCaches(): void {
+    super.clearStatementCaches();
+    this._insertTemplateCache.clear();
+    this._updateValuesTemplateCache.clear();
+    this._updateTemplateCache.clear();
   }
 
   protected async rawInsertReturning<T extends import("../db-interface").BaseEntity>(
@@ -455,174 +387,10 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
    * (guaranteed by the coalescer's group key). Returns null to decline — the
    * caller replays every row through its single-statement path.
    */
-  protected override async rawUpdateManyReturning<T extends import("../db-interface").BaseEntity>(
-    table: any,
-    collection: string,
-    batch: Array<{ id: DatabaseId; values: Record<string, any>; options: BaseQueryOptions }>,
-  ): Promise<T[] | null> {
-    const len = batch.length;
-    if (len === 0) return [];
-    const options = batch[0].options;
-    const txnSql = this.getTxnSql(options);
-    if (options?.transaction && !txnSql) return null;
-    const exec = txnSql ?? this.sql!;
-    try {
-      const tableName = getTableName(table);
-      const idColName = this.getColumn(table, "_id")?.name ?? "_id";
-
-      // Column signature: SET columns from the first row (all rows share it).
-      const columns = Object.keys(batch[0].values).filter(
-        (c) => c !== idColName && c !== "id" && c !== "tenantId",
-      );
-      if (columns.length === 0) return null;
-
-      const tenant = getEffectiveTenantId(options);
-      const hasTenant = tenant !== undefined && tenant !== null;
-      const skipReturning = (options as any)?.skipReturning === true;
-      const templates = this.getUpdateValuesTemplates(
-        table,
-        tableName,
-        idColName,
-        columns,
-        hasTenant,
-        skipReturning,
-      );
-
-      // text binding: every cell coerced to text (objects → JSON) so the
-      // ::text-typed VALUES cells parse deterministically for every column cast.
-      const toText = (val: unknown): string | null => {
-        if (val === null || val === undefined) return null;
-        if (typeof val === "object") return JSON.stringify(val);
-        return String(val);
-      };
-
-      const results: T[] = [];
-      for (let offset = 0; offset < len; offset += MAX_UPDATE_BATCH_SIZE) {
-        const chunk = batch.slice(offset, offset + MAX_UPDATE_BATCH_SIZE);
-        const tpl = templates.find((t) => t.size >= chunk.length);
-        if (!tpl) return null;
-
-        // Flat parameter list: real rows first, then sentinel padding rows.
-        const params: (string | null)[] = [];
-        for (let r = 0; r < tpl.size; r++) {
-          const row = r < chunk.length ? chunk[r] : null;
-          for (const col of columns) params.push(row ? toText(row.values[col]) : null);
-          params.push(row ? String(row.id) : IMPOSSIBLE_ID);
-          if (hasTenant) {
-            params.push(row ? toText(getEffectiveTenantId(row.options)) : IMPOSSIBLE_ID);
-          }
-        }
-
-        if (skipReturning) {
-          await exec.unsafe(tpl.sqlText, params, { prepare: true });
-          // Parity with the single skipReturning path: reconstruct from memory.
-          for (const row of chunk) {
-            results.push(
-              convertDatesToISO(
-                { ...row.values, [idColName]: row.id },
-                { ...this.convertDatesOptions, table: collection },
-              ) as unknown as T,
-            );
-          }
-          continue;
-        }
-
-        const rows = await exec.unsafe(tpl.sqlText, params, { prepare: true });
-        // Map rows back to callers in input order; any missing row (concurrently
-        // deleted) declines the whole batch so each caller replays its own path.
-        const byId = new Map<string, Record<string, any>>();
-        for (const row of rows as Record<string, any>[]) {
-          byId.set(String(row[idColName] ?? row._id), row);
-        }
-        for (const entry of chunk) {
-          const found = byId.get(String(entry.id));
-          if (!found) return null;
-          results.push(
-            convertDatesToISO(found, {
-              ...this.convertDatesOptions,
-              table: collection,
-            }) as unknown as T,
-          );
-        }
-      }
-      return results;
-    } catch (err) {
-      logger.debug(`[PostgreSQL] rawUpdateManyReturning error for ${collection}:`, err);
-      return null;
-    }
-  }
-
-  /** Per-column cast expression for a VALUES-join UPDATE cell. */
-  private pgUpdateCastExpr(table: any, col: string, i: number): string {
-    const phys = this.getColumn(table, col);
-    const isJson = col === "data" || String((phys as any)?.columnType).includes("Json");
-    if (isJson) return `u.c${i}::jsonb`;
-    if (phys?.dataType === "date" || String((phys as any)?.columnType).includes("Timestamp")) {
-      return `u.c${i}::timestamptz`;
-    }
-    if (phys?.dataType === "boolean") return `u.c${i}::boolean`;
-    if (phys?.dataType === "number" || String((phys as any)?.columnType).includes("Int")) {
-      return `u.c${i}::numeric`;
-    }
-    return `u.c${i}`;
-  }
-
-  private _updateValuesTemplateCache = new Map<string, Array<{ size: number; sqlText: string }>>();
-
-  /**
-   * Pre-compiled per-size-bucket VALUES-join UPDATE templates. Stable SQL text
-   * per (table, columns, tenant shape, returning mode, size) — prepared-cache
-   * friendly, and the planner sees the exact VALUES cardinality.
-   */
-  private getUpdateValuesTemplates(
-    table: any,
-    tableName: string,
-    idColName: string,
-    columns: string[],
-    hasTenant: boolean,
-    skipReturning: boolean,
-  ): Array<{ size: number; sqlText: string }> {
-    const key = `${tableName}\u0000${columns.join(",")}\u0000${hasTenant ? 1 : 0}\u0000${skipReturning ? 1 : 0}`;
-    const cached = this._updateValuesTemplateCache.get(key);
-    if (cached) return cached;
-
-    const safeTableName = assertSafeSqlIdentifier(tableName, "table");
-    const safeIdCol = assertSafeSqlIdentifier(idColName, "column");
-    const setClauses = columns.map((col, i) => {
-      const phys = this.getColumn(table, col);
-      const physical = phys?.name ?? col;
-      return `"${assertSafeSqlIdentifier(physical, "column")}" = ${this.pgUpdateCastExpr(table, col, i)}`;
-    });
-    const aliasCols = [
-      ...columns.map((_, i) => `c${i}`),
-      "_id",
-      ...(hasTenant ? ["_tenantId"] : []),
-    ].join(", ");
-    const where = hasTenant
-      ? `t."${safeIdCol}" = u._id AND t."tenantId" = u._tenantId`
-      : `t."${safeIdCol}" = u._id`;
-
-    const templates = UPDATE_BATCH_SIZE_BUCKETS.map((size) => {
-      const rowsSql: string[] = [];
-      let p = 0;
-      for (let r = 0; r < size; r++) {
-        const cells: string[] = [];
-        for (let c = 0; c < columns.length; c++) cells.push(`$${++p}::text`);
-        cells.push(`$${++p}::text`);
-        if (hasTenant) cells.push(`$${++p}::text`);
-        rowsSql.push(`(${cells.join(", ")})`);
-      }
-      const sqlText = `UPDATE "${safeTableName}" AS t SET ${setClauses.join(", ")} FROM (VALUES ${rowsSql.join(", ")}) AS u(${aliasCols}) WHERE ${where}${skipReturning ? "" : " RETURNING t.*"}`;
-      return { size, sqlText };
-    });
-    this._updateValuesTemplateCache.set(key, templates);
-    if (this._updateValuesTemplateCache.size >= 256) {
-      const oldest = this._updateValuesTemplateCache.keys().next().value;
-      if (oldest !== undefined) this._updateValuesTemplateCache.delete(oldest);
-    }
-    return templates;
-  }
-
+  protected _updateValuesTemplateCache = new Map<
+    string,
+    Array<{ size: number; sqlText: string }>
+  >();
   protected _updateTemplateCache = new Map<
     string,
     {
@@ -633,123 +401,26 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     }
   >();
 
-  /**
-   * Resolve a caller's `?fields=` update projection to physical column names.
-   * Unresolvable names (dynamic blob fields that only exist inside `data`) are
-   * dropped so they can never render a non-existent column; an empty result
-   * means "no valid projection — return the full representation".
-   */
-  static resolveUpdateProjection(
+  protected override async rawUpdateManyReturning<T extends import("../db-interface").BaseEntity>(
     table: any,
-    fields: string[],
-    getColumn: (t: any, name: string) => { name: string } | undefined,
-  ): string[] {
-    const resolved: string[] = [];
-    const seen = new Set<string>();
-    for (const f of fields) {
-      const phys = getColumn(table, f);
-      if (!phys) continue;
-      const name = phys.name ?? f;
-      if (seen.has(name)) continue;
-      seen.add(name);
-      resolved.push(name);
-    }
-    return resolved;
+    collection: string,
+    batch: Array<{ id: DatabaseId; values: Record<string, any>; options: BaseQueryOptions }>,
+  ): Promise<T[] | null> {
+    return executePostgresBatchUpdateValues(
+      {
+        sql: this.sql,
+        getColumn: (t, n) => this.getColumn(t, n),
+        getTxnSql: (o) => this.getTxnSql(o),
+        convertDatesOptions: this.convertDatesOptions,
+        updateValuesTemplateCache: this._updateValuesTemplateCache,
+        updateTemplateCache: this._updateTemplateCache,
+      },
+      table,
+      collection,
+      batch,
+    );
   }
 
-  private _getUpdateTemplate(
-    table: any,
-    tableName: string,
-    columns: string[],
-    idColName: string,
-    tenantSql: string,
-    mergeJsonData: boolean,
-    fields?: string[] | null,
-    skipJson?: boolean,
-  ) {
-    const fieldsKey = fields && fields.length > 0 ? fields.join(",") : skipJson ? "nojson" : "all";
-    const key = `${tableName}:${idColName}:${tenantSql}:${mergeJsonData ? "m" : "r"}:${columns.join(",")}:${fieldsKey}`;
-    let tpl = this._updateTemplateCache.get(key);
-    if (!tpl) {
-      const isJsonMap: boolean[] = [];
-      const setPairs: string[] = [];
-      for (let i = 0; i < columns.length; i++) {
-        const col = columns[i];
-        const phys = this.getColumn(table, col);
-        const physName = phys?.name ?? col;
-        const safeCol = assertSafeSqlIdentifier(physName, "column");
-        const isJson = physName === "data" || (phys as any)?.dataType === "json";
-        isJsonMap[i] = isJson;
-        // `||` is a SHALLOW, null-keeping merge — exactly MongoDB's per-field `$set`
-        // semantics, so a partial PATCH keeps every field it did not mention.
-        // `COALESCE` covers rows whose `data` was never written (NULL).
-        setPairs.push(
-          isJson && mergeJsonData
-            ? `"${safeCol}" = COALESCE("${safeCol}", '{}'::jsonb) || $${i + 1}::jsonb`
-            : isJson
-              ? `"${safeCol}" = $${i + 1}::jsonb`
-              : `"${safeCol}" = $${i + 1}`,
-        );
-      }
-      const idIdx = columns.length + 1;
-      const safeIdCol = assertSafeSqlIdentifier(idColName, "column");
-      const safeTable = assertSafeSqlIdentifier(tableName, "table");
-      const setSql = setPairs.join(", ");
-      const whereSql = `"${safeIdCol}" = $${idIdx}${tenantSql}`;
-      let returningClause = "*";
-      if (fields && fields.length > 0) {
-        // Resolve each requested field to a PHYSICAL column; unresolvable
-        // names (dynamic blob fields that only exist inside `data`) are
-        // dropped so they can never render a non-existent "column". An empty
-        // projection after resolution falls back to `*` (full representation).
-        const resolved = PostgresAdapterCore.resolveUpdateProjection(table, fields, (t, f) =>
-          this.getColumn(t, f),
-        );
-        if (resolved.length > 0) {
-          // If the caller requested a mix of physical and dynamic (JSONB) fields,
-          // include the physical `data` column so dynamic fields are hydrated.
-          const hasUnresolvedDynamic = fields.some((f) => !this.getColumn(table, f));
-          if (hasUnresolvedDynamic && !resolved.includes("data") && this.getColumn(table, "data")) {
-            resolved.push("data");
-          }
-          returningClause = resolved
-            .map((c) => `"${assertSafeSqlIdentifier(c, "column")}"`)
-            .join(", ");
-        }
-      } else if (skipJson) {
-        const physCols = getTableColumns(table);
-        const nonJsonCols = Object.keys(physCols).filter((c) => {
-          const colObj = physCols[c];
-          return (colObj?.name ?? c) !== "data" && (colObj as any)?.dataType !== "json";
-        });
-        if (nonJsonCols.length > 0) {
-          returningClause = nonJsonCols
-            .map((c) => `"${assertSafeSqlIdentifier(physCols[c]?.name ?? c, "column")}"`)
-            .join(", ");
-        }
-      }
-      const sqlWithReturning = `UPDATE "${safeTable}" SET ${setSql} WHERE ${whereSql} RETURNING ${returningClause}`;
-      const sqlSkipReturning = `UPDATE "${safeTable}" SET ${setSql} WHERE ${whereSql}`;
-      tpl = {
-        columns,
-        isJsonMap,
-        sqlWithReturning,
-        sqlSkipReturning,
-      };
-      this._updateTemplateCache.set(key, tpl);
-      if (this._updateTemplateCache.size >= 256) {
-        const oldest = this._updateTemplateCache.keys().next().value;
-        if (oldest !== undefined) this._updateTemplateCache.delete(oldest);
-      }
-    }
-    return tpl;
-  }
-
-  /**
-   * Raw prepared-SQL UPDATE…RETURNING fast path for PostgreSQL:
-   * Uses a single prepared statement with parameter binding instead of Drizzle's
-   * per-call AST build + SQL compilation on the hot write path.
-   */
   protected override async rawUpdateReturning<T extends import("../db-interface").BaseEntity>(
     table: any,
     collection: string,
@@ -758,66 +429,22 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     id: DatabaseId,
     options: BaseQueryOptions,
   ): Promise<RawFindResult<T>> {
-    const txnSql = this.getTxnSql(options);
-    if (options?.transaction && !txnSql) return RAW_DECLINED;
-    const exec = txnSql ?? this.sql!;
-    if (!exec) return RAW_DECLINED;
-    try {
-      const columns = Object.keys(values);
-      if (columns.length === 0) return RAW_DECLINED;
-
-      const tableName = getTableName(table);
-      const idColName = idCol?.name || "_id";
-      const tenantClause = buildRawTenantClause(options, "postgres", {
-        paramIndex: columns.length + 2,
-      });
-
-      const fieldsOpt = (options as BaseQueryOptions & { fields?: string[] }).fields;
-      const fields = Array.isArray(fieldsOpt) && fieldsOpt.length > 0 ? fieldsOpt : null;
-      const skipJson = options?.skipJson === true;
-
-      const tpl = this._getUpdateTemplate(
-        table,
-        tableName,
-        columns,
-        idColName,
-        tenantClause.sql,
-        getJsonDataPatch(values) !== undefined,
-        fields,
-        skipJson,
-      );
-      const boundValues: unknown[] = [];
-
-      for (let i = 0; i < columns.length; i++) {
-        boundValues.push(bindPgParam(values[columns[i]], tpl.isJsonMap[i]));
-      }
-      boundValues.push(String(id), ...tenantClause.params);
-
-      const skipReturning = (options as any)?.skipReturning === true;
-
-      if (skipReturning) {
-        const mStmt = PROFILE_WRITE_ENABLED ? profileMark("db:upd:stmt") : null;
-        await exec.unsafe(tpl.sqlSkipReturning, boundValues, { prepare: true });
-        mStmt?.();
-        return { [idColName]: id } as unknown as T;
-      }
-
-      const mStmt = PROFILE_WRITE_ENABLED ? profileMark("db:upd:stmt") : null;
-      const rows = await exec.unsafe(tpl.sqlWithReturning, boundValues, { prepare: true });
-      mStmt?.();
-      if (Array.isArray(rows) && rows.length > 0) {
-        return convertDatesToISO(rows[0], {
-          ...this.convertDatesOptions,
-          table: collection,
-          inPlace: true,
-        }) as T;
-      }
-      return null;
-    } catch (err: any) {
-      if (err?.code === "23505") throw err;
-      logger.debug(`[PostgreSQL] rawUpdateReturning fallback for ${collection}:`, err);
-      return RAW_DECLINED;
-    }
+    return executePostgresSingleUpdate(
+      {
+        sql: this.sql,
+        getColumn: (t, n) => this.getColumn(t, n),
+        getTxnSql: (o) => this.getTxnSql(o),
+        convertDatesOptions: this.convertDatesOptions,
+        updateValuesTemplateCache: this._updateValuesTemplateCache,
+        updateTemplateCache: this._updateTemplateCache,
+      },
+      table,
+      collection,
+      values,
+      idCol,
+      id,
+      options,
+    );
   }
 
   // --------------------------------------------------------------------------
@@ -831,7 +458,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
    * fallback would otherwise `SET "data" = <patch>`. Keeping the fallback a merge
    * means no path can silently replace the blob.
    */
-  protected override async readJsonDataColumn(
+  public override async readJsonDataColumn(
     table: any,
     id: DatabaseId,
     options: BaseQueryOptions,
@@ -860,126 +487,29 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     }
   }
 
-  protected override get useRawFindById(): boolean {
-    return true;
+  protected override async rawExec<R = Record<string, unknown>>(
+    sqlText: string,
+    params: readonly unknown[],
+    options?: BaseQueryOptions,
+  ): Promise<R[] | null> {
+    const txnSql = options ? this.getTxnSql(options) : null;
+    if (options?.transaction && !txnSql) return null;
+    const exec = txnSql ?? this.sql;
+    if (!exec) return null;
+    const rows = await exec.unsafe(sqlText, [...params], { prepare: true });
+    return Array.isArray(rows) ? (rows as R[]) : [];
   }
-
-  private _rawFindByIdSqlCache = new WeakMap<
-    any,
-    {
-      withData: string;
-      withoutData: string;
-      withDataTenant: string;
-      withoutDataTenant: string;
-      withDataNull: string;
-      withoutDataNull: string;
-    }
-  >();
 
   /** Cache for Direct-to-Wire SQL JSON statements (2027 architecture). */
   /** Engine for Direct-to-Wire SQL JSON stream queries. */
   private _wireStreamEngine = new PostgresWireStreamEngine();
-
-  protected override async rawFindById<T extends import("../db-interface").BaseEntity>(
-    table: any,
-    collection: string,
-    id: DatabaseId,
-    options: import("../db-interface").FindOptions<T>,
-  ): Promise<RawFindResult<T>> {
-    const txnSql = this.getTxnSql(options);
-    if (options?.transaction && !txnSql) return RAW_DECLINED;
-    const exec = txnSql ?? this.sql!;
-    if (!exec) return RAW_DECLINED;
-
-    try {
-      // Read-path schema registration: raw reads must normalize timestamps to
-      // ISODateString even on read-only workloads (parity with SQLite/MariaDB).
-      if (!this._registeredSchemas.has(collection)) {
-        this.ensureTableSchemaRegistered(table, collection);
-        this._registeredSchemas.add(collection);
-      }
-      const tableName = getTableName(table);
-      const fields = options?.fields;
-      const wantsData =
-        !Array.isArray(fields) ||
-        fields.length === 0 ||
-        fields.some((f) => {
-          if (f === "data") return true;
-          if (
-            f === "_id" ||
-            f === "id" ||
-            f === "tenantId" ||
-            f === "status" ||
-            f === "createdAt" ||
-            f === "updatedAt" ||
-            f === "isDeleted"
-          )
-            return false;
-          return !this.getColumn(table, String(f));
-        });
-
-      let cachedSql = this._rawFindByIdSqlCache.get(table);
-      if (!cachedSql) {
-        const safeTable = `"${assertSafeSqlIdentifier(tableName, "table")}"`;
-        const selectWithData = this.getRawFindByIdCols(table, true)
-          .map((c) => `"${assertSafeSqlIdentifier(c, "column")}"`)
-          .join(", ");
-        const selectWithoutData = this.getRawFindByIdCols(table, false)
-          .map((c) => `"${assertSafeSqlIdentifier(c, "column")}"`)
-          .join(", ");
-
-        cachedSql = {
-          withData: `SELECT ${selectWithData} FROM ${safeTable} WHERE "_id" = $1 LIMIT 1`,
-          withoutData: `SELECT ${selectWithoutData} FROM ${safeTable} WHERE "_id" = $1 LIMIT 1`,
-          withDataTenant: `SELECT ${selectWithData} FROM ${safeTable} WHERE "_id" = $1 AND "tenantId" = $2 LIMIT 1`,
-          withoutDataTenant: `SELECT ${selectWithoutData} FROM ${safeTable} WHERE "_id" = $1 AND "tenantId" = $2 LIMIT 1`,
-          withDataNull: `SELECT ${selectWithData} FROM ${safeTable} WHERE "_id" = $1 AND "tenantId" IS NULL LIMIT 1`,
-          withoutDataNull: `SELECT ${selectWithoutData} FROM ${safeTable} WHERE "_id" = $1 AND "tenantId" IS NULL LIMIT 1`,
-        };
-        this._rawFindByIdSqlCache.set(table, cachedSql);
-      }
-
-      // Reuse the shared tenant-clause contract (respects bypass + "global")
-      // so the raw path scopes identically to SQLite/MariaDB and the Drizzle
-      // fallback below. Distinguish a real tenant (param present) from the
-      // canonical global scope (IS NULL, no param).
-      const tenantClause = buildRawTenantClause(options, "postgres", { paramIndex: 2 });
-      const hasTenantParam = tenantClause.params.length > 0;
-      const hasTenantClause = tenantClause.sql !== "";
-
-      const sqlText = hasTenantClause
-        ? hasTenantParam
-          ? wantsData
-            ? cachedSql.withDataTenant
-            : cachedSql.withoutDataTenant
-          : wantsData
-            ? cachedSql.withDataNull
-            : cachedSql.withoutDataNull
-        : wantsData
-          ? cachedSql.withData
-          : cachedSql.withoutData;
-
-      const params = [String(id), ...tenantClause.params];
-      const rows = await exec.unsafe(sqlText, params, { prepare: true });
-      if (!Array.isArray(rows) || rows.length === 0) return null;
-
-      return convertDatesToISO(rows[0], {
-        ...this.convertDatesOptions,
-        table: collection,
-        skipJson: !wantsData,
-      }) as unknown as T;
-    } catch {
-      // Declined (SQL error) — the caller may fall back to Drizzle.
-      return RAW_DECLINED;
-    }
-  }
 
   /**
    * Direct-to-Wire point stream optimization for PostgreSQL (2027 architecture):
    * Generates { success: true, data: { ... } } directly inside PostgreSQL
    * via jsonb_build_object, completely bypassing V8 JS object hydration and JSON.stringify.
    */
-  protected override async rawFindPointWireStream(
+  public override async rawFindPointWireStream(
     table: any,
     _collection: string,
     id: DatabaseId,
@@ -1559,7 +1089,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
    * so a JSON `null` stays a *value* — binding a JS `null` directly would send
    * SQL NULL and null the entire column.
    */
-  protected override jsonKeyPatchExpression(
+  public override jsonKeyPatchExpression(
     colSql: string,
     entries: ReadonlyArray<readonly [string, string]>,
   ): SQL {
@@ -1741,7 +1271,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
    * is already typed and MariaDB coerces text in numeric aggregates, so both keep
    * the plain extraction.
    */
-  protected override getJsonNumericField(field: string): SQL {
+  public override getJsonNumericField(field: string): SQL {
     return drizzleSql`CAST(${this.getJsonField(field)} AS numeric)`;
   }
 
@@ -1761,7 +1291,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
    * A materialized column (declared `indexed` / `materialize: true`) is ordered by
    * the engine in its native column type and is the supported path.
    */
-  protected override getJsonOrderedField(_field: string): SQL | null {
+  public override getJsonOrderedField(_field: string): SQL | null {
     return null;
   }
 
@@ -1816,64 +1346,6 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     // data->> returns text; bind scalars as text so `text = boolean/numeric`
     // never throws and JSON-stored booleans/numbers actually match.
     return typeof val === "boolean" || typeof val === "number" ? String(val) : val;
-  }
-
-  public getTable(collection: string): any {
-    if (typeof collection !== "string") return null;
-
-    const cached = this.tableRegistry.get(collection);
-    if (cached) return cached;
-
-    if (this._resolving.has(collection)) {
-      logger.error(`Infinite recursion detected in getTable for: ${collection}`);
-      return null;
-    }
-    this._resolving.add(collection);
-
-    try {
-      if (isSystemTable(collection)) {
-        const aliased = this.getAliasedTable(collection);
-        if (aliased) {
-          this.tableRegistry.set(collection, aliased);
-          return aliased;
-        }
-      }
-
-      const cleanId = collection.replace(/-/g, "");
-      // 🛡️ Identifier allow-list: this name is embedded in raw SQL identifiers
-      // (rawFindById/insert/insertMany/update/DDL). Dash-stripping alone did
-      // not stop quote breakout from admin-typed collection names — fail
-      // closed BEFORE any SQL is assembled.
-      assertSafeSqlIdentifier(cleanId, "collection");
-      // ⚠️ Composite length guard: the interpolated identifier is
-      // `collection_${cleanId}` (11-char prefix). A bare-label pass alone is
-      // not enough — the composite can exceed NAMEDATALEN=63 and PG would
-      // silently truncate, colliding with a longer sibling name. Fail closed
-      // on the FINAL identifier (normalizeCollectionTableName is the single
-      // source of truth for the physical name derivation).
-      const tableName = assertSafeSqlIdentifier(normalizeCollectionTableName(collection), "table");
-
-      const cleanName = collection.startsWith("collection_") ? collection.slice(11) : collection;
-      if (isSystemTable(cleanName) && cleanName !== collection) {
-        return this.getTable(cleanName);
-      }
-
-      // 🚀 ROW-STORE HYBRID: materialized scalar fields (populated by
-      // createModel) exist in the Drizzle def so filters/sorts/writes use the
-      // column; the `data` blob keeps only dynamic fields. Previously the
-      // physical columns created by createModel were never registered in the
-      // runtime table def — dead columns.
-      const dynamicTable = this.createDynamicTableDefinition(
-        tableName,
-        this.materializedColumns.get(cleanName) ||
-          this.materializedColumns.get(tableName) ||
-          undefined,
-      );
-      this.tableRegistry.set(collection, dynamicTable);
-      return dynamicTable;
-    } finally {
-      this._resolving.delete(collection);
-    }
   }
 
   // --------------------------------------------------------------------------
@@ -2576,382 +2048,23 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     const tableName = schemaData._id || schemaData.id || schemaData.name || schemaData.slug;
     if (!tableName) throw new Error("Schema must have an _id or name");
 
-    const normalizedName = tableName.replace(/-/g, "");
-
     // Register before getTable AND before the DDL fast path. A restarted
     // process can already be "provisioned" (or skip DDL entirely) while its
     // in-memory table def was built without these columns.
     this.rememberMaterializedColumns(schemaData);
 
-    // Declared `renamedFrom` must run even when the table is already provisioned.
-    // Schemas with no rename skip the catalog (hasDeclaredFieldRename is false).
-    if (hasDeclaredFieldRename(schemaData.fields)) {
-      const renameTable = this.getTable(normalizedName);
-      const renamePhysical = getTableName(renameTable as any);
-      await applyDeclaredFieldRenames({
-        dialect: "postgresql",
-        tableKey: `postgresql:${normalizedName}`,
-        physicalName: renamePhysical,
-        fields: schemaData.fields,
-        listColumns: async () => {
-          const names = new Set<string>();
-          try {
-            const plainName = String(renamePhysical).split(".").pop() ?? String(renamePhysical);
-            const cols = await this.raw.execute(
-              `SELECT column_name FROM information_schema.columns WHERE table_name = '${plainName}'`,
-            );
-            if (Array.isArray(cols)) {
-              for (const column of cols) {
-                if (column?.column_name) names.add(String(column.column_name));
-              }
-            }
-          } catch {
-            /* table may not exist yet */
-          }
-          return names;
-        },
-        execute: (sqlText: string, params?: unknown[]) =>
-          this.raw.execute(sqlText, params as any[]),
-      });
-    }
-
-    // 🚀 FAST PATH: skip all DDL for already-provisioned tables.
-    if (!force && this._provisionedTables.has(normalizedName)) return;
-
-    const table = this.getTable(normalizedName);
-    const physicalName = getTableName(table as any);
-
-    await this.wrap(
-      async () => {
-        if (process.env.BENCHMARK_DEBUG === "true") {
-          logger.debug(`[DB Provision] BENCHMARK=${process.env.BENCHMARK || "standalone"}`);
-        }
-
-        const ddl = `CREATE TABLE IF NOT EXISTS "${physicalName}" ("_id" VARCHAR(36) PRIMARY KEY, "tenantId" VARCHAR(36), "status" VARCHAR(255) DEFAULT 'draft', "isDeleted" BOOLEAN DEFAULT FALSE, "deletedAt" TIMESTAMP WITH TIME ZONE, "deletedBy" VARCHAR(36), "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, "data" JSONB);`;
-
-        if (process.env.BENCHMARK_DEBUG === "true") {
-          logger.debug(`[DB Provision] [POSTGRESQL] Executing DDL for ${physicalName}`);
-        }
-        await this.raw.execute(ddl);
-
-        const columns = [
-          { name: "isDeleted", type: "BOOLEAN DEFAULT FALSE" },
-          { name: "deletedAt", type: "TIMESTAMP WITH TIME ZONE" },
-          { name: "deletedBy", type: "VARCHAR(36)" },
-          { name: "status", type: "VARCHAR(255) DEFAULT 'draft'" },
-          { name: "tenantId", type: "VARCHAR(36)" },
-          {
-            name: "createdAt",
-            type: "TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP",
-          },
-          {
-            name: "updatedAt",
-            type: "TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP",
-          },
-          { name: "collection", type: "VARCHAR(255)" },
-          { name: "slug", type: "VARCHAR(255)" },
-          { name: "locale", type: "VARCHAR(50)" },
-          { name: "publishedAt", type: "TIMESTAMP WITH TIME ZONE" },
-        ];
-
-        const dynamicCols = ["collection", "slug", "locale", "publishedAt"];
-        // 🚀 COMPOSITE-INDEX POLICY: the covering `(tenantId, status, col, _id)`
-        // index is provisioned only for declared query targets (indexed fields,
-        // numeric sort columns, the publishedAt base column) — see
-        // `buildCompositeIndexColumns`. Every extra index is maintained on EVERY
-        // write, because `updatedAt` is indexed and rewritten by each update so
-        // HOT is impossible (measured: +11–17 % per extra index on 2k UPDATEs).
-        const compositeCols = buildCompositeIndexColumns(schemaData.fields);
-
-        if (schemaData.fields && Array.isArray(schemaData.fields)) {
-          const materialized = new Map<string, string>();
-          for (const field of schemaData.fields) {
-            // Row-store hybrid: scalar fields become physical columns — the
-            // `data` blob keeps only dynamic fields for new rows.
-            if (shouldMaterializeField(field)) {
-              const fieldName = field.db_fieldName || field.label;
-              if (fieldName) {
-                let colType = "VARCHAR(255)";
-                const exact = materializedSqlType("postgresql", field.type);
-                if (exact) {
-                  colType = exact;
-                } else if (field.type === "boolean") {
-                  colType = "BOOLEAN";
-                } else if (field.type === "number" || field.type === "integer") {
-                  colType = "INTEGER";
-                }
-                const reserved = [
-                  "_id",
-                  "id",
-                  "tenantId",
-                  "status",
-                  "isDeleted",
-                  "deletedAt",
-                  "deletedBy",
-                  "createdAt",
-                  "updatedAt",
-                  "collection",
-                  "slug",
-                  "locale",
-                  "publishedAt",
-                  "data",
-                ];
-                if (!reserved.includes(fieldName)) {
-                  columns.push({ name: fieldName, type: colType });
-                  dynamicCols.push(fieldName);
-                  materialized.set(
-                    fieldName,
-                    colType === "INTEGER" ? "integer" : colType === "BOOLEAN" ? "boolean" : "text",
-                  );
-                }
-              }
-            }
-          }
-          if (materialized.size > 0) {
-            this.materializedColumns.set(tableName, materialized);
-            this.materializedColumns.set(normalizedName, materialized);
-          }
-        }
-
-        registerTableSchema(normalizedName, ["_id", "data", ...columns.map((c: any) => c.name)]);
-
-        // 🚀 COLUMN-DIFF: read information_schema.columns once — the previous
-        // loop ran a full-table backfill UPDATE per column even when the column
-        // already existed (e.g. a 25k-row table provisioned by a prior process
-        // paid 9+ table scans on every cold start).
-        let existingCols = new Set<string>();
-        try {
-          const plainName = String(physicalName).split(".").pop() ?? String(physicalName);
-          const cols = await this.raw.execute(
-            `SELECT column_name FROM information_schema.columns WHERE table_name = '${plainName}'`,
-          );
-          if (Array.isArray(cols)) {
-            existingCols = new Set(cols.map((c: any) => String(c.column_name)));
-          }
-        } catch {
-          /* table may not exist yet — ALTER path still runs */
-        }
-
-        const addedColumns = new Set<string>();
-        for (const col of columns) {
-          try {
-            // 🛡️ col.name can be admin-typed field LABEL text — allow-list it
-            // before it reaches ALTER/CREATE INDEX identifiers (the backfill
-            // loop below already asserts).
-            const colName = assertSafeSqlIdentifier(col.name, "column");
-            if (existingCols.has(colName)) continue;
-            await this.raw.execute(
-              `ALTER TABLE "${physicalName}" ADD COLUMN "${colName}" ${col.type}`,
-            );
-            existingCols.add(colName);
-            addedColumns.add(colName);
-
-            // The soft-delete audit pair is written by delete(), never by the
-            // entry payload, so there is nothing to backfill from `data`.
-            if (colName === "deletedAt" || colName === "deletedBy") continue;
-
-            // 🚀 SELF-HEALING BACKFILL: legacy rows keep their field values in
-            // the `data` blob — copy them into the new column so filters and
-            // sorts match old rows too (idempotent: only NULL columns are
-            // filled; `data` is JSONB so `->>` extracts a raw text value;
-            // numeric/boolean columns cast explicitly).
-            try {
-              if (col.type === "INTEGER") {
-                await this.raw.execute(
-                  `UPDATE "${physicalName}" SET "${colName}" = ("data"->>'${colName}')::integer WHERE "${colName}" IS NULL AND "data" IS NOT NULL`,
-                );
-              } else if (col.type === "BOOLEAN") {
-                await this.raw.execute(
-                  `UPDATE "${physicalName}" SET "${colName}" = ("data"->>'${colName}')::boolean WHERE "${colName}" IS NULL AND "data" IS NOT NULL`,
-                );
-              } else {
-                await this.raw.execute(
-                  `UPDATE "${physicalName}" SET "${colName}" = "data"->>'${colName}' WHERE "${colName}" IS NULL AND "data" IS NOT NULL`,
-                );
-              }
-            } catch {
-              /* backfill is best-effort (column may not exist on legacy tables) */
-            }
-          } catch {
-            /* safe */
-          }
-        }
-
-        for (const colNameRaw of dynamicCols) {
-          if (!addedColumns.has(colNameRaw)) continue;
-          try {
-            // 🛡️ Same allow-list as the ALTER loop — dynamicCols can carry
-            // admin-typed labels too.
-            const colName = assertSafeSqlIdentifier(colNameRaw, "column");
-            const indexName = assertSafeSqlIdentifier(
-              pgSafeIndexName(`${physicalName}_${colName}_idx`),
-              "index",
-            );
-            await this.raw.execute(
-              `CREATE INDEX IF NOT EXISTS "${indexName}" ON "${physicalName}" ("${colName}")`,
-            );
-            // 🚀 Covering composite index for filter+sort — provisioned only for
-            // declared query targets (see buildCompositeIndexColumns):
-            // WHERE "tenantId"=? AND status=? ORDER BY colName DESC, _id DESC
-            if (compositeCols.has(colNameRaw)) {
-              const compName = assertSafeSqlIdentifier(
-                pgSafeIndexName(`${physicalName}_tenant_status_${colName}_id`),
-                "index",
-              );
-              await this.raw.execute(
-                `CREATE INDEX IF NOT EXISTS "${compName}" ON "${physicalName}" ("tenantId", status, "${colName}" DESC, "_id" DESC)`,
-              );
-            }
-          } catch {
-            /* safe */
-          }
-        }
-
-        // 🔻 COMPOSITE CLEANUP: legacy tables carry the covering index for every
-        // materialized column. Dropping the ones the policy no longer provisions
-        // is what makes the per-write saving real on upgrades; after the first
-        // boot it is a name lookup that finds nothing (no table lock).
-        for (const colNameRaw of dynamicCols) {
-          if (compositeCols.has(colNameRaw)) continue;
-          try {
-            const colName = assertSafeSqlIdentifier(colNameRaw, "column");
-            const rawCompName = `${physicalName}_tenant_status_${colName}_id`;
-            const compName = assertSafeSqlIdentifier(pgSafeIndexName(rawCompName), "index");
-            await this.raw.execute(`DROP INDEX IF EXISTS "${compName}"`);
-            if (rawCompName.length > 63) {
-              const legacyTruncated = assertSafeSqlIdentifier(rawCompName.slice(0, 63), "index");
-              await this.raw.execute(`DROP INDEX IF EXISTS "${legacyTruncated}"`);
-            }
-          } catch {
-            /* safe */
-          }
-        }
-
-        // 🔻 REDUNDANT TWIN REMOVED: `..._tenant_status_updated` (tenantId, status,
-        // updatedAt) is a strict prefix of the keyset variant below — the same seek
-        // and the same output ordering, so it served no plan the tiebreaker index
-        // cannot. Every UPDATE still paid a second index maintenance + WAL entry.
-        // Measured on PostgreSQL (2000 single-row updates): dropping this twin and
-        // the `..._tenant_updated` twin cut 8.4 µs of a 31.6 µs per-row update
-        // (27 %). Dropped explicitly — no legacy twin is left behind.
-        try {
-          const rawTwin = `${physicalName}_tenant_status_updated`;
-          await this.raw.execute(
-            `DROP INDEX IF EXISTS "${assertSafeSqlIdentifier(pgSafeIndexName(rawTwin), "index")}"`,
-          );
-          if (rawTwin.length > 63) {
-            await this.raw.execute(
-              `DROP INDEX IF EXISTS "${assertSafeSqlIdentifier(rawTwin.slice(0, 63), "index")}"`,
-            );
-          }
-        } catch {
-          /* safe */
-        }
-        // 🚀 KEYSET TIEBREAKER variant: findPage appends "_id" to the default
-        // sort so pages never overlap when rows share a timestamp; including
-        // _id keeps that ORDER BY index-served (no sort node). New name on
-        // purpose — existing deployments keep the legacy index via IF NOT EXISTS.
-        try {
-          const tiebreakerIndex = assertSafeSqlIdentifier(
-            pgSafeIndexName(`${physicalName}_tenant_status_updated_id`),
-            "index",
-          );
-          await this.raw.execute(
-            `CREATE INDEX IF NOT EXISTS "${tiebreakerIndex}" ON "${physicalName}" ("tenantId", status, "updatedAt" DESC, "_id" DESC)`,
-          );
-        } catch {
-          /* safe */
-        }
-        // 🔻 REDUNDANT TWIN REMOVED (see above) — `..._tenant_updated` is the
-        // non-tiebreaker prefix of the keyset variant that follows.
-        try {
-          const rawTwin = `${physicalName}_tenant_updated`;
-          await this.raw.execute(
-            `DROP INDEX IF EXISTS "${assertSafeSqlIdentifier(pgSafeIndexName(rawTwin), "index")}"`,
-          );
-          if (rawTwin.length > 63) {
-            await this.raw.execute(
-              `DROP INDEX IF EXISTS "${assertSafeSqlIdentifier(rawTwin.slice(0, 63), "index")}"`,
-            );
-          }
-        } catch {
-          /* safe */
-        }
-        // 🚀 KEYSET TIEBREAKER variant of the status-less tenant index (see above).
-        try {
-          const tenantTiebreakerIndex = assertSafeSqlIdentifier(
-            pgSafeIndexName(`${physicalName}_tenant_updated_id`),
-            "index",
-          );
-          await this.raw.execute(
-            `CREATE INDEX IF NOT EXISTS "${tenantTiebreakerIndex}" ON "${physicalName}" ("tenantId", "updatedAt" DESC, "_id" DESC)`,
-          );
-        } catch {
-          /* safe */
-        }
-        // 🔻 REDUNDANT PARTIAL INDEX REMOVED: `..._pub_active_idx` duplicated
-        // `..._tenant_status_updated_id` ("tenantId", status, "updatedAt" DESC, "_id" DESC)
-        // while adding a 3rd B-tree index maintenance + WAL cost on every UPDATE of a published row.
-        try {
-          const rawPubActive = `${physicalName}_pub_active_idx`;
-          const pubActiveIndex = assertSafeSqlIdentifier(pgSafeIndexName(rawPubActive), "index");
-          await this.raw.execute(`DROP INDEX IF EXISTS "${pubActiveIndex}"`);
-          if (rawPubActive.length > 63) {
-            await this.raw.execute(
-              `DROP INDEX IF EXISTS "${assertSafeSqlIdentifier(rawPubActive.slice(0, 63), "index")}"`,
-            );
-          }
-        } catch {
-          /* safe */
-        }
-        // 🌐 DYNAMIC-FIELD FILTER INDEX (PostgreSQL-native): equality filters on
-        // fields that were NOT materialized into columns are translated to
-        // containment (`data @> '{"field": value}'::jsonb`, see `getJsonEquals`),
-        // which this GIN index serves. Without it every such filter is a sequential
-        // scan — measured 2026-09-22 at 100k rows: 7.9–10.9 ms (Seq Scan) → 0.1–1.7 ms
-        // (Bitmap Index Scan), and the GIN cost stops growing with table size.
-        // `jsonb_path_ops` is the containment opclass: smaller than the default
-        // `jsonb_ops` and exactly what `@>` needs. Write cost measured within
-        // run-to-run noise (interleaved rounds: −0.9 % inserts, +5.4 % updates).
-        // A collection that is write-only can opt out with `jsonIndex: false`.
-        if ((schemaData as { jsonIndex?: boolean } | undefined)?.jsonIndex !== false) {
-          try {
-            const ginIndex = assertSafeSqlIdentifier(
-              pgSafeIndexName(`${physicalName}_data_gin`),
-              "index",
-            );
-            await this.raw.execute(
-              `CREATE INDEX IF NOT EXISTS "${ginIndex}" ON "${physicalName}" USING gin ("data" jsonb_path_ops)`,
-            );
-          } catch {
-            /* safe — pre-existing installs provision it on the next createModel pass */
-          }
-        }
-
-        // Run ANALYZE with statement_timeout = 0 so PostgreSQL planner statistics
-        // reflect the new indexes immediately without being cancelled on large tables
-        if (this.sql) {
-          await this.sql.unsafe("SET statement_timeout = 0").catch(() => {});
-          await this.sql.unsafe(`ANALYZE "${physicalName}"`).catch(() => {});
-        } else {
-          await this.raw.execute(`ANALYZE "${physicalName}"`).catch(() => {});
-        }
-        // The pre-DDL table def (base columns only) is stale — rebuild with the
-        // materialized columns on next getTable. Invalidate EVERY key variant
-        // (logical id, dash-stripped, and the physical collection_ prefix): a
-        // missed variant leaves a stale def cached that silently drops
-        // materialized columns from later reads.
-        this.tableRegistry.delete(tableName);
-        this.tableRegistry.delete(normalizedName);
-        this.tableRegistry.delete(normalizeCollectionTableName(normalizedName));
-        this.tableRegistry.delete(`collection_${tableName}`);
-        // 🚀 Mark as provisioned so subsequent calls take the fast-path
-        this._provisionedTables.add(normalizedName);
-        this._provisionedTables.add(physicalName);
+    await provisionPostgresTable(
+      {
+        getTable: (col) => this.getTable(col),
+        raw: this.raw,
+        sql: this.sql,
+        provisionedTables: this._provisionedTables,
+        materializedColumns: this.materializedColumns,
+        tableRegistry: this.tableRegistry,
+        wrap: (op, errCode, metric, opts) => this.wrap(op, errCode, metric, opts),
       },
-      "CREATE_MODEL_FAILED",
-      undefined,
-      { isWrite: true },
+      schemaData,
+      force,
     );
   }
 
@@ -3067,13 +2180,8 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   // Per-Tenant Connection Pool Management
   // --------------------------------------------------------------------------
 
-  /**
-   * Evicts the oldest idle dedicated tenant pool when capacity limit is reached.
-   * Never evicts a pool that currently has in-flight queries.
-   */
-  private _evictOldestIdleTenantPool(maxTenantPools: number): void {
-    this._tenantPools.evictOldestIdle(maxTenantPools);
-  }
+  // (Removed 2026-11-07) `_evictOldestIdleTenantPool` had no caller after the
+  // tenant-pool extraction; `_tenantPools.evictOldestIdle` is invoked directly.
 
   /**
    * Tracks query start on a dedicated tenant pool for eviction safety.
@@ -3100,37 +2208,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
    * @throws {Error} if DATABASE_URL is not configured
    */
   public getTenantPool(tenantId: string): ReturnType<typeof postgres> {
-    const existing = this._tenantPools.acquire(tenantId);
-    if (existing) {
-      return existing;
-    }
-
-    const maxTenantPools = parseInt(process.env.MAX_TENANT_POOLS || "16", 10);
-    this._evictOldestIdleTenantPool(maxTenantPools);
-
-    const baseUrl = process.env.DATABASE_URL;
-    if (!baseUrl) {
-      throw new Error(
-        "[PostgreSQLAdapter] DATABASE_URL is not configured — cannot create tenant pool",
-      );
-    }
-
-    const poolSize = parseInt(process.env.TENANT_DB_POOL_SIZE || "10", 10);
-    const pool = postgres(baseUrl, {
-      max: poolSize,
-      transform: { undefined: null },
-      types: PG_TEXT_DATE_TYPES,
-      idle_timeout: pgIdleTimeout(),
-      keep_alive: 10,
-      max_lifetime: 3600,
-      connection: pgConnectionParameters({
-        application_name: `tenant_${tenantId}`,
-      }),
-    });
-
-    this._tenantPools.set(tenantId, pool);
-    logger.debug(`Created dedicated connection pool for tenant "${tenantId}" (max: ${poolSize})`);
-    return pool;
+    return getPostgresTenantPool({ tenantPools: this._tenantPools }, tenantId);
   }
 
   /**
@@ -3144,31 +2222,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
    * @param connectionUrl - Full PostgreSQL connection URL for this tenant
    */
   public setTenantPool(tenantId: string, connectionUrl: string): void {
-    // Close existing pool if present
-    const existing = this._tenantPools.get(tenantId);
-    if (existing) {
-      this._tenantPools.releaseExisting(tenantId);
-    } else {
-      const maxTenantPools = parseInt(process.env.MAX_TENANT_POOLS || "16", 10);
-      this._tenantPools.evictOldestIdle(maxTenantPools);
-    }
-
-    const poolSize = parseInt(process.env.TENANT_DB_POOL_SIZE || "10", 10);
-    const pool = postgres(connectionUrl, {
-      max: poolSize,
-      transform: { undefined: null },
-      types: PG_TEXT_DATE_TYPES,
-      idle_timeout: pgIdleTimeout(),
-      keep_alive: 10,
-      max_lifetime: 3600,
-      connection: pgConnectionParameters({
-        application_name: `tenant_${tenantId}`,
-      }),
-    });
-
-    this._tenantPools.set(tenantId, pool);
-    this._tenantPools.markDedicated(tenantId);
-    logger.info(`Configured dedicated connection pool for tenant "${tenantId}" (max: ${poolSize})`);
+    setPostgresTenantPool({ tenantPools: this._tenantPools }, tenantId, connectionUrl);
   }
 
   /**

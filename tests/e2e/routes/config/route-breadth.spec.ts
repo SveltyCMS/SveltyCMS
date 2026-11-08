@@ -36,6 +36,7 @@ const ADMIN_ROUTES = [
   "/config/trash",
   "/config/webhooks",
   "/config/workflows",
+  "/email-previews",
 ] as const;
 
 const ACTION_TIMEOUT = 20_000;

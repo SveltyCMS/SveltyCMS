@@ -31,7 +31,8 @@ import type { Handle } from "@sveltejs/kit/hooks";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { wafGuard } from "./handle-waf-guard";
 import { isAiOrScannerBot } from "@src/services/security/threat-scan";
-import { isSecureCookieContext, readSessionCookie } from "@src/databases/auth/constants";
+import { isSecureCookieContext } from "@src/databases/auth/constants";
+import { readSessionCookie } from "@utils/security/session-cookie";
 import {
   hasPermissionBitmask,
   isPermissionBitsetStale,
@@ -83,6 +84,20 @@ import {
   serializeRowFast,
   STATIC_ENVELOPES,
 } from "@utils/fast-json";
+
+/**
+ * Canonical tenant for content reads.
+ *
+ * Content rows are stored under `"global"` (SQL) or `null` (Mongo) when tenancy
+ * is off, while the adapters treat a **literal** `tenantId: null` as an
+ * `IS NULL` / `tenantId = null` filter (correct for auth/settings rows). A
+ * missing tenant means "unscoped", which is the scope that matches content rows
+ * on both families — passing `"global"` still added a Mongo `tenantId` filter
+ * and missed rows written with `null`.
+ */
+function contentTenant(tenantId: unknown): DatabaseId | undefined {
+  return ((tenantId as string | null | undefined) || undefined) as DatabaseId | undefined;
+}
 
 interface CoalescedCollectionRead {
   body: string;
@@ -573,15 +588,27 @@ export function isWirePlaneAdmissible(
     if (key === "filter") {
       const filterVal = search.get("filter");
       if (!filterVal) continue;
+      // Fast path: literal published status filter check without JSON.parse or Object.keys allocation
+      if (
+        filterVal === '{"status":"published"}' ||
+        filterVal === '{"status":"publish"}' ||
+        filterVal === '{"status": "published"}' ||
+        filterVal === '{"status": "publish"}'
+      ) {
+        continue;
+      }
       try {
         const parsed = JSON.parse(filterVal);
-        const keys = Object.keys(parsed);
-        // If filter is only { status: "published" | "publish" }, wire plane enforces this natively!
-        if (
-          keys.length === 1 &&
-          keys[0] === "status" &&
-          (parsed.status === "published" || parsed.status === "publish")
-        ) {
+        let count = 0;
+        let isStatusMatch = false;
+        for (const k in parsed) {
+          count++;
+          if (count > 1) return false;
+          if (k === "status" && (parsed.status === "published" || parsed.status === "publish")) {
+            isStatusMatch = true;
+          }
+        }
+        if (isStatusMatch && count === 1) {
           continue;
         }
         return false;
@@ -890,7 +917,7 @@ async function rebuildWarmCollectionRead(
         collectionId,
         entryId as DatabaseId,
         {
-          tenantId: locals.tenantId as DatabaseId,
+          tenantId: contentTenant(locals.tenantId),
           // Publication clamp parity: the Domain Plane resolves the caller's clamp
           // from the same policy function, and the wire SQL enforces it in-engine,
           // so a wire-served point read can never expose a row the caller is denied.
@@ -965,7 +992,7 @@ async function rebuildWarmCollectionRead(
     const wireMeta = getCollectionWireMeta(collectionId, locals.tenantId as string);
     if (wireMeta && isWirePlaneAdmissible(event, wireMeta)) {
       const wireRes = await dbAdapter.crud.findListWireStream(collectionId, {
-        tenantId: locals.tenantId as DatabaseId,
+        tenantId: contentTenant(locals.tenantId),
         limit: listParams.limit,
         offset: listParams.offset,
         requirePublished: !locals.user
@@ -1020,7 +1047,7 @@ async function rebuildWarmCollectionRead(
   const result = entryId
     ? await cms.collections.findById(collectionId, entryId, {
         user: locals.user,
-        tenantId: locals.tenantId as DatabaseId,
+        tenantId: contentTenant(locals.tenantId),
         // This lane caches the whole HTTP response in `responseCache.pointL1`
         // below, so the namespace's own L2 entry would be a second copy that
         // only bills prefix-map + tag-index work — for a random per-id scan,
@@ -1029,7 +1056,7 @@ async function rebuildWarmCollectionRead(
       })
     : await cms.collections.find(collectionId, {
         user: locals.user,
-        tenantId: locals.tenantId as DatabaseId,
+        tenantId: contentTenant(locals.tenantId),
         limit: listParams!.limit,
         offset: listParams!.offset,
         cursor: listParams!.cursor,

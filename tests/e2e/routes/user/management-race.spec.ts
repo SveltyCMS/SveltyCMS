@@ -49,6 +49,7 @@ test.describe("User management - in-flight table requests", () => {
     for (let attempt = 0; !established && attempt < 5; attempt++) {
       await resetAndSeedDatabase(page);
       established = await hasAdminSession(page);
+      // wait-allow: bounded reset+seed retry window (5 attempts)
       if (!established) await page.waitForTimeout(500);
     }
     if (!established) {
@@ -129,6 +130,7 @@ test.describe("User management - in-flight table requests", () => {
 
     await Promise.race([
       usersRequestStarted,
+      // wait-allow: 15s guard for the refetch race; resolves on the real request
       page.waitForTimeout(15_000).then(() => {
         throw new Error(
           "sorting a column issued no GET /api/user — the table never refetched, so the stale-response guard cannot be exercised",

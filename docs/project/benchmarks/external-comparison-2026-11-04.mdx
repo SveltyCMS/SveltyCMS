@@ -1,0 +1,136 @@
+---
+path: /docs/project/benchmarks/external-comparison-2026-11-04
+title: "External Comparative Benchmark — 2026-11-04"
+description: "Per-platform concurrent throughput from the 2026-11-04 external benchmark result files: 100,000 documents on session-fresh PostgreSQL 18.6, 8 workers, 11 workloads, with provenance and reproduction notes."
+order: 96
+icon: "mdi:chart-box-outline"
+author: SveltyCMS
+created: 2026-11-06
+updated: 2026-11-06
+tags:
+  - "benchmarks"
+  - "performance"
+  - "postgresql"
+  - "comparison"
+  - "external-harness"
+---
+
+# 📊 External Comparative Benchmark — 2026-11-04
+
+> **What this page is:** the per-platform concurrent-throughput rows produced by the external benchmark harness on **2026-11-04**, for five Node-based CMS rows at 100,000 documents on a session-fresh PostgreSQL 18.6. It records the measured values, how the rows were composed, and how to reproduce them.
+
+> **Compliance note (EU Directive 2006/114/EC, German UWG §6):** every figure on this page is **self-measured with the external harness, not third-party verified**, date-stamped **2026-11-04**, and compared like-for-like within one harness configuration: same host, same database engine, same dataset size, same load pattern, matched power state (AC, `High performance`, plan lock; 3.5 % calibration drift between blocks). The numbers are **uncached origin-API throughput over loopback**, not a production-throughput prediction. Competitor names are used descriptively; no affiliation is implied. See [§5](#5-compliance-notes) for the full compliance note.
+
+## 1. Scope and methodology
+
+The harness is kept outside this repository, at `D:\sveltycms-benchmark\sveltycms-benchmark\`; the result files quoted here are in its `results/` directory. It measures each CMS through its own HTTP API against the same host, database engine, dataset, and load generator.
+
+| Item         | Value                                                                                                                                                                                        |
+| :----------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Host         | `Lenovo` — 24× Intel Core Ultra 9 275HX, 63.43 GiB RAM                                                                                                                                       |
+| OS           | `win32 10.0.26300 x64`                                                                                                                                                                       |
+| Database     | session-owned PostgreSQL 18.6 (Debian 18.6-1.pgdg13+2), `postgres:latest`, pulled fresh and **recreated before every platform run**                                                          |
+| Dataset      | 100,000 deterministic documents (fixed harness PRNG seed `20260729`)                                                                                                                         |
+| Workloads    | 11: `findById`, `findByIdRandom`, `listPlain`, `listFilterSort`, `listLarge`, `listPopulated`, `findMissing`, `create`, `update`, `graphql`, `mixed` (60 % read / 20 % write / 20 % GraphQL) |
+| Load         | sequential phase, then **8 concurrent workers** (the concurrent phase is reported here)                                                                                                      |
+| Rounds       | 3–7 adaptive rounds per workload; extra rounds run while the round-to-round CoV stays above 4 %, median accepted round reported                                                              |
+| Cache        | uncached (`cached: false`)                                                                                                                                                                   |
+| Network path | origin API over loopback — no network RTT, TLS, reverse proxy, or CDN                                                                                                                        |
+| Power        | AC, Windows `High performance` plan, plan lock applied; CPU calibration 383.6 Mops/s in the base block and 397.7 Mops/s in the refresh block (3.5 % drift)                                   |
+
+All five runs seeded 100,000 documents with **0 failed inserts**. p50/p95/p99 are computed from raw client-side samples, RPS is derived from wall time, and authentication login is never timed. The harness records its own host power state because a row measured on battery or in a lower power plan is not comparable to one measured on AC; the vendor thermal stage was not recorded (it needs an elevated shell), so a higher stage cannot be ruled out.
+
+### Versions and runtimes
+
+Rows do **not** share a runtime. The four Node 24 rows use the current Node 24 LTS line; Directus runs the official image's bundled Node 22. The harness client runs Node v24.15.0. The wider harness matrix also includes Wagtail (Python) and Drupal (PHP); those rows are outside this table.
+
+| Row       | Version                                                | Runtime                |
+| :-------- | :----------------------------------------------------- | :--------------------- |
+| SveltyCMS | v0.11.1, git `d5fccaa`                                 | Node 24.22.2           |
+| Payload   | 3.90.2                                                 | Node 24.22.2           |
+| Strapi    | 5.59.0                                                 | Node 24.22.2           |
+| Directus  | official image (12.5.0 per the harness version ledger) | Node 22.23.3 (bundled) |
+| Keystone  | 8.1.0                                                  | Node 24.22.2           |
+
+Versions are read from the result files' `env.versionsAuto`. Directus does not embed a version there; its ledger entry is cited instead. Comparisons are meaningful within a runtime — even the Node 22 vs Node 24 line is disclosed rather than normalised.
+
+## 2. Concurrent results (8 workers, 100,000 documents)
+
+Values are the median accepted round's `con.rps`, rounded to the nearest integer, measured in this session configuration. Exact values are in the result JSON files. Read the columns as measured configurations, not as a production ranking.
+
+| Workload         | SveltyCMS¹ | Payload² | Strapi² | Directus² | Keystone¹ |
+| :--------------- | ---------: | -------: | ------: | --------: | --------: |
+| `findById`       |      5 715 |      773 |     623 |       493 |     4 741 |
+| `findByIdRandom` |      5 082 |      770 |     672 |       520 |     4 790 |
+| `listPlain`      |      3 631 |      639 |     386 |       438 |     3 397 |
+| `listFilterSort` |      2 870 |      463 |      77 |       381 |     2 257 |
+| `listLarge`      |      1 130 |      215 |      74 |       214 |       721 |
+| `create`         |      1 575 |      597 |     314 |       291 |     1 260 |
+| `update`         |      1 849 |      458 |     349 |       220 |     1 588 |
+| `graphql`        |      3 279 |      504 |     513 |       324 |     2 067 |
+| `mixed`          |      1 151 |      473 |     312 |       266 |     1 563 |
+
+¹ Refreshed `nextfix` row (13:50–13:54Z); ² base `v111` row (08:25–08:46Z). See [§3](#3-provenance-and-the-reporting-gap).
+
+The remaining two workloads in the 11-workload set:
+
+| Workload        | SveltyCMS¹ | Payload² | Strapi² | Directus² | Keystone¹ |
+| :-------------- | ---------: | -------: | ------: | --------: | --------: |
+| `findMissing`   |      4 805 |      802 |     548 |       497 |     4 756 |
+| `listPopulated` |      2 448 |      578 |     314 |       398 |       926 |
+
+**Closest peer.** Keystone recorded the highest concurrent RPS in this table on `mixed` (**1 563** vs **1 151** for SveltyCMS) and the second-highest figure in each of the other eight rows of the main table above; on the full 11-workload set SveltyCMS recorded the higher figure in the other ten. In the read workloads, the margin over Keystone is smaller than the margin over Payload, Strapi, and Directus, so Keystone is the row to use for a like-for-like read of the read path.
+
+**Response size is not normalised.** Each row returns its own envelope, so throughput also reflects payload shape. For `listPlain`, `bytesAvg` is 4,243 B (SveltyCMS), 6,194 B (Payload), 16,449 B (Strapi), 15,225 B (Directus), and 15,938 B (Keystone) in the corresponding result files. The harness records these bytes but does not scale RPS by them; a row returning a smaller document can post a higher request rate for the same logical workload.
+
+## 3. Provenance and the reporting gap
+
+> **The directory's `REPORT.md` is a single-row report.** `REPORT.md` was generated at `2026-11-04T16:22:19Z` from the later `bisect2` block (16:08–16:22Z), a bisect block that measured SveltyCMS builds. It renders one platform row, `sveltycms (d5fc)`, and no competitor rows. Its `findById` figure (7,258.3 RPS) and `mixed` figure (1,312.7 RPS) come from `results/archive/results-2026-11-04T16-22-19-sveltycms-d5fccaa.json`; those are **not** the SveltyCMS values in the table above.
+
+> **The table is a composed session.** The base session is `v111` (2026-11-04T08:18–11:51Z). Two rows were re-measured in the later `nextfix` block (13:50–13:54Z) and folded in as refreshes. The harness's `composeSession` path (`node scripts/merge-results.mjs`) permits this when the host, dataset size, database engine, measurement mode, and power/thermal state match, and when the newer row covers every base workload. All of those gates pass here.
+
+| Row       | Values from                        | Recorded session  | Replaces                                            |
+| :-------- | :--------------------------------- | :---------------- | :-------------------------------------------------- |
+| SveltyCMS | `results-2026-11-04T13-54-46.json` | `nextfix`, 13:54Z | `results-2026-11-04T08-18-15.json` (`v111`, 08:18Z) |
+| Keystone  | `results-2026-11-04T13-50-50.json` | `nextfix`, 13:50Z | `results-2026-11-04T08-49-43.json` (`v111`, 08:49Z) |
+| Payload   | `results-2026-11-04T08-25-00.json` | `v111`, 08:25Z    | —                                                   |
+| Directus  | `results-2026-11-04T08-33-56.json` | `v111`, 08:33Z    | —                                                   |
+| Strapi    | `results-2026-11-04T08-46-05.json` | `v111`, 08:46Z    | —                                                   |
+
+The refresh is not a cross-session average: the newer SveltyCMS and Keystone values **replace** the base rows, and the replaced files remain in the results directory for audit. The base SveltyCMS row was measured from git `3f35919`; the refreshed row is `d5fccaa` (v0.11.1). The Keystone row was also re-measured in that block; both refreshed rows therefore share the later conditions.
+
+**What the gap is.** The harness writes one JSON per platform run. The multi-platform table was assembled from those per-platform JSON files (including the two `v111` base files named in the provenance table) — or equivalently, from `composeSession` over the two blocks — because the `REPORT.md` present in the directory is the later single-row `bisect2` report. This is a **reporting gap, not a measurement gap**: the values above are the measured `con.rps` fields, unchanged. It does mean the table is a **composed session**, not a single-`sessionId` report. The harness's own rule is that rows from different hosts, dates, or session labels are never presented as one single-session measurement; this page labels the composition explicitly for that reason.
+
+**Session labels.** The table is a `v111` base with `nextfix` refreshes; `bisect2` is the later single-row bisect, not the table's session.
+
+**The later `bisect2` SveltyCMS row is not used.** It recorded 7,258.3 RPS on `findById` and 1,312.7 RPS on `mixed` — about 27 % and 14 % above the `nextfix` values used here — on the same commit, host, and engine about 2.5 hours later. It is a separate single-row bisect, not a paired competitor row, so it is disclosed rather than averaged into the table. The difference is a useful reminder that a single row carries session-to-session variance; the table above is one accepted composition, not a universal reading of the day.
+
+## 4. Reproduction
+
+From the external harness directory (outside this repository):
+
+```bash
+npm run bench
+node scripts/merge-results.mjs
+```
+
+`npm run bench` runs the platform rows; `node scripts/merge-results.mjs` combines the per-platform result files into the report. The result files, not the rendered prose, are the evidence for every value on this page.
+
+> **Rows from different hosts or days are not merged.** The harness folds a newer row from a later session label into a base session when host, dataset size, database engine, measurement mode, and power/thermal state match, and when the newer row covers every base workload; the substitution is reported as provenance. The composition in [§3](#3-provenance-and-the-reporting-gap) follows that rule. A row from a different host or day is a different measurement and is never averaged into this table.
+
+The in-repo replica (`tests/benchmarks/competitive-workload-replica.test.ts`) measures SveltyCMS alone with this repository's harness. Its rows are a different exercise and are not combined with the external rows above.
+
+## 5. Compliance notes
+
+- **Self-measured, not third-party verified.** No independent auditor produced these figures. The evidence is the dated result JSON files in the external harness directory.
+- **Date-stamped 2026-11-04.** The measurement date, versions, git revision, host, database engine, and power state are recorded in each result file.
+- **Like-for-like within this harness.** Same host, database engine, dataset size, load pattern, cache mode, and matched power state (3.5 % calibration drift, disclosed in [§1](#1-scope-and-methodology)) for the rows shown; runtime and response-size differences are disclosed rather than normalised. The rows are not a comparison of production deployments, managed services, or differently tuned configurations.
+- **Neutral descriptive language.** The page reports measured differences and does not use unverifiable superlatives or disparaging characterisations of the other platforms. Competitor names are trademarks of their respective owners; no affiliation or endorsement is implied.
+- **Not production throughput.** The measured path is uncached origin API over loopback, without network RTT, TLS, reverse proxy, or CDN. Absolute RPS from this table should not be quoted as a production-throughput prediction.
+
+## Related
+
+- [Competitive Comparison](../competitive-comparison.mdx)
+- [Benchmarks Index](./index.mdx)
+- [External Paired Run Protocol](./external-paired-run-protocol.mdx)
+- [Scale Limits at 1M+ Documents](./scale-limits-1m-postgres.mdx)

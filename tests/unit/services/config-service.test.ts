@@ -578,7 +578,7 @@ describe("ConfigService", () => {
         },
       });
 
-      expect(mockDelete).toHaveBeenCalledWith(expect.any(String), "d1", expect.any(String));
+      expect(mockDelete).toHaveBeenCalledWith(expect.any(String), "d1", { tenantId: "t-1" });
     });
 
     it("handles all three change types in a single call", async () => {
@@ -706,7 +706,9 @@ describe("ConfigService", () => {
         },
       });
 
-      expect(mockDelete).toHaveBeenCalledWith(expect.any(String), "iso-2", "isolated-tenant");
+      expect(mockDelete).toHaveBeenCalledWith(expect.any(String), "iso-2", {
+        tenantId: "isolated-tenant",
+      });
     });
   });
 });

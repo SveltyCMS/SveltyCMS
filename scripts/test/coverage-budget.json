@@ -1,0 +1,55 @@
+{
+  "generatedAt": "2026-11-06",
+  "note": "Per-area statement-coverage ratchet: no area may drop more than 0.5 percentage points below its baseline. Regenerate with `--update` only after a verified coverage improvement; never lower a baseline to make the gate pass.",
+  "tolerance": 0.5,
+  "areas": {
+    "databases/auth": {
+      "statements": 2586,
+      "coveredStatements": 1910,
+      "lines": 2386,
+      "coveredLines": 1794,
+      "percent": 73.86,
+      "linePercent": 75.19
+    },
+    "hooks": {
+      "statements": 3961,
+      "coveredStatements": 2861,
+      "lines": 3613,
+      "coveredLines": 2701,
+      "percent": 72.23,
+      "linePercent": 74.76
+    },
+    "routes/api": {
+      "statements": 264,
+      "coveredStatements": 179,
+      "lines": 252,
+      "coveredLines": 175,
+      "percent": 67.8,
+      "linePercent": 69.44
+    },
+    "utils/core": {
+      "statements": 176,
+      "coveredStatements": 123,
+      "lines": 158,
+      "coveredLines": 111,
+      "percent": 69.89,
+      "linePercent": 70.25
+    },
+    "utils/security": {
+      "statements": 1357,
+      "coveredStatements": 1152,
+      "lines": 1195,
+      "coveredLines": 1051,
+      "percent": 84.89,
+      "linePercent": 87.95
+    }
+  },
+  "total": {
+    "statements": 8344,
+    "coveredStatements": 6225,
+    "lines": 7604,
+    "coveredLines": 5832,
+    "percent": 74.6,
+    "linePercent": 76.7
+  }
+}

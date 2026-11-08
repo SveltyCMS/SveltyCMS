@@ -15,7 +15,7 @@
 const NUMERIC_LITERAL = /^-?\d+(\.\d+)?$/;
 
 /** Whether a string looks like a JSON-encoded value worth parsing. */
-export function looksJsonEncoded(value: string): boolean {
+function looksJsonEncoded(value: string): boolean {
   const trimmed = value.trim();
   if (!trimmed) return false;
   return (

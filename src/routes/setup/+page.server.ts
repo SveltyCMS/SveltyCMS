@@ -4,11 +4,11 @@
  * Note: Route protection is handled by the handleSetup middleware in hooks.server.ts
  */
 
-import { version as pkgVersion } from "../../../package.json";
+import { version as pkgVersion } from "@root/package.json";
 import { redirect } from "@sveltejs/kit";
 import { getSetupState, SetupState } from "@utils/server/setup-check";
 import type { Actions, PageServerLoad } from "./$types";
-import inlangSettings from "../../../project.inlang/settings.json";
+import inlangSettings from "@root/project.inlang/settings.json";
 
 /** Cached lazy handle to the auth constants — one module-registry lookup instead of one per call. */
 let authConstantsModulePromise: Promise<typeof import("@src/databases/auth/constants")> | undefined;
@@ -22,7 +22,7 @@ import {
   completeSetup,
   testEmailConnection,
   testRedisConnection,
-} from "./setup.server";
+} from "@src/services/setup/setup.server";
 
 // Database driver mapping
 const DRIVER_PACKAGES = {

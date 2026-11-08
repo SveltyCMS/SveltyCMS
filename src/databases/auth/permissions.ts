@@ -124,18 +124,19 @@ export function hasPermissionWithRoles(
 
   const safeRoles = roles || [];
   const userId = user._id ? (typeof user._id === "string" ? user._id : String(user._id)) : null;
+  const tenantId = user.tenantId ? String(user.tenantId) : null;
   let roleIds: string[] | undefined;
 
   if (userId) {
     roleIds = getRoleIdsArray(safeRoles);
-    const cached = permissionCache.get(userId, permissionId, roleIds);
+    const cached = permissionCache.get(userId, permissionId, roleIds, tenantId);
     if (cached !== null) return cached;
   }
 
   const granted = evaluatePermissionWithRoles(user, permissionId, safeRoles);
 
   if (userId && roleIds) {
-    permissionCache.set(userId, permissionId, roleIds, granted);
+    permissionCache.set(userId, permissionId, roleIds, granted, tenantId);
   }
   return granted;
 }

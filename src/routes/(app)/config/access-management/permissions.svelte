@@ -34,7 +34,7 @@ It provides the following functionality:
 		SMART_TABLE_TD,
 		SMART_TABLE_TH,
 		SMART_TABLE_THEAD
-	} from '@components/ui/smart-table';
+	} from '@components/ui/smart-table/chrome';
 	import {
 		access_permissions_action,
 		access_permissions_assign_all_title,

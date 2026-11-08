@@ -4,7 +4,8 @@
  -->
 <script lang="ts">
 	import AdminPageShell from '@components/admin-page-shell.svelte';
-	import { StatusTypes, type FieldInstance, type Schema } from '@src/content/types';
+	import { StatusTypes } from '@src/content/status';
+	import type { FieldInstance, Schema } from '@src/content/types';
 	import type { User } from '@src/databases/auth/types';
 	import type { Role } from '@src/databases/auth/types';
 	import {
@@ -36,7 +37,7 @@
 	} from '@src/paraglide/messages';
 	import { collections, setCollection } from '@src/stores/collection-store.svelte';
 	import { ui } from '@src/stores/ui-store.svelte';
-	import { useContent } from '@src/content';
+	import { useContent } from '@src/content/context';
 	import { validationStore } from '@src/stores/validation-store.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { widgets } from '@src/stores/widget-store.svelte.ts';

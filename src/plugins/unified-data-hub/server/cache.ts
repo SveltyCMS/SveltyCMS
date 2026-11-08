@@ -11,6 +11,7 @@
 
 import { FastLRU } from "@utils/native-utils";
 import type { VirtualReadResult } from "../types";
+import { nowISODateString } from "@utils/date";
 
 const cache = new FastLRU<string, { result: VirtualReadResult; expiresAt: number }>({
   max: 2000,
@@ -71,7 +72,7 @@ export function setCachedVirtualRead(
   ttlSeconds: number,
 ): void {
   const key = cacheKey(tenantId, collectionId, queryHash);
-  const cachedAt = new Date().toISOString();
+  const cachedAt = nowISODateString();
   cache.set(key, {
     result: {
       ...result,

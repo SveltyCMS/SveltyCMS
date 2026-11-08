@@ -22,7 +22,7 @@
 
 <script lang="ts">
 	// Props
-	import { StatusTypes } from '@src/content/types';
+	import { StatusTypes } from '@src/content/status';
 	import { ui } from '@src/stores/ui-store.svelte.ts';
 
 	// Props

@@ -39,7 +39,13 @@ export async function prepareForScreenshot(page: Page) {
         transition-delay: 0s !important;
       }
     `;
-    document.head.appendChild(style);
+    if (document.head) {
+      document.head.appendChild(style);
+    } else {
+      document.addEventListener("DOMContentLoaded", () => {
+        document.head?.appendChild(style);
+      });
+    }
   });
 
   await page.emulateMedia({ reducedMotion: "reduce" });

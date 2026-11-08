@@ -21,7 +21,8 @@
 import { logger } from "@utils/logger";
 import { generateUUID } from "@utils/native-utils";
 import type { SmartTableLayoutPrefs, SmartTableSort } from "@components/ui/smart-table/types";
-import type { CollectionFilterMap } from "@utils/collection-query-filters";
+import type { CollectionFilterMap } from "@utils/collection-query-filter-meta";
+import { nowISODateString } from "@utils/date";
 
 const PREFIX = "smartTableViews:";
 
@@ -88,7 +89,7 @@ export function saveView(
   input: Omit<SmartTableSavedView, "id" | "createdAt" | "updatedAt"> & { id?: string },
 ): SmartTableSavedView {
   const views = listSavedViews(scope);
-  const now = new Date().toISOString();
+  const now = nowISODateString();
 
   const existingIdx = input.id ? views.findIndex((v) => v.id === input.id) : -1;
 
@@ -134,7 +135,7 @@ export function renameSavedView(
   const views = listSavedViews(scope);
   const idx = views.findIndex((v) => v.id === id);
   if (idx < 0) return null;
-  views[idx] = { ...views[idx], name, updatedAt: new Date().toISOString() };
+  views[idx] = { ...views[idx], name, updatedAt: nowISODateString() };
   writeViews(scope, views);
   return views[idx];
 }

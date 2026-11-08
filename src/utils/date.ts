@@ -80,11 +80,11 @@ export function hasIsoDateTimePrefix(value: string): boolean {
  * Zero-allocation validator: pure `charCodeAt` + integer arithmetic (no `Date`,
  * regex, `.slice`, `.split`, or per-call string allocation). Accepts the ISO forms
  * the codebase produces (`YYYY-MM-DD`, `YYYY-MM-DDTHH:mm:ss[.sss]Z`, and ±HH:MM
- * offsets) while reproducing the previous `new Date()` semantics: the UTC instant
- * must fall on the literal YYYY-MM-DD date, so `2025-01-20T00:00:00+05:00` is
- * rejected (it is 2025-01-19 UTC) and calendar-invalid dates such as `2025-02-30`
- * or `2025-13-45` are rejected. A time part without a timezone designator is
- * interpreted as UTC (matching the date-only form).
+ * offsets) and rejects calendar-invalid dates such as `2025-02-30` or
+ * `2025-13-45`. A time part without a timezone designator is interpreted as UTC
+ * (matching the date-only form). Explicit ±HH:MM offsets are accepted as-is: the
+ * validator checks the wall-clock fields, not whether the corresponding UTC
+ * instant falls on the literal YYYY-MM-DD date.
  */
 export function isISODateString(value: unknown): value is ISODateString {
   if (typeof value !== "string" || value.length < 10) return false;
@@ -351,11 +351,10 @@ export function formatUptime(uptime: number): string {
 
 export function ReadableExpireIn(expiresIn: string): string {
   const expiresInNumber = Number.parseInt(expiresIn, 10);
-  const expirationTime = expiresInNumber
-    ? new Date(Date.now() + expiresInNumber * 1000)
-    : new Date();
-  const diff = expirationTime.getTime() - Date.now();
-
+  if (!expiresInNumber || expiresInNumber <= 0) {
+    return "";
+  }
+  const diff = expiresInNumber * 1000;
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
   const hours = Math.floor(diff / (1000 * 60 * 60)) % 24;
   const minutes = Math.floor(diff / (1000 * 60)) % 60;
@@ -376,4 +375,4 @@ export function formatIsoDuration(isoDuration: string | undefined): string | und
     : `${m}:${s.padStart(2, "0")}`;
 }
 
-export const getCurrentDate = () => formatDateString(new Date(), "yyyy-MM-dd");
+export const getCurrentDate = (): string => nowISODateString().slice(0, 10);

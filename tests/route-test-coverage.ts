@@ -175,7 +175,7 @@ export const APP_ROUTE_COVERAGE: AppRouteCoverageEntry[] = [
     route: "config/redirects",
     testFiles: [
       "tests/unit/routes/redirects-page-server.test.ts",
-      "tests/unit/config/redirects-utils.test.ts",
+      "tests/unit/utils/redirects-utils.test.ts",
       "tests/e2e/routes/config/redirects.spec.ts",
     ],
   },
@@ -223,6 +223,10 @@ export const APP_ROUTE_COVERAGE: AppRouteCoverageEntry[] = [
       "tests/unit/routes/webhooks-page-server.test.ts",
       "tests/integration/api/webhooks.test.ts",
     ],
+  },
+  {
+    route: "email-previews",
+    testFiles: ["tests/unit/routes/email-previews.test.ts"],
   },
   {
     route: "config/workflows",

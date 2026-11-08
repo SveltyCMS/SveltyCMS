@@ -15,7 +15,7 @@ import {
   parseImportedGroupJson,
   mergeImportedGroupValues,
 } from "../../../src/routes/(app)/config/system-settings/settings-utils";
-import type { SettingField } from "../../../src/routes/(app)/config/system-settings/settings-groups";
+import type { SettingField } from "@src/services/system/settings-groups.meta";
 import { CSRF_TOKEN_COOKIE_NAME, CSRF_TOKEN_HEADER } from "@utils/security/csrf-utils";
 
 function mockCookies(cookies: Record<string, string | undefined>) {

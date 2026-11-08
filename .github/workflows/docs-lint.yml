@@ -65,9 +65,8 @@ jobs:
 
       # === STEP 1: LINTING (The quick check) ===
       - name: Run Documentation Linter (Semantic Check)
-        # This assumes 'tests/lint-docs.ts' exists and runs structural checks.
         # This catches misplaced tags or structural errors.
-        run: bun tests/lint-docs.ts
+        run: bun tests/lint/docs.ts
 
       # === STEP 1b: CODEGEN (Required before type-checking) ===
       - name: Generate Paraglide & SvelteKit types

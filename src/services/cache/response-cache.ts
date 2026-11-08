@@ -17,7 +17,25 @@
 
 import * as nodeCrypto from "node:crypto";
 import { cacheService } from "@src/databases/cache/cache-service";
+import { testWorkerContext } from "@src/utils/test-worker-context";
 import { getHardwareProfile } from "@utils/hardware-profile";
+
+/**
+ * Test-only cache namespace.
+ *
+ * Every E2E worker owns a separate SQLite file, but the response cache is a
+ * process-global Map. After a failed test Playwright restarts the worker with a
+ * new index while the server keeps running, so a list body cached for worker 0
+ * was replayed to worker 2 — whose database has different entry ids. Clicking a
+ * row then logged `[Edit] Could not load entry …: Entry not found`.
+ *
+ * The namespace also keeps these bodies out of shared L2: the L2 key has no
+ * worker segment, so skipping it entirely is the honest isolation boundary.
+ */
+function testWorkerSuffix(): string {
+  const worker = testWorkerContext.getStore();
+  return worker ? `:w${worker}` : "";
+}
 
 export interface CachedResponseEntry {
   body: string;
@@ -217,7 +235,13 @@ export function deepSortKeys(val: unknown): unknown {
     return val.map(deepSortKeys);
   }
   const obj = val as Record<string, unknown>;
-  const keys = Object.keys(obj).sort();
+  const keys = Object.keys(obj);
+  if (keys.length <= 1) {
+    if (keys.length === 0) return {};
+    const k = keys[0]!;
+    return { [k]: deepSortKeys(obj[k]) };
+  }
+  keys.sort();
   const sorted: Record<string, unknown> = {};
   for (let i = 0; i < keys.length; i++) {
     const k = keys[i]!;
@@ -274,6 +298,13 @@ function graphqlMemoKey(
   return `${rawQuery}\u0000${rawVariables}\u0000${publicationFilter}\u0000${normalizedUserId ?? ""}`;
 }
 
+function hasAnyProperty(obj: Record<string, unknown>): boolean {
+  for (const _ in obj) {
+    if (obj) return true;
+  }
+  return false;
+}
+
 export function buildGraphQLResponseCacheKey(
   query: string,
   variables?: unknown,
@@ -308,7 +339,7 @@ export function buildGraphQLResponseCacheKey(
     varsObj = variables as Record<string, unknown>;
   }
 
-  if (Object.keys(varsObj).length > 0) {
+  if (hasAnyProperty(varsObj)) {
     varsStr = JSON.stringify(deepSortKeys(varsObj));
   }
   const queryHash = hashStr(`${query}:${varsStr}:${publicationFilter}`);
@@ -589,7 +620,7 @@ class ResponseCacheService {
   }
 
   private buildKey(key: string, tenantId?: string | null): string {
-    return `${tenantId || "default"}:res:${key}`;
+    return `${tenantId || "default"}${testWorkerSuffix()}:res:${key}`;
   }
 
   /** Epoch scope a classified key belongs to, or null when it is not fenced. */
@@ -949,6 +980,8 @@ class ResponseCacheService {
 
     // Point reads are never written to shared L2 (bounded FIFO localL1 only)
     if (point) return null;
+    // Worker-isolated test requests keep their bodies in the worker-keyed L1 only.
+    if (testWorkerContext.getStore()) return null;
 
     const entry = cacheService.getSync<CachedResponseEntry>(`res:${key}`, tenantId);
     if (entry && !this.isExpired(entry) && this.generationMatches(entry, key, tenantId)) {
@@ -974,6 +1007,7 @@ class ResponseCacheService {
   ): Promise<CachedResponseEntry | null> {
     const syncRes = this.get(key, tenantId);
     if (syncRes) return syncRes;
+    if (testWorkerContext.getStore()) return null;
 
     const entry = await cacheService.get<CachedResponseEntry>(`res:${key}`, tenantId);
     if (entry && !this.isExpired(entry) && this.generationMatches(entry, key, tenantId)) {
@@ -1039,6 +1073,8 @@ class ResponseCacheService {
     // invalidation an O(#docs) scan. Infer skipSharedL1 from the key so
     // callers cannot forget; an explicit `skipSharedL1: false` opts back in.
     if (opts?.skipSharedL1 === true || (inferredPointRead && opts?.skipSharedL1 !== false)) return;
+    // Worker-isolated test requests never share L2 (see `testWorkerSuffix`).
+    if (testWorkerContext.getStore()) return;
 
     const ttlSec = Math.max(1, Math.ceil(ttlMs / 1000));
     const tags = opts?.tags ? [...opts.tags] : ["res:all"];

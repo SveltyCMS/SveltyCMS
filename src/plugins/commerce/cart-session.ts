@@ -16,11 +16,11 @@ import { isSecureCookieContext } from "@src/databases/auth/constants";
 const CART_COOKIE = "svelty-cart";
 const MAX_AGE = 60 * 60 * 24 * 30;
 
-export function cartCookieName(isSecure: boolean): string {
+function cartCookieName(isSecure: boolean): string {
   return isSecure ? `__Host-${CART_COOKIE}` : CART_COOKIE;
 }
 
-export function readCartSessionId(cookies: Cookies, url: URL): string | undefined {
+function readCartSessionId(cookies: Cookies, url: URL): string | undefined {
   const isSecure = isSecureCookieContext(url.protocol, url.hostname);
   return cookies.get(cartCookieName(isSecure)) || cookies.get(CART_COOKIE);
 }

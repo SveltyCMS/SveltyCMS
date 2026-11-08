@@ -204,7 +204,7 @@ export const DEFAULT_PLATFORM_CONSTRAINTS: Record<TargetPlatform, PlatformConstr
 
 // ─── DEFAULT CORPORATE GOVERNANCE RULES ───────────────────────────────────
 
-export const DEFAULT_CORPORATE_RULES: CorporateRule[] = [
+const DEFAULT_CORPORATE_RULES: CorporateRule[] = [
   // 1. Regulatory: EU Directive 2006/114/EC & German UWG §6 comparative advertising
   {
     id: "comp-eu-uwg-claims",

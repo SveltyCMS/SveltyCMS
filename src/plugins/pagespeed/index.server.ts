@@ -8,13 +8,47 @@
  */
 
 import { checkExtensionLicense } from "@src/utils/license-manager";
+import type { IDBAdapter } from "@databases/db-interface";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { raise } from "@utils/error-handling";
 import { logger } from "@utils/logger";
-import type { PluginContext, PluginEntryData } from "../types";
+import type { PluginContext, PluginEntryData, PluginMigration } from "../types";
 import { getMultipleCachedResults } from "./service";
-import { migrations } from "./migrations";
+import { nowISODateString } from "@utils/date";
 
-export { migrations };
+export const createPageSpeedResultsTable: PluginMigration = {
+  id: "001_create_pagespeed_results_table",
+  pluginId: "pagespeed",
+  version: 1,
+  description: "Ensure plugin_pagespeed_results collection exists",
+
+  async up(dbAdapter: IDBAdapter) {
+    logger.info(
+      "PageSpeed Migration: Ensuring collection 'pluginPagespeedResults' is available...",
+    );
+
+    try {
+      const probe = await dbAdapter.crud.findMany(
+        "pluginPagespeedResults",
+        {},
+        { limit: 1, ...withSystemScope("migration") },
+      );
+
+      if (probe.success) {
+        logger.info("✅ PageSpeed: pluginPagespeedResults validated.");
+      } else {
+        logger.warn(
+          "⚠ PageSpeed: Collection 'pluginPagespeedResults' not detected. " +
+            "Restart the server so the schema boot pass can provision it.",
+        );
+      }
+    } catch (err) {
+      logger.error("PageSpeed Migration Failed during probe", { error: err });
+    }
+  },
+};
+
+export const migrations: PluginMigration[] = [createPageSpeedResultsTable];
 
 /**
  * beforeSave hook: gates bulk/scheduled/historical analytics behind the license.
@@ -70,7 +104,7 @@ export async function ssrHook(
           cls: result.cls,
           fetchedAt: result.fetchedAt ? new Date(result.fetchedAt).toISOString() : null,
         },
-        updatedAt: (result.updatedAt ? String(result.updatedAt) : new Date().toISOString()) as any,
+        updatedAt: (result.updatedAt ? String(result.updatedAt) : nowISODateString()) as any,
       });
     }
 

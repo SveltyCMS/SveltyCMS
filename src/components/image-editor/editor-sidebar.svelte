@@ -12,6 +12,7 @@ Active tool uses a soft rounded square highlight only.
 -->
 <script lang="ts">
 	import Slot from '@components/system/slot.svelte';
+	import Tooltip from '@components/ui/tooltip.svelte';
 	import { onMount, tick } from 'svelte';
 	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
 	import { type EditorWidget, editorWidgets } from './widgets/registry';
@@ -122,31 +123,36 @@ Active tool uses a soft rounded square highlight only.
 
 	<div class="sidebar-tools flex w-full flex-col items-center gap-1 px-1">
 		{#each tools as tool, idx (tool.id)}
-			<button
-				class="tool-item flex flex-col gap-[0.3rem] items-center justify-center w-12 h-12 p-0 cursor-pointer bg-transparent border border-transparent rounded-(--editor-radius-control) transition-[background,color,border-color] duration-150 text-(--editor-chrome-text) enabled:hover:text-(--editor-chrome-text-hover) enabled:hover:bg-(--editor-chrome-elevated) enabled:hover:border-(--editor-chrome-border) focus-visible:outline-2 focus-visible:outline-(--editor-accent) focus-visible:outline-offset-2"
-				class:tool-active={selectedToolId === tool.id}
-				class:cursor-not-allowed={!hasImage}
-				class:opacity-40={!hasImage}
-				onclick={() => handleToolClick(tool)}
-				role="tab"
-				aria-selected={selectedToolId === tool.id}
-				aria-label="{tool.name}{tool.description ? ' — ' + tool.description : ''}"
-				aria-posinset={idx + 1}
-				aria-setsize={tools.length}
-				disabled={!hasImage}
-				title={tool.name}
+			<Tooltip
+				title={tool.description ? `${tool.name} — ${tool.description}` : tool.name}
+				positioning={{ placement: 'right' }}
+				triggerClass="w-12 justify-center"
 			>
-				<span
-					class="tool-icon flex items-center justify-center leading-none text-current"
-					aria-hidden="true"
+				<button
+					class="tool-item flex flex-col gap-[0.3rem] items-center justify-center w-12 h-12 p-0 cursor-pointer bg-transparent border border-transparent rounded-(--editor-radius-control) transition-[background,color,border-color] duration-150 text-(--editor-chrome-text) enabled:hover:text-(--editor-chrome-text-hover) enabled:hover:bg-(--editor-chrome-elevated) enabled:hover:border-(--editor-chrome-border) focus-visible:outline-2 focus-visible:outline-(--editor-accent) focus-visible:outline-offset-2"
+					class:tool-active={selectedToolId === tool.id}
+					class:cursor-not-allowed={!hasImage}
+					class:opacity-40={!hasImage}
+					onclick={() => handleToolClick(tool)}
+					role="tab"
+					aria-selected={selectedToolId === tool.id}
+					aria-label="{tool.name}{tool.description ? ' — ' + tool.description : ''}"
+					aria-posinset={idx + 1}
+					aria-setsize={tools.length}
+					disabled={!hasImage}
 				>
-					<iconify-icon icon={tool.icon} width="20" class="text-current"></iconify-icon>
-				</span>
-				<span
-					class="tool-label max-w-13 overflow-hidden text-[9px] font-medium leading-none text-center truncate tracking-[0.01em] text-current"
-					>{tool.name}</span
-				>
-			</button>
+					<span
+						class="tool-icon flex items-center justify-center leading-none text-current"
+						aria-hidden="true"
+					>
+						<iconify-icon icon={tool.icon} width="20" class="text-current"></iconify-icon>
+					</span>
+					<span
+						class="tool-label max-w-13 overflow-hidden text-[9px] font-medium leading-none text-center truncate tracking-[0.01em] text-current"
+						>{tool.name}</span
+					>
+				</button>
+			</Tooltip>
 		{/each}
 
 		<!-- Plugin-provided image editor tools (image_editor_tool zone) -->

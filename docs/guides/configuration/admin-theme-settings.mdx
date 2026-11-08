@@ -1,12 +1,12 @@
 ---
 path: "docs/guides/configuration/admin-theme-settings.mdx"
 title: "Design System & Admin Theme Settings"
-description: "Design System workspace: multi-theme management, density, visual styles, personal overrides, custom CSS, and live component preview."
+description: "Design System workspace: themes and marketplace, one theme customizer (palette, layout, style, features, CSS), live component preview, and personal overrides."
 order: 7
 icon: "mdi:compass-outline"
 author: "SveltyCMS Team"
 created: "2026-06-04"
-updated: "2026-11-01"
+updated: "2026-11-06"
 tags:
   - "theme"
   - "appearance"
@@ -18,20 +18,27 @@ tags:
 
 # Design System & Admin Theme Settings
 
-SveltyCMS's admin theme system has **two layers that are easy to confuse**:
+SveltyCMS's admin theme system has **two layers**:
 
 - **Themes** — named, **workspace-wide** designs (density, visual style, features, custom CSS) that an admin creates and activates. They apply to **everyone** and are stored in the database.
 - **My Overrides** — a **per-user** layer that sits _on top of_ the active theme. It changes how the admin looks **for you only**; it never edits the theme and never affects other users.
 
 This page (**Config → Design System**, `/config/design-system`) is the **sole route** — there is no separate Appearance page. Changes preview instantly before saving.
 
-**Deep links (query `?tab=`):**
+The workspace is four tabs, in the order the work happens. Administrators land on **Themes & Catalog**; personal overrides are deliberately **last**, because they are not workspace configuration.
 
-| Tab                                                         | URL                                   | Audience                                 | Scope                                       |
-| :---------------------------------------------------------- | :------------------------------------ | :--------------------------------------- | :------------------------------------------ |
-| **My Overrides**                                            | `/config/design-system?tab=overrides` | All users (linked from `/user` Settings) | **Just you** — layered on the active theme  |
-| **Live Preview**                                            | `/config/design-system?tab=preview`   | All users                                | Read-only component catalog + token readout |
-| **Themes / Presets / Layout / Style / Features / Advanced** | `?tab=themes` etc.                    | Workspace admins                         | **Whole workspace** (applies to every user) |
+| Tab                  | URL                                    | Audience         | Scope                                        |
+| :------------------- | :------------------------------------- | :--------------- | :------------------------------------------- |
+| **Themes & Catalog** | `/config/design-system?tab=themes`     | Workspace admins | Installed themes, marketplace, import/export |
+| **Theme Customizer** | `/config/design-system?tab=customizer` | Workspace admins | **Whole workspace** (applies to every user)  |
+| **Live Preview**     | `/config/design-system?tab=preview`    | All users        | Read-only component catalog + token readout  |
+| **My Overrides**     | `/config/design-system?tab=overrides`  | All users        | **Just you** — layered on the active theme   |
+
+Legacy deep links are still accepted: `?tab=presets`, `?tab=layout`, `?tab=style`, `?tab=features` and `?tab=advanced` all open the **Theme Customizer**, where those sections now live.
+
+The same personal preferences are reachable from **User Profile → Settings → Workspace Appearance**; that panel is a shortcut, not a second settings surface, and changes are applied from either place.
+
+Every control that needs an explanation carries a `?` help trigger (`HelpIcon` inside the shared `Tooltip`), reachable with the keyboard as well as the pointer. In the source, the explanations live in one `HELP` map rather than being scattered across tooltips.
 
 ---
 
@@ -39,9 +46,15 @@ This page (**Config → Design System**, `/config/design-system`) is the **sole 
 
 SveltyCMS supports multiple admin themes stored in the database. Each theme stores its own density, card variant, feature toggles, and custom CSS independently.
 
-### Themes Tab
+### Themes & Catalog (tab 1)
 
-Navigate to **Config → Design System → Themes**.
+Navigate to **Config → Design System**. This is the landing tab for administrators and holds everything that manages the theme _set_:
+
+- installed themes (activate / clone / delete),
+- the marketplace catalog (install),
+- theme JSON import and export, side by side.
+
+The old marketplace-in-“Palette & Import” split is gone: themes are installed where they are activated.
 
 | Action       | Description                                                        |
 | :----------- | :----------------------------------------------------------------- |
@@ -53,26 +66,26 @@ The active theme shows a green **Active** badge. The system default theme (creat
 
 ### Marketplace themes
 
-The palette browser in the Themes tab loads its catalog through the same-origin proxy `GET /api/marketplace?type=theme` (with credentials), not by calling `marketplace.sveltycms.com` from the browser. The handler is admin-gated and merges the local built-in themes with the remote catalog server-side, so no third-party origin, credential, or CORS policy is involved in the page; a failed or offline call returns the local themes (`source: "local"`) instead of an error state. Install goes through `POST /api/marketplace/install` (admin-only, `validateEgressUrl` + `safeFetch`).
+The palette browser in the Themes & Catalog tab loads its catalog through the same-origin proxy `GET /api/marketplace?type=theme` (with credentials), not by calling `marketplace.sveltycms.com` from the browser. The handler is admin-gated and merges the local built-in themes with the remote catalog server-side, so no third-party origin, credential, or CORS policy is involved in the page; a failed or offline call returns the local themes (`source: "local"`) instead of an error state. Install goes through `POST /api/marketplace/install` (admin-only, `validateEgressUrl` + `safeFetch`).
 
 The built-in theme is a single row named **Default**. On boot (and on every `/src/themes/*.json` change) the file sync reconciles it: a legacy `SveltyCMSTheme` row is renamed to **Default**, any duplicate built-in row is pruned, and a stale `customCss` palette is cleared so brand colors always come from the `src/app.css` `@theme` tokens unless you explicitly set one.
 
 ### Creating a Theme
 
-1.  Navigate to **Config → Design System → Themes**.
+1.  Navigate to **Config → Design System** (Themes & Catalog).
 2.  Enter a name (e.g., "Midnight Blue", "High Contrast Reader").
 3.  Click **Create**.
 
-New themes start with the current density, variant, and features as defaults. Switch to other tabs to customize before saving.
+New themes start with the current density, variant, and features as defaults. Open the **Theme Customizer** tab to change them before saving.
 
 > [!TIP]
 > Clone a theme to experiment with variations without losing your working settings. If you don't like the clone, delete it.
 
 ---
 
-## 📐 Layout & Density
+## 📐 Layout & Density (Theme Customizer)
 
-The **Layout & Density** tab controls spacing, sizing, and overall compactness of the admin interface.
+The **Layout & style** section of the **Theme Customizer** tab controls spacing, sizing, and overall compactness of the admin interface. The three preset cards set density and card style in one click; the two selects below them are the single control for each value — there is no second density picker elsewhere in the workspace.
 
 | Density      | Sidebar Width | Header Height | Best For                                                |
 | :----------- | :------------ | :------------ | :------------------------------------------------------ |
@@ -87,9 +100,9 @@ Changing density updates the sidebar width, card padding, button sizes, and font
 
 ---
 
-## 🖌️ Visual Style
+## 🖌️ Visual Style (Theme Customizer)
 
-The **Visual Style** tab controls card borders and shadows.
+The **Card Variant** control in the **Theme Customizer**'s layout section, together with its three illustration cards, controls card borders and shadows.
 
 | Variant      | Border | Shadow         | Effect                            |
 | :----------- | :----- | :------------- | :-------------------------------- |
@@ -101,9 +114,9 @@ These affect every card, modal, and content container in the admin panel. The pr
 
 ---
 
-## 🔧 Theme Features
+## 🔧 Theme Features & Governance (Theme Customizer)
 
-The **Features** tab provides five toggles plus layout region controls:
+The **Features & governance** section of the **Theme Customizer** provides five toggles plus layout region controls:
 
 | Feature                  | Effect                                                                 |
 | :----------------------- | :--------------------------------------------------------------------- |
@@ -164,15 +177,15 @@ When **Sticky Action Bar** is enabled, any page can make its action buttons stic
 The buttons render in the sticky bar at the bottom of the screen when the feature is on (and fall back to their original in-place position when it is off) — so the actions never appear twice on screen. The bar uses `role="toolbar"`, `aria-label="Page actions"`, and `aria-live="polite"` for screen reader compatibility.
 
 > [!TIP]
-> The sticky bar height adapts to density — 44px in compact, 56px in cozy, 64px in spacious. Toggle the feature per-theme in **Design System → Features**.
+> The sticky bar height adapts to density — 44px in compact, 56px in cozy, 64px in spacious. Toggle the feature per-theme in the **Theme Customizer → Features & governance** section.
 
 ---
 
-## ⌨️ Advanced Customization
+## ⌨️ Advanced Customization (Theme Customizer)
 
 ### Custom CSS
 
-The **Advanced** tab provides a code editor where you can inject custom CSS into the admin panel.
+The **Advanced (CSS & danger zone)** section at the end of the **Theme Customizer** provides a code editor where you can inject custom CSS into the admin panel.
 
 ```
 /* Example: Change the active tab indicator */
@@ -187,9 +200,9 @@ Custom CSS is **sanitized server-side** before storage. Dangerous constructs (`u
 > [!CAUTION]
 > Custom CSS can override theme settings. If your density or variant changes don't appear to take effect, check your custom CSS for conflicting rules.
 
-### Palette studio (Design System → Palette & Import)
+### Palette studio (Theme Customizer → Palette)
 
-A lightweight brand editor (Skeleton-inspired) lives on the **Palette & Import** tab:
+A lightweight brand editor lives at the top of the **Theme Customizer**:
 
 | Control                          | Purpose                                                                 |
 | :------------------------------- | :---------------------------------------------------------------------- |
@@ -199,12 +212,14 @@ A lightweight brand editor (Skeleton-inspired) lives on the **Palette & Import**
 | **Expanded shades**              | Shows 50 / 500 / 950 previews                                           |
 | **Apply / Reset / Clear**        | Commit, restore the default seeds, or remove only the palette CSS block |
 
-Seeds expand via a hue-preserving OKLCH ramp into full 50–950 scales and rebind `--admin-bg-*` (same path as theme JSON import). Manual **Advanced → Custom CSS** outside the `sveltycms-palette-start/end` markers is preserved. Click **Save Theme** to persist.
+Seeds expand via a hue-preserving OKLCH ramp into full 50–950 scales and rebind `--admin-bg-*` (same path as theme JSON import). Manual **Theme Customizer → Custom CSS** outside the `sveltycms-palette-start/end` markers is preserved. Click **Save Theme** to persist.
 
 ### Export / Import
 
+Both live in the **Themes & Catalog** tab, side by side, because they are inverse operations:
+
 - **Export Theme JSON**: Downloads the current theme (density, variant, features, custom CSS) as a portable JSON file.
-- **Import**: Paste SveltyCMS theme JSON or a shorthand palette block in the **Palette & Import** tab.
+- **Import**: Paste SveltyCMS theme JSON or a shorthand palette block into the import field and press **Import theme**.
 
 #### Default install
 
@@ -243,7 +258,7 @@ On import or boot sync, SveltyCMS maps those tokens to **runtime admin CSS** sco
 | `error`     | `error`           | Direct match                     |
 | `surface`   | `surface`         | Direct match                     |
 
-`--radius-base` and `--radius-container` also bridge to `--admin-radius-*` tokens. You do **not** need to edit `src/app.css` — compile-time defaults stay intact; imported colors apply at runtime via the theme's `customCss` field (visible and editable in **Advanced → Custom CSS**).
+`--radius-base` and `--radius-container` also bridge to `--admin-radius-*` tokens. You do **not** need to edit `src/app.css` — compile-time defaults stay intact; imported colors apply at runtime via the theme's `customCss` field (visible and editable in **Theme Customizer → Custom CSS**).
 
 CSS exports (`[data-theme='...'] { ... }`) pasted as JSON with a `css` or `code` field are supported when a `name` is provided.
 
@@ -251,9 +266,9 @@ CSS exports (`[data-theme='...'] { ... }`) pasted as JSON with a `css` or `code`
 
 ### My Overrides (per-user preferences) {#my-overrides}
 
-**`/config/design-system?tab=overrides` — available to every signed-in user, no admin rights required.**
+**`/config/design-system?tab=overrides` — available to every signed-in user, no admin rights required. It is the last tab, after the workspace tabs, because it is personal rather than shared.**
 
-This tab is **not a theme editor.** It is a thin **per-user layer** on top of the active workspace theme: it only changes how the admin looks **for you**, never the theme definition, and never other users. Everything applies **immediately** — no page reload.
+This tab is **not a theme editor.** It is a thin **per-user layer** on top of the active workspace theme: it only changes how the admin looks **for you**, never the theme definition, and never other users. Everything applies **immediately** — no page reload. The same preferences are also writable from **User Profile → Settings → Workspace Appearance**; both surfaces update the same per-user record.
 
 | Control                   | Values                                     | What it changes (for your session only)                                                     |
 | :------------------------ | :----------------------------------------- | :------------------------------------------------------------------------------------------ |
@@ -267,13 +282,13 @@ This tab is **not a theme editor.** It is a thin **per-user layer** on top of th
 
 #### Overrides vs. theme — the difference
 
-|                         | **Theme** (Themes / Layout / Style / Features / Advanced tabs) | **My Overrides** (this tab)       |
-| :---------------------- | :------------------------------------------------------------- | :-------------------------------- |
-| **Scope**               | Workspace-wide (every user)                                    | Just you                          |
-| **Who can edit**        | Workspace admins only                                          | Every signed-in user              |
-| **What it writes**      | The theme definition stored in the database                    | Your `user.preferences.theme` row |
-| **Route**               | `?tab=themes`, `?tab=layout`, …                                | `?tab=overrides`                  |
-| **Affects other users** | Yes                                                            | No                                |
+|                         | **Theme** (Theme Customizer)                | **My Overrides** (last tab)       |
+| :---------------------- | :------------------------------------------ | :-------------------------------- |
+| **Scope**               | Workspace-wide (every user)                 | Just you                          |
+| **Who can edit**        | Workspace admins only                       | Every signed-in user              |
+| **What it writes**      | The theme definition stored in the database | Your `user.preferences.theme` row |
+| **Route**               | `?tab=themes`, `?tab=customizer`            | `?tab=overrides`                  |
+| **Affects other users** | Yes                                         | No                                |
 
 An override is always **relative to the theme**: leaving a select on _Use theme default_ means "inherit whatever the active theme says". **Clear Overrides** removes the whole personal layer and falls back to the theme.
 
@@ -367,7 +382,7 @@ Drop a `.json` file into the `/src/themes/` directory and Vite auto-imports it t
 
 ### Reset to Defaults
 
-The **Danger Zone** in the Advanced tab resets all settings to factory defaults. This cannot be undone.
+The **Danger Zone** at the end of the **Theme Customizer** resets all settings to factory defaults. This cannot be undone.
 
 ---
 
@@ -651,7 +666,7 @@ Navigate to **Config → System Settings**:
 
 #### Step 2: Configure Client Brand Palette
 
-Navigate to **Config → Design System → Palette & Import**:
+Navigate to **Config → Design System → Theme Customizer** (palette studio):
 
 1. In the **Palette Studio**, input the client's corporate primary color (e.g., `#1e40af` for corporate navy, `#047857` for emerald).
 2. Choose a matching secondary and surface seed.
@@ -686,7 +701,7 @@ To provide a branded client handoff with direct support escalation, inject your 
 
 #### Step 5: Version-Control the Client Theme
 
-Once customized, click **Export Theme JSON** on the Palette & Import tab. Save the output to:
+Once customized, click **Export Theme JSON** in the **Themes & Catalog** tab. Save the output to:
 
 ```text
 /src/themes/client-brand.json

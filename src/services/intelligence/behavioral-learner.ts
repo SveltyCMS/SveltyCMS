@@ -29,7 +29,7 @@ interface AccessRecord {
 interface CollectionHeat {
   collections: Map<string, AccessRecord>;
   entries: Map<string, AccessRecord>;
-  transitions: Map<string, AccessRecord>;
+  transitions: Map<string, Map<string, AccessRecord>>;
 }
 
 interface TenantBehavior {
@@ -116,11 +116,48 @@ function pruneHeatMap(map: Map<string, AccessRecord>, maxSize: number, now: numb
   }
 }
 
+/** Prunes 2-level nested transition map (fromPath -> toPath -> AccessRecord). */
+function pruneTransitionsHeat(
+  transitions: Map<string, Map<string, AccessRecord>>,
+  maxSize: number,
+  now: number,
+): void {
+  let totalTransitions = 0;
+  for (const [fromPath, subMap] of transitions) {
+    for (const [toPath, rec] of subMap) {
+      if (now > rec.lastAccess && decayedScore(rec, now) < MIN_HOT_SCORE) {
+        subMap.delete(toPath);
+      }
+    }
+    if (subMap.size === 0) {
+      transitions.delete(fromPath);
+    } else {
+      totalTransitions += subMap.size;
+    }
+  }
+
+  // Evict oldest entries if total transitions exceed maxSize
+  if (totalTransitions > maxSize) {
+    for (const [fromPath, subMap] of transitions) {
+      while (subMap.size > 0 && totalTransitions > maxSize) {
+        const oldestTo = subMap.keys().next().value;
+        if (oldestTo === undefined) break;
+        subMap.delete(oldestTo);
+        totalTransitions--;
+      }
+      if (subMap.size === 0) {
+        transitions.delete(fromPath);
+      }
+      if (totalTransitions <= maxSize) break;
+    }
+  }
+}
+
 /** Prune all three heat maps for a tenant to their caps. */
 function pruneTenantHeat(t: TenantBehavior, now: number): void {
   pruneHeatMap(t.heat.collections, MAX_COLLECTIONS_HEAT, now);
   pruneHeatMap(t.heat.entries, MAX_ENTRIES_HEAT, now);
-  pruneHeatMap(t.heat.transitions, MAX_TRANSITIONS_HEAT, now);
+  pruneTransitionsHeat(t.heat.transitions, MAX_TRANSITIONS_HEAT, now);
 }
 
 function applyDecay(record: AccessRecord, now: number): void {
@@ -167,6 +204,38 @@ function updateHeatRecord(
   rec.lastAccess = now;
   rec.score += weight;
 }
+
+/** Update transition record in 2-level Map (fromPath -> toPath -> AccessRecord). */
+function updateTransitionRecord(
+  transitions: Map<string, Map<string, AccessRecord>>,
+  fromPath: string,
+  toPath: string,
+  weight = 1,
+  maxSize = MAX_TRANSITIONS_HEAT,
+): void {
+  const now = Date.now();
+  let subMap = transitions.get(fromPath);
+  if (!subMap) {
+    subMap = new Map<string, AccessRecord>();
+    transitions.set(fromPath, subMap);
+  }
+  let rec = subMap.get(toPath);
+  if (!rec) {
+    // If overall transitions count exceeds maxSize, prune transitions
+    let totalTransitions = 0;
+    for (const sub of transitions.values()) totalTransitions += sub.size;
+    if (totalTransitions >= maxSize) {
+      pruneTransitionsHeat(transitions, maxSize, now);
+    }
+    rec = { count: 0, lastAccess: now, score: 0 };
+    subMap.set(toPath, rec);
+  }
+  applyDecay(rec, now);
+  rec.count++;
+  rec.lastAccess = now;
+  rec.score += weight;
+}
+
 export function recordCollectionAccess(tenantId: string, collectionId: string): void {
   updateHeatRecord(
     getOrCreateTenant(tenantId).heat.collections,
@@ -203,9 +272,10 @@ export function recordWriteAccess(tenantId: string, collectionId: string, entryI
 }
 
 export function recordNavigation(tenantId: string, fromPath: string, toPath: string): void {
-  updateHeatRecord(
+  updateTransitionRecord(
     getOrCreateTenant(tenantId).heat.transitions,
-    `${fromPath}→${toPath}`,
+    fromPath,
+    toPath,
     1,
     MAX_TRANSITIONS_HEAT,
   );
@@ -217,9 +287,9 @@ export function recordNavigation(tenantId: string, fromPath: string, toPath: str
  */
 export function reinforceTransition(tenantId: string, fromPath: string, toPath: string): void {
   const t = getOrCreateTenant(tenantId);
-  const key = `${fromPath}→${toPath}`;
+  const subMap = t.heat.transitions.get(fromPath);
   const now = Date.now();
-  let rec = t.heat.transitions.get(key);
+  const rec = subMap?.get(toPath);
   if (rec) {
     applyDecay(rec, now);
     rec.count++;
@@ -235,9 +305,9 @@ export function reinforceTransition(tenantId: string, fromPath: string, toPath: 
  */
 export function penalizeTransition(tenantId: string, fromPath: string, toPath: string): void {
   const t = getOrCreateTenant(tenantId);
-  const key = `${fromPath}→${toPath}`;
+  const subMap = t.heat.transitions.get(fromPath);
   const now = Date.now();
-  let rec = t.heat.transitions.get(key);
+  const rec = subMap?.get(toPath);
   if (rec) {
     applyDecay(rec, now);
     rec.score = Math.max(0, rec.score - 1.5); // Punishment penalty
@@ -255,10 +325,11 @@ export function applyExtinction(
   actualNextPath: string,
 ): void {
   const t = getOrCreateTenant(tenantId);
-  const prefix = `${currentPath}→`;
+  const subMap = t.heat.transitions.get(currentPath);
+  if (!subMap) return;
   const now = Date.now();
-  for (const [key, rec] of t.heat.transitions) {
-    if (key.startsWith(prefix) && key !== `${prefix}${actualNextPath}`) {
+  for (const [toPath, rec] of subMap) {
+    if (toPath !== actualNextPath) {
       applyDecay(rec, now);
       rec.score *= 0.8; // Extinction decay factor
       trackPredictionResult(tenantId, currentPath, false);
@@ -381,17 +452,17 @@ export function predictNextPath(tenantId: string, currentPath: string): string |
   if (!t) return null;
   const now = Date.now();
   // 🔴 FIX 8: prune cold entries + enforce cap before reading
-  pruneHeatMap(t.heat.transitions, MAX_TRANSITIONS_HEAT, now);
+  pruneTransitionsHeat(t.heat.transitions, MAX_TRANSITIONS_HEAT, now);
+  const subMap = t.heat.transitions.get(currentPath);
+  if (!subMap || subMap.size === 0) return null;
+
   let best = "";
   let bestScore = 0;
-  const prefix = `${currentPath}→`;
-  for (const [key, rec] of t.heat.transitions) {
-    if (key.startsWith(prefix)) {
-      const score = decayedScore(rec, now);
-      if (score > bestScore) {
-        bestScore = score;
-        best = key.slice(prefix.length);
-      }
+  for (const [toPath, rec] of subMap) {
+    const score = decayedScore(rec, now);
+    if (score > bestScore) {
+      bestScore = score;
+      best = toPath;
     }
   }
   return best || null;
@@ -413,10 +484,16 @@ export async function persistBehavioralData(): Promise<void> {
   // restart (the old per-tenant keys were never restored).
   const snapshot: Record<string, unknown> = {};
   for (const [tenantId, t] of _tenants) {
+    const serializedTransitions: [string, AccessRecord][] = [];
+    for (const [fromPath, subMap] of t.heat.transitions) {
+      for (const [toPath, rec] of subMap) {
+        serializedTransitions.push([`${fromPath}→${toPath}`, rec]);
+      }
+    }
     snapshot[tenantId] = {
       collections: Array.from(t.heat.collections.entries()),
       entries: Array.from(t.heat.entries.entries()),
-      transitions: Array.from(t.heat.transitions.entries()),
+      transitions: serializedTransitions,
     };
     t.lastPersisted = Date.now();
   }
@@ -450,10 +527,20 @@ function restoreTenantMaps(tenantId: string, data: any): void {
   for (const [k, v] of data.collections || []) t.heat.collections.set(k, v);
   for (const [k, v] of data.entries || []) t.heat.entries.set(k, v);
   for (const [k, v] of data.transitions || []) {
-    if (typeof v === "number") {
-      t.heat.transitions.set(k, { count: v, lastAccess: Date.now(), score: v });
-    } else {
-      t.heat.transitions.set(k, v);
+    const sep = k.indexOf("→");
+    if (sep !== -1) {
+      const fromPath = k.slice(0, sep);
+      const toPath = k.slice(sep + 1);
+      let subMap = t.heat.transitions.get(fromPath);
+      if (!subMap) {
+        subMap = new Map<string, AccessRecord>();
+        t.heat.transitions.set(fromPath, subMap);
+      }
+      if (typeof v === "number") {
+        subMap.set(toPath, { count: v, lastAccess: Date.now(), score: v });
+      } else {
+        subMap.set(toPath, v);
+      }
     }
   }
   // 🔴 FIX 8: after loading, prune to caps — a corrupted / oversized legacy snapshot

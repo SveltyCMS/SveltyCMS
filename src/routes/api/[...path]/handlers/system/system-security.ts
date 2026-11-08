@@ -8,6 +8,7 @@ import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { rawResponse } from "../base";
+import { requireAdminUser } from "./system-shared";
 
 /**
  * --- SECURITY ---
@@ -18,13 +19,11 @@ export async function handleSecurityRoutes(
   tenantId: DatabaseId,
   segments: string[],
 ) {
-  const { request, locals } = event;
+  const { request } = event;
   const action = segments[1];
 
   if (action === "stats" && request.method === "GET") {
-    if (!locals.user || locals.user.role !== "admin") {
-      throw new AppError("Forbidden", 403, "FORBIDDEN");
-    }
+    requireAdminUser(event, "Forbidden");
     const { securityResponseService } = await import("@src/services/security/response-service");
     const { metricsService } = await import("@src/services/observability/metrics-service");
 

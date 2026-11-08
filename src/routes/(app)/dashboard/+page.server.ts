@@ -22,7 +22,7 @@ import { generateUUID as uuidv4 } from "@utils/native-utils";
 import { getHotCollections } from "@src/services/intelligence/behavioral-learner";
 import { rethrow } from "@utils/error-handling";
 import type { Actions, PageServerLoad } from "./$types";
-import { getInstalledDashboardWidgets } from "./widgets/manifest-registry";
+import { getInstalledDashboardWidgets } from "@src/services/core/dashboard-manifest-registry";
 import { checkWidgetAccess } from "./widget-sandbox";
 import {
   filterPickerByPlugins,

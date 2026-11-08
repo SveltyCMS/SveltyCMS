@@ -89,6 +89,8 @@ Only `GET` and `POST` are exported. `PUT`, `PATCH`, and `DELETE` are not valid G
 
 Yoga serves its landing page/playground in non-production environments. Playground CSP is relaxed only when `ALLOW_GRAPHQL_PLAYGROUND` is not `"false"`; production keeps a strict CSP. Introspection is still subject to the rules in [Limits & security](#11-limits-security).
 
+In the admin UI, open **Config → API Playground → GraphQL Console** (`/config/api?tab=graphql`) and use **Open Yoga Explorer** to launch the full GraphiQL IDE in a new tab. The **GraphQL** tile on `/config` opens the same landing page directly. The in-page console runs the same operations without leaving the admin UI. The explorer button and its hint adapt to the environment: where the playground is disabled, the page explains that the console remains available instead of linking to a page that cannot render.
+
 ---
 
 ## 3. Authentication & authorization

@@ -20,6 +20,13 @@ import { defineConfig, devices } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { E2E_MEDIA_FOLDER } from "./tests/e2e/harness-paths";
+
+// Every process this config starts (webServer, globalSetup, workers) writes test
+// uploads to the harness-owned root. Never leave this unset: globalSetup empties
+// the media root, and the dev server serves the developer's `mediaFolder` from
+// this same checkout.
+process.env.MEDIA_FOLDER = E2E_MEDIA_FOLDER;
 
 // Ensure .auth directory exists for secret sync
 const authDir = join(process.cwd(), "tests/e2e/.auth");
@@ -114,6 +121,7 @@ export default defineConfig({
           DB_TYPE: process.env.DB_TYPE || "sqlite",
           DB_HOST: process.env.DB_HOST || "127.0.0.1",
           DB_NAME: process.env.DB_NAME || "e2e_auth_test",
+          MEDIA_FOLDER: E2E_MEDIA_FOLDER,
           JWT_SECRET_KEY: process.env.JWT_SECRET_KEY || "Integration-Test-JWT-Secret-Key-2026",
           ENCRYPTION_KEY:
             process.env.ENCRYPTION_KEY ||

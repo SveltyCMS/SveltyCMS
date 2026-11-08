@@ -1,0 +1,591 @@
+/**
+ * @file src/utils/collection-query-filters.server.ts
+ * @description
+ * Database-agnostic query parsing, schema coercion and filter whitelisting for
+ * collection lists. Server-only: the browser-safe contract (URL prefix, filter
+ * map types, query hash) lives in `collection-query-filter-meta.ts`.
+ *
+ * Used by:
+ * - SSR loaders (`+page.server.ts`) — parse `filter_*` + `search` URL params
+ * - `CollectionService` — stable L1/L2 cache keys with filter hashes
+ * - SDK collections namespace — coerce + assert filterable fields
+ *
+ * ### Features:
+ * - URL param parsing (`filter_{field}`, `search`, sort)
+ * - Schema field whitelist (never trust client field names)
+ * - Declared-type coercion (boolean / numeric) with `400 FILTER_INVALID_VALUE`
+ * - Adapter-agnostic filter payload `{ field: { contains } }`
+ *
+ * @see docs/reference/architecture/cache-system.mdx
+ * @see docs/reference/api/content.mdx
+ * @see docs/reference/components/entry-list.mdx
+ */
+
+import type { FieldInstance, Schema } from "@src/content/types";
+import { getFieldName } from "@utils/schema/field-utils";
+import { raise } from "@utils/error-handling";
+import {
+  compileBooleanFilterGroup,
+  decodeBooleanFilterParam,
+  type BooleanFilterGroup,
+} from "@utils/boolean-filter";
+import {
+  FILTER_URL_PREFIX,
+  hashQueryPayload,
+  type CollectionFilterMap,
+} from "@utils/collection-query-filter-meta";
+
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+/** System columns always allowed for filtering (when present on entries). */
+const SYSTEM_FILTER_FIELDS = ["status", "createdAt", "updatedAt", "_id"] as const;
+
+/** Map Mongo-style / snake_case sort keys onto stored column names. */
+const SORT_FIELD_ALIASES: Record<string, string> = {
+  _createdAt: "createdAt",
+  _updatedAt: "updatedAt",
+  created_at: "createdAt",
+  updated_at: "updatedAt",
+};
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+export interface ParsedCollectionQuery {
+  page: number;
+  pageSize: number;
+  search: string;
+  sort: { field: string; direction: "asc" | "desc" };
+  /** Multi-column sort in priority order (includes the primary `sort`). */
+  sorts: Array<{ field: string; direction: "asc" | "desc" }>;
+  filter: CollectionFilterMap;
+  /** Advanced AND/OR group from `filterLogic` (null when absent). */
+  filterLogic: BooleanFilterGroup | null;
+  /** Portable OR equality clauses compiled from filterLogic. */
+  orGroups: Array<Record<string, string | number | boolean | null>>;
+  /** Short hash of filter+search+sort for cache keys */
+  queryHash: string;
+}
+
+export interface BuildCollectionCacheKeyParams {
+  collectionId: string;
+  page: number;
+  pageSize: number;
+  queryHash: string;
+  language: string;
+  tenantId?: string | null;
+  userId?: string;
+  editEntryId?: string | null;
+}
+
+// ─── Pure helpers ────────────────────────────────────────────────────────────
+
+/** Field names a schema field can be addressed by (storage name, label, name/path/key). */
+function fieldStorageNames(
+  field: Partial<FieldInstance> & { label?: string; db_fieldName?: string },
+): string[] {
+  const names = new Set<string>();
+  if (field.db_fieldName) names.add(field.db_fieldName);
+  if (field.label) {
+    try {
+      const name = getFieldName(field as Partial<FieldInstance> & { label: string });
+      if (name) names.add(name);
+    } catch {
+      // ignore malformed field
+    }
+  }
+  const asRecord = field as Record<string, unknown>;
+  for (const key of ["name", "path", "key"] as const) {
+    const value = asRecord[key];
+    if (typeof value === "string" && value) names.add(value);
+  }
+  return [...names];
+}
+
+/**
+ * Field ids allowed for filtering: schema fields + system columns.
+ * Media / rich-text etc. may still appear in schema; callers that want
+ * "safe only" should intersect with createSmartFilter definitions.
+ */
+export function getAllowedFilterFieldIds(collection: Schema | null | undefined): Set<string> {
+  if (!collection) return new Set<string>(SYSTEM_FILTER_FIELDS);
+  if ((collection as any)._allowedFilterFieldIds instanceof Set) {
+    return (collection as any)._allowedFilterFieldIds as Set<string>;
+  }
+
+  const allowed = new Set<string>(SYSTEM_FILTER_FIELDS);
+
+  if (!collection.fields?.length) {
+    (collection as any)._allowedFilterFieldIds = allowed;
+    return allowed;
+  }
+
+  for (const raw of collection.fields) {
+    const field = raw as Partial<FieldInstance> & { label?: string; db_fieldName?: string };
+    for (const name of fieldStorageNames(field)) allowed.add(name);
+  }
+
+  (collection as any)._allowedFilterFieldIds = allowed;
+  return allowed;
+}
+
+/**
+ * Nested-path index: top-level root → every addressable child path below it.
+ * Cached on the schema (like the field allow-list) because it is only rebuilt
+ * when the schema object is replaced by a recompile.
+ */
+export type NestedFilterIndex = ReadonlyMap<string, ReadonlySet<string>>;
+
+/** Relative paths of every declared field below `fields`, recursively. */
+function collectChildPaths(fields: readonly unknown[]): Set<string> {
+  const out = new Set<string>();
+  for (const raw of fields) {
+    const field = raw as Record<string, unknown>;
+    const names = fieldStorageNames(
+      field as Partial<FieldInstance> & { label?: string; db_fieldName?: string },
+    );
+    for (const name of names) out.add(name);
+    if (Array.isArray(field.fields)) {
+      const children = collectChildPaths(field.fields);
+      for (const name of names) {
+        for (const child of children) out.add(`${name}.${child}`);
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Roots whose stored value is a nested object, mapped to the child paths that
+ * exist beneath them, so `meta.title` is accepted and `meta.typo` is not.
+ */
+export function getNestedFilterPaths(collection: Schema | null | undefined): NestedFilterIndex {
+  if (!collection) return new Map<string, ReadonlySet<string>>();
+  const cached = (collection as any)._nestedFilterPaths;
+  if (cached instanceof Map) return cached as NestedFilterIndex;
+
+  const index = new Map<string, ReadonlySet<string>>();
+  for (const raw of collection.fields ?? []) {
+    const field = raw as Record<string, unknown>;
+    if (!(field.type === "object" || Array.isArray(field.fields))) continue;
+    const children = Array.isArray(field.fields)
+      ? collectChildPaths(field.fields)
+      : new Set<string>();
+    for (const name of fieldStorageNames(
+      field as Partial<FieldInstance> & { label?: string; db_fieldName?: string },
+    )) {
+      index.set(name, children);
+    }
+  }
+
+  (collection as any)._nestedFilterPaths = index;
+  return index;
+}
+
+/** Mongo-style logical operators that may appear at the top level of a filter. */
+const LOGICAL_OPERATOR_KEYS = new Set(["$and", "$or", "$nor", "$not"]);
+
+/** Field types whose stored value is boolean / numeric (see `schema-store` flags). */
+const BOOLEAN_FIELD_TYPES = new Set(["boolean", "checkbox", "toggle", "switch"]);
+const NUMERIC_FIELD_TYPES = new Set(["number", "integer", "float", "double", "decimal", "range"]);
+const TRUTHY_STRINGS = new Set(["true", "1", "yes", "on"]);
+const FALSY_STRINGS = new Set(["false", "0", "no", "off"]);
+/** Operators whose operand is a list (coerced element-wise). */
+const LIST_OPERATORS = new Set(["$in", "$nin", "$all", "$notIn"]);
+/** Operators whose operand is a scalar of the field's type. */
+const SCALAR_OPERATORS = new Set(["$eq", "$ne", "$gt", "$gte", "$lt", "$lte"]);
+
+/** Resolve a (possibly dotted) filter key to its declared field, if any. */
+function resolveFilterField(schema: Schema, key: string): Record<string, unknown> | null {
+  let fields: readonly unknown[] = schema.fields ?? [];
+  let found: Record<string, unknown> | null = null;
+  for (const segment of key.split(".").filter((part) => !/^\d+$/.test(part))) {
+    found = null;
+    for (const raw of fields) {
+      const field = raw as Record<string, unknown>;
+      if (fieldStorageNames(field as Partial<FieldInstance>).includes(segment)) {
+        found = field;
+        break;
+      }
+    }
+    if (!found) return null;
+    fields = Array.isArray(found.fields) ? (found.fields as readonly unknown[]) : [];
+  }
+  return found;
+}
+
+/**
+ * Coerce a query-string value to the declared field type.
+ * Unknown types pass through untouched; a value that cannot be represented in
+ * the field's type is a `400` rather than an adapter-dependent silent miss
+ * (MariaDB compares `'true'` against a TINYINT as `0`, Mongo matches nothing).
+ */
+function coerceFilterScalar(field: Record<string, unknown>, value: unknown, key: string): unknown {
+  const type = String(field.type ?? "").toLowerCase();
+  if (BOOLEAN_FIELD_TYPES.has(type)) {
+    if (typeof value === "boolean") return value;
+    if (typeof value === "string") {
+      const normalized = value.trim().toLowerCase();
+      if (TRUTHY_STRINGS.has(normalized)) return true;
+      if (FALSY_STRINGS.has(normalized)) return false;
+    }
+    raise(400, `Invalid boolean value for filter "${key}"`, "FILTER_INVALID_VALUE");
+  }
+  if (NUMERIC_FIELD_TYPES.has(type)) {
+    if (typeof value === "number") return value;
+    if (typeof value === "string" && value.trim() !== "") {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+    raise(400, `Invalid numeric value for filter "${key}"`, "FILTER_INVALID_VALUE");
+  }
+  return value;
+}
+
+/**
+ * Coerce every leaf of a REST filter to its schema type (booleans, numbers).
+ * Returns a new object: filters may be shared with a cache key or the caller's
+ * options bag, so the input is never mutated. Unknown keys are left alone here
+ * (`assertFilterableFields` owns rejection).
+ */
+export function coerceFilterValues(
+  schema: Schema | null | undefined,
+  filter: Record<string, unknown> | null | undefined,
+): Record<string, unknown> {
+  if (!schema || !filter || typeof filter !== "object" || Array.isArray(filter)) {
+    return (filter ?? {}) as Record<string, unknown>;
+  }
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(filter)) {
+    if (LOGICAL_OPERATOR_KEYS.has(key)) {
+      if (Array.isArray(value)) {
+        out[key] = value.map((entry) =>
+          entry && typeof entry === "object" && !Array.isArray(entry)
+            ? coerceFilterValues(schema, entry as Record<string, unknown>)
+            : entry,
+        );
+      } else if (key === "$not" && value && typeof value === "object") {
+        out[key] = coerceFilterValues(schema, value as Record<string, unknown>);
+      } else {
+        out[key] = value;
+      }
+      continue;
+    }
+    if (key.startsWith("$")) {
+      out[key] = value;
+      continue;
+    }
+    const field = resolveFilterField(schema, key);
+    if (!field) {
+      out[key] = value;
+      continue;
+    }
+    if (Array.isArray(value)) {
+      out[key] = value.map((entry) => coerceFilterScalar(field, entry, key));
+      continue;
+    }
+    if (value && typeof value === "object") {
+      const operators: Record<string, unknown> = {};
+      for (const [operator, operand] of Object.entries(value as Record<string, unknown>)) {
+        if (LIST_OPERATORS.has(operator) && Array.isArray(operand)) {
+          operators[operator] = operand.map((entry) => coerceFilterScalar(field, entry, key));
+        } else if (SCALAR_OPERATORS.has(operator)) {
+          operators[operator] = coerceFilterScalar(field, operand, key);
+        } else {
+          operators[operator] = operand;
+        }
+      }
+      out[key] = operators;
+      continue;
+    }
+    out[key] = coerceFilterScalar(field, value, key);
+  }
+  return out;
+}
+
+/** Remove array-index segments (`items.0.title` → `items.title`). */
+function withoutArrayIndices(path: string): string {
+  if (!path.includes(".")) return path;
+  return path
+    .split(".")
+    .filter((segment) => !/^\d+$/.test(segment))
+    .join(".");
+}
+
+/**
+ * True when `key` addresses a filterable field: an allow-listed name, a logical
+ * operator, or a declared dotted path under a nested (object/repeater) root.
+ */
+export function isFilterablePath(
+  key: string,
+  allowed: Set<string>,
+  nested: NestedFilterIndex,
+): boolean {
+  if (LOGICAL_OPERATOR_KEYS.has(key)) return true;
+  if (allowed.has(key)) return true;
+  const dot = key.indexOf(".");
+  if (dot <= 0 || dot === key.length - 1) return false;
+  const children = nested.get(key.slice(0, dot));
+  if (!children) return false;
+  return children.has(withoutArrayIndices(key.slice(dot + 1)));
+}
+
+/** Keys a caller sent that this schema cannot filter on (empty when all are valid). */
+export function rejectedFilterKeys(
+  raw: Record<string, unknown> | null | undefined,
+  allowed: Set<string>,
+  nested: NestedFilterIndex,
+): string[] {
+  if (!raw || typeof raw !== "object") return [];
+  const rejected: string[] = [];
+  for (const key of Object.keys(raw)) {
+    if (!isFilterablePath(key, allowed, nested)) rejected.push(key);
+  }
+  return rejected;
+}
+
+/** Shared empty index — callers without a schema should not allocate per query. */
+const EMPTY_NESTED: NestedFilterIndex = new Map<string, ReadonlySet<string>>();
+
+/**
+ * Drop filter keys not in the schema whitelist.
+ * Security: never pass unvalidated client field names to the DB layer.
+ * Accepts contains / eq / in / isNull / gte+lte shapes.
+ */
+export function whitelistFilterParams(
+  raw: CollectionFilterMap | Record<string, unknown>,
+  allowed: Set<string>,
+  nested: NestedFilterIndex = EMPTY_NESTED,
+): CollectionFilterMap {
+  const out: CollectionFilterMap = Object.create(null);
+  if (!raw || typeof raw !== "object") return out;
+
+  for (const [key, op] of Object.entries(raw)) {
+    if (!isFilterablePath(key, allowed, nested)) continue;
+    if (op == null) continue;
+
+    if (typeof op === "string") {
+      const value = op.trim();
+      if (value) out[key] = { contains: value };
+      continue;
+    }
+    if (typeof op !== "object") continue;
+    const o = op as Record<string, unknown>;
+
+    if (typeof o.contains === "string" && o.contains.trim()) {
+      out[key] = { contains: o.contains.trim() };
+    } else if (o.eq !== undefined && o.eq !== null && String(o.eq).trim() !== "") {
+      out[key] = { eq: o.eq as string | number | boolean };
+    } else if (Array.isArray(o.in) && o.in.length > 0 && o.in.length < 100) {
+      out[key] = { in: o.in as Array<string | number | boolean> };
+    } else if (typeof o.isNull === "boolean") {
+      out[key] = { isNull: o.isNull };
+    } else if (o.gte != null || o.lte != null) {
+      out[key] = {
+        gte: o.gte as string | number | undefined,
+        lte: o.lte as string | number | undefined,
+      };
+    }
+  }
+  return out;
+}
+
+/**
+ * Parse `filter_{field}=value` pairs from URLSearchParams into a filter map.
+ * Does **not** whitelist — call `whitelistFilterParams` with schema ids next.
+ */
+export function parseUrlFilterParams(searchParams: URLSearchParams): CollectionFilterMap {
+  const filter: CollectionFilterMap = {};
+
+  for (const [key, value] of searchParams.entries()) {
+    if (!key.startsWith(FILTER_URL_PREFIX)) continue;
+    const filterKey = key.slice(FILTER_URL_PREFIX.length);
+    if (!filterKey || !value?.trim()) continue;
+
+    // Soft date sanity check (keep invalid dates out of the query)
+    if (
+      (filterKey === "createdAt" || filterKey === "updatedAt") &&
+      Number.isNaN(Date.parse(value)) &&
+      !/^\d+$/.test(value)
+    ) {
+      continue;
+    }
+
+    filter[filterKey] = { contains: value.trim() };
+  }
+
+  return filter;
+}
+
+/**
+ * Parse full collection list query from a page URL (search, page, filters, sort).
+ */
+export function parseCollectionListQuery(
+  searchParams: URLSearchParams,
+  collection: Schema | null | undefined,
+  defaults: { pageSize?: number; sortField?: string; sortDirection?: "asc" | "desc" } = {},
+): ParsedCollectionQuery {
+  // Page and pageSize are counts: clamp AND truncate. A fractional `pageSize=1.5`
+  // would otherwise reach the adapter as a non-integer limit, and `page=Infinity`
+  // survives `Math.max(1, …)` without the finite guard.
+  const rawPage = Number(searchParams.get("page") ?? 1);
+  const page = Number.isFinite(rawPage) ? Math.max(1, Math.floor(rawPage)) : 1;
+  const rawPageSize = Number(searchParams.get("pageSize") ?? defaults.pageSize ?? 10);
+  const pageSize = Number.isFinite(rawPageSize)
+    ? Math.max(1, Math.min(500, Math.floor(rawPageSize)))
+    : 10;
+  const search = (searchParams.get("search") || "").trim();
+  const rawFilters = parseUrlFilterParams(searchParams);
+  const allowed = getAllowedFilterFieldIds(collection);
+  const nestedPaths = getNestedFilterPaths(collection);
+  const filter = whitelistFilterParams(rawFilters, allowed, nestedPaths);
+
+  const rawSort =
+    searchParams.get("sort") || searchParams.get("sortField") || defaults.sortField || "createdAt";
+  const sorts = parseSortDescriptors(
+    rawSort,
+    searchParams.get("order") || searchParams.get("sortDirection"),
+    allowed,
+    defaults,
+  );
+  const sort = sorts[0] ?? {
+    field: defaults.sortField || "createdAt",
+    direction: defaults.sortDirection || "desc",
+  };
+
+  const filterLogic = decodeBooleanFilterParam(searchParams.get("filterLogic"));
+  let orGroups: Array<Record<string, string | number | boolean | null>> = [];
+  if (filterLogic) {
+    const compiledLogic = compileBooleanFilterGroup(filterLogic);
+    Object.assign(filter, whitelistFilterParams(compiledLogic.andFilter, allowed, nestedPaths));
+    orGroups = compiledLogic.orGroups
+      .map((group) => {
+        const next: Record<string, string | number | boolean | null> = {};
+        for (const [k, v] of Object.entries(group)) {
+          if (isFilterablePath(k, allowed, nestedPaths)) next[k] = v;
+        }
+        return next;
+      })
+      .filter((g) => Object.keys(g).length > 0);
+  }
+
+  const queryHash = hashQueryPayload({
+    filter,
+    search,
+    sort,
+    sorts,
+    filterLogic,
+    orGroups,
+  });
+
+  return {
+    page,
+    pageSize,
+    search,
+    sort,
+    sorts,
+    filter,
+    filterLogic,
+    orGroups,
+    queryHash,
+  };
+}
+
+/**
+ * Parse `sort=title:asc,createdAt:desc` (multi) or `sort=title&order=asc` (single).
+ */
+export function parseSortDescriptors(
+  rawSort: string,
+  rawOrder: string | null,
+  allowed: Set<string>,
+  defaults: { sortField?: string; sortDirection?: "asc" | "desc" } = {},
+): Array<{ field: string; direction: "asc" | "desc" }> {
+  const fallbackField = defaults.sortField || "createdAt";
+  const fallbackDir: "asc" | "desc" = defaults.sortDirection === "asc" ? "asc" : "desc";
+
+  if (rawSort.includes(",") || rawSort.includes(":")) {
+    const out: Array<{ field: string; direction: "asc" | "desc" }> = [];
+    for (const part of rawSort.split(",")) {
+      const trimmed = part.trim();
+      if (!trimmed) continue;
+      const [rawField, rawDir] = trimmed.split(":");
+      const aliased = Object.hasOwn(SORT_FIELD_ALIASES, rawField)
+        ? SORT_FIELD_ALIASES[rawField]
+        : rawField;
+      if (!allowed.has(aliased)) continue;
+      const direction: "asc" | "desc" =
+        rawDir === "desc" || rawField.startsWith("-") ? "desc" : "asc";
+      out.push({ field: aliased, direction });
+    }
+    return out.length > 0 ? out : [{ field: fallbackField, direction: fallbackDir }];
+  }
+
+  const aliasedSort = Object.hasOwn(SORT_FIELD_ALIASES, rawSort)
+    ? SORT_FIELD_ALIASES[rawSort]
+    : rawSort;
+  const sortField = allowed.has(aliasedSort) ? aliasedSort : fallbackField;
+  const sortOrderRaw = (rawOrder || fallbackDir).toLowerCase();
+  const direction: "asc" | "desc" = sortOrderRaw === "asc" ? "asc" : "desc";
+  return [{ field: sortField, direction }];
+}
+
+/**
+ * Build a prefix-bucketed collection query cache key.
+ *
+ * Pattern: `collection:{id}:query:{hash}:page:{n}:size:{s}:lang:{l}:tenant:{t}:user:{u}`
+ *
+ * Prefix `collection:{id}:` enables O(1) invalidation via
+ * `cacheService.invalidateCollection(id)` / `clearByPattern("collection:{id}:")`.
+ *
+ * @see docs/reference/architecture/cache-system.mdx — Prefix-Bucketed Invalidation
+ */
+export function buildCollectionQueryCacheKey(params: BuildCollectionCacheKeyParams): string {
+  const {
+    collectionId,
+    page,
+    pageSize,
+    queryHash,
+    language,
+    tenantId = null,
+    userId = "anon",
+    editEntryId = null,
+  } = params;
+
+  // 🛡️ Sanitize inputs to prevent cache key injection via colons
+  const sanitize = (s: string | null | undefined) => (s ?? "none").replace(/[:]/g, "");
+
+  const edit = sanitize(editEntryId);
+  const tenant = sanitize(tenantId) || "global";
+  const user = sanitize(userId) || "anon";
+  const lang = sanitize(language);
+
+  return `collection:${collectionId}:query:${queryHash}:page:${page}:size:${pageSize}:lang:${lang}:tenant:${tenant}:user:${user}:edit:${edit}`;
+}
+
+const searchableFieldsCache = new WeakMap<object, string[]>();
+
+/**
+ * Searchable field names for global FTS within a collection (list + count).
+ */
+export function getSearchableFieldNames(collection: Schema | null | undefined): string[] {
+  if (collection && typeof collection === "object") {
+    const cached = searchableFieldsCache.get(collection);
+    if (cached) return cached;
+  }
+
+  const names: string[] = [];
+  if (collection?.fields?.length) {
+    for (const field of collection.fields) {
+      const fieldObj = field as Record<string, unknown>;
+      const name = (fieldObj.name || fieldObj.path || fieldObj.key || fieldObj.db_fieldName) as
+        | string
+        | null;
+      if (typeof name === "string" && name && fieldObj.encrypt !== true) names.push(name);
+    }
+  }
+  names.push("_id", "status", "createdBy", "updatedBy");
+
+  if (collection && typeof collection === "object") {
+    searchableFieldsCache.set(collection, names);
+  }
+  return names;
+}

@@ -32,30 +32,32 @@ Gallery first paint: tiles use `mediaDisplayUrl()` (not the original); SSR rows 
 
 ## Control → test matrix
 
-| Control                               | Unit                      | Integration                    | E2E   | Spec                                                   |
-| ------------------------------------- | ------------------------- | ------------------------------ | ----- | ------------------------------------------------------ |
-| Load + `media:read` gate              | page.server               | media API                      | shell | unit + gallery                                         |
-| Toolbar                               | —                         | —                              | ✅    | `media-gallery-toolbar`                                |
-| Search / type filter                  | —                         | —                              | ✅    | `mediagallery.spec`                                    |
-| Grid / table toggle                   | —                         | —                              | ✅    | `media-view-*`                                         |
-| Upload image                          | —                         | media upload                   | ✅    | `media-upload-input`                                   |
-| Delete single                         | —                         | media delete                   | ✅    | grid actions                                           |
-| **Image editor tools, compare, zoom** | tool controls + shortcuts | —                              | ✅    | `image-editor.spec` walk                               |
-| **Image editor save (manipulate)**    | media-manipulation        | baked rotate + crop            | ✅    | `image-editor.spec` + `media-manipulate.test.ts`       |
-| **Create virtual folder**             | —                         | system-virtual-folder          | ✅    | `folders-bulk.spec`                                    |
-| **Folder appear / navigate**          | —                         | —                              | ✅    | same                                                   |
-| **Selection mode + bulk bar**         | —                         | —                              | ✅    | `folders-bulk.spec`                                    |
-| **Bulk download**                     | —                         | bulk-download                  | ✅    | hits `/api/media/bulk-download`                        |
-| **Bulk delete (Del key)**             | —                         | deleteMedia                    | ✅    | confirm + batch toast                                  |
-| **Remote URL upload page**            | —                         | remoteUpload action            | ✅    | `move-remote.spec`                                     |
-| **Remote URL ingest (success)**       | egress allowlist seam     | `MediaService.saveRemoteMedia` | ✅    | `remote-ingestion.spec` (real loopback peer)           |
-| **Remote URL reject (SSRF)**          | egress-guard unit         | `/api/media/remote`            | ✅    | `remote-ingestion.spec` + `media-svg-ssrf`             |
-| **Selection + breadcrumb move**       | —                         | `/api/media/move`              | ✅    | `move-remote.spec`                                     |
-| **Drop to sidebar folder**            | media-dnd unit            | `/api/media/move`              | ✅    | `move-remote.spec` (pointer drag)                      |
-| **Large library batching**            | —                         | media list (100)               | ✅    | `large-library.spec` (60 → 70 on scroll)               |
-| **Pre-upload optimization**           | canvas-image-optimizer    | media upload                   | ✅    | `upload-optimization.spec` (stored dimensions)         |
-| **Batch resize/filter**               | batch handler unit        | `/api/media/batch-process`     | ✅    | `batch-processing.spec` + `media-batch-transcode.test` |
-| **Video playback / HLS**              | transcode handler unit    | `/api/media/transcode`         | ✅    | `video-transcode.spec` (player + dialog payload)       |
+| Control                               | Unit                      | Integration                    | E2E   | Spec                                                                                      |
+| ------------------------------------- | ------------------------- | ------------------------------ | ----- | ----------------------------------------------------------------------------------------- |
+| Load + `media:read` gate              | page.server               | media API                      | shell | unit + gallery                                                                            |
+| Toolbar                               | —                         | —                              | ✅    | `media-gallery-toolbar`                                                                   |
+| Search / type filter                  | —                         | —                              | ✅    | `mediagallery.spec`                                                                       |
+| Grid / table toggle                   | —                         | —                              | ✅    | `media-view-*`                                                                            |
+| Upload image                          | —                         | media upload                   | ✅    | `media-upload-input`                                                                      |
+| Delete single                         | —                         | media delete                   | ✅    | grid actions                                                                              |
+| **Image editor tools, compare, zoom** | tool controls + shortcuts | —                              | ✅    | `image-editor.spec` walk                                                                  |
+| **Image editor save (manipulate)**    | media-manipulation        | baked rotate + crop            | ✅    | `image-editor.spec` + `media-manipulate.test.ts`                                          |
+| **Create virtual folder**             | —                         | system-virtual-folder          | ✅    | `folders-bulk.spec`                                                                       |
+| **Folder appear / navigate**          | —                         | —                              | ✅    | same                                                                                      |
+| **Selection mode + bulk bar**         | —                         | —                              | ✅    | `folders-bulk.spec`                                                                       |
+| **Bulk download**                     | —                         | bulk-download                  | ✅    | hits `/api/media/bulk-download`                                                           |
+| **Bulk delete (Del key)**             | —                         | deleteMedia                    | ✅    | confirm + batch toast                                                                     |
+| **Remote URL upload page**            | —                         | remoteUpload action            | ✅    | `move-remote.spec`                                                                        |
+| **Remote URL ingest (success)**       | egress allowlist seam     | `MediaService.saveRemoteMedia` | ✅    | `remote-ingestion.spec` (real loopback peer)                                              |
+| **Remote URL reject (SSRF)**          | egress-guard unit         | `/api/media/remote`            | ✅    | `remote-ingestion.spec` + `media-svg-ssrf`                                                |
+| **Selection + breadcrumb move**       | —                         | `/api/media/move`              | ✅    | `move-remote.spec`                                                                        |
+| **Drop to sidebar folder**            | media-dnd unit            | `/api/media/move`              | ✅    | `move-remote.spec` (pointer drag)                                                         |
+| **Large library batching**            | —                         | media list (100)               | ✅    | `large-library.spec` (60 → 70 on scroll)                                                  |
+| **Server-side search**                | `getByFolder({ search })` | `?q=` → adapter LIKE / regex   | ✅    | `media-pagination.spec` (page-2 row found on page 1), `mediagallery-search-query.test.ts` |
+| **Windowed grid (> 500 rows)**        | `grid-window.ts`          | —                              | ✅    | `mediagallery-grid-window.test.ts`, `media-grid-virtual-window.test.ts`                   |
+| **Pre-upload optimization**           | canvas-image-optimizer    | media upload                   | ✅    | `upload-optimization.spec` (stored dimensions)                                            |
+| **Batch resize/filter**               | batch handler unit        | `/api/media/batch-process`     | ✅    | `batch-processing.spec` + `media-batch-transcode.test`                                    |
+| **Video playback / HLS**              | transcode handler unit    | `/api/media/transcode`         | ✅    | `video-transcode.spec` (player + dialog payload)                                          |
 
 > **Drop row (2026-09-22):** `@thisux/sveltednd` runs in **pointer** mode
 > (document-level `pointermove`/`pointerup` + `elementFromPoint` at release), and

@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { syncInlangSystemLocales } from "@src/routes/setup/sync-inlang-locales.server";
+import { syncInlangSystemLocales } from "@src/services/setup/sync-inlang-locales.server";
 import { BUNDLED_SYSTEM_LOCALES } from "@utils/system-locale";
 
 describe("syncInlangSystemLocales", () => {

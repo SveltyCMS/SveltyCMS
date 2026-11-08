@@ -1,11 +1,12 @@
 #!/usr/bin/env sh
 # =============================================================================
-# SveltyCMS Pre-Commit — Format → Lint → Unit → Components → Integration → SBOM
+# SveltyCMS Pre-Commit (Stage 1) — Safety → Lint-Staged → Check → Risk → Unit
 #
-# Fast by design (~60-90 s, or ~4 min when backend files change). Pre-push runs
-# the CI-parity unit job, the build, SQLite integration, DB parity and the
-# browser gate.
-# POLICY: enforced. A commit only lands when the unit and component suites pass.
+# Fast white-box gate (~2-3 min on a warm tree: `check` ~70 s + unit suite
+# ~45 s dominate). No production build or server spin-up runs at commit time —
+# Stage 2 (.githooks/pre-push) owns the 4-adapter build, SQLite integration, DB
+# parity, E2E browser contracts, and seam mutations.
+# POLICY: enforced. A commit only lands when quality, risk, and unit gates pass.
 # --no-verify is blocked; use 'bun run scripts/git-safe.ts commit'.
 # =============================================================================
 set -u
@@ -22,19 +23,24 @@ require_bun
 # was red: the hook exited before running anything. The hook now runs on every
 # commit; CI remains the authority for the multi-DB/E2E matrix.
 
-TOTAL=9; OK=0
+TOTAL=7; OK=0
 
-# Step 1 — Database safety
+# Step 1 — Database & live-config safety (<50ms)
 if run "🛡️  Database safety" pm_run scripts/check/check-test-db-safety.ts; then
   OK=$((OK + 1))
 fi
 
-# Step 2 — Format + lint
-if run "🔍  Format + lint" pm_run check; then
+# Step 2 — Lint-staged (auto-formats staged files first so `check` never fails on formatting)
+if run "⚡  Lint-staged" pm_run gate:fast; then
   OK=$((OK + 1))
+fi
+
+# Step 3 — Quality gate (format --check + oxlint + custom guards + svelte-kit sync + typecheck)
+if run "🔍  Quality Gate (check)" pm_run check; then
+  OK=$((OK + 1))
+  record_gate --index check
 else
-  # Format only paths that were already staged — never sweep in unstaged work
-  # (a blanket `git add -u` here would stage unrelated unstaged edits).
+  # Fallback auto-format for already-staged files only (never sweep unstaged work)
   STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(ts|js|svelte|json|md|mdx)$' || true)
   if [ -n "$STAGED_FILES" ]; then
     pm_run format > /dev/null 2>&1
@@ -44,14 +50,10 @@ else
   if run "🔍  Re-checking after format" pm_run check; then
     warn "Staged files auto-formatted and updated."
     OK=$((OK + 1))
+    record_gate --index check
   else
-    warn "Lint errors remain after formatting."
+    warn "Lint or type errors remain after formatting."
   fi
-fi
-
-# Step 3 — Lint-staged
-if run "⚡  Lint-staged" pm_run gate:fast; then
-  OK=$((OK + 1))
 fi
 
 # Step 4 — Full risk audit (DB injection classes, secrets, XSS, dependency CVEs, OSV)
@@ -60,44 +62,30 @@ if has_staged_changes '\.(md|mdx)$' && ! has_staged_changes '\.(ts|js|svelte)$' 
   TOTAL=$((TOTAL - 1))
 elif run "🛡️  Risk audit (DB/SvelteKit/deps/OSV)" pm_run risk:audit; then
   OK=$((OK + 1))
+  record_gate --index risk
 fi
 
-# Step 5 — Unit tests (skip if only docs changed)
+# Step 5 — Unit tests (skip if only docs changed). The wrapper emits the JSON
+# report from this same run and enforces the per-area test-inventory floor, so a
+# subset/partial run can never be recorded as a full green suite again.
 if has_staged_changes '\.(md|mdx)$' && ! has_staged_changes '\.(ts|js|svelte)$'; then
   warn "Only docs changed — skipping unit tests"
   TOTAL=$((TOTAL - 1))
-elif run "🧪  Unit tests" pm_run test:unit; then
+elif run "🧪  Unit tests" pm_run scripts/test/run-unit-suite.ts; then
   OK=$((OK + 1))
+  record_gate --index unit
 fi
 
-# Step 5b — Component interaction tests (real DOM mount; the SSR-only unit
-# assertions cannot see click wiring, disabled guards, ARIA or modal flows).
-if has_staged_changes '\.(md|mdx)$' && ! has_staged_changes '\.(ts|js|svelte)$'; then
-  warn "Only docs changed — skipping component interaction tests"
+# Step 6 — Component interaction tests (real DOM mount; runs when UI/Svelte/component/store files are staged)
+if ! has_staged_changes '\.svelte$|^(src/(components|routes|widgets|stores)/|tests/unit/components/|vitest\.dom\.config\.ts)'; then
+  info "No UI/component changes staged — skipping DOM component tests"
   TOTAL=$((TOTAL - 1))
 elif run "🧩  Component interactions" pm_run test:unit:components; then
   OK=$((OK + 1))
+  record_gate --index components
 fi
 
-# Step 5c — Diff-scoped integration (backend changes only)
-#
-# Unit tests cannot see routing, persistence or an adapter contract; those only
-# fail against a real server + database. `--no-build` reuses build/, and an edit
-# to src/ always makes the bundle stale — so build first instead of skipping.
-# (The old freshness check meant this step never ran when it mattered.)
-if has_staged_changes '^(src/databases/|src/services/sdk/|src/hooks/|src/routes/api/|src/utils/(optimistic-lock|date|relational)|src/lib/server/)'; then
-  if run "🏗️  Harness build (backend change)" env COMPILE_ALL_ADAPTERS=true "$PM_BIN" run build; then
-    OK=$((OK + 1))
-    if run "🗄️  Integration (diff, SQLite)" pm_run scripts/runs/run-integration.ts --no-build --diff; then
-      OK=$((OK + 1))
-    fi
-  fi
-else
-  info "No backend/database changes — integration not required at commit time"
-  TOTAL=$((TOTAL - 2))
-fi
-
-# Step 6 — SBOM sync (keeps sbom.json in lockstep with bun.lock)
+# Step 7 — SBOM sync (keeps sbom.json in lockstep with bun.lock)
 if has_staged_changes 'bun\.lock|package\.json'; then
   if run "📦  SBOM sync" pm_run audit:sbom; then
     git add sbom.json 2>/dev/null || true

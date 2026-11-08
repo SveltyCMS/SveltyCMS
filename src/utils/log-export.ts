@@ -14,6 +14,7 @@ import { promises as fs, createReadStream } from "node:fs";
 import path from "node:path";
 import { createInterface } from "node:readline";
 import { createGunzip } from "node:zlib";
+import { nowISODateString } from "@utils/date";
 
 const LOG_DIR = "logs";
 const SENSITIVE_PATTERN =
@@ -71,7 +72,7 @@ export async function buildLogExport(options: LogExportOptions = {}): Promise<{
   const format = options.format || "text";
 
   const files = await listLogFiles(type);
-  const stamp = new Date().toISOString().slice(0, 10);
+  const stamp = nowISODateString().slice(0, 10);
 
   const sinceStr =
     options.since && !isNaN(Date.parse(options.since))

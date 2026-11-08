@@ -15,7 +15,7 @@ import type {
   DashboardWidgetCategory,
   DashboardWidgetLicense,
   DashboardWidgetManifest,
-} from "./widgets/manifest-registry";
+} from "@src/services/core/dashboard-manifest-registry";
 
 export interface DashboardWidgetPickerInfo {
   category?: DashboardWidgetCategory;

@@ -35,8 +35,6 @@ import { auditLogService, AuditEventType } from "@src/services/security/audit-se
 import { getClientIp } from "@utils/hook-utils";
 import { getCachedFirstCollectionPath } from "@utils/server/collection-utils.server";
 import { publicEnv } from "@src/stores/global-settings.svelte";
-import { cacheService } from "@src/databases/cache/cache-service";
-import { CacheCategory } from "@src/databases/cache/types";
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { isAdmin } from "@utils/hook-utils";
 import { isAutomatedTestHarness, resolvePrivateConfigFileName } from "@utils/private-config-policy";
@@ -92,6 +90,7 @@ import {
   signPending2faToken,
   verifyPending2faToken,
 } from "@src/utils/server/pending-2fa-token.server";
+import { nowISODateString } from "@utils/date";
 
 /** Dedicated limiter for the 2FA challenge endpoint — TOTP brute-force defense. */
 const twoFaLimiter = new RateLimiter({
@@ -198,7 +197,9 @@ export const verify2FA = command(
     if (process.env.TEST_MODE !== "true" && (await twoFaLimiter.isLimited(event))) {
       try {
         event.setHeaders({ "Retry-After": "60" });
-      } catch {}
+      } catch (error) {
+        logger.debug("[auth.remote] suppressed error", error);
+      }
       return { success: false, message: "Too many requests. Try again in a minute." };
     }
 
@@ -257,7 +258,7 @@ export const verify2FA = command(
       userAgent: ua,
       ipAddress: ip,
       amr: ["pwd", "mfa"],
-      mfaVerifiedAt: new Date().toISOString() as ISODateString,
+      mfaVerifiedAt: nowISODateString() as ISODateString,
     });
 
     const sc = auth.createSessionCookie(session._id, isSecureConnection(event));
@@ -266,14 +267,18 @@ export const verify2FA = command(
         ...(sc.attributes as Record<string, unknown>),
         path: "/",
       });
-    } catch {}
+    } catch (error) {
+      logger.debug("[auth.remote] suppressed error", error);
+    }
     try {
       const { primeSessionMemoryCache } = await loadHandleAuthenticationModule();
       primeSessionMemoryCache(session._id, user, event.locals.tenantId ?? user.tenantId ?? null, [
         "pwd",
         "mfa",
       ]);
-    } catch {}
+    } catch (error) {
+      logger.debug("[auth.remote] suppressed error", error);
+    }
 
     // Set trusted-device cookie if token was generated
     if (trustDevice && twoFaResult.trustedDeviceToken) {
@@ -287,7 +292,9 @@ export const verify2FA = command(
           path,
         });
         logger.debug("Trusted device cookie set", { userId });
-      } catch {}
+      } catch (error) {
+        logger.debug("[auth.remote] suppressed error", error);
+      }
     }
 
     auth
@@ -295,7 +302,7 @@ export const verify2FA = command(
         userId as any,
         {
           lastAuthMethod: "security",
-          lastActiveAt: new Date().toISOString() as ISODateString,
+          lastActiveAt: nowISODateString() as ISODateString,
         },
         withSystemScope("bootstrap"),
       )
@@ -450,7 +457,9 @@ async function signInInternal(event: RequestEvent, input: any) {
   if (process.env.TEST_MODE !== "true" && (await limiter.isLimited(event))) {
     try {
       event.setHeaders({ "Retry-After": "60" });
-    } catch {}
+    } catch (error) {
+      logger.debug("[auth.remote] suppressed error", error);
+    }
     return { success: false, message: "Too many requests." };
   }
   await dbInitPromise;
@@ -520,7 +529,9 @@ async function signInInternal(event: RequestEvent, input: any) {
             roleMfaRequired = true;
           }
         }
-      } catch {}
+      } catch (error) {
+        logger.debug("[auth.remote] suppressed error", error);
+      }
 
       // Plugin can force 2FA even if user doesn't have it enabled, or role mandates it
       const requires2FA = user.is2FAEnabled || authHookResult?.requires2FA || roleMfaRequired;
@@ -592,9 +603,9 @@ async function signInInternal(event: RequestEvent, input: any) {
         // Also force setup state to COMPLETE so handleAuthentication doesn't short-circuit
         const { invalidateSetupCache } = await import("@src/utils/server/setup-check");
         invalidateSetupCache(false, true);
-      } catch {}
-    } else {
-      await verifyDummyPassword(p);
+      } catch (error) {
+        logger.debug("[auth.remote] suppressed error", error);
+      }
     }
   }
 
@@ -611,11 +622,15 @@ async function signInInternal(event: RequestEvent, input: any) {
         ...(sc.attributes as Record<string, unknown>),
         path: "/",
       });
-    } catch {}
+    } catch (error) {
+      logger.debug("[auth.remote] suppressed error", error);
+    }
     try {
       const { primeSessionMemoryCache } = await loadHandleAuthenticationModule();
       primeSessionMemoryCache(s._id, user, event.locals.tenantId ?? user.tenantId ?? null);
-    } catch {}
+    } catch (error) {
+      logger.debug("[auth.remote] suppressed error", error);
+    }
   }
 
   auth
@@ -623,7 +638,7 @@ async function signInInternal(event: RequestEvent, input: any) {
       user._id,
       {
         lastAuthMethod: isToken ? "token" : "security",
-        lastActiveAt: new Date().toISOString(),
+        lastActiveAt: nowISODateString(),
       },
       withSystemScope("bootstrap"),
     )
@@ -686,7 +701,9 @@ async function signUpInternal(event: RequestEvent, input: any) {
   if (process.env.TEST_MODE !== "true" && (await limiter.isLimited(event))) {
     try {
       event.setHeaders({ "Retry-After": "60" });
-    } catch {}
+    } catch (error) {
+      logger.debug("[auth.remote] suppressed error", error);
+    }
     return { success: false, message: "Too many requests." };
   }
   await dbInitPromise;
@@ -758,7 +775,7 @@ async function signUpInternal(event: RequestEvent, input: any) {
       tenantId: tid as DatabaseId,
       isRegistered: true,
       lastAuthMethod: "security",
-      lastActiveAt: new Date().toISOString() as ISODateString,
+      lastActiveAt: nowISODateString() as ISODateString,
     },
     {
       expires: new Date(Date.now() + 86400000).toISOString() as ISODateString,
@@ -775,7 +792,9 @@ async function signUpInternal(event: RequestEvent, input: any) {
         ...(sc.attributes as Record<string, unknown>),
         path: "/",
       });
-    } catch {}
+    } catch (error) {
+      logger.debug("[auth.remote] suppressed error", error);
+    }
   }
 
   invalidateUserCountCache();
@@ -820,7 +839,9 @@ async function forgotPWInternal(event: RequestEvent, input: any) {
   if (process.env.TEST_MODE !== "true" && (await limiter.isLimited(event))) {
     try {
       event.setHeaders({ "Retry-After": "60" });
-    } catch {}
+    } catch (error) {
+      logger.debug("[auth.remote] suppressed error", error);
+    }
     return { success: false, message: "Too many requests." };
   }
   await dbInitPromise;
@@ -888,7 +909,9 @@ async function forgotPWInternal(event: RequestEvent, input: any) {
       // 🛡️ TIMING DEFENSE (CWE-208): prevent email enumeration via response timing
       await verifyDummyPassword("dummy-password");
     }
-  } catch {}
+  } catch (error) {
+    logger.debug("[auth.remote] suppressed error", error);
+  }
 
   return {
     success: true,
@@ -908,7 +931,9 @@ async function resetPWInternal(event: RequestEvent, input: any) {
   if (process.env.TEST_MODE !== "true" && (await limiter.isLimited(event))) {
     try {
       event.setHeaders({ "Retry-After": "60" });
-    } catch {}
+    } catch (error) {
+      logger.debug("[auth.remote] suppressed error", error);
+    }
     return { success: false, message: "Too many requests." };
   }
   await dbInitPromise;
@@ -971,7 +996,9 @@ async function requestMagicLinkInternal(event: RequestEvent, input: any) {
   if (process.env.TEST_MODE !== "true" && (await limiter.isLimited(event))) {
     try {
       event.setHeaders({ "Retry-After": "60" });
-    } catch {}
+    } catch (error) {
+      logger.debug("[auth.remote] suppressed error", error);
+    }
     return { success: false, message: "Too many requests." };
   }
   await dbInitPromise;
@@ -995,33 +1022,6 @@ async function requestMagicLinkInternal(event: RequestEvent, input: any) {
 // WebAuthn / Passkeys
 // ────────────────────────────────────────────────────────────
 
-const WEBAUTHN_CHALLENGE_PREFIX = "webauthn:challenge:";
-
-async function storeWebAuthnChallenge(
-  challenge: string,
-  payload: { userId: string; type: "registration" | "authentication" },
-) {
-  await cacheService.set(
-    `${WEBAUTHN_CHALLENGE_PREFIX}${challenge}`,
-    payload,
-    300,
-    null,
-    CacheCategory.SESSION,
-  );
-}
-
-async function consumeWebAuthnChallenge(
-  challenge: string,
-): Promise<{ userId: string; type: "registration" | "authentication" } | null> {
-  const key = `${WEBAUTHN_CHALLENGE_PREFIX}${challenge}`;
-  const stored = await cacheService.get<{
-    userId: string;
-    type: "registration" | "authentication";
-  }>(key, null);
-  await cacheService.delete(key, null);
-  return stored ?? null;
-}
-
 export const getPasskeyAuthOptions = command("unchecked", async (data: { email: string }) => {
   const event = getRequestEvent();
   await dbInitPromise;
@@ -1040,8 +1040,12 @@ export const getPasskeyAuthOptions = command("unchecked", async (data: { email: 
     };
   }
 
-  const { generateWebAuthnChallenge, buildAuthenticationOptions, resolveRpId } =
-    await import("@src/databases/auth/webauthn/webauthn-service");
+  const {
+    generateWebAuthnChallenge,
+    buildAuthenticationOptions,
+    resolveRpId,
+    storeWebAuthnChallenge,
+  } = await import("@src/databases/auth/webauthn/webauthn-service");
 
   const challenge = generateWebAuthnChallenge();
   const rpId = resolveRpId(new URL(event.request.url).hostname);
@@ -1091,6 +1095,13 @@ export const verifyPasskeyAuth = command(
       const clientData = JSON.parse(
         Buffer.from(data.assertion.response.clientDataJSON, "base64url").toString("utf8"),
       );
+      const {
+        consumeWebAuthnChallenge,
+        verifyAuthenticationResponse,
+        findAuthenticatorByCredentialId,
+        resolveRpId,
+      } = await import("@src/databases/auth/webauthn/webauthn-service");
+
       const challengePayload = await consumeWebAuthnChallenge(clientData.challenge);
       if (!challengePayload || challengePayload.userId !== String(user._id)) {
         return {
@@ -1098,9 +1109,6 @@ export const verifyPasskeyAuth = command(
           message: "Passkey challenge expired or invalid.",
         };
       }
-
-      const { verifyAuthenticationResponse, findAuthenticatorByCredentialId, resolveRpId } =
-        await import("@src/databases/auth/webauthn/webauthn-service");
 
       const stored = findAuthenticatorByCredentialId(user.authenticators, data.assertion.id);
       if (!stored) return { success: false, message: "Unknown passkey credential." };
@@ -1156,102 +1164,3 @@ export const verifyPasskeyAuth = command(
     }
   },
 );
-
-// `_input` is declared optional on purpose: the registration flow needs no input,
-// and SvelteKit derives the remote call signature from the handler's first
-// parameter — without it callers are forced into `undefined as any`.
-export const getPasskeyRegisterOptions = command("unchecked", async (_input?: unknown) => {
-  const event = getRequestEvent();
-  await dbInitPromise;
-  if (!auth) return { success: false, message: "Authentication system unavailable." };
-
-  const sessionId = event.locals.session_id;
-  const user = event.locals.user;
-  if (!sessionId || !user?._id) {
-    return {
-      success: false,
-      message: "You must be signed in to register a passkey.",
-    };
-  }
-
-  const { generateWebAuthnChallenge, buildRegistrationOptions, resolveRpId } =
-    await import("@src/databases/auth/webauthn/webauthn-service");
-
-  const challenge = generateWebAuthnChallenge();
-  const rpId = resolveRpId(new URL(event.request.url).hostname);
-  await storeWebAuthnChallenge(challenge, {
-    userId: String(user._id),
-    type: "registration",
-  });
-
-  const options = buildRegistrationOptions(user as any, rpId, challenge);
-  return {
-    success: true,
-    options: {
-      ...options,
-      challenge: Buffer.from(options.challenge).toString("base64url"),
-      user: {
-        ...options.user,
-        id: Buffer.from(options.user.id).toString("base64url"),
-      },
-      // Same serialization as `getPasskeyAuthOptions.allowCredentials`: the builder
-      // produces Buffer-backed ids, the client decodes them to ArrayBuffer views.
-      excludeCredentials: options.excludeCredentials?.map((c) => ({
-        ...c,
-        id: Buffer.from(c.id).toString("base64url"),
-      })),
-    },
-  };
-});
-
-export const verifyPasskeyRegister = command("unchecked", async (data: { attestation: any }) => {
-  const event = getRequestEvent();
-  await dbInitPromise;
-  if (!auth) return { success: false, message: "Authentication system unavailable." };
-
-  const user = event.locals.user;
-  if (!user?._id)
-    return {
-      success: false,
-      message: "You must be signed in to register a passkey.",
-    };
-
-  try {
-    const clientData = JSON.parse(
-      Buffer.from(data.attestation.response.clientDataJSON, "base64url").toString("utf8"),
-    );
-    const challengePayload = await consumeWebAuthnChallenge(clientData.challenge);
-    if (!challengePayload || challengePayload.userId !== String(user._id)) {
-      return {
-        success: false,
-        message: "Passkey registration challenge expired.",
-      };
-    }
-
-    const { verifyRegistrationResponse, resolveRpId } =
-      await import("@src/databases/auth/webauthn/webauthn-service");
-    const requestUrl = new URL(event.request.url);
-    const rpId = resolveRpId(requestUrl.hostname);
-    const authenticator = verifyRegistrationResponse(
-      data.attestation,
-      clientData.challenge,
-      rpId,
-      requestUrl.origin,
-    );
-
-    const existing = user.authenticators || [];
-    await auth.updateUserAttributes(
-      user._id as DatabaseId,
-      { authenticators: [...existing, authenticator] },
-      withSystemScope("bootstrap"),
-    );
-
-    return { success: true, message: "Passkey registered successfully." };
-  } catch (err: any) {
-    logger.error("Passkey registration failed:", err.message);
-    return {
-      success: false,
-      message: err.message || "Passkey registration failed.",
-    };
-  }
-});

@@ -83,7 +83,7 @@ Handles all field types and validation automatically
 	// Remote Functions — loaded dynamically for code splitting
 
 	// Types and Utilities
-	import type { SettingField, SettingGroup } from './settings-groups';
+	import type { SettingField, SettingGroup } from '@src/services/system/settings-groups.meta';
 	import {
 		initializeGroupValues,
 		validateSettingField,
@@ -505,6 +505,7 @@ Handles all field types and validation automatically
 	import { modalState } from '@utils/modal.svelte';
 	import { page } from '$app/state';
 	import Button from '@components/ui/button.svelte';
+	import { nowISODateString } from '@utils/date';
 
 	// ... previous code until saveSettings ...
 
@@ -571,9 +572,8 @@ Handles all field types and validation automatically
 						action: {
 							label: 'Update Now',
 							onClick: async () => {
-								const ModalEditForm = (
-									await import('@src/routes/(app)/user/components/modal-edit-form.svelte')
-								).default;
+								const ModalEditForm = (await import('@components/user/modal-edit-form.svelte'))
+									.default;
 								modalState.trigger(ModalEditForm, {
 									user_id: currentUser._id,
 									username: currentUser.username,
@@ -607,7 +607,7 @@ Handles all field types and validation automatically
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement('a');
 		a.href = url;
-		a.download = `sveltycms-settings-${group.id}-${new Date().toISOString().slice(0, 10)}.json`;
+		a.download = `sveltycms-settings-${group.id}-${nowISODateString().slice(0, 10)}.json`;
 		a.click();
 		URL.revokeObjectURL(url);
 	}

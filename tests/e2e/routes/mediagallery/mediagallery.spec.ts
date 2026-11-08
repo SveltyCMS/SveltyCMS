@@ -15,6 +15,33 @@ import {
   uploadUniqueImage,
 } from "../../helpers/media";
 
+/** Minimal single-page PDF with a correct cross-reference table. */
+function makeMinimalPdf(): Buffer {
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
+    "",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+  ];
+  const stream = "BT /F1 24 Tf 20 100 Td (Preview) Tj ET";
+  objects[3] = `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`;
+
+  let pdf = "%PDF-1.4\n";
+  const offsets: number[] = [0];
+  for (let index = 0; index < objects.length; index++) {
+    offsets.push(pdf.length);
+    pdf += `${index + 1} 0 obj\n${objects[index]}\nendobj\n`;
+  }
+  const xrefStart = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (let index = 1; index <= objects.length; index++) {
+    pdf += `${String(offsets[index]).padStart(10, "0")} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF\n`;
+  return Buffer.from(pdf, "latin1");
+}
+
 test.describe("Media Gallery", () => {
   test.beforeEach(async ({ page }) => {
     await openMediaGallery(page);
@@ -34,7 +61,17 @@ test.describe("Media Gallery", () => {
     await expect(search).toBeVisible();
 
     await search.fill("e2e-no-match-xyz-random");
-    await expect(page.getByTestId("media-grid-empty")).toBeVisible({ timeout: 10_000 });
+    const empty = page.getByTestId("media-grid-empty");
+    await expect(empty).toBeVisible({ timeout: 10_000 });
+    await expect(empty).toContainText(/no assets match your filters/i);
+
+    // A narrowed view can reset itself — it must not pretend the folder is empty.
+    await empty.getByRole("button", { name: /reset filters/i }).click();
+    await expect(search).toHaveValue("");
+    // Reset either restores rows (a folder with assets) or the unfiltered empty
+    // state. The filtered-empty copy must not linger in either case — and the
+    // element itself may unmount, so assert on the copy, not the container.
+    await expect.poll(async () => page.getByText(/no assets match your filters/i).count()).toBe(0);
 
     await search.clear();
     await expect(page.getByTestId("media-grid")).toBeVisible();
@@ -45,6 +82,32 @@ test.describe("Media Gallery", () => {
     await typeFilter.selectOption({ label: "IMAGE" });
     await expect(typeFilter).toHaveValue("image");
     await expect(page.getByTestId("media-grid")).toBeVisible();
+  });
+
+  test("shift-click selects a range of tiles", async ({ page }) => {
+    const seeded = await seedMediaWithMetadata(page);
+    try {
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await waitForHydration(page);
+
+      await page.getByTestId("media-selection-toggle").click();
+
+      const ids = seeded.items.map((item) => item._id);
+      const first = page.locator(`[data-media-id="${ids[0]}"]`);
+      const last = page.locator(`[data-media-id="${ids[ids.length - 1]}"]`);
+      await expect(first).toBeVisible({ timeout: 15_000 });
+
+      await first.getByRole("button", { name: /preview .*drag to move/i }).click();
+      await expect(first).toHaveAttribute("aria-selected", "true");
+
+      await last
+        .getByRole("button", { name: /preview .*drag to move/i })
+        .click({ modifiers: ["Shift"] });
+      await expect(last).toHaveAttribute("aria-selected", "true");
+      await expect(page.getByTestId("media-bulk-count")).toContainText(/\d+\s*selected/i);
+    } finally {
+      for (const item of seeded.items) await deleteMediaRow(page, item._id);
+    }
   });
 
   test("can switch between grid and table views", async ({ page }) => {
@@ -89,6 +152,44 @@ test.describe("Media Gallery", () => {
       await expect(page.getByTestId("media-gallery-content")).toHaveAttribute("data-view", "grid");
     } finally {
       for (const item of seeded.items) await deleteMediaRow(page, item._id);
+    }
+  });
+
+  test("uploads CSV and PDF assets with document previews", async ({ page }) => {
+    const stamp = Date.now().toString(36);
+    const csvName = `e2e-preview-${stamp}.csv`;
+    const pdfName = `e2e-preview-${stamp}.pdf`;
+    const csv = Buffer.from("name;amount;date\nAcme;1234.50;2026-01-02\nBeta;99.00;2026-02-03\n");
+
+    const upload = async (name: string, mimeType: string, buffer: Buffer) => {
+      const responsePromise = page.waitForResponse(
+        (res) =>
+          res.request().method() === "POST" &&
+          (res.url().includes("?/upload") || res.url().includes("/api/media")),
+        { timeout: 30_000 },
+      );
+      await page.getByTestId("media-upload-input").setInputFiles({ name, mimeType, buffer });
+      const response = await responsePromise;
+      expect(response.ok(), `${mimeType} upload: ${response.status()}`).toBe(true);
+
+      const card = page.getByTestId("media-item").filter({ hasText: name }).first();
+      await expect(card).toBeVisible({ timeout: 25_000 });
+      return { card, id: await card.getAttribute("data-media-id") };
+    };
+
+    const csvRow = await upload(csvName, "text/csv", csv);
+    const pdfRow = await upload(pdfName, "application/pdf", makeMinimalPdf());
+    try {
+      for (const row of [csvRow, pdfRow]) {
+        // The tile renders a generated preview image instead of the generic
+        // file icon, and the URL is a real rendition — not the document itself.
+        const preview = row.card.locator("img").first();
+        await expect(preview).toBeVisible({ timeout: 15_000 });
+        await expect(preview).toHaveAttribute("src", /\/files\/.+\/(thumbnail|sm|md)\//);
+      }
+    } finally {
+      await deleteMediaRow(page, csvRow.id ?? undefined);
+      await deleteMediaRow(page, pdfRow.id ?? undefined);
     }
   });
 
@@ -260,6 +361,53 @@ test.describe("Media Gallery", () => {
     }
   });
 
+  test("quick focal point action saves metadata from the grid", async ({ page }) => {
+    const row = await uploadUniqueImage(page, `e2e-focal-${Date.now().toString(36)}.png`);
+    const mediaId = String(row._id);
+    try {
+      const item = page.locator(`[data-media-id="${mediaId}"]`);
+      await expect(item).toBeVisible({ timeout: 20_000 });
+      await item.hover();
+
+      const actions = item.getByTestId("media-grid-actions").first();
+      await expect(actions).toBeVisible({ timeout: 5_000 });
+      await actions.getByTestId("media-focal-button").click();
+
+      const modal = page
+        .getByRole("dialog")
+        .filter({ hasText: /set focal point/i })
+        .first();
+      await expect(modal).toBeVisible({ timeout: 5_000 });
+
+      // Keyboard steps are deterministic: two right + one down from the 50/50 default.
+      const slider = modal.getByRole("slider", { name: /focal point position/i });
+      await slider.focus();
+      await page.keyboard.press("ArrowRight");
+      await page.keyboard.press("ArrowRight");
+      await page.keyboard.press("ArrowDown");
+
+      const patch = page.waitForResponse(
+        (res) => res.url().includes(`/api/media/${mediaId}`) && res.request().method() === "PATCH",
+        { timeout: 15_000 },
+      );
+      await modal.getByRole("button", { name: /^save$/i }).click();
+      expect((await patch).status()).toBe(200);
+
+      // Outcome: the persisted metadata moved, not just a toast.
+      await expect(async () => {
+        const res = await page.request.get(`/api/media/${mediaId}`);
+        const body = (await res.json()) as {
+          data?: { metadata?: { focalPoint?: { x: number; y: number } } };
+        };
+        const focal = body.data?.metadata?.focalPoint;
+        expect(focal?.x).toBeGreaterThan(50);
+        expect(focal?.y).toBeGreaterThan(50);
+      }).toPass({ timeout: 15_000 });
+    } finally {
+      await deleteMediaRow(page, mediaId);
+    }
+  });
+
   test("create folder via New Folder prompt", async ({ page }) => {
     const folderName = `e2e-test-folder-${Date.now().toString(36)}`;
     let folderId = "";
@@ -334,6 +482,49 @@ test.describe("Media Gallery", () => {
     await expect(page.getByTestId("media-grid")).toBeVisible({ timeout: 5_000 });
   });
 
+  test("tiny grid collapses the action rail into one compact menu", async ({ page }) => {
+    const seeded = await seedMediaWithMetadata(page);
+    const target = seeded.items[0]!;
+    try {
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await waitForHydration(page);
+
+      const toggle = page.getByTestId("media-grid-size-toggle");
+      await expect(toggle).toBeVisible({ timeout: 10_000 });
+      for (let attempt = 0; attempt < 4; attempt++) {
+        if ((await toggle.getAttribute("data-size")) === "tiny") break;
+        await toggle.click();
+      }
+      await expect(toggle).toHaveAttribute("data-size", "tiny");
+
+      const tile = mediaCard(page, target.filename);
+      await expect(tile).toBeVisible({ timeout: 15_000 });
+      await tile.hover();
+
+      // The six-button rail cannot fit an 88–120px tile, so the grid swaps it for
+      // one portalled menu trigger instead of letting the buttons overflow.
+      const actions = tile.getByTestId("media-grid-actions");
+      await expect(actions).toBeVisible({ timeout: 10_000 });
+      await expect(actions.getByRole("button")).toHaveCount(1);
+      await expect(tile.getByTestId("media-edit-button")).toHaveCount(0);
+      await expect(tile.getByTestId("media-copy-url")).toHaveCount(0);
+
+      await actions.getByRole("button").click();
+      const menu = page.getByRole("menu");
+      await expect(menu).toBeVisible({ timeout: 10_000 });
+      // Details, Edit, Focal point, Tags, Copy URL, Delete.
+      await expect(menu.getByRole("menuitem")).toHaveCount(6);
+      await expect(menu).toBeInViewport({ ratio: 1 });
+
+      await menu.getByRole("menuitem", { name: /details/i }).click();
+      await expect(page.getByTestId("media-details-modal")).toBeVisible({ timeout: 10_000 });
+      await page.keyboard.press("Escape");
+      await expect(page.getByTestId("media-details-modal")).toBeHidden({ timeout: 10_000 });
+    } finally {
+      for (const item of seeded.items) await deleteMediaRow(page, item._id);
+    }
+  });
+
   test("breadcrumb exists and is clickable", async ({ page }) => {
     // Create folder, then navigate into it to generate breadcrumbs
     await page.getByTestId("media-create-folder").click();
@@ -356,9 +547,16 @@ test.describe("Media Gallery", () => {
     await expect(page).toHaveURL(/folderId=/, { timeout: 15_000 });
 
     // Breadcrumbs now show the folder as a non-root crumb.
-    await expect(page.getByTestId("media-gallery-breadcrumbs").getByText(folderName)).toBeVisible({
-      timeout: 10_000,
-    });
+    const trail = page.getByTestId("media-gallery-breadcrumbs");
+    await expect(trail.getByText(folderName)).toBeVisible({ timeout: 10_000 });
+
+    // The trail was migrated to the shared Breadcrumb primitive; the crumb
+    // contract (testids + aria-current) must survive that migration.
+    await expect(trail.locator('[data-testid^="media-breadcrumb-"]')).toHaveCount(2);
+    const currentCrumb = trail.locator('[data-testid^="media-breadcrumb-"][aria-current="page"]');
+    await expect(currentCrumb).toHaveCount(1);
+    await expect(currentCrumb).toContainText(folderName);
+    await expect(page.getByTestId("media-breadcrumb-root")).toBeVisible();
 
     // Click root breadcrumb to go back — now rendered as a link (not the
     // current-folder span), so navigation lands back at /mediagallery.

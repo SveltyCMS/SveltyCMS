@@ -63,6 +63,9 @@
 	} from '@src/paraglide/messages';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
+	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
+	import { browser } from '$app/env';
 
 	import VisualQueryBuilder from './visual-query-builder.svelte';
 
@@ -72,6 +75,7 @@
 			tenantId: string | null;
 			openapiSpecUrl: string;
 			graphqlEndpoint: string;
+			graphqlPlaygroundEnabled: boolean;
 			collections: { id: string; name: string; icon?: string }[];
 		};
 	}
@@ -79,7 +83,25 @@
 	let { data }: Props = $props();
 
 	type Tab = 'builder' | 'rest' | 'graphql' | 'codegen';
-	let activeTab = $state<Tab>('builder');
+
+	const VALID_TABS: ReadonlySet<string> = new Set(['builder', 'rest', 'graphql', 'codegen']);
+
+	/** `?tab=graphql` opens the GraphQL console directly instead of the query builder. */
+	function resolveTabFromUrl(): Tab {
+		const raw = page.url.searchParams.get('tab');
+		return raw && VALID_TABS.has(raw) ? (raw as Tab) : 'builder';
+	}
+
+	let activeTab = $state<Tab>(resolveTabFromUrl());
+
+	function syncTabToUrl(tab: Tab): void {
+		if (!browser) return;
+		const url = new URL(page.url.href);
+		if (url.searchParams.get('tab') === tab) return;
+		if (tab === 'builder') url.searchParams.delete('tab');
+		else url.searchParams.set('tab', tab);
+		void goto(`${url.pathname}${url.search}`, { replace: true, reset: false });
+	}
 
 	/** Shared card chrome — mirrors the `/user` account panels. */
 	const cardClass = 'p-5 sm:p-6';
@@ -326,6 +348,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			testId="api-tabs"
 			onTabChange={(id) => {
 				activeTab = id as Tab;
+				syncTabToUrl(activeTab);
 			}}
 		/>
 	</div>
@@ -505,12 +528,37 @@ export const load: PageServerLoad = async ({ locals }) => {
 		<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 			<!-- Query Editor -->
 			<AdminCard class={cardClass}>
-				<div class="mb-4 flex items-center justify-between">
+				<div class="mb-4 flex flex-wrap items-center justify-between gap-2">
 					<h3 class="text-base font-semibold text-surface-900 dark:text-surface-50">
 						{api_gql_query()}
 					</h3>
-					<span class="font-mono text-xs text-surface-500">{data.graphqlEndpoint}</span>
+					<div class="flex flex-wrap items-center gap-2">
+						<code class="font-mono text-xs text-surface-500">{data.graphqlEndpoint}</code>
+						{#if data.graphqlPlaygroundEnabled}
+							<a
+								href={data.graphqlEndpoint}
+								target="_blank"
+								rel="noopener noreferrer"
+								class="inline-flex items-center gap-1.5 rounded-lg border border-surface-500/20 bg-surface-500/10 px-3 py-1.5 text-xs font-medium text-surface-900 transition-colors hover:bg-surface-500/20 dark:bg-surface-800 dark:text-surface-100"
+							>
+								<iconify-icon icon="mdi:open-in-new" width="14" aria-hidden="true"></iconify-icon>
+								Open Yoga Explorer
+							</a>
+						{/if}
+					</div>
 				</div>
+
+				{#if data.graphqlPlaygroundEnabled}
+					<p class="mb-4 text-xs text-surface-500">
+						The Yoga explorer opens the full GraphiQL IDE (schema docs, autocomplete, history) in a
+						new tab. Use the console below to run an operation without leaving the admin UI.
+					</p>
+				{:else}
+					<p class="mb-4 text-xs text-surface-500">
+						The Yoga explorer is development-only: production blocks its CDN assets and schema
+						introspection. The console below still runs operations.
+					</p>
+				{/if}
 
 				<div class="space-y-4">
 					<div class="space-y-1">

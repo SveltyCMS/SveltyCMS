@@ -84,7 +84,7 @@ class ConnectionState {
   }
 }
 
-export const connectionState = new ConnectionState();
+const connectionState = new ConnectionState();
 
 /** 🛡️ Hardened: Single lazy-init helper (DRY) */
 function ensureInitialized() {

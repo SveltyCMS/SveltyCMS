@@ -397,7 +397,7 @@ flowchart LR
    # Pre-commit checks (staged files, ~2-3s)
    bun run gate:fast
 
-   # Pre-push checks (type check + unit tests, ~15-45s)
+   # Pre-push checks (build + coverage + integration + browser gate, ~10-15 min warm)
    bun run gate
 
    # Full CI simulation locally

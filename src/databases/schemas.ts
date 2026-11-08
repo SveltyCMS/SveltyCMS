@@ -54,7 +54,7 @@ export const websiteTokenSchema = object({
 
 export type WebsiteToken = InferOutput<typeof websiteTokenSchema>;
 
-export const userTokenSchema = object({
+const userTokenSchema = object({
   _id: pipe(
     string(),
     transform((input) => input as DatabaseId),

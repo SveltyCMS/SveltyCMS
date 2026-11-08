@@ -48,4 +48,6 @@ export interface MediaFile {
   type: string; // MIME Type
   url: string; // URL to the original file
   hash?: string;
+  /** Technical metadata (focalPoint, aiTags, …) so the editor round-trips it. */
+  metadata?: Record<string, unknown>;
 }

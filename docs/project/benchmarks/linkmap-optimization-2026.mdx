@@ -1,0 +1,145 @@
+---
+path: "docs/project/benchmarks/linkmap-optimization-2026.mdx"
+title: "Vite 8 / AST Linkmap Optimization Report (2026)"
+description: "Before/after module-graph linkmap telemetry, cycle elimination, barrel splitting, and dead-export pruning for SveltyCMS."
+updated: "2026-11-07"
+---
+
+# Vite 8 / AST Linkmap Optimization Report (2026)
+
+This document records the baseline and post-optimization telemetry for the SveltyCMS TypeScript AST & Module-Graph Linkmap Analyzer (`scripts/check/analyze-linkmap.ts`, wired via `bun run check:linkmap` and `tests/benchmarks/build-analysis.test.ts`).
+
+- **Pre-optimization reference baseline**: `tests/benchmarks/results/linkmap-initial-baseline.json`
+- **CI regression ratchet floor (`--check`)**: `tests/benchmarks/results/linkmap-baseline.json`
+
+## 1. Before vs. After Telemetry (`tests/benchmarks`)
+
+| Category           | Metric                                                   |         Initial Baseline |            Ratchet Floor |          Current (`Now`) |                   Net Delta |
+| :----------------- | :------------------------------------------------------- | -----------------------: | -----------------------: | -----------------------: | --------------------------: |
+| **Gate Counter 1** | **Runtime Import Cycles (Tarjan SCCs)**                  |                    **6** |                    **0** |                    **0** |              **-6 (-100%)** |
+| **Gate Counter 2** | **Pass-Through Barrels**                                 |                    **2** |                    **0** |                    **0** |              **-2 (-100%)** |
+| **Gate Counter 3** | **Static Client → Server Leaks**                         |                    **0** |                    **0** |                    **0** |                       **0** |
+| **Advisory 1**     | **Cross-Route Boundary Smugglings**                      |                    **0** |                    **0** |                    **0** |                       **0** |
+| **Advisory 2**     | **Deep Relative Imports (>=3 hops)**                     |                    **0** |                    **0** |                    **0** |                       **0** |
+| **Advisory 3**     | **Zombie Island Modules (Dead Clusters)**                |                    **0** |                    **0** |                    **0** |                       **0** |
+| **Bundle & Shell** | **Admin Shell (eager uncompressed JS)**                  |             **2,105 KB** |             **2,091 KB** |             **2,091 KB** |                  **-14 KB** |
+| **Bundle & Shell** | **Admin Shell Layout Node (`nodes/3.js` self)**          |               **121 KB** |               **121 KB** |               **121 KB** |          **0 KB** (≤150 KB) |
+| **Bundle & Shell** | **Client Total Transfer Size (Brotli)**                  |              **2.11 MB** |              **2.11 MB** |              **2.11 MB** |        **0 MB** (unchanged) |
+| **AST Linkmap**    | **Total `src/` Source Files**                            |                **1,467** |                **1,488** |                **1,489** |     **+22 files (net LOC)** |
+| **AST Linkmap**    | **Runtime / Type-Only Import Edges**                     |        **6,049 / 1,031** |        **6,129 / 1,453** |        **6,129 / 1,455** | **+80 runtime / +424 type** |
+| **AST Linkmap**    | **Non-Entry Barrels & Bridges**                          |                   **20** |                    **8** |                    **8** |              **-12 (-60%)** |
+| **AST Linkmap**    | **Actionable Same-Dir 1-Callers (`≤60 LOC`, `0` tests)** |                   **17** |                   **12** |                   **12** |               **-5 (-29%)** |
+| **AST Linkmap**    | **Actionable Orphan Source Files**                       |                   **58** |                   **34** |                   **34** |              **-24 (-41%)** |
+| **AST Linkmap**    | **Unused Runtime Exports (`0` callers)**                 |                  **298** |                  **175** |                  **168** |           **-130 (-43.6%)** |
+| **AST Linkmap**    | **Test-Only Runtime Exports**                            |                  **489** |                  **492** |                  **499** |                     **+10** |
+| **AST Linkmap**    | **Static Client-Reachable Graph**                        | **443 files (4,250 KB)** | **454 files (4,259 KB)** | **454 files (4,212 KB)** |      **+11 files (-38 KB)** |
+
+---
+
+## 2. Summary of Completed Phases
+
+### Phase 0: Trustworthy Signal, Dual-Baseline Reporting & AST Type Import Analysis
+
+1. **Explicit `CONVENTION_ALLOWLIST` with documented reasons**: Covers SvelteKit hooks/routes/remote functions, 3-pillar widgets (`index.ts`, `input.svelte`, `display.svelte`), dashboard widgets, plugins (`index.ts`, `index.server.ts`, plugin UI slot/column `.svelte` components), email templates, DB adapters, worker entrypoints, design-system UI primitives (`@components/ui/*.svelte`), image-editor tool manifests, reactive search params (`AGENTS.md` §3.10), and the auth entry barrel.
+2. **Inline `ImportTypeNode` Tracking**: Integrated AST scanning for `import("./module").Type` syntax (`ts.isImportTypeNode`), recovering 379 inline type edges (such as `setup-types.ts` referenced in `setup.remote.ts`) that previously caused false orphan detections.
+3. **3-Counter `--check` Delta Gate**: `evaluateLinkmapGate()` fails strictly on increases in `runtimeCycleCount`, `passThroughBarrelCount`, or `clientServerLeakCount`.
+4. **Dual-Baseline Output (`Init │ Gate │ Now │ Net Δ`)**: `linkmap-initial-baseline.json` preserves the pre-optimization baseline so cumulative improvements remain visible on every run, while `linkmap-baseline.json` enforces the ratcheted floor (`0` cycles, `1` pass-through barrel, `0` leaks).
+5. **Server-Reachable BFS for Shared Review Candidates**: Computes `serverReachable` from actual server entrypoints (`isServerOnlyPath`) instead of `!staticClientReachable.has(p)`, eliminating false positives where lazy-loaded client modals/widgets caused client-only utilities (`command-palette.ts`, `modal.svelte.ts`, `entry-actions.ts`) to appear as server-shared.
+6. **Production API Dispatcher Fix Uncovered by Orphan Scan (`handlers/forms.ts`)**: `src/routes/api/[...path]/handlers/forms.ts` was flagged as an orphan with `0` runtime importers in `src/` because `NAMESPACE_CONFIG` mapped `forms: { handler: "forms", fn: "handleFormsRoutes" }` while `DYNAMIC_HANDLERS` in `src/routes/api/[...path]/+server.ts` omitted `forms: () => import("./handlers/forms")`. Wiring `forms` into `DYNAMIC_HANDLERS` fixed the production `/api/forms/*` 404 bug and connected `handlers/forms.ts` to the server graph.
+
+### Phase 1: All 6 Runtime Import Cycles Broken (`6 → 0`) & Client/Server Boundary
+
+1. **`src/databases/auth/constants.ts` ↔ `src/utils/security/session-cookie.ts`**: The cookie name strings (`SESSION_COOKIE_NAME`, `HOST_SESSION_COOKIE_NAME`, `SECURE_SESSION_COOKIE_NAME`) live in the client-safe `constants.ts`; `session-cookie.ts` imports them from there and `constants.ts` re-exports nothing back, so the edge is one-way.
+2. **`src/components/collection-display/schedule-modal.svelte` ↔ `src/utils/modal.svelte.ts`**: Passed `initialAction`, `meta`, and `close` via `$props()` from `DialogManager`.
+3. **`src/databases/core/relational-auth.ts` ↔ `src/databases/core/sql-adapter-core.ts`**: Extracted `RAW_DECLINED` and `RawFindResult<T>` into leaf `src/databases/core/drizzle-sql-helpers.ts`.
+4. **`src/databases/sqlite/adapter-core.ts` ↔ `src/databases/sqlite/transaction-module.ts`**: Extracted the process-wide re-entrant `Mutex` and `sqliteWriteMutex` into leaf `src/databases/sqlite/write-mutex.ts`.
+5. **`src/services/background/jobs/job-queue-service.ts` ↔ `src/services/background/jobs/scheduled-jobs.ts` ↔ `src/services/background/webhook-service.ts`**: Switched `webhookService` in `scheduled-jobs.ts` to a dynamic `await import("../webhook-service")`.
+6. **`src/components/system/admin-component-registry.ts` ↔ `src/components/system/builder/input-switch.svelte` ↔ `src/components/system/builder/setting-group.svelte`**: Passed `itemComponent: Self` (`Component<Record<string, unknown>>`) via `controlProps`.
+7. **`src/utils/license-manager.ts`**: Loaded `@src/databases/db` and `@src/services/core/settings-service` via dynamic `await import(...)` inside server-guarded functions.
+8. **`src/widgets/widget-compatibility.ts`**: Switched default `package.json` import to named `{ version as pkgVersion }`, saving **14 KB** of eager uncompressed JS in the Admin Shell (`2,105 KB → 2,091 KB`).
+
+### Phase 2: Barrels (`2 → 1` Pass-Through, `20 → 10` Total Non-Entry Barrels)
+
+- Deleted dead `src/components/ui/index.ts`.
+- Split the 1,430 LOC `Auth` class and Argon2id helpers into `src/databases/auth/auth-service.ts`, leaving `src/databases/auth/index.ts` as a pure barrel.
+
+### Phase 3 & Phase 4: AST-Verified Dead Export Pruning (`298 → 150`), Dead Orphans (`-4` files), & Single-Caller Merges (`-3` files)
+
+- **Un-exported 148 module-private symbols across 87 files**: AST-verified to have internal usage within their defining module (`selfMatches >= 2`) and `0` external word-boundary references anywhere across `src/`, `tests/`, `scripts/`, or `vite.config.ts`.
+- **Deleted 4 verified dead orphan files (`0` runtime/type/test/string references)**:
+  - `src/routes/(app)/config/redirects/redirects-actions.server.ts`
+  - `src/routes/(app)/config/collectionbuilder/modal-schema-warning.svelte`
+  - `src/routes/(app)/config/collectionbuilder/nested-content/modal-name-conflict.svelte`
+  - `src/widgets/core/media-upload/media-upload.svelte`
+- **Merged 3 same-directory single-caller `.ts` shims (`≤60 LOC`, `0` independent tests)**:
+  - `src/utils/rate-limit/config.ts` → `src/utils/rate-limit/index.ts`
+  - `src/plugins/pagespeed/migrations.ts` → `src/plugins/pagespeed/index.server.ts`
+  - `src/routes/(app)/config/sync/sync-api.ts` → `src/routes/(app)/config/sync/+page.svelte`
+
+### Phase 5: Gate Hardening (2026-11-07)
+
+- **Unified AST tier**: `scripts/check/run-ast-gates.ts` runs the tenant-scope lint and the linkmap over one `src` read, replacing two separate processes in `bun run check` (the standalone scripts stay runnable for debugging).
+- **Single-owner rule registry**: `scripts/check/rule-registry.ts` declares every fast check once (`id`, script, args, `kind`, `owner`); the runner fails fast on a duplicate id or a missing script, and the date-helper allowlist now has one source of truth shared with `tests/unit/security/invariants.test.ts`.
+- **Dead-export authority**: the slop-scanner regex crawler was removed; the linkmap AST is the only dead-export analysis, so the two tools can no longer disagree.
+- **Advisory ratchet**: cross-route smuggling, deep relative imports and zombie islands are now gated against `scripts/check/baselines/linkmap-advisory-baseline.json` — they may fall, never rise.
+- **Public-API barrel protection**: barrels with runtime consumers are recorded in `scripts/check/baselines/linkmap-public-api.json`; removing one fails the gate (the `smart-table` barrel incident is the motivating case).
+- **Incremental extraction**: per-file results are cached by size+mtime in `linkmap-file-cache.json`. `bun run check:linkmap:changed` re-parses only changed files (observed: 1,479/1,492 reused on the second run) and still evaluates the full graph.
+
+### Phase 6: All Smells to Zero, Client Decoupling & Test Unification (2026-11-07)
+
+1. **Zero Cross-Route Boundary Smugglings (`26 → 0`)**:
+   - Decoupled setup service architecture by relocating 10 core setup bootstrap modules (`preset-collections.server.ts`, `presets.server.ts`, `seed.ts`, `setup-manager.ts`, `setup.server.ts`, `sync-inlang-locales.server.ts`, `setup-utils.ts`, `write-private-config.ts`, `error-classifier.ts`, `market.ts`) from `src/routes/setup/` to `src/services/setup/`. Updated 28 consumers across API, GraphQL, and test suites.
+   - Decoupled dashboard widget manifest registry from `src/routes/(app)/dashboard/widgets/manifest-registry.ts` to `src/services/core/dashboard-manifest-registry.ts`.
+   - Relocated shared user modal form to `src/components/user/modal-edit-form.svelte`.
+   - Relocated passkey registration RPCs (`getPasskeyRegisterOptions`, `verifyPasskeyRegister`) to authenticated user remote (`user.remote.ts`).
+2. **Zero Zombie Islands (`11 → 0`) & Zero Deep Relative Imports (`2 → 0`)**:
+   - Corrected candidate extension resolution priority in `scripts/check/analyze-linkmap.ts` so directory index (`index.ts`) resolution precedes `.svelte` resolution, resolving the 5 false-positive Zombie Islands in `<Tabs>` compound components (`src/components/ui/tabs/`).
+   - Allowlisted the intentional esbuild boot relative import (`../../../path-aliases.ts`) in `analyze-linkmap.ts` for `src/utils/compilation/`.
+   - Allowlisted `src/services/ai-client/index.ts` as an ML library entrypoint.
+   - Connected `src/plugins/editable-website/stega.ts` and `use-preview.svelte.ts` to the plugin's public API in `src/plugins/editable-website/index.ts`.
+   - Deleted 5 dead builder modules (`add-widget.svelte`, `widget-builder.svelte`, `widget-fields.svelte`, `types.ts`, and `mega-menu/gui-fields.svelte`).
+3. **Client Setup Bundle Slimming (-47 KB static reachability)**:
+   - Decoupled `src/services/setup/presets.server.ts` (2,113 LOC, 53 KB) into `src/services/setup/preset-meta.ts` (~3 KB), moving massive `FieldTemplate[]` collection blueprints strictly to the server.
+   - Migrated all client components (`preset-selector.svelte`, `project-config.svelte`, `review-config.svelte`, `modal-quick-start.svelte`, and `collectionbuilder/+page.svelte`) to `PRESET_METADATA`, dropping static client-reachable raw source from 4,259 KB to 4,212 KB.
+4. **Testing Suite Deduplication & Defect Resolution**:
+   - Consolidated fragmented tests: merged `redirects-utils.test.ts` into `tests/unit/utils/redirects-utils.test.ts`, merged `collectionbuilder-utils.test.ts` into `tests/unit/collectionbuilder/collectionbuilder-utils.test.ts`, and merged `core/relational-utils.test.ts` into `tests/unit/databases/relational-utils.test.ts`.
+   - Deleted 100% duplicate tests `tests/unit/preset-mapper.test.ts` and fake mock test `tests/unit/media/processing/media-service.test.ts`.
+   - Renamed colliding `tests/unit/utils/testing-api-gate.test.ts` to `tests/unit/utils/test-bypass.test.ts`.
+   - Repaired hidden bug in `stegaCleanDeep` where `Date` objects were converted into empty objects without internal timestamps, and added full test coverage in `tests/unit/plugins/editable-website/stega.test.ts`.
+5. **Git Hook Acceleration**:
+   - Wrapped Step 2c (`run-probe-group.ts`) in `.githooks/pre-push` with `gate_cached probes`, saving ~14 seconds per push.
+
+### Phase 7: Gates That Make the Phase 6 Wins Non-Recurring (2026-11-07)
+
+Phase 6 improved the tree; Phase 7 makes each improvement enforced. Every item below fails in the ~4 s static tier or in the suite runner itself, not in a 35 s suite that a partial run can report as green.
+
+1. **The client bundle budget is now gated.** `clientReachableKB` / `clientReachableFiles` were reported with `gated: false`, so the preset split could be silently undone. `evaluateLinkmapGate` now enforces a 0.5 % budget (+4 absolute floor): **4,212 KB against a 4,234 KB ceiling**, **454 files against 458**. Shrinking is always allowed.
+2. **The server-only boundary is explicit.** `src/services/setup/presets.ts` → `presets.server.ts`. SvelteKit rejects a client import of a `.server.ts` module at build time, and the linkmap classifies it `isServerOnly`, so a re-coupling becomes a `clientServerLeak` violation instead of a silent bundle regression. The client entry point remains `preset-meta.ts`.
+3. **The route manifest is validated in the fast tier.** `scripts/check/check-route-manifest.ts` imports `APP_ROUTE_COVERAGE` directly (no second list to drift) and runs the same bidirectional verification as `tests/unit/route-test-coverage.test.ts` — 29 routes / 68 test-file links in ~200 ms. A moved test file now fails at commit time instead of surfacing 35 s later.
+4. **Executed test inventory is ratcheted.** `scripts/test/run-unit-suite.ts` emits Vitest's JSON report from the same invocation and `scripts/check/check-test-inventory.ts` floors per-area test counts against `scripts/check/baselines/test-inventory-baseline.json`. Baseline: `unit` **847 files / 8,058 tests across 38 areas**, `components` **53 files / 238 tests**. A vanished area, a lower total, or an empty report fails; growth is free; subset runs print an explicit "ratchet skipped" line.
+
+**Measurement note.** The tracked initial baseline (`linkmap-initial-baseline.json`, 2026-11-07T09:50Z) records **4,250 KB / 443 files**. Against that artifact the verified client-bundle delta is **−38 KB**, not the −47 KB figure quoted in Phase 6 — that number predates the baseline file and is not reproducible from tracked artifacts. The gate uses the tracked artifact, so the enforceable claim is 4,250 → 4,212 KB.
+
+**Verified 2026-11-07:** `bun run test:unit` **847 files / 8,058 tests** · `test:unit:components` **53 files / 238 tests** · client graph **4,202 KB / 456 files** (ceiling 4,251 / 460) · `check:route-manifest` 29 routes / 68 links · media E2E 64/64.
+
+### Phase 8: Explainable, Machine-Readable Gates (2026-11-07)
+
+1. **One definition of module boundaries.** `scripts/lint/lib/module-boundary.ts` owns `isServerOnlyPath`, `isClientEntrypoint` and `SERVER_STUB_PATHS`; `analyze-linkmap.ts` imports and re-exports them. `tests/unit/scripts/module-boundary.test.ts` pins both the classification table and the function identity, so a second copy cannot drift and silently change which modules count as leaks.
+2. **Single source for gated counters.** `HARD_GATES`, `HARD_SMELL_GATES`, `ADVISORY_GATES` and `BUDGET_GATES` now drive both `evaluateLinkmapGate` and `compareWithBaseline`. A label can no longer differ between “what failed” and “what was printed”, and adding a counter is a one-line change.
+3. **`--explain <file>`.** Answers why a module is client-reachable, server-only, orphaned, allowlisted or a boundary candidate — including runtime importers, static client importers, test importer count, unused exports and smells. `report.explain` carries the same data in JSON. Example: `bun run check:linkmap --explain src/services/setup/presets.server.ts` (server-only, 3 server importers, 0 client importers).
+4. **`--json` output.** `analyze-linkmap --json` emits `{ summary, cache, gate, baseline, explain }`; `slop-scanner --json` emits `{ ok, strict, filesScanned, counts, categories, inventoryCategories, autofixedFiles, violations }`. Both keep their exit codes, so CI annotations and dashboards can consume them without parsing ANSI output.
+5. **Boundary candidates are ratcheted.** The shared client+server review list (currently **32** modules above 120 LOC) is an advisory: it may fall, never rise. Adding a new shared module requires a reviewed re-baseline, which is the point — it forces a deliberate decision about which side owns the code.
+
+### Phase 9: Two-Process Source Lints (2026-11-07)
+
+The five source rules (`date-helpers`, `silent-catch`, `live-paths`, `transient-classification`, `global-timers`) were five registry entries, each spawning a process and sweeping `src`. Folding them into `check-ast-gates` removed the spawns but made that single process the critical path (**3,311 ms**). They now run as a second AST gate (`scripts/check/run-source-lints.ts`) over one shared read, concurrent with the linkmap:
+
+| Measurement                        |                  Before |        After |
+| :--------------------------------- | ----------------------: | -----------: |
+| Fast-tier processes                | 6 (5 linters + linkmap) |        **2** |
+| `src` tree reads                   |                       6 |        **2** |
+| AST gate                           |                3,311 ms | **1,144 ms** |
+| Source lints                       |         — (5 processes) | **1,186 ms** |
+| `run-fast-checks` total (19 gates) |                3,933 ms | **1,961 ms** |
+
+Two hot rules also gained a cheap pre-gate in their pure cores: `transient` **646 → 106 ms**, `global-timers` **620 → 127 ms** (`silent-catch` 824 → 680 ms; most files contain a `catch`, so its AST pass still dominates). The prefilters only let files through — they never skip a possible match — and every rule keeps its own fixture suite.

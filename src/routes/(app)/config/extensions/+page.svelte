@@ -15,7 +15,7 @@
 	import Modal from '@components/ui/modal.svelte';
 	import Input from '@components/ui/input.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
-	import { fetchApi } from '@utils/api';
+	import { fetchApi } from '@utils/http-client';
 	import { extensions_categories_aria, extensions_title } from '@src/paraglide/messages';
 	import PluginsView from './plugins-view.svelte';
 	import WidgetDashboard from './widget-dashboard.svelte';

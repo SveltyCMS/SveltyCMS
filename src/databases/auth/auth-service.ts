@@ -1,0 +1,1416 @@
+/**
+ * @file src/databases/auth/auth-service.ts
+ * @description Quantum-resistant authentication and authorization service with multi-tenant support
+ * Features:
+ * - Argon2id hashing
+ * - AES-256-GCM encryption
+ * - session management
+ * - RBAC
+ * - tenant scoping
+ */
+
+import type { ISODateString, DatabaseId } from "@src/content/types";
+import type {
+  DatabaseAdapter,
+  DatabaseResult,
+  BaseQueryOptions,
+  PaginationOptions,
+  IAuthAdapter,
+} from "@src/databases/db-interface";
+
+/** Cached lazy handle to the authentication hook — one module-registry lookup instead of one per call. */
+let handleAuthenticationModulePromise:
+  | Promise<typeof import("@src/hooks/handle-authentication")>
+  | undefined;
+function loadHandleAuthenticationModule(): Promise<
+  typeof import("@src/hooks/handle-authentication")
+> {
+  return (handleAuthenticationModulePromise ??= import("@src/hooks/handle-authentication"));
+}
+
+/** Cached lazy handle to the turbo GET hook — one module-registry lookup instead of one per call. */
+let handleTurboGetModulePromise: Promise<typeof import("@src/hooks/handle-turbo-get")> | undefined;
+function loadHandleTurboGetModule(): Promise<typeof import("@src/hooks/handle-turbo-get")> {
+  return (handleTurboGetModulePromise ??= import("@src/hooks/handle-turbo-get"));
+}
+
+// Import global settings service for DB-based configuration
+import { getPrivateSettingSync } from "@src/services/core/settings-service";
+import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
+import { dateToISODateString, isoDateStringToDate, nowISODateString } from "@src/utils/date";
+import { error } from "@sveltejs/kit";
+import { cacheService } from "@src/databases/cache/cache-service";
+// System Logger
+import { logger } from "@utils/logger";
+import { corePermissions } from "./core-permissions";
+import { isAdmin } from "./constants";
+import { computeUserPermMask, ADMIN_PERM_MASK } from "./permission-bitmask";
+import type { Permission, Role, Session, SessionStore, Token, User, ApiKey } from "./types";
+import { hasTenantBypass } from "@src/databases/system-tenant-scope";
+import { publishUserRevocation } from "./revocation-publish.server";
+
+/**
+ * The namespace guard reads `options.tenantId` (the last argument).
+ * Demo and invite sign-up store the tenant on the session and the user.
+ * Copy that scope onto options. A branded system scope is left unchanged.
+ * A missing scope stays missing so multi-tenant mode still fails closed.
+ */
+function withAuthWriteScope(
+  userData: { tenantId?: DatabaseId | null },
+  sessionData: { tenantId?: DatabaseId | null },
+  options: BaseQueryOptions,
+): BaseQueryOptions {
+  if (hasTenantBypass(options)) return options;
+  if (options.tenantId !== undefined && options.tenantId !== "") return options;
+  const tenantId =
+    sessionData.tenantId !== undefined && sessionData.tenantId !== ""
+      ? sessionData.tenantId
+      : userData.tenantId !== undefined && userData.tenantId !== ""
+        ? userData.tenantId
+        : undefined;
+  if (tenantId === undefined) return options;
+  return { ...options, tenantId };
+}
+
+// Import shared password utilities (Argon2id)
+// NOTE: Import directly from ./crypto, NOT from @utils/security barrel,
+// to avoid pulling server-only modules (cors-utils, csrf-utils, etc.) into the client bundle.
+import {
+  hashPassword as cryptoHashPassword,
+  verifyPassword as cryptoVerifyPassword,
+  verifyDummyPassword as cryptoVerifyDummyPassword,
+} from "@utils/security/crypto";
+// Import for internal use
+import { SESSION_COOKIE_NAME, getSessionCookieName, sessionTtlMs } from "./constants";
+import { normalizeEmail } from "@utils/normalize-email";
+
+// Main Auth class
+export class Auth {
+  private readonly db: DatabaseAdapter;
+  private readonly sessionStore: SessionStore;
+  private readonly permissions: Permission[] = [...corePermissions];
+
+  constructor(db: DatabaseAdapter, sessionStore: SessionStore) {
+    this.db = db;
+    this.sessionStore = sessionStore;
+  }
+
+  public get authInterface(): DatabaseAdapter["auth"] {
+    return this.db.auth;
+  }
+
+  // Combined Performance-Optimized Methods (wrapper for db.auth methods)
+  async createUserAndSession(
+    userData: Partial<User>,
+    sessionData: { expires: ISODateString; tenantId?: DatabaseId | null },
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<{ user: User; session: Session }>> {
+    try {
+      const { email, password } = userData;
+
+      if (email) userData.email = normalizeEmail(email);
+
+      // --- PASSWORD HASHING ---
+      if (password) {
+        // 🔴 FIX: enforce the same 4-class strength policy as createUser/updateUser.
+        this.validatePasswordStrength(password);
+        userData.password = await cryptoHashPassword(password);
+      }
+
+      // Delegate to adapter — each adapter has its own manual rollback.
+      // MongoDB: auth-module.ts createUserAndSession (deleteUser on session failure).
+      // SQL: relational-auth.ts createUserAndSession (same pattern).
+      return await this.db.auth.createUserAndSession(
+        userData,
+        sessionData,
+        withAuthWriteScope(userData, sessionData, options),
+      );
+    } catch (err: any) {
+      throw new Error(err.message || "Failed to create user and session");
+    }
+  }
+
+  async deleteUserAndSessions(
+    userId: DatabaseId,
+    tenantId?: DatabaseId | null,
+  ): Promise<DatabaseResult<{ deletedUser: boolean; deletedSessionCount: number }>> {
+    return this.db.auth.deleteUserAndSessions(userId, { tenantId });
+  }
+
+  async blockUsers(
+    userIds: DatabaseId[],
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<{ modifiedCount: number }>> {
+    return this.db.auth.blockUsers(userIds, options);
+  }
+
+  async unblockUsers(
+    userIds: DatabaseId[],
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<{ modifiedCount: number }>> {
+    return this.db.auth.unblockUsers(userIds, options);
+  }
+
+  // Permission management
+
+  getPermissions(): Permission[] {
+    return this.permissions;
+  }
+
+  addPermission(permission: Permission): void {
+    const exists = this.permissions.some((p) => p._id === permission._id);
+    if (!exists) {
+      this.permissions.push(permission);
+    }
+  }
+
+  // User management
+
+  async createUser(userData: Partial<User>, oauth = false): Promise<User> {
+    try {
+      const { email, password, tenantId, samlId } = userData;
+
+      if (!(email && (oauth || password || samlId))) {
+        throw error(400, "Email and password (or OAuth/SAML provider context) are required");
+      }
+
+      if (isMultiTenantEnabled() && !tenantId && userData.role !== "admin") {
+        throw error(400, "Tenant ID is required in multi-tenant mode");
+      }
+
+      const normalizedEmail = normalizeEmail(email);
+
+      // --- PASSWORD STRENGTH VALIDATION ---
+      if (!oauth && !samlId && password) {
+        this.validatePasswordStrength(password);
+      }
+
+      let hashedPassword: string | undefined;
+      if (!oauth && !samlId && password) {
+        hashedPassword = await cryptoHashPassword(password);
+      }
+
+      const preferences = (userData.preferences || {}) as Record<string, unknown>;
+      if (oauth) {
+        preferences.auth = {
+          ...(preferences.auth as Record<string, unknown>),
+          oauthEnabled: true,
+        };
+      }
+
+      const role = userData.role || "user";
+      const result = await this.db.auth.createUser({
+        ...userData,
+        role,
+        preferences,
+        email: normalizedEmail,
+        password: hashedPassword,
+      });
+      if (!(result?.success && result.data && result.data._id)) {
+        throw error(500, "User creation failed");
+      }
+      return result.data;
+    } catch (err: any) {
+      throw error(500, `Failed to create user: ${err.message}`);
+    }
+  }
+
+  async getUserById(userId: DatabaseId, options?: BaseQueryOptions): Promise<User | null> {
+    // No caching - getUserById is fast enough and avoids cache invalidation complexity
+    // Session cache already stores user data for authenticated requests
+    const result = (await this.db.auth.getUserById(userId, options)) as unknown;
+    if (
+      result &&
+      typeof result === "object" &&
+      result !== null &&
+      "success" in (result as Record<string, unknown>)
+    ) {
+      const r = result as DatabaseResult<User | null>;
+      if (r.success && r.data) {
+        return r.data;
+      }
+      return null;
+    }
+    return (result as User | null) ?? null;
+  }
+
+  async getUserBySamlId(samlId: string, options?: BaseQueryOptions): Promise<User | null> {
+    // Uses generic checkUser structure mapping to adapter lookup
+    return this.checkUser(
+      {
+        user_id: undefined as any,
+        email: undefined as any,
+        samlId,
+        tenantId: options?.tenantId,
+      },
+      options,
+    );
+  }
+
+  async getUserByEmail(
+    criteria: { email: string; tenantId?: DatabaseId | null },
+    options?: BaseQueryOptions,
+  ): Promise<User | null> {
+    // No caching - getUserByEmail is only used during login/registration
+    // Caching here adds complexity without significant performance benefit
+    const result = (await this.db.auth.getUserByEmail(criteria, options)) as unknown;
+
+    if (
+      result &&
+      typeof result === "object" &&
+      result !== null &&
+      "success" in (result as Record<string, unknown>)
+    ) {
+      const r = result as DatabaseResult<User | null>;
+
+      if (r.success === true) {
+        const userData = "data" in r ? (r as { data: User | null }).data : null;
+        // No caching - not needed for login/registration flows
+        return userData ?? null;
+      }
+      return null;
+    }
+    return (result as User | null) ?? null;
+  }
+  async updateUser(
+    userId: DatabaseId,
+    updates: Partial<User>,
+    options?: BaseQueryOptions,
+  ): Promise<void> {
+    if (updates.password) {
+      this.validatePasswordStrength(updates.password);
+      const originalPassword = updates.password;
+      updates.password = await cryptoHashPassword(updates.password);
+      logger.debug("updateUser: Password hashed", {
+        userId,
+        originalLength: originalPassword.length,
+        hashPrefix: updates.password.substring(0, 20),
+      });
+    }
+    const result = await this.db.auth.updateUserAttributes(userId, updates, options);
+    if (!result?.success) {
+      throw error(500, "Failed to update user");
+    }
+
+    // Invalidate permission cache so RBAC changes take effect immediately.
+    // Stale cached DENY results could otherwise survive up to 5 minutes (PERMISSION_CACHE_TTL).
+    try {
+      const { invalidatePermissionCache } = await import("./permissions");
+      invalidatePermissionCache(userId as string);
+    } catch {
+      // Non-critical — permission cache will expire naturally after TTL
+    }
+
+    // Turbo auth contexts cache per-session user/roles/bitsets. Clear the user's
+    // sessions so privilege changes apply immediately instead of after the 60s TTL.
+    try {
+      const { invalidateTurboAuthForUser } = await loadHandleTurboGetModule();
+      invalidateTurboAuthForUser(userId as string);
+    } catch {
+      // Non-critical — turbo contexts expire naturally after TTL
+    }
+  }
+
+  async deleteUser(userId: DatabaseId, options?: BaseQueryOptions): Promise<void> {
+    // Get user first to clear email cache
+    const user = await this.getUserById(userId, options);
+
+    const result = await this.db.auth.deleteUser(userId, options);
+    if (!result?.success) {
+      throw error(500, "Failed to delete user");
+    }
+
+    // Invalidate all caches for this user
+    const cacheKey = `user:id:${userId}`;
+    await cacheService.delete(cacheKey, options?.tenantId);
+
+    if (user?.email) {
+      const emailCacheKey = `user:email:${normalizeEmail(user.email)}`;
+      await cacheService.delete(emailCacheKey, options?.tenantId);
+    }
+
+    // Turbo auth contexts cache per-session user/roles/bitsets and skip session
+    // re-validation — a deleted user's warm context must not survive.
+    try {
+      const { invalidateTurboAuthForUser } = await loadHandleTurboGetModule();
+      invalidateTurboAuthForUser(userId as string);
+    } catch {
+      // Non-critical — turbo contexts expire naturally after TTL
+    }
+
+    // Purge the user's sessions from every layer (LRU cache, turbo, session
+    // store, Redis) so a deleted user loses access immediately, not after the
+    // 24h session-cache TTL.
+    try {
+      const res = await this.db.auth.getActiveSessions(userId, options);
+      const active = res?.success && Array.isArray(res.data) ? res.data : [];
+      if (active.length > 0) {
+        const { invalidateSessionCache } = await loadHandleAuthenticationModule();
+        for (const s of active) {
+          invalidateSessionCache(String(s._id), options?.tenantId ?? null);
+        }
+      }
+    } catch {
+      // Non-critical — expired entries are purged by the session-cleanup job
+    }
+  }
+  async getAllUsers(options?: PaginationOptions, dbOptions?: BaseQueryOptions): Promise<User[]> {
+    const result = await this.db.auth.getAllUsers(options, dbOptions);
+    if (result?.success) {
+      return result.data;
+    }
+    return [];
+  }
+
+  async getUserCount(
+    filter?: { tenantId?: DatabaseId | null },
+    options?: BaseQueryOptions,
+  ): Promise<number> {
+    const result = await this.db.auth.getUserCount(filter, options);
+    if (result?.success) {
+      return result.data;
+    }
+    // Return -1 ("unknown"), NOT 0, on failure: a failed/early read must not be
+    // mistaken for a genuine empty database (which would force the first-user/sign-up flow).
+    return -1;
+  }
+
+  async createSession(
+    sessionData: {
+      user_id: DatabaseId;
+      expires: ISODateString;
+      tenantId?: DatabaseId | null;
+      userAgent?: string;
+      deviceId?: string;
+      ipAddress?: string;
+      amr?: string[];
+      /**
+       * Set by token rotation in the auth hook. Rotation is not a new login:
+       * the caller retires the predecessor itself (short grace expiry) and the
+       * device/parallel caps must stay out of the way — evicting the very
+       * session being rotated is what signed users out a second time.
+       */
+      isRotation?: boolean;
+    },
+    options?: BaseQueryOptions,
+  ): Promise<Session> {
+    const sr = (await this.db.auth.createSession(sessionData, options)) as unknown;
+    let session: Session | null = null;
+    if (
+      sr &&
+      typeof sr === "object" &&
+      sr !== null &&
+      "success" in (sr as Record<string, unknown>)
+    ) {
+      const sessionResult = sr as DatabaseResult<Session>;
+      if (!sessionResult?.success) {
+        throw error(500, "Session creation failed");
+      }
+      session = sessionResult.data;
+    } else {
+      session = sr as Session;
+    }
+
+    if (!session) {
+      throw error(500, "Session creation failed");
+    }
+
+    const ur = (await this.db.auth.getUserById(sessionData.user_id, {
+      ...options,
+      tenantId: sessionData.tenantId,
+    })) as unknown;
+    let user: User | null = null;
+    if (
+      ur &&
+      typeof ur === "object" &&
+      ur !== null &&
+      "success" in (ur as Record<string, unknown>)
+    ) {
+      const userResult = ur as DatabaseResult<User | null>;
+      if (userResult?.success && userResult.data) {
+        user = userResult.data;
+      }
+    } else {
+      user = (ur as User) ?? null;
+    }
+
+    if (!user) {
+      throw error(500, "User not found for session");
+    }
+
+    let permMask = (sessionData as any).permMask;
+    // Whether the mask above may be persisted. A mask derived from a FAILED roles
+    // read is not authoritative: caching it as "0 permissions" denies every mapped
+    // endpoint for the whole session lifetime (observed on MariaDB, where a thin
+    // roles read during session minting produced a permanent 403).
+    if (permMask === undefined) {
+      if (isAdmin(user)) {
+        permMask = ADMIN_PERM_MASK;
+      } else {
+        try {
+          const roles = await this.db.auth.getAllRoles({
+            ...options,
+            tenantId: sessionData.tenantId,
+          });
+          permMask = computeUserPermMask(user, roles);
+        } catch {
+          // Leave it undefined so the next request recomputes from the roles
+          // instead of persisting a zero mask. The dispatcher no longer trusts a
+          // zero mask anyway (see `_checkEndpointPermission`).
+          permMask = undefined;
+        }
+      }
+    }
+    const permMaskHex =
+      typeof permMask === "bigint"
+        ? "0x" + permMask.toString(16)
+        : typeof permMask === "string"
+          ? permMask
+          : undefined;
+
+    const sessionMetadata = {
+      amr: sessionData.amr ?? (user.is2FAEnabled ? ["pwd", "mfa"] : ["pwd"]),
+      mfaVerifiedAt:
+        (sessionData as any).mfaVerifiedAt ??
+        (sessionData.amr?.includes("mfa") ? (nowISODateString() as ISODateString) : undefined),
+      ...(permMaskHex !== undefined ? { permMask: permMaskHex } : {}),
+    };
+    await this.sessionStore.set(session._id, user, sessionData.expires, sessionMetadata);
+    session.permMask = permMaskHex;
+
+    // Session device policy (enterprise-configurable):
+    //   single-per-device (default) — evict other non-rotated sessions of this
+    //     user that share the same device key (client deviceId, falling back to
+    //     exact user-agent match for legacy sessions without a deviceId)
+    //   single-per-user            — evict ALL other non-rotated sessions
+    //   allow-multiple             — no eviction (unlimited concurrent sessions)
+    // Best-effort — never fail the login on eviction errors.
+    // Token rotation bypasses both policies: it supersedes exactly one session
+    // (retired by the caller), so eviction would only kill live requests that
+    // still carry the pre-rotation cookie.
+    if (!sessionData.isRotation) {
+      const deviceKey = sessionData.deviceId || sessionData.userAgent;
+      if (deviceKey) {
+        try {
+          const policy = String(
+            getPrivateSettingSync("SESSION_DEVICE_POLICY") || "single-per-device",
+          );
+          if (policy !== "allow-multiple") {
+            await this.evictSameDeviceSessions(
+              session,
+              deviceKey,
+              policy === "single-per-user",
+              options,
+            );
+          }
+        } catch (err) {
+          logger.debug("Device-session eviction skipped", { error: (err as Error).message });
+        }
+      }
+
+      // Max concurrent sessions per user (SESSION_MAX_PER_USER, 0 = unlimited):
+      // when the cap is exceeded the least recently active session is evicted
+      // (Keycloak-style). Complements the device policy — best-effort only.
+      try {
+        const maxSessions = Number(getPrivateSettingSync("SESSION_MAX_PER_USER")) || 0;
+        if (maxSessions > 0) {
+          await this.enforceMaxSessionsPerUser(session, maxSessions, options);
+        }
+      } catch (err) {
+        logger.debug("Max-session eviction skipped", { error: (err as Error).message });
+      }
+    }
+
+    return session;
+  }
+
+  /**
+   * Updates the Authentication Method References (AMR) on an active session.
+   * Invalidates cached session contexts to immediately reflect elevation (e.g. trusted_device vs mfa).
+   */
+  async updateSessionAmr(
+    sessionId: DatabaseId,
+    amr: string[],
+    options?: BaseQueryOptions,
+  ): Promise<void> {
+    const rawSession = await this.db.auth.getSessionTokenData(sessionId);
+    if (rawSession?.success && rawSession.data) {
+      const sessionData = rawSession.data as any;
+      sessionData.amr = amr;
+      const mfaVerifiedAt = amr.includes("mfa") ? nowISODateString() : undefined;
+      if (mfaVerifiedAt) sessionData.mfaVerifiedAt = mfaVerifiedAt;
+      // updateSession is adapter-optional (IAuthAdapter has no such method) —
+      // widen once so the runtime guard type-checks.
+      const authWithSessionPatch = this.db.auth as IAuthAdapter & {
+        updateSession?: (
+          sessionId: DatabaseId,
+          patch: Record<string, unknown>,
+          options?: unknown,
+        ) => Promise<unknown>;
+      };
+      if (authWithSessionPatch.updateSession) {
+        await authWithSessionPatch
+          .updateSession(sessionId, { amr, mfaVerifiedAt }, options)
+          .catch(() => {});
+      }
+      const user = await this.getUserById(sessionData.user_id, options);
+      if (user) {
+        await this.sessionStore.set(sessionId, user, sessionData.expires, { amr, mfaVerifiedAt });
+        if (this.sessionStore.updateSessionAmr) {
+          await this.sessionStore.updateSessionAmr(sessionId, amr, mfaVerifiedAt);
+        }
+      }
+      const { invalidateSessionCache } = await loadHandleAuthenticationModule();
+      invalidateSessionCache(String(sessionId), options?.tenantId ?? sessionData.tenantId ?? null);
+    }
+  }
+
+  /**
+   * Delete active sessions per the device policy, excluding the freshly created
+   * session. Purges DB row, in-memory/Redis session store, and the 3-layer
+   * session cache (incl. turbo auth). `evictAllDevices` = single-per-user mode.
+   * Device match: client `deviceId` when present, else exact user-agent.
+   */
+  private async evictSameDeviceSessions(
+    newSession: Session,
+    deviceKey: string,
+    evictAllDevices: boolean,
+    options?: BaseQueryOptions,
+  ): Promise<void> {
+    const result = await this.db.auth.getActiveSessions(newSession.user_id, options);
+    if (!result?.success) return;
+    const sessions = Array.isArray(result.data) ? result.data : [];
+    if (sessions.length === 0) return;
+
+    const { invalidateSessionCache } = await loadHandleAuthenticationModule();
+    let evicted = 0;
+    for (const old of sessions) {
+      if (old.rotated) continue;
+      if (String(old._id) === String(newSession._id)) continue;
+      if (!evictAllDevices && (old.deviceId || old.userAgent) !== deviceKey) continue;
+
+      await this.db.auth.deleteSession(old._id, options).catch(() => {});
+      await this.sessionStore.delete(old._id).catch(() => {});
+      invalidateSessionCache(
+        String(old._id),
+        (options?.tenantId as DatabaseId | null | undefined) ?? newSession.tenantId ?? null,
+      );
+      evicted++;
+    }
+    if (evicted > 0) {
+      logger.info(
+        `[SessionPolicy] Evicted ${evicted} session(s) for user ${String(newSession.user_id)}` +
+          ` (${evictAllDevices ? "single-per-user" : "single-per-device"})`,
+      );
+    }
+  }
+
+  /**
+   * Caps concurrent sessions per user (SESSION_MAX_PER_USER, 0 = unlimited).
+   * When the cap is exceeded the least recently active non-rotated sessions are
+   * evicted (excluding the freshly created one), purging DB row, session store,
+   * and the 3-layer session cache — Keycloak-style LRU eviction.
+   */
+  private async enforceMaxSessionsPerUser(
+    newSession: Session,
+    maxSessions: number,
+    options?: BaseQueryOptions,
+  ): Promise<void> {
+    if (maxSessions < 1) return;
+    const result = await this.db.auth.getActiveSessions(newSession.user_id, options);
+    if (!result?.success) return;
+    const sessions = Array.isArray(result.data) ? result.data : [];
+    if (sessions.length <= maxSessions) return;
+
+    const { invalidateSessionCache } = await loadHandleAuthenticationModule();
+    const tenantId =
+      (options?.tenantId as DatabaseId | null | undefined) ?? newSession.tenantId ?? null;
+
+    // Oldest-first by last activity (fall back to creation time for legacy rows).
+    const evictable = sessions
+      .filter((s: any) => !s.rotated && String(s._id) !== String(newSession._id))
+      .sort((a: any, b: any) => {
+        const aTime = new Date(a.lastAccess ?? a.lastActiveAt ?? a.createdAt ?? 0).getTime() || 0;
+        const bTime = new Date(b.lastAccess ?? b.lastActiveAt ?? b.createdAt ?? 0).getTime() || 0;
+        return aTime - bTime;
+      });
+
+    const excess = evictable.length + 1 - maxSessions;
+    const toEvict = evictable.slice(0, Math.max(0, excess));
+    for (const old of toEvict) {
+      await this.db.auth.deleteSession(old._id, options).catch(() => {});
+      await this.sessionStore.delete(old._id).catch(() => {});
+      invalidateSessionCache(String(old._id), tenantId);
+    }
+    if (toEvict.length > 0) {
+      logger.info(
+        `[SessionPolicy] Evicted ${toEvict.length} oldest session(s) — cap ${maxSessions} reached for user ${String(newSession.user_id)}`,
+      );
+    }
+  }
+
+  async validateSession(sessionId: DatabaseId, options?: BaseQueryOptions): Promise<User | null> {
+    const result = await this.db.auth.validateSession(sessionId, options);
+    if (result?.success) {
+      return result.data;
+    }
+    return null;
+  }
+
+  async destroySession(sessionId: DatabaseId, options?: BaseQueryOptions): Promise<void> {
+    await this.db.auth.deleteSession(sessionId, options);
+    await this.sessionStore.delete(sessionId);
+  }
+
+  async getSessionTokenData(
+    sessionId: DatabaseId,
+  ): Promise<{ expiresAt: ISODateString; user_id: DatabaseId } | null> {
+    const result = await this.db.auth.getSessionTokenData(sessionId);
+    if (result?.success) {
+      return result.data;
+    }
+    return null;
+  }
+
+  async rotateToken(oldToken: string, expires: ISODateString): Promise<string> {
+    // Try adapter-level rotation first
+    if (this.db.auth.rotateToken) {
+      const result = await this.db.auth.rotateToken(oldToken, expires);
+      if (result?.success) return result.data;
+    }
+
+    // Fallback: generate new token, copy metadata from old, delete old
+    const old = await this.getTokenByValue(oldToken);
+    if (!old) throw error(404, "Token not found");
+
+    const newToken = await this.createToken({
+      user_id: old.user_id as DatabaseId,
+      type: old.type || "access",
+      expires: expires,
+    });
+
+    await this.db.auth.deleteTokens([old._id]);
+    return newToken;
+  }
+
+  async getAllRoles(options?: BaseQueryOptions): Promise<Role[]> {
+    return this.db.auth.getAllRoles(options);
+  }
+
+  async getAllTokens(filter?: { tenantId?: DatabaseId | null }): Promise<DatabaseResult<Token[]>> {
+    const result = await this.db.auth.getAllTokens(filter);
+    return result;
+  }
+
+  /**
+   * Create a token for a user.
+   * @param tokenData - Token creation data including user_id, expires, type, and optional tenantId
+   * @returns The created token string
+   */
+  async createToken(tokenData: {
+    user_id: DatabaseId;
+    expires: ISODateString;
+    type: string;
+    tenantId?: DatabaseId | null;
+  }): Promise<string> {
+    // Get user email (required for token creation)
+    const user = await this.getUserById(tokenData.user_id, {
+      tenantId: tokenData.tenantId,
+    });
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const result = await this.db.auth.createToken({
+      user_id: tokenData.user_id,
+      email: normalizeEmail(user.email),
+      expires: tokenData.expires,
+      type: tokenData.type,
+      tenantId: tokenData.tenantId,
+    });
+
+    if (typeof result === "string") {
+      return result;
+    }
+    if (result?.success && typeof result.data === "string") {
+      return result.data;
+    }
+    if (result && !result.success && result.error?.message) {
+      throw new Error(result.error.message);
+    }
+    throw new Error("Failed to create token");
+  }
+
+  // Token management wrappers for interface completeness
+  async updateToken(
+    tokenId: DatabaseId,
+    tokenData: Partial<Token>,
+    options?: BaseQueryOptions,
+  ): Promise<Token> {
+    const result = await this.db.auth.updateToken(tokenId, tokenData, options);
+    if (result?.success) {
+      return result.data;
+    }
+    throw error(
+      500,
+      !result || result.success
+        ? "Failed to update token"
+        : result.message || "Failed to update token",
+    );
+  }
+
+  async deleteTokens(
+    tokenIds: DatabaseId[],
+    options?: BaseQueryOptions,
+  ): Promise<{ deletedCount: number }> {
+    const result = await this.db.auth.deleteTokens(tokenIds, options);
+    if (result?.success) {
+      return result.data;
+    }
+    throw error(
+      500,
+      !result || result.success
+        ? "Failed to delete tokens"
+        : result.message || "Failed to delete tokens",
+    );
+  }
+
+  async blockTokens(
+    tokenIds: DatabaseId[],
+    options?: BaseQueryOptions,
+  ): Promise<{ modifiedCount: number }> {
+    const result = await this.db.auth.blockTokens(tokenIds, options);
+    if (result?.success) {
+      return result.data;
+    }
+    throw error(
+      500,
+      !result || result.success
+        ? "Failed to block tokens"
+        : result.message || "Failed to block tokens",
+    );
+  }
+
+  async unblockTokens(
+    tokenIds: DatabaseId[],
+    options?: BaseQueryOptions,
+  ): Promise<{ modifiedCount: number }> {
+    const result = await this.db.auth.unblockTokens(tokenIds, options);
+    if (result?.success) {
+      return result.data;
+    }
+    throw error(
+      500,
+      !result || result.success
+        ? "Failed to unblock tokens"
+        : result.message || "Failed to unblock tokens",
+    );
+  }
+
+  async getTokenByValue(token: string, options?: BaseQueryOptions): Promise<Token | null> {
+    const result = await this.db.auth.getTokenByValue(token, options);
+    if (result?.success) {
+      return result.data;
+    }
+    throw error(
+      500,
+      !result || result.success ? "Failed to get token" : result.message || "Failed to get token",
+    );
+  }
+
+  async validateToken(
+    token: string,
+    userId?: DatabaseId,
+    type = "access",
+    options?: BaseQueryOptions,
+  ): Promise<{ success: boolean; message: string; data?: any }> {
+    const result = await this.db.auth.validateToken(token, userId, type, options);
+    // The adapter's wrap() packs the fn return value into {success:true, data:<value>},
+    // so result.data has its own {success, message} envelope. We must check the inner
+    // success to distinguish valid tokens from invalid ones.
+    if (result?.success && result.data?.success) {
+      return {
+        success: true,
+        message: result.data.message ?? "Token validated",
+        data: result.data,
+      };
+    }
+    return {
+      success: false,
+      message:
+        !result || result.success
+          ? "Token validation failed"
+          : result.message || "Token validation failed",
+    };
+  }
+
+  async validateRegistrationToken(
+    token: string,
+    options?: BaseQueryOptions,
+  ): Promise<{ isValid: boolean; message: string; details?: Token }> {
+    // Use the global standard 'invite-token' type
+    const result = await this.db.auth.validateToken(token, undefined, "invite-token", options);
+
+    if (result?.success && result.data && result.data.success) {
+      const tokenDoc = result.data.details;
+      return {
+        isValid: true,
+        message: result.data.message,
+        details: tokenDoc ?? undefined,
+      };
+    }
+    return {
+      isValid: false,
+      message:
+        !result || result.success
+          ? "Token validation failed"
+          : result.message || "Token validation failed",
+    };
+  }
+
+  async consumeToken(
+    token: string,
+    userId?: DatabaseId,
+    type = "access",
+    options?: BaseQueryOptions,
+  ): Promise<{ status: boolean; message: string; code?: string }> {
+    const result = await this.db.auth.consumeToken(token, userId, type, options);
+    // SQL adapters wrap { status, message, code } as DatabaseResult.data
+    if (result?.success && result.data && typeof result.data === "object") {
+      const data = result.data as { status?: boolean; message?: string; code?: string };
+      if (typeof data.status === "boolean") {
+        return {
+          status: data.status,
+          message: data.message || (data.status ? "Consumed" : "Failed to consume token"),
+          code: data.code,
+        };
+      }
+      return { status: true, message: "Consumed" };
+    }
+    // Mongo adapters return success:false with error.code (TOKEN_EXPIRED, etc.)
+    return {
+      status: false,
+      message:
+        !result || result.success
+          ? "Failed to consume token"
+          : result.message || "Failed to consume token",
+      code: (result as { error?: { code?: string } } | undefined)?.error?.code,
+    };
+  }
+
+  async consumeRegistrationToken(
+    token: string,
+    options?: BaseQueryOptions,
+  ): Promise<{ status: boolean; message: string; code?: string }> {
+    // Attempt to consume using the global standard 'invite-token'
+    return this.consumeToken(token, undefined, "invite-token", options);
+  }
+  async authenticate(
+    email: string,
+    password: string,
+    tenantId?: DatabaseId | null,
+    options?: BaseQueryOptions,
+    sessionMeta?: {
+      userAgent?: string;
+      deviceId?: string;
+      ipAddress?: string;
+      amr?: string[];
+    },
+  ): Promise<{ user: User; sessionId: DatabaseId } | null> {
+    // Every failed attempt must run exactly one Argon2 verification (CWE-208):
+    // this flag lets the catch path avoid double-hashing after a real verify.
+    let hashPerformed = false;
+    try {
+      const user = await this.getUserByEmail({ email, tenantId }, options);
+      if (!user) {
+        logger.debug("User not found for authentication", { email, tenantId });
+        hashPerformed = true;
+        await cryptoVerifyDummyPassword(password);
+        return null;
+      }
+
+      // --- ACCOUNT LOCKOUT CHECK ---
+      if (user.lockoutUntil) {
+        const lockoutDate = isoDateStringToDate(user.lockoutUntil);
+        if (lockoutDate > new Date()) {
+          const remainingMinutes = Math.ceil((lockoutDate.getTime() - Date.now()) / 60000);
+          logger.warn("Authentication attempt on locked account", {
+            email,
+            lockoutUntil: user.lockoutUntil,
+          });
+          throw error(
+            423,
+            `Account is temporarily locked. Please try again in ${remainingMinutes} minutes.`,
+          );
+        }
+        // Lockout expired, clear it
+        await this.db.auth.updateUserAttributes(user._id, {
+          lockoutUntil: null,
+          failedAttempts: 0,
+        });
+      }
+
+      if (!user.password) {
+        logger.debug("User has no password field", {
+          email,
+          tenantId,
+          userId: user._id,
+        });
+        hashPerformed = true;
+        await cryptoVerifyDummyPassword(password);
+        return null;
+      }
+
+      // 🛡️ HARDENING: reject blocked accounts at the form-login path too.
+      // AuthNamespace.login already checked `user.blocked`; Auth.authenticate
+      // (used by /login and signInInternal) did NOT — a blocked user could
+      // still get a fresh session from the UI.
+      if (user.blocked) {
+        logger.warn("Login rejected: account is blocked", {
+          email,
+          tenantId,
+          userId: user._id,
+        });
+        hashPerformed = true;
+        await cryptoVerifyDummyPassword(password);
+        return null;
+      }
+
+      hashPerformed = true;
+      const isValid = await cryptoVerifyPassword(user.password, password);
+
+      logger.debug("Password verification result", { email, isValid });
+
+      if (!isValid) {
+        // --- FAILED ATTEMPT TRACKING ---
+        const failedAttempts = (user.failedAttempts || 0) + 1;
+        const updates: Partial<User> = { failedAttempts };
+
+        if (failedAttempts >= 5) {
+          // Lock for 15 minutes after 5 failures
+          const lockoutUntil = new Date(Date.now() + 15 * 60 * 1000);
+          updates.lockoutUntil = dateToISODateString(lockoutUntil);
+          logger.error("Account locked due to multiple failed attempts", {
+            email,
+          });
+        }
+
+        await this.db.auth.updateUserAttributes(user._id, updates, options);
+        logger.warn("Password authentication failed", {
+          email,
+          failedAttempts,
+        });
+        return null;
+      }
+
+      // --- SUCCESS: RESET LOCKOUT STATE ---
+      if (user.failedAttempts || user.lockoutUntil) {
+        await this.db.auth.updateUserAttributes(
+          user._id,
+          {
+            failedAttempts: 0,
+            lockoutUntil: null,
+          },
+          options,
+        );
+      }
+
+      const expiresAt = dateToISODateString(
+        new Date(Date.now() + sessionTtlMs(getPrivateSettingSync("SESSION_TTL_HOURS"))),
+      );
+      const session = await this.createSession(
+        {
+          user_id: user._id,
+          expires: expiresAt,
+          tenantId,
+          userAgent: sessionMeta?.userAgent,
+          deviceId: sessionMeta?.deviceId,
+          ipAddress: sessionMeta?.ipAddress,
+          amr: sessionMeta?.amr ?? ["pwd"],
+        },
+        options,
+      );
+      return { user, sessionId: session._id };
+    } catch (err: any) {
+      // Unanticipated failures (e.g. the 423 lockout throw) still hash once so
+      // locked/unknown/timed-out paths are not distinguishable by latency.
+      if (!hashPerformed) {
+        hashPerformed = true;
+        try {
+          await cryptoVerifyDummyPassword(password);
+        } catch {
+          // catch-allow: timing normalization must never mask the original error
+        }
+      }
+      // Vite 8 dev-mode HMR cycle — non-fatal, retry will succeed
+      if (err.message?.includes("module runner has been closed")) {
+        logger.debug(
+          `Auth: Vite module runner closed during authenticate (HMR cycle), returning null`,
+        );
+      } else {
+        logger.error(`Authentication error: ${err.message}`);
+      }
+      return null;
+    }
+  }
+
+  async logOut(sessionId: DatabaseId): Promise<void> {
+    await this.destroySession(sessionId);
+  }
+
+  async checkUser(
+    fields: {
+      user_id?: DatabaseId;
+      email?: string;
+      samlId?: string;
+      tenantId?: DatabaseId | null;
+    },
+    options?: BaseQueryOptions,
+  ): Promise<User | null> {
+    if (fields.samlId) {
+      // Workaround for DB adapter missing native getBySamlId - search all users
+      const result = await this.db.auth.getAllUsers({
+        filter: { tenantId: fields.tenantId },
+      });
+      if (result?.success) {
+        return result.data.find((u) => u.samlId === fields.samlId) || null;
+      }
+      return null;
+    }
+    if (fields.email) {
+      const result = await this.db.auth.getUserByEmail(
+        {
+          email: fields.email,
+          tenantId: fields.tenantId,
+        },
+        options,
+      );
+      if (result?.success) {
+        return result.data;
+      }
+      return null;
+    }
+    if (fields.user_id) {
+      const result = await this.db.auth.getUserById(fields.user_id, {
+        ...options,
+        tenantId: fields.tenantId,
+      });
+      if (result?.success) {
+        return result.data;
+      }
+      return null;
+    }
+    return null;
+  }
+
+  async updateUserAttributes(
+    userId: DatabaseId,
+    attributes: Partial<User>,
+    options?: BaseQueryOptions,
+  ): Promise<User> {
+    const isServer =
+      typeof window === "undefined" || (typeof process !== "undefined" && process.versions != null);
+    // 🛡️ Fail-closed privilege boundary (defense-in-depth beneath API handlers)
+    const attrs = { ...attributes } as Record<string, unknown>;
+    if (!options?.allowPrivilegeEscalation) {
+      const { stripPrivilegeEscalationFields } =
+        await import("@utils/security/user-attribute-policy");
+      stripPrivilegeEscalationFields(attrs);
+    }
+    if (attrs.password && isServer) {
+      attrs.password = await cryptoHashPassword(attrs.password as string);
+    }
+    if (attrs.email === null) {
+      attrs.email = undefined;
+    }
+    const result = await this.db.auth.updateUserAttributes(userId, attrs as Partial<User>, options);
+    if (result?.success) {
+      // 🛡️ Turbo-auth contexts cache per-session user/roles — clear the user's
+      // sessions so profile edits (username/email/avatar) show immediately after
+      // reload instead of after the 60s TTL (same as Auth.updateUser).
+      try {
+        const { invalidateTurboAuthForUser } = await loadHandleTurboGetModule();
+        invalidateTurboAuthForUser(String(userId));
+      } catch {
+        // Non-critical — turbo contexts expire naturally after TTL
+      }
+      // 🛡️ The (app) layout serves its user snapshot from a 15 s L1 entry
+      // (`layout-caches.server.ts`) — clear it here as well so an avatar/name edit is visible on
+      // the next navigation instead of after the TTL. Every facade-level write lands in this
+      // method, including the internal role/2FA/admin writers above, so the invalidation cannot
+      // be forgotten by a caller that bypasses the HTTP route helper.
+      try {
+        const { invalidateLayoutUserCache } = await import("@utils/server/layout-caches.server");
+        const tenant = options?.tenantId ? String(options.tenantId) : undefined;
+        await invalidateLayoutUserCache(String(userId), tenant);
+      } catch {
+        // Non-critical — the snapshot expires naturally after TTL
+      }
+      return result.data;
+    }
+    throw error(500, "Failed to update user attributes");
+  }
+
+  createSessionCookie(
+    sessionId: DatabaseId,
+    isSecure?: boolean,
+  ): {
+    name: string;
+    value: string;
+    attributes: unknown;
+  } {
+    if (isSecure !== undefined) {
+      return {
+        name: getSessionCookieName(isSecure),
+        value: sessionId,
+        attributes: {
+          httpOnly: true,
+          secure: isSecure,
+          sameSite: isSecure ? "strict" : "lax",
+          maxAge: 24 * 60 * 60,
+          path: "/",
+        },
+      };
+    }
+    return {
+      name: SESSION_COOKIE_NAME,
+      value: sessionId,
+      attributes: {
+        httpOnly: true,
+        secure:
+          process.env.NODE_ENV !== "development" &&
+          process.env.NODE_ENV !== "test" &&
+          process.env.TEST_MODE !== "true",
+        sameSite: "strict",
+        maxAge: 24 * 60 * 60,
+        path: "/",
+      },
+    };
+  }
+
+  async invalidateAllUserSessions(
+    userId: DatabaseId,
+    options?: BaseQueryOptions,
+    currentSessionId?: DatabaseId,
+  ): Promise<DatabaseId[]> {
+    // 0. In-memory revocation epoch + distributed marker: warm session snapshots
+    //    (including on other workers) must reject sessions issued before this call.
+    await publishUserRevocation(
+      userId.toString(),
+      options?.tenantId ? String(options.tenantId) : null,
+    );
+
+    // 1. Get all active sessions for this user so we can clean L0/L1 caches
+    const { data: activeSessions } = await this.getActiveSessions(userId, options);
+
+    // 2. Delete each session from the session store (in-memory/Redis L0/L1)
+    const invalidatedIds: DatabaseId[] = [];
+    for (const session of activeSessions || []) {
+      // Skip the current session if specified (keep the password-changer logged in)
+      if (currentSessionId && session._id === currentSessionId) continue;
+      await this.sessionStore.delete(session._id).catch(() => {});
+      invalidatedIds.push(session._id);
+    }
+
+    // If currentSessionId was preserved, refresh its issuedAt epoch so it remains valid
+    if (
+      currentSessionId &&
+      typeof (this.sessionStore as any).refreshSessionIssuedAt === "function"
+    ) {
+      await (this.sessionStore as any).refreshSessionIssuedAt(currentSessionId, Date.now() + 1);
+    }
+
+    // 3. Delete all user sessions from the database (L2)
+    await this.db.auth.invalidateAllUserSessions(userId, options);
+
+    return invalidatedIds;
+  }
+
+  async getActiveSessions(
+    userId: DatabaseId,
+    options?: BaseQueryOptions,
+  ): Promise<{ success: boolean; data: Session[]; message?: string }> {
+    try {
+      const result = await this.db.auth.getActiveSessions(userId, options);
+      if (result?.success) {
+        return { success: true, data: result.data };
+      }
+      return {
+        success: false,
+        data: [],
+        message: "Failed to retrieve active sessions",
+      };
+    } catch (err: any) {
+      logger.error(`Error getting active sessions: ${err.message}`);
+      return {
+        success: false,
+        data: [],
+        message: err.message || "Unknown error",
+      };
+    }
+  }
+
+  async getAllActiveSessions(
+    options?: BaseQueryOptions,
+  ): Promise<{ success: boolean; data: Session[]; message?: string }> {
+    try {
+      const result = await this.db.auth.getAllActiveSessions(options);
+      if (result?.success) {
+        return { success: true, data: result.data };
+      }
+      return {
+        success: false,
+        data: [],
+        message: "Failed to retrieve all active sessions",
+      };
+    } catch (err: any) {
+      logger.error(`Error getting all active sessions: ${err.message}`);
+      return {
+        success: false,
+        data: [],
+        message: err.message || "Unknown error",
+      };
+    }
+  }
+
+  async updateUserPassword(
+    email: string,
+    password: string,
+    options?: BaseQueryOptions,
+    currentSessionId?: DatabaseId,
+  ): Promise<{
+    status: boolean;
+    message?: string;
+    invalidatedSessions?: DatabaseId[];
+  }> {
+    const user = await this.getUserByEmail({ email, tenantId: options?.tenantId }, options);
+    if (!user) {
+      return { status: false, message: "User not found" };
+    }
+
+    // We don't hash here because updateUser() handles hashing and validation
+    // Clear account lockout and failed attempts so legitimate users who were locked out can immediately log in
+    await this.updateUser(
+      user._id,
+      {
+        password,
+        failedAttempts: 0,
+        lockoutUntil: null,
+      },
+      options,
+    );
+
+    // Invalidate all other sessions across all devices for security
+    // Skip the current session so the password-changer stays logged in
+    const invalidatedIds = await this.invalidateAllUserSessions(
+      user._id,
+      options,
+      currentSessionId,
+    );
+
+    return { status: true, invalidatedSessions: invalidatedIds };
+  }
+
+  /**
+   * Validates password strength based on enterprise standards.
+   * - Minimum 8 characters (default, configurable via PASSWORD_MIN_LENGTH)
+   * - Includes uppercase, lowercase, numbers, and special characters
+   */
+  private validatePasswordStrength(password: string): void {
+    const minLength = (getPrivateSettingSync("PASSWORD_MIN_LENGTH") as number) || 8;
+    if (password.length < minLength) {
+      throw error(400, `Password must be at least ${minLength} characters long.`);
+    }
+
+    const hasUpper = /[A-Z]/.test(password);
+    const hasLower = /[a-z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+    if (!(hasUpper && hasLower && hasNumber && hasSpecial)) {
+      throw error(
+        400,
+        "Password must contain uppercase, lowercase, numbers, and special characters.",
+      );
+    }
+  }
+
+  async createApiKey(
+    apiKeyData: Partial<ApiKey>,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<ApiKey>> {
+    return this.db.auth.createApiKey(apiKeyData, options);
+  }
+
+  async getApiKey(
+    hash: string,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<ApiKey | null>> {
+    return this.db.auth.getApiKey(hash, options);
+  }
+
+  async getApiKeyById(
+    id: DatabaseId,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<ApiKey | null>> {
+    return this.db.auth.getApiKeyById(id, options);
+  }
+
+  async listApiKeys(
+    filter?: { userId?: DatabaseId; tenantId?: DatabaseId | null },
+    options?: { limit?: number; skip?: number },
+  ): Promise<DatabaseResult<ApiKey[]>> {
+    return this.db.auth.listApiKeys(filter, options);
+  }
+
+  async revokeApiKey(id: DatabaseId, options?: BaseQueryOptions): Promise<DatabaseResult<void>> {
+    const existing = await this.db.auth.getApiKeyById(id, options);
+    const result = await this.db.auth.revokeApiKey(id, options);
+    if (result.success && existing.success && existing.data?.hash) {
+      const { invalidateApiKeyAuth } = await import("./credential-auth-cache");
+      await invalidateApiKeyAuth(String(id), options?.tenantId ?? null, existing.data.hash);
+    }
+    return result;
+  }
+
+  async updateApiKeyUsage(
+    id: DatabaseId,
+    ip?: string,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<void>> {
+    return this.db.auth.updateApiKeyUsage(id, ip, options);
+  }
+}
+
+// Utility functions for backwards compatibility and convenience
+// All password operations use quantum-resistant Argon2id
+
+/**
+ * Hash a password using quantum-resistant Argon2id
+ *
+ * SECURITY: Uses Argon2id with memory-hard properties that resist quantum speedup
+ * @param password - Plain text password to hash
+ * @returns Promise resolving to hashed password
+ */
+export async function hashPassword(password: string): Promise<string> {
+  return cryptoHashPassword(password);
+}
+
+/**
+ * Verify password against hash using constant-time comparison
+ *
+ * SECURITY: Timing-safe verification prevents side-channel attacks
+ * @param hash - Hashed password to compare against
+ * @param password - Plain text password to verify
+ * @returns Promise resolving to true if password matches
+ */
+export async function verifyPassword(hash: string, password: string): Promise<boolean> {
+  return cryptoVerifyPassword(hash, password);
+}
+
+/**
+ * SECURITY: Timing-safe dummy password verification to neutralize user enumeration (CWE-208)
+ */
+export async function verifyDummyPassword(password: string): Promise<boolean> {
+  return cryptoVerifyDummyPassword(password);
+}

@@ -349,19 +349,6 @@ and first/last navigation used by the admin CMS.
 			</div>
 		</nav>
 	{/if}
-
-	<style>
-		:global(.table-pagination-mobile-nav-btn) {
-			display: inline-flex !important;
-			width: 2.25rem !important;
-			min-width: 2.25rem !important;
-			height: 100% !important;
-			align-items: center;
-			justify-content: center;
-			padding: 0 !important;
-			border-radius: 0 !important;
-		}
-	</style>
 {:else}
 	<!-- Simple design-system footer -->
 	<div
@@ -415,3 +402,16 @@ and first/last navigation used by the admin CMS.
 		</div>
 	</div>
 {/if}
+
+<style>
+	:global(.table-pagination-mobile-nav-btn) {
+		display: inline-flex !important;
+		width: 2.25rem !important;
+		min-width: 2.25rem !important;
+		height: 100% !important;
+		align-items: center;
+		justify-content: center;
+		padding: 0 !important;
+		border-radius: 0 !important;
+	}
+</style>

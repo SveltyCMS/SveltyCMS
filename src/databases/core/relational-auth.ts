@@ -8,7 +8,6 @@
 import { isoDateStringToDate, nowISODateString, toISOString } from "@src/utils/date";
 import { logger } from "@src/utils/logger";
 import { normalizeEmail } from "@src/utils/normalize-email";
-import { RAW_DECLINED } from "./sql-adapter-core";
 import { and, asc, desc, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import type {
   BaseQueryOptions,
@@ -37,7 +36,7 @@ import {
 } from "./relational-utils";
 import type { ISODateString } from "@src/content/types";
 import { assertTenantContext } from "@src/utils/security/safe-query";
-import { rowsAffected } from "./drizzle-sql-helpers";
+import { RAW_DECLINED, rowsAffected } from "./drizzle-sql-helpers";
 
 /**
  * Normalize the `amr` JSON column once at the session boundary. SQLite (mode:"json")

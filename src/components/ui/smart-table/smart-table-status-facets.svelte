@@ -11,7 +11,7 @@
 
 <script lang="ts">
 	import Badge from '@components/ui/badge.svelte';
-	import { StatusTypes } from '@src/content/types';
+	import { StatusTypes } from '@src/content/status';
 
 	let {
 		facets = {},

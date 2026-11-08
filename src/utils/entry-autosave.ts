@@ -155,7 +155,7 @@ export function buildAutosavePayload(
  * Naming the fields is the difference between "why am I still here?" and a
  * fixable instruction.
  */
-export function describeMissingRequiredFields(missing: readonly string[]): string {
+function describeMissingRequiredFields(missing: readonly string[]): string {
   return missing.length > 0
     ? `Not saved — navigation cancelled. Still required: ${missing.join(", ")}.`
     : "Not saved — navigation cancelled. Save the entry before leaving it.";

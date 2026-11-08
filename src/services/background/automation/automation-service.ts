@@ -16,6 +16,7 @@
 import { logger } from "@utils/logger";
 import { generateUUID as uuidv4 } from "@utils/native-utils";
 import { isBenchmarkExternalServicesDisabled } from "@utils/benchmark-runtime";
+import { webhookService, type Webhook, type WebhookEvent } from "../webhook-service";
 import { eventBus } from "./event-bus";
 import type {
   AgenticTaskOperationConfig,
@@ -30,12 +31,7 @@ import type {
   SetFieldOperationConfig,
   WebhookOperationConfig,
 } from "./types";
-
-/** Cached lazy handle to the egress guard — one module-registry lookup instead of one per call. */
-let egressGuardModulePromise: Promise<typeof import("@src/utils/egress-guard")> | undefined;
-function loadEgressGuardModule(): Promise<typeof import("@src/utils/egress-guard")> {
-  return (egressGuardModulePromise ??= import("@src/utils/egress-guard"));
-}
+import { nowISODateString } from "@utils/date";
 
 /** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
 let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
@@ -155,7 +151,7 @@ export class AutomationService {
     }
 
     const current = await this.getFlows(tid);
-    const now = new Date().toISOString();
+    const now = nowISODateString();
 
     const savedFlow: AutomationFlow = {
       id: flow.id || uuidv4(),
@@ -311,7 +307,7 @@ export class AutomationService {
       status: "success",
       operationResults: [],
       duration: 0,
-      timestamp: new Date().toISOString(),
+      timestamp: nowISODateString(),
       triggerPayload: this.sanitizePayload(payload),
       tenantId: flow.tenantId,
     };
@@ -319,7 +315,7 @@ export class AutomationService {
     for (const operation of flow.operations) {
       const opStart = Date.now();
       try {
-        const result = await this.executeOperation(operation, payload);
+        const result = await this.executeOperation(operation, payload, flow);
 
         logEntry.operationResults.push({
           operationId: operation.id,
@@ -372,6 +368,7 @@ export class AutomationService {
   private async executeOperation(
     operation: AutomationOperation,
     payload: AutomationEventPayload,
+    flow: AutomationFlow,
   ): Promise<boolean> {
     const resolvedConfig = await this.resolveTokensInConfig(
       operation.config as unknown as Record<string, unknown>,
@@ -380,7 +377,11 @@ export class AutomationService {
 
     switch (operation.type) {
       case "webhook":
-        await this.executeWebhook(resolvedConfig as unknown as WebhookOperationConfig, payload);
+        await this.executeWebhook(
+          resolvedConfig as unknown as WebhookOperationConfig,
+          payload,
+          flow,
+        );
         return true;
 
       case "email":
@@ -414,53 +415,43 @@ export class AutomationService {
     }
   }
 
-  /** Execute a webhook operation */
+  /**
+   * Queue a webhook operation on the durable delivery queue.
+   *
+   * HMAC signatures, custom body/method and HTTPS-only egress are owned by the
+   * `webhook-delivery` job handler; the queue owns retry/backoff and the row is
+   * visible in `/config/webhooks/logs`. The operation reports success once
+   * enqueued — a failed HTTP attempt is observable there instead of aborting
+   * the rest of the chain.
+   */
   private async executeWebhook(
     config: WebhookOperationConfig,
     payload: AutomationEventPayload,
+    flow: AutomationFlow,
   ): Promise<void> {
-    if (isBenchmarkExternalServicesDisabled()) {
-      logger.debug(`[Automation] Skipped webhook to ${config.url} (benchmark mode)`);
-      return;
+    if (!config.url) {
+      throw new Error("Webhook operation requires a URL");
     }
 
-    const body = config.body || JSON.stringify(payload);
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      "User-Agent": "SveltyCMS-Automation/1.0",
-      "X-SveltyCMS-Event": payload.event,
-      "X-SveltyCMS-Tenant": payload.tenantId,
-      ...config.headers,
+    const webhook: Webhook = {
+      id: `automation:${flow.id}`,
+      name: `Automation: ${flow.name}`,
+      url: config.url,
+      events: [payload.event as WebhookEvent],
+      active: true,
+      tenantId: payload.tenantId,
+      secret: config.secret,
+      headers: config.headers,
     };
 
-    // HMAC signature if secret provided
-    if (config.secret) {
-      const crypto = await import("node:crypto");
-      const signature = crypto.createHmac("sha256", config.secret).update(body).digest("hex");
-      headers["X-SveltyCMS-Signature"] = `sha256=${signature}`;
-    }
-
-    // 🛡️ Egress-guarded delivery: admin-configured URLs are external input —
-    // safeFetch validates the host (blocks private IPs/localhost/metadata),
-    // caps redirects and enforces a timeout. Never raw fetch() on configured
-    // URLs.
-    const { safeFetch } = await loadEgressGuardModule();
-    const delivered = await safeFetch(config.url, {
-      method: config.method || "POST",
-      headers,
-      body,
+    await webhookService.dispatchDelivery(webhook, payload.event, payload, {
+      body: config.body || JSON.stringify(payload),
+      method: config.method,
+      // Automation URLs were already HTTPS-only before the queue migration.
       allowHttp: false,
-      maxRedirects: 3,
-      timeoutMs: 10_000,
     });
 
-    if (!delivered.success) {
-      throw new Error(
-        `Webhook delivery failed (${delivered.status ?? delivered.error ?? "unknown"})`,
-      );
-    }
-
-    logger.debug(`Automation webhook sent to ${config.url} for tenant ${payload.tenantId}`);
+    logger.debug(`Automation webhook queued to ${config.url} for tenant ${payload.tenantId}`);
   }
 
   /** Execute an email operation */
@@ -685,7 +676,7 @@ export class AutomationService {
 
     const flow = cached.data.find((f) => f.id === flowId);
     if (flow) {
-      flow.lastTriggered = new Date().toISOString();
+      flow.lastTriggered = nowISODateString();
       flow.triggerCount = (flow.triggerCount || 0) + 1;
       if (status === "failure") {
         flow.failureCount = (flow.failureCount || 0) + 1;

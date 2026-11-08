@@ -25,7 +25,7 @@ const MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
 
 export type RestEgressMethod = "GET" | "HEAD" | "POST" | "PATCH" | "PUT" | "DELETE";
 
-export function buildRestAuthHeaders(connector: ConnectorRecord): Record<string, string> {
+function buildRestAuthHeaders(connector: ConnectorRecord): Record<string, string> {
   const headers: Record<string, string> = {
     Accept: "application/json",
     "Content-Type": "application/json",

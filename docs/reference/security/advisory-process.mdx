@@ -92,8 +92,9 @@ can re-check.
 `scripts/security/check-advisories.ts` validates every record in
 [the ledger](../../security/advisories/readme.mdx). It runs as part of
 `bun run security:assurance` — which `bun run check` and the CI whitebox job
-execute on every change — and again in the nightly
-`.github/workflows/security-mutation.yml` run. It checks:
+execute on every change — and again in the scheduled
+`.github/workflows/security-assurance.yml` run, so an advisory that ages past
+its SLA fails even when nobody pushes. It checks:
 
 - the schema (required fields, id shape, ISO 8601 timestamps, one-decimal CVSS);
 - the timeline (`received_at ≤ triaged_at ≤ patched_at ≤ released_at ≤ published_at`);

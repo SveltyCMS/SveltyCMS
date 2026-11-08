@@ -53,7 +53,7 @@ const h = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("@utils/api", () => ({ fetchApi: h.fetchApi }));
+vi.mock("@utils/http-client", () => ({ fetchApi: h.fetchApi }));
 
 vi.mock("@utils/modal.svelte", () => ({
   showConfirm: h.confirm,

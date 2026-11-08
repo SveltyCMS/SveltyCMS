@@ -10,6 +10,7 @@
  */
 
 import { adminThemeService } from "./admin-theme-service";
+import { logger } from "@utils/logger";
 
 export interface MarketplaceItem {
   id: string;
@@ -108,7 +109,7 @@ export class MarketplaceService {
     // Local dashboard widget packages (marketplace-portable folders)
     try {
       const { getInstalledDashboardWidgets } =
-        await import("@src/routes/(app)/dashboard/widgets/manifest-registry");
+        await import("@src/services/core/dashboard-manifest-registry");
       for (const w of getInstalledDashboardWidgets()) {
         items.push({
           id: `dashboard-widget-${w.id}`,
@@ -195,7 +196,9 @@ export class MarketplaceService {
             localInstalledKeys.add(pid);
             localInstalledKeys.add(`plugin-${pid}`);
           }
-        } catch {}
+        } catch (error) {
+          logger.debug("[marketplace-service] suppressed error", error);
+        }
 
         // Also check installed custom widgets
         const customWidgets = [

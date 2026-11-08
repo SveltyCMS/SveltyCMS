@@ -1,6 +1,9 @@
 version: 2
 updates:
-  - package-ecosystem: "npm"
+  # `bun.lock` (text, Bun >= 1.1.39) is the only lockfile in this repo. The npm
+  # ecosystem cannot resolve it, so no update PRs were generated. Dependabot
+  # supports the text lockfile under the `bun` ecosystem.
+  - package-ecosystem: "bun"
     directory: "/"
     schedule:
       interval: "weekly"
@@ -12,4 +15,9 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # One grouped PR instead of one per action: every Dependabot PR runs the
+    # full CI tier, so action churn is consolidated deliberately.
+    groups:
+      github-actions:
+        patterns: ["*"]
     open-pull-requests-limit: 10

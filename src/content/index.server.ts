@@ -42,9 +42,9 @@ import { contentStore } from "@stores/content-registry.svelte";
 import type { DatabaseAdapter } from "@src/databases/db-interface";
 import type { ContentNodeOperation, NavigationNode } from "./types";
 import { contentSystemBase } from "./index";
-import { setNavigationCacheProvider } from "./content-utils";
+import { setNavigationCacheProvider } from "./content-navigation";
 
-// The browser-safe `content-utils` module cannot import the cache/database stack
+// The browser-safe navigation module cannot import the cache/database stack
 // (SvelteKit's server-only guard rejects that chain from the root layout). Register
 // the real L2 navigation cache here, where it is server-only by construction.
 setNavigationCacheProvider({

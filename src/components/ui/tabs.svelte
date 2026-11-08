@@ -21,8 +21,8 @@
 - Smooth transitions between tabs
 - Responsive: horizontal scroll on mobile
 - Support for icons + labels + short labels for mobile
-- Underline chrome comes from `./tabs/chrome` — the same strip as `Tabs.List` and
-  the hand-rolled admin strips (user management, extensions, sync, design system)
+* Underline chrome comes from `./tabs/chrome` — the same strip as `Tabs.List` and
+  * the hand-rolled admin strips (user management, extensions, design system).
 -->
 
 <script lang="ts">

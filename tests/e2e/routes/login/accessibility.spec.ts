@@ -9,7 +9,7 @@
 
 import { expect, test, type Page } from "../../fixtures";
 import AxeBuilder from "@axe-core/playwright";
-import { loginAsAdmin } from "../../helpers/auth";
+import { loginAsAdmin, waitForHydration } from "../../helpers/auth";
 import { resetAndSeedDatabase } from "../../helpers/api";
 
 /**
@@ -25,12 +25,14 @@ async function revealSignInForm(page: Page): Promise<void> {
     if (await email.isVisible().catch(() => false)) return;
     const icon = page.getByTestId("signin-icon");
     if (await icon.isVisible().catch(() => false)) {
+      // force-allow: the animated splash layer intercepts the icon before the form is revealed
       await icon.click({ force: true });
     } else {
       const fallback = page
         .locator('div[role="button"]:has-text("SIGN IN"), p:has-text("Sign In")')
         .first();
       if (await fallback.isVisible().catch(() => false)) {
+        // force-allow: same splash/fallback overlay as the icon path
         await fallback.click({ force: true });
       }
     }
@@ -54,6 +56,38 @@ async function revealSignInForm(page: Page): Promise<void> {
  * to the committed 52% would restore that auditing while keeping the brand
  * ramp bright (see src/app.css).
  */
+/**
+ * Resolve once the element's effective (composited) opacity reaches 1.
+ *
+ * Axe derives a background colour by compositing opacity. Auditing a fade-in
+ * (the login form, or the admin shell's `adminFade`) reports phantom contrast
+ * failures: a tertiary-600 fill (#0465d6) at ~75 % opacity reads as #649fe2
+ * and "fails" 4.5:1 even though the settled control passes.
+ */
+async function waitForSettledOpacity(
+  page: Page,
+  selector: string,
+  timeout = 15_000,
+): Promise<void> {
+  await page.waitForFunction(
+    (sel) => {
+      let el: Element | null = document.querySelector(sel);
+      if (!el) return false;
+      // opacity is not inherited, so multiply ancestor opacities to get the
+      // effective (visually composited) value.
+      let effective = 1;
+      while (el && el !== document.documentElement) {
+        const o = Number.parseFloat(getComputedStyle(el).opacity);
+        if (!Number.isNaN(o)) effective *= o;
+        el = el.parentElement;
+      }
+      return effective >= 0.999;
+    },
+    selector,
+    { timeout },
+  );
+}
+
 const BRAND_CLASS =
   /(?:^|[^.\w-])(?:bg|text|shadow|border)-(?:primary|tertiary)-500|preset-(?:filled|tonal)-(?:primary|tertiary)/;
 const SURFACE_TEXT_CLASS = /text-surface-500/;
@@ -133,23 +167,7 @@ test.describe("Universal Accessibility Audits", () => {
     // reports phantom color-contrast violations (opacity < 1 blends the text
     // color with the background). Wait until the animation settles (opacity 1)
     // before running Axe.
-    await page.waitForFunction(
-      () => {
-        let el = document.querySelector('[data-testid="signin-email"]');
-        if (!el) return false;
-        // opacity is not inherited, so multiply ancestor opacities to get the
-        // effective (visually composited) value
-        let effective = 1;
-        while (el && el !== document.documentElement) {
-          const o = Number.parseFloat(getComputedStyle(el).opacity);
-          if (!Number.isNaN(o)) effective *= o;
-          el = el.parentElement;
-        }
-        return effective >= 0.999;
-      },
-      undefined,
-      { timeout: 10_000 },
-    );
+    await waitForSettledOpacity(page, '[data-testid="signin-email"]', 10_000);
 
     // Same rule for the cookie-consent banner, which fades in 600 ms AFTER mount: an
     // audit that starts before it settles reports `#cookie-heading` at 1.52:1
@@ -220,6 +238,22 @@ test.describe("Universal Accessibility Audits", () => {
     // The account page is client-rendered (root layout ssr=false) — auditing
     // before the identity panel mounts would scan an empty page and false-pass.
     await expect(page.getByTestId("user-identity-panel")).toBeVisible({ timeout: 15_000 });
+
+    // The admin shell fades in (`adminFade`). Auditing mid-fade composites the
+    // primary fill with the page background and reports a phantom contrast
+    // failure: tertiary-600 (#0465d6) at ~75 % opacity reads as #649fe2 (2.67:1).
+    await waitForSettledOpacity(page, '[data-testid="user-identity-panel"]');
+
+    // The identity panel's Edit button is `disabled={!hydration.hydrated}`; a
+    // disabled Button renders at opacity 0.6, and Axe composites that to
+    // #649fe2 (2.67:1) even though the settled control is #0465d6 (5.4:1).
+    // Wait for the real, enabled control before auditing, not just the fade.
+    await waitForHydration(page, 15_000);
+    await expect(page.getByTestId("edit-user-settings-btn")).toBeEnabled({ timeout: 15_000 });
+    // Enabling flips the attribute immediately, but `transition-all duration-200`
+    // is still animating opacity 0.6 → 1; Axe samples the first frame and
+    // composites the fill to #649fe2. Wait for the button's own settled opacity.
+    await waitForSettledOpacity(page, '[data-testid="edit-user-settings-btn"]');
 
     // 4. Run accessibility audit against the RTL layout
     const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();

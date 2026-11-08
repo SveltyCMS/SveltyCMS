@@ -258,6 +258,261 @@ function validateContext(ctx: IntegrationRunContext): ValidatedContext {
 // §4 — Smart Filtering (git diff)
 // ═══════════════════════════════════════════════════════════════════════════════
 
+const MEDIA_INTEGRATION_TESTS = [
+  "tests/integration/api/media.test.ts",
+  "tests/integration/api/media-batch-process.test.ts",
+  "tests/integration/api/media-dedupe-derivatives.test.ts",
+  "tests/integration/api/media-folder-rbac.test.ts",
+  "tests/integration/api/media-jsonpath.test.ts",
+  "tests/integration/api/media-manipulate.test.ts",
+  "tests/integration/api/media-tus.test.ts",
+  "tests/integration/routes/share-password.test.ts",
+];
+
+const AUTH_INTEGRATION_TESTS = [
+  "tests/integration/api/auth-2fa.test.ts",
+  "tests/integration/api/auth-lockout.test.ts",
+  "tests/integration/api/user.test.ts",
+  "tests/integration/api/user-extended.test.ts",
+  "tests/integration/api/token.test.ts",
+  "tests/integration/api/session-page-load.test.ts",
+  "tests/integration/auth/oidc-live.test.ts",
+  "tests/integration/databases/auth-session-amr-contract.test.ts",
+  "tests/integration/routes/login/signup.test.ts",
+];
+
+const COLLECTION_INTEGRATION_TESTS = [
+  "tests/integration/api/collections.test.ts",
+  "tests/integration/api/collections-mutations.test.ts",
+  "tests/integration/api/collections-keyset-cursor.test.ts",
+  "tests/integration/api/collection-structure.test.ts",
+  "tests/integration/api/optimistic-lock.test.ts",
+  "tests/integration/routes/collection-page-load.test.ts",
+  "tests/integration/sdk/local-cms.test.ts",
+];
+
+/**
+ * Map a single changed repository file path to the targeted integration test
+ * files or directories it affects. Returns `["tests/integration/"]` when a
+ * harness or shared root file changed.
+ */
+export function mapChangedFileToIntegrationPaths(file: string): string[] {
+  const n = file.replace(/\\/g, "/");
+
+  // Harness or shared test helpers affect every integration suite — never narrow.
+  if (
+    n === "scripts/runs/integration-harness.ts" ||
+    n === "scripts/runs/run-integration.ts" ||
+    n === "tests/integration/harness.ts" ||
+    n.startsWith("tests/integration/helpers/")
+  ) {
+    return ["tests/integration/"];
+  }
+
+  if (n.startsWith("tests/integration/")) {
+    if (n.endsWith(".test.ts") || n.endsWith(".spec.ts")) {
+      return [n];
+    }
+    if (n.startsWith("tests/integration/databases/")) {
+      return ["tests/integration/databases/"];
+    }
+    return ["tests/integration/"];
+  }
+
+  // Domain-specific API handlers & services (narrowed to exact integration contracts)
+  if (n.startsWith("src/routes/api/graphql/")) {
+    return ["tests/integration/api/graphql.test.ts"];
+  }
+  if (
+    n.startsWith("src/routes/api/collaboration/") ||
+    n.startsWith("src/services/collaboration/")
+  ) {
+    return ["tests/integration/api/rtc.test.ts"];
+  }
+  if (
+    n.startsWith("src/routes/api/theme/") ||
+    n === "src/routes/api/[...path]/handlers/system/system-theme.ts" ||
+    n === "src/services/core/admin-theme-service.ts" ||
+    n === "src/services/core/theme-file-sync.ts"
+  ) {
+    return ["tests/integration/api/theme.test.ts"];
+  }
+  if (
+    n.startsWith("src/routes/api/[...path]/handlers/media") ||
+    n.startsWith("src/utils/media/") ||
+    n.startsWith("src/services/media/") ||
+    n === "src/services/sdk/namespaces/media-namespace.ts"
+  ) {
+    return MEDIA_INTEGRATION_TESTS;
+  }
+  if (
+    n === "src/routes/api/[...path]/handlers/auth.ts" ||
+    n.startsWith("src/databases/auth/") ||
+    n === "src/services/sdk/namespaces/auth-namespace.ts"
+  ) {
+    return AUTH_INTEGRATION_TESTS;
+  }
+  if (n.startsWith("src/utils/egress-guard")) {
+    return [
+      "tests/integration/auth/oidc-live.test.ts",
+      "tests/integration/api/security-negative.test.ts",
+    ];
+  }
+  if (
+    n === "src/routes/api/[...path]/handlers/collections.ts" ||
+    n === "src/routes/api/[...path]/handlers/content.ts" ||
+    n.startsWith("src/services/sdk/namespaces/collections") ||
+    n.startsWith("src/services/core/collection-")
+  ) {
+    return COLLECTION_INTEGRATION_TESTS;
+  }
+  if (
+    n === "src/routes/api/[...path]/handlers/config.ts" ||
+    n === "src/routes/api/[...path]/handlers/content-sync.ts" ||
+    n === "src/services/core/config-service.ts" ||
+    n === "src/services/core/content-sync-service.ts"
+  ) {
+    return [
+      "tests/integration/api/config-sync.test.ts",
+      "tests/integration/api/config-admin-surface.test.ts",
+    ];
+  }
+  if (n === "src/routes/api/[...path]/handlers/dashboard.ts") {
+    return ["tests/integration/api/dashboard.test.ts"];
+  }
+  if (n === "src/routes/api/[...path]/handlers/tokens.ts" || n.startsWith("src/services/token/")) {
+    return ["tests/integration/api/token.test.ts", "tests/integration/api/website-tokens.test.ts"];
+  }
+  if (n === "src/routes/api/[...path]/handlers/setup.ts" || n.startsWith("src/routes/setup/")) {
+    return [
+      "tests/integration/api/setup-actions.test.ts",
+      "tests/integration/setup-wizard.test.ts",
+      "tests/integration/setup-presets.test.ts",
+    ];
+  }
+  if (
+    n === "src/routes/api/[...path]/handlers/system/system-webhooks.ts" ||
+    n === "src/services/background/webhook-service.ts"
+  ) {
+    return ["tests/integration/api/webhooks.test.ts"];
+  }
+  if (
+    n === "src/routes/api/[...path]/handlers/system/system-telemetry.ts" ||
+    n === "src/services/observability/telemetry-service.ts"
+  ) {
+    return ["tests/integration/api/telemetry.test.ts"];
+  }
+  if (
+    n === "src/routes/api/[...path]/handlers/system/system-version.ts" ||
+    n === "src/services/core/version-service.ts"
+  ) {
+    return ["tests/integration/api/version.test.ts"];
+  }
+  if (
+    n === "src/routes/api/[...path]/handlers/system/system-widgets.ts" ||
+    n === "src/services/core/widget-registry-service.ts" ||
+    n.startsWith("src/widgets/")
+  ) {
+    return ["tests/integration/api/widgets.test.ts"];
+  }
+  if (
+    n === "src/routes/api/[...path]/handlers/system/system-settings.ts" ||
+    n === "src/services/core/settings-service.ts"
+  ) {
+    return ["tests/integration/api/settings.test.ts"];
+  }
+  if (
+    n === "src/routes/api/[...path]/handlers/system/system-security.ts" ||
+    n.startsWith("src/services/security/") ||
+    n.startsWith("src/utils/security/")
+  ) {
+    return [
+      "tests/integration/api/security.test.ts",
+      "tests/integration/api/security-negative.test.ts",
+      "tests/integration/api/permissions.test.ts",
+    ];
+  }
+  if (n.startsWith("src/services/background/automation/")) {
+    return ["tests/integration/api/automations.test.ts"];
+  }
+  if (n.startsWith("src/services/outbox/") || n.startsWith("src/routes/api/plugins/")) {
+    return ["tests/integration/api/outbox-plugin-storage.test.ts"];
+  }
+  if (
+    n === "src/services/core/marketplace-service.ts" ||
+    n.startsWith("src/services/intelligence/marketplace")
+  ) {
+    return ["tests/integration/api/marketplace.test.ts"];
+  }
+  if (n === "src/services/observability/metrics-service.ts") {
+    return ["tests/integration/api/metrics.test.ts"];
+  }
+  if (n === "src/services/system/api-spec-service.ts") {
+    return ["tests/integration/api/openapi.test.ts"];
+  }
+  if (n.startsWith("src/services/cache/") || n.startsWith("src/databases/cache")) {
+    return [
+      "tests/integration/api/cache.test.ts",
+      "tests/integration/databases/cache-contract.test.ts",
+      "tests/integration/databases/cache-integration.test.ts",
+    ];
+  }
+
+  // Adapter-specific database changes narrow to that adapter + core parity contracts
+  if (n.startsWith("src/databases/sqlite/")) {
+    return [
+      "tests/integration/databases/sqlite-adapter.test.ts",
+      "tests/integration/databases/contract.test.ts",
+      "tests/integration/databases/adapter-parity.test.ts",
+    ];
+  }
+  if (n.startsWith("src/databases/postgresql/")) {
+    return [
+      "tests/integration/databases/postgresql-adapter.test.ts",
+      "tests/integration/databases/contract.test.ts",
+      "tests/integration/databases/adapter-parity.test.ts",
+    ];
+  }
+  if (n.startsWith("src/databases/mariadb/")) {
+    return [
+      "tests/integration/databases/mariadb-adapter.test.ts",
+      "tests/integration/databases/contract.test.ts",
+      "tests/integration/databases/adapter-parity.test.ts",
+    ];
+  }
+  if (n.startsWith("src/databases/mongodb/")) {
+    return [
+      "tests/integration/databases/mongodb-adapter.test.ts",
+      "tests/integration/databases/contract.test.ts",
+      "tests/integration/databases/adapter-parity.test.ts",
+    ];
+  }
+
+  const matched = new Set<string>();
+  if (n.startsWith("src/databases/")) matched.add("tests/integration/databases/");
+  if (n.startsWith("src/routes/api/") || n.startsWith("src/hooks/")) {
+    matched.add("tests/integration/api/");
+  }
+  if (n.startsWith("src/routes/")) matched.add("tests/integration/routes/");
+  if (n.startsWith("src/services/sdk/")) {
+    matched.add("tests/integration/sdk/");
+    matched.add("tests/integration/api/");
+  }
+  if (n.includes("collectionbuilder")) matched.add("tests/integration/collectionbuilder/");
+  if (n.startsWith("src/content/")) {
+    matched.add("tests/integration/collectionbuilder/");
+    matched.add("tests/integration/api/collections.test.ts");
+    matched.add("tests/integration/api/collection-structure.test.ts");
+    matched.add("tests/integration/databases/collection-schema-contract.test.ts");
+  }
+  if (n.startsWith("src/services/") || n.startsWith("src/utils/")) {
+    matched.add("tests/integration/api/");
+    matched.add("tests/integration/databases/contract.test.ts");
+  }
+
+  return [...matched];
+}
+
 function resolveChangedTestPaths(baseRef: string): string[] {
   const changedFiles: string[] = [];
   const seen = new Set<string>();
@@ -322,38 +577,22 @@ function resolveChangedTestPaths(baseRef: string): string[] {
 
   const testPaths = new Set<string>();
   for (const file of changedFiles) {
-    const n = file.replace(/\\/g, "/");
-    if (n.startsWith("tests/integration/")) {
-      testPaths.add(n);
-      continue;
+    const mapped = mapChangedFileToIntegrationPaths(file);
+    if (mapped.includes("tests/integration/")) {
+      console.log("🎯 Integration harness changed — running full integration suite.");
+      return ["tests/integration/"];
     }
-    if (n.startsWith("src/databases/")) testPaths.add("tests/integration/databases/");
-    // SSO/OIDC lives under src/databases/auth and exercises the egress guard —
-    // route those changes to the zero-mock provider suite as well.
-    if (n.startsWith("src/databases/auth/") || n.startsWith("src/utils/egress-guard")) {
-      testPaths.add("tests/integration/auth/");
-    }
-    if (n.startsWith("src/routes/api/") || n.startsWith("src/hooks/"))
-      testPaths.add("tests/integration/api/");
-    if (n.startsWith("src/routes/")) testPaths.add("tests/integration/routes/");
-    if (n.startsWith("src/services/sdk/")) {
-      testPaths.add("tests/integration/sdk/");
-      // The namespace *is* the API write path (optimistic locking, revisions):
-      // contract suites in tests/integration/api exercise it over HTTP.
-      testPaths.add("tests/integration/api/");
-    }
-    if (n.includes("collectionbuilder")) testPaths.add("tests/integration/collectionbuilder/");
-    if (
-      n.startsWith("src/services/") ||
-      n.startsWith("src/utils/") ||
-      n.startsWith("src/content/")
-    ) {
-      testPaths.add("tests/integration/api/");
-      testPaths.add("tests/integration/databases/");
+    for (const p of mapped) {
+      testPaths.add(p);
     }
   }
 
-  const paths = [...testPaths];
+  // Deduplicate specific files if their parent directory is already selected
+  const rawPaths = [...testPaths];
+  const dirPrefixes = rawPaths.filter((p) => p.endsWith("/"));
+  const paths = rawPaths.filter(
+    (p) => p.endsWith("/") || !dirPrefixes.some((dir) => p.startsWith(dir)),
+  );
   if (paths.length === 0) return [];
   console.log(`🎯 Resolved ${paths.length} test path(s)`);
   for (const p of paths) console.log(`   ${p}`);
@@ -867,7 +1106,9 @@ async function main() {
   process.exit(serverDied ? 1 : exitCode);
 }
 
-main().catch((err) => {
-  console.error("Fatal:", err);
-  process.exit(2);
-});
+if (import.meta.main) {
+  main().catch((err) => {
+    console.error("Fatal:", err);
+    process.exit(2);
+  });
+}

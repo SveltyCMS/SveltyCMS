@@ -87,6 +87,8 @@ graph TB
 > **Rule of thumb**: If your code runs server-side (files ending in `.server.ts` or inside `+server.ts` routes), use the Local SDK.
 > Use **GraphQL** for external integrations that require complex nested data in a single request.
 
+> **Client transport split (2026-11-07):** browser code imports the domain-free `@utils/http-client` (`fetchApi`, `unwrapList`, `ApiResponse`, CSRF headers). `@utils/api` keeps the collection/draft/revision domain calls and is dynamically imported by app-wide stores (`collection-store`, `entry-actions`, `header-edit`), so a config page does not pull the collection client into its eager chunk. Both modules call the same CSRF-protected `/api` endpoints.
+
 ---
 
 ## Why the Local SDK Exists

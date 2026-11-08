@@ -21,7 +21,7 @@ import { click, renderComponent } from "./render";
 // The bulk menu imports both edit modals, which pull the server-only user
 // remote module. They are not exercised here; stub them so the menu can mount
 // in jsdom without dragging the server graph into the browser test.
-vi.mock("@src/routes/(app)/user/components/modal-edit-form.svelte", () => ({
+vi.mock("@components/user/modal-edit-form.svelte", () => ({
   default: () => null,
 }));
 vi.mock("@src/routes/(app)/user/components/modal-edit-token.svelte", () => ({

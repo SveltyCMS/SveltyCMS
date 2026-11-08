@@ -5,14 +5,56 @@
  * Ensures clean state and required directories before tests run.
  * Critical for CI environments where gitignored folders don't exist.
  *
+ * Isolation contract: this file must never create, write, or delete anything in
+ * the developer's live roots — `mediaFolder/`, `config/collections/`,
+ * `config/database/`, `config/private.ts`, root `.compiledCollections/`.
+ * The harness owns `tests/e2e/.media/`, `config/test-database/`,
+ * `config/test-collections/` and `tests/e2e/.auth/` (AGENTS §4).
+ *
  * Cleanup strategy:
- * - LOCAL: Clean DB files if not locked, always clean config
+ * - LOCAL: Clean harness DB files if not locked, always clean the harness media root
  * - CI: Skip if fresh runner, clean if cached
  */
 
 import { mkdirSync, existsSync, writeFileSync, unlinkSync, rmSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
+import { E2E_MEDIA_FOLDER } from "./harness-paths";
+
+/**
+ * Directories the harness owns and that must exist before a server boots.
+ * Deliberately excludes the live `config/database` and `config/collections`:
+ * under TEST_MODE the DB resolves to `config/test-database`
+ * (`src/databases/config-state.ts`) and collections to `config/test-collections`
+ * (`paths.getCollections()`).
+ */
+export function requiredE2EDirs(): string[] {
+  return [
+    join(process.cwd(), "config", "test-database"),
+    join(process.cwd(), "config", "test-collections"),
+    join(process.cwd(), "tests", "e2e", ".auth"),
+    join(process.cwd(), "logs"),
+    E2E_MEDIA_FOLDER,
+  ];
+}
+
+/**
+ * Harness-owned SQLite files that may survive a previous run. Names are kept
+ * verbatim from the pre-isolation layout so cached CI workspaces are cleaned.
+ */
+export function e2eCleanupTargets(): string[] {
+  const dbDir = join(process.cwd(), "config", "test-database");
+  const names = [
+    "sveltycms_test.sqlite",
+    "sveltycms_test",
+    "svelty_setup_test.sqlite",
+    "sveltycms_e2e_ready.db.sqlite",
+    "SveltyCMS_test.db.sqlite",
+  ];
+  return names
+    .flatMap((name) => [name, `${name}-shm`, `${name}-wal`])
+    .map((name) => join(dbDir, name));
+}
 
 export default async function globalSetup() {
   console.log("[Global Setup] Starting...");
@@ -39,48 +81,28 @@ export default async function globalSetup() {
   } else {
     console.log("[Global Setup] Cleaning old test data...");
 
-    const cleanupPaths = [
-      // Database files (may be locked by webServer)
-      join(process.cwd(), "config", "database", "sveltycms_test.sqlite"),
-      join(process.cwd(), "config", "database", "sveltycms_test.sqlite-shm"),
-      join(process.cwd(), "config", "database", "sveltycms_test.sqlite-wal"),
-      join(process.cwd(), "config", "database", "sveltycms_test"),
-      join(process.cwd(), "config", "database", "sveltycms_test-shm"),
-      join(process.cwd(), "config", "database", "sveltycms_test-wal"),
-      join(process.cwd(), "config", "database", "svelty_setup_test.sqlite"),
-      join(process.cwd(), "config", "database", "svelty_setup_test.sqlite-shm"),
-      join(process.cwd(), "config", "database", "svelty_setup_test.sqlite-wal"),
-      join(process.cwd(), "config", "database", "sveltycms_e2e_ready.db.sqlite"),
-      join(process.cwd(), "config", "database", "sveltycms_e2e_ready.db.sqlite-shm"),
-      join(process.cwd(), "config", "database", "sveltycms_e2e_ready.db.sqlite-wal"),
-      join(process.cwd(), "config", "database", "SveltyCMS_test.db.sqlite"),
-      join(process.cwd(), "config", "database", "SveltyCMS_test.db.sqlite-shm"),
-      join(process.cwd(), "config", "database", "SveltyCMS_test.db.sqlite-wal"),
-      // Config files — NOT deleted here.
-      // The SETUP server (port 4174) boots with STRICT_SETUP_CHECK=true and naturally
-      // enters SETUP mode because no private.test.ts exists.
-      // The READY server (port 4173) uses STRICT_SETUP_CHECK=false + env vars, so it
-      // doesn't need the file. Use the `reset-to-state` testing API to switch state.
-    ];
-
     let deletedCount = 0;
-    for (const path of cleanupPaths) {
+    for (const path of e2eCleanupTargets()) {
       if (existsSync(path)) {
         try {
           unlinkSync(path);
           console.log(`[Global Setup] ✓ Deleted: ${path}`);
           deletedCount++;
-        } catch (err: any) {
+        } catch (err) {
           // Ignore EBUSY errors (file locked by webServer)
-          if (err.code !== "EBUSY") {
-            console.warn(`[Global Setup] ⚠️ Failed to delete ${path}: ${err.code}`);
+          const code = (err as NodeJS.ErrnoException).code;
+          if (code !== "EBUSY") {
+            console.warn(`[Global Setup] ⚠️ Failed to delete ${path}: ${code}`);
           }
         }
       }
     }
 
-    // Clean media folder (keep directory but remove files)
-    const mediaFolder = join(process.cwd(), "mediaFolder");
+    // Clean the harness-owned media folder (keep the directory, remove files).
+    // MUST NOT be the dev `mediaFolder`: the testing API and the dev server share
+    // this checkout, so wiping that directory deleted the developer's uploads
+    // while their DB rows survived (broken gallery tiles / editor loads).
+    const mediaFolder = E2E_MEDIA_FOLDER;
     if (existsSync(mediaFolder)) {
       try {
         const files = readdirSync(mediaFolder);
@@ -92,24 +114,18 @@ export default async function globalSetup() {
             deletedCount++;
           }
         }
-      } catch (err: any) {
-        console.warn(`[Global Setup] ⚠️ Failed to clean mediaFolder: ${err.message}`);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.warn(`[Global Setup] ⚠️ Failed to clean E2E media folder: ${message}`);
       }
     }
 
     console.log(`[Global Setup] Cleanup completed (${deletedCount} items removed)`);
   }
 
-  // STEP 3: Ensure required directories exist
-  const requiredDirs = [
-    join(process.cwd(), "config", "database"),
-    join(process.cwd(), "config", "collections"),
-    join(process.cwd(), "tests", "e2e", ".auth"),
-    join(process.cwd(), "logs"),
-    join(process.cwd(), "mediaFolder"),
-  ];
-
-  for (const dir of requiredDirs) {
+  // STEP 3: Ensure the harness-owned directories exist. `recursive` also covers
+  // the parent (`tests/e2e`), so a fresh CI runner never depends on `.gitkeep`.
+  for (const dir of requiredE2EDirs()) {
     if (!existsSync(dir)) {
       console.log(`[Global Setup] Creating directory: ${dir}`);
       mkdirSync(dir, { recursive: true });
@@ -120,27 +136,6 @@ export default async function globalSetup() {
       }
     } else {
       console.log(`[Global Setup] Directory already exists: ${dir}`);
-    }
-  }
-
-  // Create .gitkeep files to ensure directories are tracked
-  const gitkeepMapping = [
-    {
-      dir: join(process.cwd(), "config", "database"),
-      content: "# Database files directory for tests",
-    },
-    { dir: join(process.cwd(), "logs"), content: "# Test logs directory" },
-    {
-      dir: join(process.cwd(), "mediaFolder"),
-      content: "# Test media directory",
-    },
-  ];
-
-  for (const { dir, content } of gitkeepMapping) {
-    const gitkeepPath = join(dir, ".gitkeep");
-    if (!existsSync(gitkeepPath)) {
-      console.log(`[Global Setup] Creating .gitkeep in: ${dir}`);
-      writeFileSync(gitkeepPath, content);
     }
   }
 

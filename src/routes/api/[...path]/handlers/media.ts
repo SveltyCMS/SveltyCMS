@@ -30,6 +30,7 @@ import {
   createBulkArchive,
   streamArchive,
   cleanupArchive,
+  resolveMediaPathUnderRoot,
   type ShareLink,
 } from "@src/utils/media/sharing";
 import { hashSharePassword, verifySharePassword } from "@src/utils/media/share-link-hash.server";
@@ -51,7 +52,7 @@ import {
   filenameFromStagingKey,
   verifyDirectUploadToken,
 } from "@utils/media/direct-upload.server";
-import { getStorageAdapter } from "@utils/media/storage-adapters";
+import { getStorageAdapter, resolveConfiguredMediaFolder } from "@utils/media/storage-adapters";
 import { resolveRemoteAssetMime } from "@utils/media/slim-sniffer.server";
 import {
   appendTusChunk,
@@ -1157,7 +1158,7 @@ export async function handleMediaShareDownload(
   }
 
   const storageType = getPublicSettingSync("MEDIA_STORAGE_TYPE") || "local";
-  const mediaFolder = getPublicSettingSync("MEDIA_FOLDER") || "mediaFolder";
+  const mediaFolder = resolveConfiguredMediaFolder() || "mediaFolder";
   const cloudUrl =
     getPublicSettingSync("MEDIA_CLOUD_PUBLIC_URL") || getPublicSettingSync("MEDIASERVER_URL");
 
@@ -1172,14 +1173,17 @@ export async function handleMediaShareDownload(
     });
   }
 
-  const normalizedFolder = mediaFolder.replace(/^\.\//, "").replace(/^\/+/, "");
-  const fullPath = path.join(process.cwd(), normalizedFolder, item.path);
+  // `path.resolve` (not `join`) so an absolute harness `MEDIA_FOLDER`
+  // (`/home/runner/.../tests/integration/.media`, E2E) resolves instead of being
+  // appended to cwd. Do NOT strip a leading slash here — that re-rooted the
+  // absolute Linux harness path under cwd and 404'd every share download.
+  const fullPath = resolveMediaPathUnderRoot(mediaFolder, item.path);
 
   // 🛡️ Defense-in-depth: mirror the LocalStorageAdapter guard. item.path is
   // normally written only via buildOriginalRelPath (which the upload path
   // constrains), but legacy rows / direct DB edits must not turn this
   // download endpoint into a file-read primitive outside the media root.
-  const mediaRootFull = path.resolve(process.cwd(), normalizedFolder) + path.sep;
+  const mediaRootFull = resolveMediaPathUnderRoot(mediaFolder) + path.sep;
   if (!path.resolve(fullPath).startsWith(mediaRootFull)) {
     throw new AppError("Invalid media path", 400, "BAD_REQUEST");
   }

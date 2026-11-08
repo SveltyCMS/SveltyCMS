@@ -26,7 +26,7 @@ SveltyCMS admin UI is built on **native Svelte 5 components**, Tailwind CSS v4, 
 | **`AdminCard`**      | Each content block: `--admin-bg-card`, density radius, and the theme's border width and shadow                  |
 | **`PageTitle`**      | The heading. Rendered by `AdminPageShell`. A page does not add its own `<h1>`                                   |
 
-`AdminPageShell` fills the route main. Its `actions` snippet is the header button row. Its children are the body, spaced with `spaceY` (`6` by default). `fullHeight` is the editor layout, where the shell itself does not scroll.
+`AdminPageShell` fills the route main. Its `actions` snippet is the header button row. Its children are the body, spaced with `spaceY` (`6` by default). `fullHeight` is the editor layout, where the shell itself does not scroll; `flushContent` additionally removes the shell's vertical padding and child rhythm for a data-dense workspace that owns its own bands (media gallery).
 
 `AdminCard` with no `variant` and no `preset` follows the active theme: `flat` drops the border and the shadow, `bordered` keeps a hairline and a small shadow, `elevated` uses the larger shadow. Leave `hover:shadow-lg` off the card. Set `variant` or `preset` only for a status surface; that path renders `Card` and skips the `--admin-*` inline styles.
 
@@ -211,12 +211,14 @@ Do not replace these with `text-start`: that forces the interface direction onto
 
 **Canonical route:** `/config/design-system`
 
-| Tab              | Purpose                                                            |
-| :--------------- | :----------------------------------------------------------------- |
-| `?tab=overrides` | Per-user density, card style, a11y, layout — linked from `/user`   |
-| `?tab=preview`   | Live component catalog + token readout                             |
-| `?tab=presets`   | **Palette studio** (seed colors → runtime CSS) + Theme JSON import |
-| `?tab=themes` …  | Admin workspace themes, layout density, features, advanced         |
+| Tab               | Purpose                                                                            |
+| :---------------- | :--------------------------------------------------------------------------------- |
+| `?tab=themes`     | **Default for admins.** Installed themes, marketplace catalog, JSON import/export  |
+| `?tab=customizer` | Palette studio, layout/style (one control per setting), features, CSS, danger zone |
+| `?tab=preview`    | Live component catalog + token readout                                             |
+| `?tab=overrides`  | Per-user density, card style, a11y, layout — last tab, linked from `/user`         |
+
+Legacy `?tab=presets|layout|style|features|advanced` links resolve to `customizer`.
 
 Palette studio writes a marked `customCss` block via `buildPaletteCssFromSeeds` / `mergePaletteCssIntoCustomCss` — do not invent a second token system.
 

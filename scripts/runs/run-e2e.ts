@@ -18,10 +18,23 @@
  */
 
 import { spawn, spawnSync, execSync, type ChildProcess } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ensureIntegrationBuild } from "./integration-harness.ts";
+import {
+  cleanupTestArtifacts,
+  ensureIntegrationBuild,
+  isIntegrationBuildStale,
+} from "./integration-harness.ts";
+import { E2E_MEDIA_FOLDER } from "../../tests/e2e/harness-paths.ts";
 
 // import.meta.dirname needs Node ≥20.11/Bun — fall back for older runtimes.
 const __dirname =
@@ -29,6 +42,11 @@ const __dirname =
     ? import.meta.dirname
     : dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "../..");
+
+// Test uploads live in the harness-owned root. `tests/e2e/global.setup.ts` empties
+// that root before every run; pointing it at the developer's `mediaFolder` deleted
+// their local media while the dev DB rows survived.
+process.env.MEDIA_FOLDER = E2E_MEDIA_FOLDER;
 
 /**
  * Resolve the shared test API secret exactly like playwright.config.ts and
@@ -147,6 +165,19 @@ function cleanRunArtifacts(): void {
   }
 }
 
+/**
+ * Remove test-owned collections/database/media after a successful run.
+ * Never touches live `config/collections`, `config/database`, `config/private.ts`
+ * or `mediaFolder`. Set `KEEP_E2E_ARTIFACTS=1` to inspect a run.
+ */
+function cleanHarnessArtifacts(): void {
+  if (process.env.KEEP_E2E_ARTIFACTS === "1" || process.env.KEEP_TEST_ARTIFACTS === "1") {
+    console.log("ℹ️  KEEP_E2E_ARTIFACTS=1 — test-owned artifacts kept.");
+    return;
+  }
+  cleanupTestArtifacts(ROOT);
+}
+
 async function runCmd(cmd: string, cargs: string[], env: Record<string, string>): Promise<number> {
   return new Promise((resolve) => {
     const proc = spawn(cmd, cargs, {
@@ -173,10 +204,7 @@ async function buildIfNeeded(): Promise<void> {
     // CI: fail closed (strict) — artifacts must already be current.
     const strict =
       process.env.CI === "true" || process.env.CI === "1" || process.env.CI_STRICT_BUILD === "1";
-    const stale = !strict && SKIP_BUILD && buildIsStale(ROOT);
-    if (stale) {
-      console.log("ℹ️  Source is newer than build/ — rebuilding with COMPILE_ALL_ADAPTERS=true…");
-    }
+    const stale = !strict && SKIP_BUILD && isIntegrationBuildStale(ROOT);
     await ensureIntegrationBuild(ROOT, {
       noBuild: SKIP_BUILD && !stale,
       strictNoBuild: SKIP_BUILD && strict,
@@ -186,40 +214,6 @@ async function buildIfNeeded(): Promise<void> {
     console.error(`❌ ${err instanceof Error ? err.message : err}`);
     process.exit(1);
   }
-}
-
-/** Newest mtime under a file/directory (0 when missing). */
-function newestMtime(path: string): number {
-  let newest = 0;
-  try {
-    const stat = statSync(path);
-    if (!stat.isDirectory()) return stat.mtimeMs;
-    for (const name of readdirSync(path)) {
-      newest = Math.max(newest, newestMtime(join(path, name)));
-    }
-  } catch {
-    /* missing or unreadable — ignore */
-  }
-  return newest;
-}
-
-/**
- * True when any build input is newer than the production entrypoint.
- * Kept intentionally narrow: only paths that change the runtime bundle.
- */
-function buildIsStale(root: string): boolean {
-  const entry = join(root, "build", "index.js");
-  if (!existsSync(entry)) return true;
-  const buildMtime = statSync(entry).mtimeMs;
-  const inputs = [
-    "src",
-    "static",
-    "vite.config.ts",
-    "svelte.config.js",
-    "path-aliases.ts",
-    "package.json",
-  ];
-  return inputs.some((input) => newestMtime(join(root, input)) > buildMtime);
 }
 
 async function startDevServer(): Promise<ChildProcess> {
@@ -236,6 +230,8 @@ async function startDevServer(): Promise<ChildProcess> {
         ...process.env,
         TEST_MODE: process.env.TEST_MODE || "true",
         TEST_API_SECRET: resolveTestSecret(),
+        MEDIA_FOLDER: E2E_MEDIA_FOLDER,
+        SVELTY_CONFIG_SYNC_DIR: process.env.SVELTY_CONFIG_SYNC_DIR || "test-config-sync",
         // The login E2E drives the in-page reset form, which only renders while the server may
         // return the reset link (off by default since the B1 fix). Harness opt-in, like a dev's.
         ALLOW_PASSWORD_RESET_LINK_IN_RESPONSE: "true",
@@ -287,6 +283,8 @@ async function startPreviewServer(): Promise<ChildProcess> {
     // contract is verified locally exactly like CI (setup-wizard.spec.ts).
     STRICT_SETUP_CHECK: "true",
     TEST_API_SECRET: resolveTestSecret(),
+    MEDIA_FOLDER: E2E_MEDIA_FOLDER,
+    SVELTY_CONFIG_SYNC_DIR: process.env.SVELTY_CONFIG_SYNC_DIR || "test-config-sync",
     SKIP_TEST_CLEANUP: "true",
     // Harness opt-in for the in-page reset form (see startDevServer above): the link is only
     // returned when the service opts in, and the built preview server publishes no NODE_ENV.
@@ -344,6 +342,136 @@ function cleanupSync(proc: ChildProcess | null) {
   }
 }
 
+const SNAPSHOT_DIR = join(ROOT, "tests", "e2e", ".auth", ".snapshot");
+const SNAPSHOT_META = join(SNAPSHOT_DIR, "meta.json");
+
+function computeSetupFingerprint(): string {
+  const tracked = [
+    "build/index.js",
+    "tests/e2e/routes/setup/setup-wizard.spec.ts",
+    "tests/e2e/routes/login/signup.spec.ts",
+    "tests/e2e/routes/login/login.spec.ts",
+    "tests/e2e/auth.setup.ts",
+  ];
+  return tracked
+    .map((rel) => {
+      const full = join(ROOT, rel);
+      try {
+        return `${rel}:${Math.floor(statSync(full).mtimeMs)}`;
+      } catch {
+        return `${rel}:missing`;
+      }
+    })
+    .join("|");
+}
+
+function canUseAuthSnapshot(): boolean {
+  if (DEV_MODE) return false;
+  if (process.env.CI === "true" || process.env.CI === "1") return false;
+  if (process.env.FORCE_E2E_SETUP === "1") return false;
+  // Only use snapshot when caller passed explicit non-setup/non-login spec targets
+  if (EXTRA_PW_ARGS.length === 0) return false;
+  if (
+    EXTRA_PW_ARGS.some(
+      (arg) =>
+        arg.includes("setup-wizard") ||
+        arg.includes("signup.spec") ||
+        arg.includes("login.spec") ||
+        arg.includes("auth.setup"),
+    )
+  ) {
+    return false;
+  }
+  if (!existsSync(SNAPSHOT_META)) return false;
+  try {
+    const meta = JSON.parse(readFileSync(SNAPSHOT_META, "utf8")) as { fingerprint?: string };
+    if (meta.fingerprint !== computeSetupFingerprint()) return false;
+    return (
+      existsSync(join(SNAPSHOT_DIR, "private.test.ts")) &&
+      existsSync(join(SNAPSHOT_DIR, "admin.json")) &&
+      existsSync(join(SNAPSHOT_DIR, "test-database"))
+    );
+  } catch {
+    return false;
+  }
+}
+
+function restoreAuthSnapshot(): void {
+  const authDir = join(ROOT, "tests", "e2e", ".auth");
+  mkdirSync(authDir, { recursive: true });
+  cpSync(join(SNAPSHOT_DIR, "private.test.ts"), join(ROOT, "config", "private.test.ts"), {
+    force: true,
+  });
+  cpSync(join(SNAPSHOT_DIR, "admin.json"), join(authDir, "admin.json"), { force: true });
+  if (existsSync(join(SNAPSHOT_DIR, "test-secret.txt"))) {
+    cpSync(join(SNAPSHOT_DIR, "test-secret.txt"), join(authDir, "test-secret.txt"), {
+      force: true,
+    });
+  }
+  rmSync(join(ROOT, "config", "test-database"), { recursive: true, force: true });
+  cpSync(join(SNAPSHOT_DIR, "test-database"), join(ROOT, "config", "test-database"), {
+    recursive: true,
+    force: true,
+  });
+  if (existsSync(join(SNAPSHOT_DIR, "test-collections"))) {
+    rmSync(join(ROOT, "config", "test-collections"), { recursive: true, force: true });
+    cpSync(join(SNAPSHOT_DIR, "test-collections"), join(ROOT, "config", "test-collections"), {
+      recursive: true,
+      force: true,
+    });
+  }
+  if (existsSync(join(SNAPSHOT_DIR, "compiled-test-collections"))) {
+    rmSync(join(ROOT, ".compiledCollections", "test-collections"), {
+      recursive: true,
+      force: true,
+    });
+    cpSync(
+      join(SNAPSHOT_DIR, "compiled-test-collections"),
+      join(ROOT, ".compiledCollections", "test-collections"),
+      { recursive: true, force: true },
+    );
+  }
+}
+
+function saveAuthSnapshot(): void {
+  if (DEV_MODE || process.env.CI === "true" || process.env.CI === "1") return;
+  try {
+    const authDir = join(ROOT, "tests", "e2e", ".auth");
+    const privateTest = join(ROOT, "config", "private.test.ts");
+    const adminJson = join(authDir, "admin.json");
+    const testDbDir = join(ROOT, "config", "test-database");
+    if (!existsSync(privateTest) || !existsSync(adminJson) || !existsSync(testDbDir)) return;
+
+    rmSync(SNAPSHOT_DIR, { recursive: true, force: true });
+    mkdirSync(SNAPSHOT_DIR, { recursive: true });
+    cpSync(privateTest, join(SNAPSHOT_DIR, "private.test.ts"), { force: true });
+    cpSync(adminJson, join(SNAPSHOT_DIR, "admin.json"), { force: true });
+    if (existsSync(join(authDir, "test-secret.txt"))) {
+      cpSync(join(authDir, "test-secret.txt"), join(SNAPSHOT_DIR, "test-secret.txt"), {
+        force: true,
+      });
+    }
+    cpSync(testDbDir, join(SNAPSHOT_DIR, "test-database"), { recursive: true, force: true });
+    const testColl = join(ROOT, "config", "test-collections");
+    if (existsSync(testColl)) {
+      cpSync(testColl, join(SNAPSHOT_DIR, "test-collections"), { recursive: true, force: true });
+    }
+    const compiledTestColl = join(ROOT, ".compiledCollections", "test-collections");
+    if (existsSync(compiledTestColl)) {
+      cpSync(compiledTestColl, join(SNAPSHOT_DIR, "compiled-test-collections"), {
+        recursive: true,
+        force: true,
+      });
+    }
+    writeFileSync(
+      SNAPSHOT_META,
+      JSON.stringify({ fingerprint: computeSetupFingerprint() }, null, 2),
+    );
+  } catch {
+    /* non-fatal snapshot cache write */
+  }
+}
+
 async function main() {
   console.log(`🧪 E2E — ${DEV_MODE ? "Dev mode (Vite :5173)" : "CI mode (preview :4173)"}\n`);
 
@@ -352,6 +480,15 @@ async function main() {
   freePort(PORT);
   await waitForPortFree(PORT);
   cleanRunArtifacts();
+
+  const useSnapshot = canUseAuthSnapshot();
+  if (useSnapshot) {
+    restoreAuthSnapshot();
+    console.log(
+      "⚡ Restored cached post-auth E2E state (tests/e2e/.auth/.snapshot) — skipping Phase 1 setup wizard.\n",
+    );
+  }
+
   const server = DEV_MODE ? await startDevServer() : await startPreviewServer();
 
   process.on("exit", () => cleanupSync(server));
@@ -364,32 +501,46 @@ async function main() {
     process.exit(143);
   });
 
+  let suitePassed = false;
   try {
     await waitForServerOrExit(server, BASE_URL);
     console.log(`✅ Server ready at ${BASE_URL}\n`);
 
-    if (!DEV_MODE) {
-      console.log("--- Phase 1: Wizard + Auth Setup ---");
-      // Run projects as SEPARATE invocations exactly like CI (e2e-prep). A single
-      // invocation with both projects lets Playwright run wizard and firstuser
-      // concurrently — the wizard's resetToSetupMode() leaves the system in SETUP
-      // while firstuser's homepage test expects / or /login (race).
-      const setupCode = await runCmd("bun", ["x", "playwright", "test", "--project=wizard"], {
+    if (!DEV_MODE && !useSnapshot) {
+      console.log("--- Phase 1: Wizard → Firstuser → Auth Setup ---");
+      // Run projects in strict sequence with `--no-deps` on dependent steps so
+      // `wizard` runs exactly ONCE (previously `--project=auth-setup` without
+      // `--no-deps` re-ran `wizard` a second time via Playwright's dependency chain).
+      const phaseEnv = {
         ...process.env,
         PLAYWRIGHT_TEST_BASE_URL: BASE_URL,
         TEST_MODE: "true",
         ORIGIN: BASE_URL,
-      } as any);
+      } as Record<string, string>;
+
+      const setupCode = await runCmd(
+        "bun",
+        ["x", "playwright", "test", "--project=wizard"],
+        phaseEnv,
+      );
       if (setupCode !== 0) {
         console.error("Setup phase failed");
         process.exit(1);
       }
-      const authCode = await runCmd("bun", ["x", "playwright", "test", "--project=auth-setup"], {
-        ...process.env,
-        PLAYWRIGHT_TEST_BASE_URL: BASE_URL,
-        TEST_MODE: "true",
-        ORIGIN: BASE_URL,
-      } as any);
+      const firstUserCode = await runCmd(
+        "bun",
+        ["x", "playwright", "test", "--project=firstuser", "--no-deps"],
+        phaseEnv,
+      );
+      if (firstUserCode !== 0) {
+        console.error("Firstuser phase failed");
+        process.exit(1);
+      }
+      const authCode = await runCmd(
+        "bun",
+        ["x", "playwright", "test", "--project=auth-setup", "--no-deps"],
+        phaseEnv,
+      );
       if (authCode !== 0) {
         console.error("Auth setup phase failed");
         process.exit(1);
@@ -397,11 +548,11 @@ async function main() {
       if (!process.env.TEST_API_SECRET) {
         // Keep the shared secret file in sync so server-side getTestSecret()
         // and script-based runs agree with the value used for this run.
-        const { mkdirSync, writeFileSync } = await import("node:fs");
         const authDir = join(ROOT, "tests", "e2e", ".auth");
         mkdirSync(authDir, { recursive: true });
         writeFileSync(join(authDir, "test-secret.txt"), resolveTestSecret());
       }
+      saveAuthSnapshot();
       console.log("");
     }
 
@@ -428,9 +579,13 @@ async function main() {
       console.error("\nSome E2E tests failed.");
       process.exit(1);
     }
+    suitePassed = true;
     console.log("\n✅ All E2E tests passed.");
   } finally {
+    // Stop the preview server first: background jobs recreate the test DB
+    // directory if cleanup runs while the process is still alive.
     cleanupSync(server);
+    if (suitePassed) cleanHarnessArtifacts();
   }
 }
 

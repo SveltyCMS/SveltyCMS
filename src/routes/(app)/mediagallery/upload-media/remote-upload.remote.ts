@@ -6,7 +6,7 @@
 import { query, getRequestEvent } from "$app/server";
 import type { DatabaseId } from "@src/content/types";
 import { getAuthenticatedUser, requirePagePermission } from "@utils/page-guards.server";
-import { saveRemoteMediaUrls } from "../save-remote-urls.server";
+import { saveRemoteMediaUrls, type RemoteUploadResult } from "../save-remote-urls.server";
 import { remoteErrorMessage } from "@utils/server/request-cms.server";
 
 export const uploadRemoteUrls = query(
@@ -17,7 +17,7 @@ export const uploadRemoteUrls = query(
   }: {
     urls: string[];
     folder?: string;
-  }): Promise<{ success: boolean; error?: string }> => {
+  }): Promise<RemoteUploadResult> => {
     try {
       const event = getRequestEvent();
       const user = getAuthenticatedUser(event.locals);
@@ -33,7 +33,12 @@ export const uploadRemoteUrls = query(
         tenantId: (event.locals.tenantId as DatabaseId | null) ?? null,
       });
     } catch (err) {
-      return { success: false, error: remoteErrorMessage(err, "Upload failed") };
+      return {
+        success: false,
+        error: remoteErrorMessage(err, "Upload failed"),
+        processed: 0,
+        failed: urls.length,
+      };
     }
   },
 );

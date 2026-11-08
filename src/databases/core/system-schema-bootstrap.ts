@@ -45,6 +45,7 @@ import {
   type TableSpec,
 } from "../system-schema-spec";
 import { planColumnReconcile } from "./collection-module";
+import { nowISODateString } from "@utils/date";
 
 export interface BootstrapResult {
   success: boolean;
@@ -494,7 +495,7 @@ interface SchemaStateStore {
 
 function createStateStore(dialect: Dialect, connection: unknown): SchemaStateStore {
   const sqlText = stateSql(dialect);
-  const appliedAt = () => new Date().toISOString();
+  const appliedAt = () => nowISODateString();
 
   if (dialect === "postgresql") {
     const sql = connection as postgres.Sql;

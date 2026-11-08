@@ -8,6 +8,8 @@ import { getHardwareProfile, hardwareDiagnostics } from "@utils/hardware-profile
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
+import { nowISODateString } from "@utils/date";
+import { bootPhases, markBoot, reportBootOnce } from "@utils/boot-profile";
 
 let lastHealthReport = "";
 let lastHealthTime = 0;
@@ -26,6 +28,9 @@ export async function handleHealthRoutes(
   _segments: string[],
 ) {
   const { request } = event;
+  // Boot profile: the first health response is the benchmark's "HTTP ready" point.
+  markBoot("http-ready");
+  reportBootOnce();
   const failExternal = request.headers.get("x-test-fail-external") === "true";
   const now = Date.now();
 
@@ -83,7 +88,7 @@ export async function handleHealthRoutes(
     ready,
     database: isUp ? "connected" : "disconnected",
     latency: 0, // Simplified for high-frequency checks
-    serverTime: new Date().toISOString(),
+    serverTime: nowISODateString(),
     uptime: process.uptime(),
     dbType: process.env.DB_TYPE || "unknown",
     resilience: {
@@ -92,6 +97,7 @@ export async function handleHealthRoutes(
       successfulReconnections: metrics.successfulReconnections,
     },
     ...(hw ? { hardware: hardwareDiagnostics(hw, heapLimitBytes) } : {}),
+    ...(bootPhases() ? { bootPhases: bootPhases() } : {}),
   };
 
   const reportString = JSON.stringify({

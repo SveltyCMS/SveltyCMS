@@ -63,7 +63,7 @@ Marketplace installs target `src/routes/(app)/dashboard/widgets/<folder>/` (the 
 From the browser or admin UI, installations call the marketplace install endpoint:
 
 ```typescript
-import { fetchApi } from "@utils/api";
+import { fetchApi } from "@utils/http-client";
 
 const res = await fetchApi("/api/marketplace/install", {
   method: "POST",

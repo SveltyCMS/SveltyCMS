@@ -19,7 +19,7 @@
  */
 
 import type { PermissionConfig } from "@src/databases/auth/permissions";
-import { readSessionCookie } from "@src/databases/auth/constants";
+import { readSessionCookie } from "@utils/security/session-cookie";
 import type { Role } from "@src/databases/auth/types";
 import type { DatabaseId } from "@src/databases/db-interface";
 import { rethrow } from "@utils/error-handling";

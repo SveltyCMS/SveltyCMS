@@ -1,8 +1,8 @@
 import { afterAll, describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import { writePresetCollectionFiles } from "@src/routes/setup/preset-collections.server";
-import { PRESETS } from "@src/routes/setup/presets";
+import { writePresetCollectionFiles } from "@src/services/setup/preset-collections.server";
+import { PRESETS } from "@src/services/setup/presets.server";
 import { getCollectionsPath, getCompiledCollectionsPath } from "@utils/tenant.server";
 
 describe("Setup Presets Integration", () => {

@@ -15,7 +15,7 @@ import type { DatabaseId } from "@src/databases/db-interface";
 import { isAppError, raise, rethrow } from "@utils/error-handling";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
 import { getLayoutPluginStates } from "@utils/server/layout-caches.server";
-import { getInstalledDashboardWidgets } from "@src/routes/(app)/dashboard/widgets/manifest-registry";
+import { getInstalledDashboardWidgets } from "@src/services/core/dashboard-manifest-registry";
 import { isAdmin } from "@src/databases/auth/constants";
 import { logger } from "@utils/logger";
 import type { PageServerLoad } from "./$types";

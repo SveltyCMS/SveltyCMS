@@ -20,7 +20,7 @@ export function money(amount: number, currency: string): Price {
   return { amount, currency: currency.toUpperCase() };
 }
 
-export function assertSameCurrency(a: Price, b: Price): void {
+function assertSameCurrency(a: Price, b: Price): void {
   if (a.currency !== b.currency) {
     throw new CurrencyMismatchError(a.currency, b.currency);
   }

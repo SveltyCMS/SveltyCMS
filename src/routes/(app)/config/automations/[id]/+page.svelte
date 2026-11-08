@@ -479,7 +479,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 			<Loader variant="circle" width="size-12" height="size-12" ariaLabel="Loading automation" />
 		</AdminCard>
 	{:else}
-		<div class="mx-auto max-w-225 space-y-6" data-testid="automation-editor">
+		<div class="w-full space-y-6" data-testid="automation-editor">
 			<!-- New-user explainer: what the three steps do and what an automation is. -->
 			<details
 				class="group rounded-(--admin-radius-card) border border-tertiary-500/30 bg-tertiary-500/10 dark:border-primary-500/30 dark:bg-primary-500/10"
@@ -1342,25 +1342,6 @@ and preview/test functionality. Reuses TokenPicker patterns.
 							{/if}
 						</div>
 
-						<!-- copy:ignore -->
-						<style>
-							.dropdown {
-								position: relative;
-								display: inline-block;
-							}
-							.dropdown-content {
-								display: none;
-								position: absolute;
-								right: 0;
-								bottom: 100%;
-								min-width: 160px;
-								z-index: 100;
-							}
-							.dropdown:hover .dropdown-content {
-								display: block;
-							}
-						</style>
-
 						<!-- Token Reference -->
 						<details class="rounded border border-surface-500/20 bg-surface-500/10">
 							<summary class="p-3 cursor-pointer font-medium text-sm flex items-center gap-2">
@@ -1473,3 +1454,21 @@ and preview/test functionality. Reuses TokenPicker patterns.
 		</div>
 	{/if}
 </AdminPageShell>
+
+<style>
+	.dropdown {
+		position: relative;
+		display: inline-block;
+	}
+	.dropdown-content {
+		display: none;
+		position: absolute;
+		right: 0;
+		bottom: 100%;
+		min-width: 160px;
+		z-index: 50;
+	}
+	.dropdown:hover .dropdown-content {
+		display: block;
+	}
+</style>

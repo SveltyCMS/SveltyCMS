@@ -22,7 +22,8 @@ import type {
   EntityCreate,
   EntityUpdate,
 } from "../db-interface";
-import { SQLiteAdapterCore } from "./adapter-core";
+import type { SQLiteAdapterCore } from "./adapter-core";
+import { sqliteWriteMutex } from "./write-mutex";
 import { createDatabaseError } from "../core/relational-utils";
 import { DatabaseModule } from "../core/base-adapter";
 
@@ -180,7 +181,7 @@ export class TransactionModule extends DatabaseModule<SQLiteAdapterCore> {
       return this.core.notConnectedError();
     }
 
-    return SQLiteAdapterCore.writeMutex.runExclusive(async () => {
+    return sqliteWriteMutex.runExclusive(async () => {
       const sqlite = this.core.sqlite;
       let rolledBack = false;
       let committed = false;

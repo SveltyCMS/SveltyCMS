@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-11-05"
+updated: "2026-11-08"
 tags:
   - "roadmap"
   - "backlog"
@@ -24,17 +24,23 @@ tags:
 
 ## 🎯 Priority for Implementers
 
-| Priority | Initiative                       | Key Deliverables                                                                                                   |
-| :------- | :------------------------------- | :----------------------------------------------------------------------------------------------------------------- |
-| **P0**   | **System Language P0 remainder** | ✅ Complete (2026-11-01): `bun run check:copy` is at 0 offenses; keep new copy localized as a regression guard.    |
-| **P1**   | **Quality Gate Type-Checking**   | Wire `svelte-check --threshold error` into `bun run check` to eliminate silent type drift                          |
-| **P2**   | **Commerce Engine Add-Ons**      | Promotion rule groups (`ConditionPlugin`), BOGO/tiered discounts, multi-warehouse, FX resolver, and Stripe Billing |
-| **P2**   | **Enterprise Cluster & Cloud**   | Distributed session clustering, Redis pub/sub worker bridge, and Svelty Managed Cloud recipes                      |
+| Priority | Initiative                         | Key Deliverables                                                                                                            |
+| :------- | :--------------------------------- | :-------------------------------------------------------------------------------------------------------------------------- |
+| **P0**   | **System Language P0 remainder**   | ✅ Complete (2026-11-01): `bun run check:copy` is at 0 offenses; keep new copy localized as a regression guard.             |
+| **P1**   | **Two-Plane Phase 5 verification** | 24 h PostgreSQL soak, noise-aware leak proof, and the published 4-cell wire/domain matrix (§1)                              |
+| **P1**   | **External validation**            | Independent penetration test plus the SLSA/Sigstore/Scorecard bundle — the one enterprise gate automation cannot close (§8) |
+| **P2**   | **Commerce Engine Add-Ons**        | Promotion rule groups (`ConditionPlugin`), BOGO/tiered discounts, multi-warehouse, FX resolver, and Stripe Billing          |
+| **P2**   | **Enterprise Cluster & Cloud**     | Distributed session clustering, Redis pub/sub worker bridge, and Svelty Managed Cloud recipes                               |
 
 ---
 
 ## 1. Core Architecture & Performance (Active Backlog)
 
+- **CRUD Pipeline Consolidation (Phases 1–4)**:
+  - [x] **Phase 1: Hoisted SQL Adapter Core (`SqlAdapterCore`)**: Hoisted `getTable()` and `rawFindById()` into `SqlAdapterCore` with `tableRegistry` caching, identifier allow-lists, length guards, dynamic column injection, and per-table pre-compiled statement caches (`withData`, `withoutData`, `withDataTenant`, `withDataNull`).
+  - [x] **Phase 2: Deleted `CollectionService` (−701 LOC) & Unified List Loading**: Retired `CollectionService` and consolidated SSR collection list queries, filtering, search, and status facets directly under `CollectionsNamespace.find` (`LocalCMS.collections.find`).
+  - [x] **Phase 3: Centralized HTTP Write Bridge (`http-bridge.ts`)**: Standardized HTTP collection write ingestion with payload unwrapping (`unwrapWritePayload`), publish draft promotion (`promoteStagedDraft`), optimistic locking (`extractExpectedVersion`), and RFC 7240 minimal write acknowledgments (`minimalWriteAck`, `Prefer: return=minimal`).
+  - [x] **Phase 4: Pre-Compiled Execution Plans & Driver Fast-Paths**: Added `WeakMap`-backed `getCollectionExecutionPlan` with `isPlain` fast path (>80% of collections) skipping widget pipelines, encryption context evaluation, and workflow gates. Implemented MongoDB native collection projection bypass in `MongoCrudMethods.findOne`.
 - **SQLite Write Tail Acceptance Gate**:
   - The SQLite group commit batcher is default ON. Finalize acceptance: achieve a replica run free of 🔴 rows and pass `--strict-variance` across a ≥3-run ensemble.
 - **Write-Lane Adaptive Coalescing (2027)**:
@@ -84,19 +90,19 @@ tags:
   - [x] Revision restore (`POST /api/collections/:c/:id/revisions/:version/restore`) plus bounded pruning (`revisionLimit`, default 100).
   - [x] Filter-path validation (`400 FILTER_UNKNOWN_FIELD`) for unknown keys and unaddressable nested paths.
   - [ ] Access predicate → WHERE fragment merged before count + page (field stripping stays a separate layer).
-  - [ ] Draft version row + publish promotion/rollback (reuse `content_drafts`).
+  - [ ] Draft-version rollback (reuse `content_drafts`); publish promotion shipped 2026-11-07.
   - [ ] `enforceAccess` by default for every CRUD call, with a logged `system: true` escape for system callers.
 - **IN PROGRESS — Revisions on by default + draft/live separation (competitive bet #1)**:
   - [x] **Revisions default-on for new collections and setup presets (2026-11-01)**: `revision: true` + `revisionLimit: 100` at creation; explicit `revision: false` preserved; existing unrevisioned files are not rewritten. Collection Builder Define tab has a Revisions toggle/limit, and the save/generator round-trips both flags. Runtime honours any positive limit.
   - [x] Snapshot + restore + `revisionLimit` pruning, optimistic locking, and the `content_drafts` table (existing building blocks).
-  - [x] Draft/live separation (2026-11-01): autosave writes `content_drafts` instead of the live row; resume/discard UI; API/SDK draft methods. A draft is **not promoted** on publish (Save writes the live row directly) and there is no draft-version rollback — that promotion/rollback remains open (see the draft-version row above).
+  - [x] Draft/live separation (2026-11-01): autosave writes `content_drafts` instead of the live row; resume/discard UI; API/SDK draft methods. **Publish promotion shipped 2026-11-07** (the collection write handlers promote the author's staged draft when a publish finds one, then remove it); draft-version rollback remains open (see the draft-version row above).
     - [x] Storage (2026-11-01): `collectionId` on `content_drafts` across all four adapters, index `(tenantId, collectionId, authorId, updatedAt)`, `ContentDraft.collectionId`, the physical-column allowlist, and the boot ALTER path (spec-driven, no backfill).
     - [x] Adapters (2026-11-01): `getLatestForContent`, `getLatestForCollection`, `upsertDraft`, `deleteForContent` on relational + Mongo with tenant/author scoping; a new-entry draft uses its own UUID as `contentId` and `data.__draft.kind = "new"`; legacy rows (`collectionId` null) stay reachable by entry id; Mongo `update` patches fields and `publishMany` writes the valid `archived` status.
     - [x] API/SDK (2026-11-01): `cms.drafts` (`saveDraft`, `getDraft`, `discardDraft`, `discardDraftsForEntry`) plus the `/api/collections/:id/drafts` routes, fail-closed permissions, drafts never exposed through the list/export/GraphQL lane.
     - Editor: autosave writes the draft, resume shows Restore/Discard, Cancel discards, and a successful Save/Publish discards server-side. **Ship the sink and resume together**; never auto-create an entry on resume (preserve the M1 invariant).
-      - [x] Editor half (2026-11-01): `autoSaveDraft` posts to `/api/collections/:id/drafts` (live row untouched, no `_id` stamped); `+page.server.ts` reads the author's latest draft through `cms.drafts.getDraft` and the editor offers Restore/Discard; Save/Publish/Delete/Clone (and Cancel) discard the form's drafts once. See [fields](../reference/components/fields.mdx#autosave-navigation-guard). Publish **promotion** (turning a draft into the live row) is still open.
+      - [x] Editor half (2026-11-01): `autoSaveDraft` posts to `/api/collections/:id/drafts` (live row untouched, no `_id` stamped); `+page.server.ts` reads the author's latest draft through `cms.drafts.getDraft` and the editor offers Restore/Discard; Save/Publish/Delete/Clone (and Cancel) discard the form's drafts once. See [fields](../reference/components/fields.mdx#autosave-navigation-guard). Publish **promotion** (turning a draft into the live row) shipped 2026-11-07 through the collection write handlers.
   - [ ] Migration/opt-in path for collections that already exist without the flag (deliberately not auto-flipped).
-  - **Not shipped:** a draft row that is promoted on publish, draft-version rollback, and a migration for existing collections. Do not describe these as available.
+  - **Not shipped:** draft-version rollback and a migration for existing collections. Publish promotion is shipped (2026-11-07) and atomic on SQL adapters — the live write, the revision snapshot and the draft delete share one `dbAdapter.transaction()`; MongoDB keeps the documented ordered fallback because its CRUD does not carry a session handle. Do not describe rollback as available.
 - **CMS Tables & List Platform (Smart Table)**:
   - Team & Cloud Saved Views: enterprise tenant-shared view presets with RBAC visibility controls.
   - Observability integration: pipe `list-query-metrics` into continuous benchmark trend reporting.
@@ -119,7 +125,7 @@ tags:
   - Add ThumbHash LQIP support via the `thumbhash` package.
 - **Media gallery coverage & unimplemented surfaces (2026-10-21)**:
   - [x] Server pagination: the loader reads `?page`, preserves the adapter total and the views merge pages; pinned by `tests/e2e/routes/mediagallery/media-pagination.spec.ts` (2026-10-24).
-  - [ ] **Server-side search across unfetched pages**: `getByFolder` has no `search` option on all four adapters, so search still ranges over fetched rows. Needs an adapter-level contract + `?q=` in the loader.
+  - [x] **Server-side search across unfetched pages** (2026-11-07): `getByFolder({ search })` is an adapter-level `LIKE` on filename/originalFilename on all four adapters, and the loader maps `?q=` to it before `LIMIT`/`COUNT`, so a match on page 7 is found from page 1; a new query resets `?page=`.
   - [x] Large-library batched rendering (60-tile window + IntersectionObserver sentinel) pinned by `tests/e2e/routes/mediagallery/large-library.spec.ts`.
   - [x] Client-side pre-upload optimization (Canvas 2D, 1920×1080 clamp, WebP) pinned by `upload-optimization.spec.ts` against the stored dimensions.
   - [x] Remote-URL ingestion success + SSRF rejection pinned by `remote-ingestion.spec.ts` (real local HTTP peer via the test-only exact-origin allowlist).
@@ -131,6 +137,27 @@ tags:
   - [x] SigV4 presigned direct-to-storage instructions for S3/R2 (`upload-instructions` + `direct-upload/complete`) — shipped 2026-10-19.
   - [ ] Cloudinary signed direct-upload preset (currently the TUS fallback lane).
   - [ ] Multi-instance TUS spool: a shared volume or Redis-backed session store instead of the local spool directory.
+- **Media gallery UX backlog (2026-11-06)** — the P0 audit set shipped; the rest is tracked here:
+  - [x] **Filtered-empty vs true-empty**: the grid/table distinguish “no media yet” from “no assets match these filters” and offer **Reset filters**; the true-empty state also offers **Create folder** next to **Upload**.
+  - [x] **OS file drop on the grid**: dragenter/dragover/drop on the scroll root reuse the `externalUpload` event, with a full-stage “Drop files to upload” indicator; internal media drags are excluded via `dndState`.
+  - [x] **Status + usage badges** on tiles and table rows (`processing`, `failed`, `In use` from `publishedMediaIds`).
+  - [x] **Shift+click range selection** in grid and table, anchored to the last checkbox/selection.
+  - [x] **Copy URL in the table row menu**, with viewport-aware flip; the unused legacy `filter.svelte` was deleted (one filter source of truth).
+  - [x] **Bulk “Move to folder…”** in the selection bar via `moveIdsToFolder` (breadcrumb drag, sidebar drop and the bulk picker all share the same optimistic-removal path).
+  - [x] **URL-synced filters** (`?q=`, `?type=`, `?status=`, `?sort=`/`?dir=`) so gallery views are shareable: the page seeds every filter from the URL, then `replaceState` keeps it in step without re-running the load; the client sort values map onto the adapter's `sort`/`dir` contract, and `jsonPath` joined the same sync. Since 2026-11-07 `?q=` is a **server** query (`getByFolder({ search })`, LIKE on filename/originalFilename per adapter), so it reaches rows the client has never fetched; a new query resets `?page=` and updates from `total` (COUNT).
+  - [x] **Virtualized grid** (2026-11-07): above 500 loaded rows the grid mounts only the rows in view plus 3 overscan rows each side, with top/bottom spacers that preserve the full scroll range; below that threshold the 60-tile progressive reveal is unchanged. Geometry is measured once per layout (`grid-window.ts`, unit-tested) and tiles also carry `content-visibility: auto`. Shift-range selection still ranges over the full result list, not the mounted window.
+  - [x] **Focal-point quick action** in both views: the grid crosshair button and the table row menu open `focal-quick-modal.svelte`, save via `PATCH /api/media/:id`, update the tile optimistically and refresh. Pinned by `tests/e2e/routes/mediagallery/mediagallery.spec.ts`.
+  - [ ] **Table/grid action parity**: per-row download and identical destructive safeguards in both views (delete confirmations already share the page handlers).
+  - [x] **Batch pre-flight**: the panel receives the selected image ids, states “N non-image assets will be skipped”, counts images on the run button and disables it when the selection holds none; the request body is pinned to image ids only.
+  - [ ] **Batch depth**: format/quality, fit modes, no-upscale, per-asset progress and a failed-file list.
+  - [x] **Import from URLs** reports per-URL outcomes: `saveRemoteMediaUrls` returns `processed`/`failed`/`errors`, the tab shows the parsed URL count before submit and names failure reasons, and a partial import stays on the page for a retry.
+  - [ ] **Folder operations**: counts in sidebar/breadcrumbs, inline rename/delete/move, folder drag-reparent.
+  - [ ] **Side-panel details** alongside the modal; multi-select metadata editor (tags/alt/copyright); edited-image version history.
+  - [ ] **Soft-delete / trash** with a restore window; duplicate detection on upload; smart auto-folders (date/type/tag).
+  - [x] **On-device alt-text suggestions** (2026-11-07): the detail modal's alt editor calls `ai.generateAltText()` (LiteRT Web Worker → WASM → server Ollama fallback), fills an empty alt field, and requires confirmation plus undo before replacing authored text; the provenance (backend/confidence) is shown on the applied value. Pinned by `tests/unit/components/dom/media-details-alt-generation.test.ts`. AI **tagging** and shareable read-only gallery links remain open.
+  - [ ] **Discoverability**: first-run coach mark for drag-to-folder/selection, “show processing” default, one-time drag hint.
+  - [ ] **Gallery state store**: selection/filters/view in one runes store so grid, table, modals and bulk actions share a single source of truth.
+  - [ ] **Image editor overlay geometry**: watermark and annotation preview layers (and their server composites) still use unrotated source coordinates, while blur regions rotate with the image. Align every overlay to the main crop/flip/rotate transform.
 
 ---
 
@@ -177,6 +204,27 @@ tags:
 
 ## 7. Quality Gates, Testing & Codebase Hygiene (Active Backlog)
 
+- **Duplicate plumbing consolidated (2026-11-06, shipped)**:
+  - **One list normalizer.** `unwrapList<T>()` in `@utils/api` replaces `unwrapWebhookList`, `unwrapArray` and `unwrapFlowList`; pages import it directly (`tests/unit/utils/api-unwrap-list.test.ts`).
+  - **One webhook deliverer.** Automation `webhook` operations now enqueue a durable `webhook-delivery` job through `WebhookService.dispatchDelivery()` instead of an inline `safeFetch`. They inherit retry/backoff, the dead-letter path and the delivery log (`Automation: <flow name>`); custom body/method, custom headers, HMAC secret and HTTPS-only egress are preserved in the job handler. The operation reports success at enqueue time, so a failed HTTP attempt is observable/retryable instead of aborting the remaining chain.
+  - **One auth/tenant gate.** `requireAuthenticatedUser()` / `requireAdminUser()` (401 before 403) and `requireTenant()` / `resolveRequestTenant()` in `system-shared.ts` replace the inline variants in webhooks, workflows, automations, system management, settings and AI builder. `requireAdmin()` keeps its legacy 403-only contract for the existing callers.
+  - **OpenAPI covers the automation surfaces.** Added 12 paths (webhooks + logs/retry, workflows, automations + logs/test) and the `Webhooks & Automation` tag; pinned by `tests/unit/services/api-spec-service.test.ts`.
+  - **Event-bus boundary documented, not merged.** Routing `AutomationEvent` payloads through `@utils/event-bus` would forward entry data to the SSE wildcard; the reason is now in the module header and [automations > Why two event buses](../guides/content/automations.mdx).
+
+- **Drift gates shipped (2026-11-06)**: `lint:global-timers` (AST scope detection for module timers), `lint:live-paths` (static live constants outside the resolvers), `lint:transient-classification` (unclassified collection/config delete inside a catch), `lint:date-helpers` (`nowISODateString()` only), `lint:silent-catch`, `lint:rule-budgets` (per-area `any`/`AppError` ratchets) and `lint:e2e-actionability` run inside `bun run check`. Fixture tests live in `tests/unit/scripts/lint-*.test.ts`.
+
+- **Systemic audit follow-ups (2026-11-06)** — the isolation and loader fixes exposed defect _classes_, not one-offs. Counts measured on this tree:
+  - [x] **Module-level timers leak per HMR.** `content-transfer.ts` (5-minute export sweep) and `api-key-usage-accumulator.ts` (10-second flush) now keep their timer + state on one `globalThis` object and `unref()` it; `lint:global-timers` (AST scope detection) gates new ones.
+  - [x] **Date helper drift.** All 72 direct `new Date().toISOString()` calls outside `src/utils/date.ts` / `logger.server.ts` were migrated to `nowISODateString()`; `lint:date-helpers` keeps them out.
+  - [ ] **OpenAPI overstates coverage.** `api-spec-service.ts` emits 14+ paths against 67 permission namespaces. Webhooks/workflows/automations (12 paths) are documented and the spec description now labels the document as a **curated sample**; generating the remaining namespaces from the dispatch map remains.
+  - [ ] **Transient-error classification outside the loader.** All 43 `unlink`/`rm` sites were reviewed for the delete-on-transient-error class: the engine is fixed, `sync-content-state` deletes only on explicit user delete ops, the rest are intent-based. Add one shared `isTransientPlatformError()` (module runner, `ECONNRESET`/`EPIPE`, shutdown) and route cache/service catches through it.
+  - [x] **`raise()` vs `new AppError()`.** Rule clarified in `AGENTS.md`: `raise()` is the handler-facing constructor; `throw new AppError` is allowed in services/adapters and for enriched errors. `lint:rule-budgets` ratchets the 706 remaining direct throws per area (new ones fail the gate).
+  - [x] **Explicit `any` ratchet.** `lint:rule-budgets` records a per-area baseline (4,516 occurrences) and fails when any area grows; `--update` ratchets downward after a cleanup.
+  - [x] **Silent catches.** All 93 empty `catch {}` blocks now log (`logger.debug`) or carry `catch-allow:`; `lint:silent-catch` enforces it. Cleanup `.catch(() => {})` handlers stay out of scope by design.
+  - [x] **E2E actionability drift.** `lint:e2e-actionability` gates new `force: true` / `waitForTimeout` in specs unless a `force-allow:` / `wait-allow:` reason is written; the 12 force and 6 wait sites were triaged with reasons. Conditional/feature-gated skips remain legitimate (the ADR already bans soft-skips for control-map rows).
+  - [x] **OpenAPI inventory.** `ENDPOINT_PERMISSIONS` moved to `src/routes/api/[...path]/endpoint-permissions.ts`; the spec now publishes `x-sveltycms.endpointPermissions`, `documentedNamespaces` and `undocumentedNamespaces`. Every one of the 67 namespaces is accounted for; curated paths remain intentional.
+  - [ ] **Date-display drift.** `toLocale*` inside `src/` now pins `en-US` (smart-importer counts, analytics month labels) so server output is deterministic; route new UI through `@utils/format-date` with `systemLanguage`.
+
 - **Type-Checking Gate Integration**:
   - [x] Wire `svelte-check` into pre-commit and CI quality gates (`bun run check`), including a machine-reporter parse (`scripts/check/check-svelte-diagnostics.ts`) that fails on **warnings** as well as errors — `--threshold warning` only widens output and still exits 0, so it alone was not a gate.
 - **Editorial Journey Matrix (next step for E2E)**:
@@ -203,7 +251,7 @@ tags:
   - [x] Reconcile documented-but-unmounted components (`TokenPicker` mounted once in `(app)/+layout.svelte` with `TokenRegistry` entry-field registration; `two-factor-setup-modal` documented as superseded by `modal-two-factor-auth`).
   - [x] Prune deprecated zero-caller symbols: `MigrationEngine.executeMigration`, `buildRawTenantFilter`, `resolveSameSourceJoinTarget`, `UpsertOperation`.
   - [x] Prune orphaned scripts (2026-10-18): `analyze-base-metrics.ts`, `check-deprecated.ts`, `generate-comprehensive-comparison.ts`, `provision-e2e.ts`, `record-cold-warm-benchmarks.ts`, plus the one-shot locale codemods (`add-page-title-suffix-key.mjs`, `fix-embedded-expression-messages.mjs`, `verify-locale-parity.mjs`) and the duplicate `create-app.ts` (the published bin is `create-app.js`).
-  - Validate inline code paths: resolve 107 stale inline `` `src/…` `` references in docs and add verification to `tests/lint-docs.ts`.
+  - Validate inline code paths: resolve 107 stale inline `` `src/…` `` references in docs and add verification to `tests/lint/docs.ts`.
   - [x] Wire up server-side cookie consent logging in `src/plugins/cookie-consent/api.server.ts`.
 - **State Migration**:
   - [x] Migrated legacy stores (`systemState`, `overallState`) in `src/stores/system/state.svelte.ts` to Svelte 5 runes (`$state()`, `$derived()`), fully eradicating `svelte/store` with internal native `#listeners` subscription support.
@@ -234,7 +282,7 @@ tags:
   - [x] **Published advisory pipeline**: the ledger (`docs/security/advisories/`), Valibot schema, semantic state machine, duplicate detection and the assurance gate ship in `scripts/security/check-advisories.ts`. Advisory records carry OSV/CVE ids; GitHub is a CNA, so a CVE does not need a separate security team. **No advisory has been published yet** — the two records in the folder are `provenance: "example"` and are excluded from every statistic.
   - [x] **Patch-latency ledger**: `docs/reference/security/patch-latency.mdx` is generated from the ledger (`--write-doc`), and the gate enforces the disclosed SLA on release and on open age. The table is empty by design until the first real advisory ships.
   - [ ] **AI triage, human sign-off**: the agent may classify, de-duplicate, reproduce, bisect and draft the failing test plus a candidate patch; a named human reviews every security fix. The policy is published in the [security case](../reference/security/security-case.mdx); the tooling is not built yet.
-  - [x] **Mutation-score floors on security modules**: `test:mutation:security` mutates 12 seams across auth, security utilities, egress and the write pipeline; `scripts/security/check-test-strength.ts` enforces per-area floors. **No measured score has been published yet** — the floors are starting gates, not baselines.
+  - [x] **Mutation-score floors on security modules**: `test:mutation` mutates 19 seams (7 write-path + 12 security) in one report, so `scripts/security/check-test-strength.ts` has data for every configured area; per-area floors are enforced. Measured baseline: **100 % (19/19 killed)**.
   - [x] **Executable red-team corpus**: 35 payloads across URL, XSS, SVG and prototype-key targets run on every PR (`tests/security-corpus/`, `tests/unit/security/red-team-corpus.test.ts`).
   - [x] **Threat-model drift gate**: `docs/security/threat-model.json` + six STRIDE models cover 58/58 server route files (100%); `bun run security:assurance --only=threat-model` fails on handler drift, a missing model, an uncovered route, or a review older than 12 months.
   - [x] **Executable invariants (first four)**: `tests/unit/security/invariants.test.ts` enforces no barrel imports, no `Math.random()` in security/auth/media, a no-growth ratchet on `new Date().toISOString()`, and manifest coverage. Expanding the `AGENTS.md` prose rules into further AST/Semgrep checks stays open.
@@ -279,5 +327,22 @@ Based on publicly available release notes for Drupal AI 1.5.0 (Workflows of AI, 
 Findings from the 2026-10-24 theme/UX review that need a design decision or a cross-page refactor (the chrome, status-shade and control-size items shipped in §3.63 of the achievements log):
 
 - [ ] **Permissions matrix**: the access-management permissions table is still bespoke. Move it onto `SmartTableShell` (or the native table primitives) so sorting, empty state and responsive overflow match the other admin lists.
-- [ ] **Save models**: the Design System page exposes three separate save paths (user overrides, admin theme, preset import). Define one dirty-state/save contract and make the action bar consistent across them.
+- [ ] **Save models**: the Design System page exposes three separate save paths (user overrides, admin theme, preset import). Define one dirty-state/save contract and make the action bar consistent across them. _(The tab-level split that caused this is gone — `?tab=customizer` owns one draft — but the personal-overrides save is still a separate POST.)_
 - [ ] **SmartTableShell adoption**: media table, trash, queue and webhook logs still hand-roll their tables. Adopt `SmartTableShell` (including its unused `toolbar` slot) so list chrome has one owner.
+
+---
+
+## 11. Innovation Frontier (candidates, not commitments)
+
+Shortlisted differentiators that are **not** scheduled. Each is recorded here with a scope and an acceptance criterion so it can be promoted into §1–§10 (and later the [Achievements Log](./achievements-2026.mdx)) only when it has an owner and a test.
+
+- **Temporal reads (as-of revision)** — read an entry as it existed at a revision or timestamp, reusing `content_revisions` and the existing projections. Buyers in regulated segments ask for this in place of full database PITR.
+  - _Acceptance:_ `GET /api/collections/:c/:id?asOf=<revision|ISO>` returns the historical row, tenant-scoped, with normal projection/access rules; pinned by unit + integration tests on SQLite and PostgreSQL.
+- **Audit-chain external anchoring** — periodically anchor the SHA-256 chain head with an RFC 3161 timestamp authority (and optionally a public transparency log), plus a verification endpoint. Moves the audit trail from self-attested to third-party-witnessed.
+  - _Acceptance:_ `security:assurance` verifies an anchored head; editing a cloned ledger row fails verification.
+- **Agent write-approval lane** — WebMCP/agent tokens may propose mutations but not commit them; a human approves a diff and the approval (actor, hash, timestamp) joins the audit chain. Extends the agent surface without widening its blast radius.
+  - _Acceptance:_ an agent token can create a proposal and cannot write a live row; the approval endpoint requires a human session; both events appear in the audit chain.
+- **Zero-compilation boot** — persist a source-hash-keyed compiled-schema artifact so a restart with unchanged collection sources skips `transpileModule`.
+  - _Acceptance:_ the second boot after a fresh build stays inside the existing 5 s cold-start budget with zero transpile calls (instrumented); a hash mismatch forces recompilation and is logged.
+- **Plugin capability sandbox** — declare `capabilities` (`fs`, `net`, `env`, `collections`) in the plugin manifest and fail closed when a plugin exceeds them. Complements the marketplace trust story with an enforceable boundary.
+  - _Acceptance:_ a fixture plugin that uses `net` without declaring it does not load; declared capabilities render in the plugins UI and are checked by a scanner in `risk:audit`.

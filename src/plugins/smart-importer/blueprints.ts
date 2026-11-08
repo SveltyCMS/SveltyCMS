@@ -58,7 +58,7 @@ export interface ImportBlueprint {
 // Built-in Blueprints
 // ============================================================================
 
-export const BUILT_IN_BLUEPRINTS: ImportBlueprint[] = [
+const BUILT_IN_BLUEPRINTS: ImportBlueprint[] = [
   {
     id: "wp-blog-to-posts",
     name: "WordPress Blog → Posts",

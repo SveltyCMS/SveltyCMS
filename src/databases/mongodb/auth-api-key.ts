@@ -15,7 +15,7 @@ import { generateId, getOrCreateModel } from "./mongodb-utils";
 import { safeQuery } from "@src/utils/security/safe-query";
 import { logger } from "@src/utils/logger";
 
-export const ApiKeySchema = new Schema(
+const ApiKeySchema = new Schema(
   {
     _id: { type: String, required: true },
     name: { type: String, required: true },

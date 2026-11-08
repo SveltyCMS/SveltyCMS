@@ -9,6 +9,7 @@ import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { logger } from "@utils/logger";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import type { PublicationFilter } from "@src/utils/security/publication-policy";
+import { nowISODateString } from "@utils/date";
 
 // GraphQL types
 type GraphQLValue = string | number | boolean | Date | object | GraphQLValue[];
@@ -59,7 +60,7 @@ const userTypeSample: Partial<Record<keyof User, unknown>> = {
   username: "",
   avatar: "",
   lastAuthMethod: "",
-  lastActiveAt: new Date().toISOString() as ISODateString,
+  lastActiveAt: nowISODateString() as ISODateString,
   isRegistered: false,
   blocked: false,
   is2FAEnabled: false,

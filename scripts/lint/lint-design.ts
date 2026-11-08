@@ -8,28 +8,64 @@
  * 3. Dynamic color preset safelist verification (Tailwind JIT coverage for dynamic interpolations)
  * 4. AdminCard prop guard (enforces `--admin-*` inline token contract by blocking `variant` / `preset` on `<AdminCard>`)
  *
+ * The pure `findDesignViolations()` core takes the sources and the two Tailwind
+ * entry stylesheets as input, so `scripts/check/run-source-lints.ts` can run it
+ * over the shared workspace read instead of this script reading the tree again.
+ *
  * Usage:
  *   bun run scripts/lint/lint-design.ts [--quiet]
  * Exit code: 0 on clean, 1 on any violation.
+ *
+ * Features:
+ * - Pure `findDesignViolations()` core (four violation groups, no disk access)
+ * - `loadDesignCssSources()` / CLI walker for the standalone run
+ * - Same report text and exit behaviour as before the extraction
  */
 
-import { readFileSync, readdirSync, existsSync } from "node:fs";
-import { join, basename, relative } from "node:path";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { basename, join, relative } from "node:path";
 
-interface Offense {
+export interface DesignSourceFile {
+  /** Project-relative POSIX path, e.g. `src/routes/login/+page.svelte`. */
+  path: string;
+  source: string;
+}
+
+export interface DesignOffense {
   file: string;
   line: number;
   snippet: string;
   reason: string;
 }
 
-const root = process.cwd();
-const argv = process.argv.slice(2);
-const QUIET =
-  process.env.CI === "true" ||
-  process.env.CI === "1" ||
-  argv.includes("--quiet") ||
-  argv.includes("--ci");
+export interface DesignUnresolvedPreset {
+  file: string;
+  line: number;
+  name: string;
+}
+
+export interface DesignCardViolation {
+  file: string;
+  line: number;
+  /** The offending `variant` / `preset` attributes, e.g. `variant="filled"`. */
+  attribute: string;
+}
+
+export interface DesignNestedStyleOffense {
+  file: string;
+  line: number;
+  reason: string;
+}
+
+export interface DesignLintResult {
+  ok: boolean;
+  definedPresetCount: number;
+  deadClassOffenses: DesignOffense[];
+  unresolvedPresetOffenses: DesignUnresolvedPreset[];
+  cardViolations: DesignCardViolation[];
+  missingDynamic: string[];
+  nestedStyleOffenses: DesignNestedStyleOffense[];
+}
 
 const CSS_FILES = ["src/app.css", "src/utilities.css"];
 const SCAN_EXT = new Set([".svelte", ".ts", ".js"]);
@@ -67,12 +103,10 @@ function expandBraces(pattern: string): string[] {
   return body.split(",").flatMap((option) => expandBraces(pattern.replace(token, option.trim())));
 }
 
-function collectDefinedPresets(): Set<string> {
+function collectDefinedPresets(cssSources: readonly DesignSourceFile[]): Set<string> {
   const defined = new Set<string>();
-  for (const file of CSS_FILES) {
-    const full = join(root, file);
-    if (!existsSync(full)) continue;
-    const css = readFileSync(full, "utf8");
+  for (const file of cssSources) {
+    const css = file.source;
 
     // @utility preset-filled-primary-500 { ... }
     for (const m of css.matchAll(/@utility\s+([A-Za-z0-9_-]+)/g)) defined.add(m[1]);
@@ -106,13 +140,47 @@ function* walkDir(dir: string): Generator<string> {
   }
 }
 
+/** Reads the two Tailwind entry stylesheets that define the preset tokens. */
+export function loadDesignCssSources(root = process.cwd()): DesignSourceFile[] {
+  const sources: DesignSourceFile[] = [];
+  for (const path of CSS_FILES) {
+    const full = join(root, path);
+    if (!existsSync(full)) continue;
+    sources.push({ path, source: readFileSync(full, "utf8") });
+  }
+  return sources;
+}
+
+/** Reads every `src/**\/*.{svelte,ts,js}` file for the standalone CLI. */
+export function loadDesignSources(root = process.cwd()): DesignSourceFile[] {
+  return [...walkDir(join(root, "src"))].map((full) => ({
+    path: relative(root, full)
+      .replace(/^[/\\]/, "")
+      .replaceAll("\\", "/"),
+    source: readFileSync(full, "utf8"),
+  }));
+}
+
 // ── 3. RUN UNIFIED LINT ──────────────────────────────────────────────────────
 
-function runDesignLint(): void {
-  const definedPresets = collectDefinedPresets();
-  const deadClassOffenses: Offense[] = [];
-  const unresolvedPresetOffenses: Array<{ file: string; line: number; name: string }> = [];
-  const cardViolations: string[] = [];
+/**
+ * Pure core — returns the same four violation groups the standalone script
+ * reports. `sources` is `src/**\/*.{svelte,ts,js}` (Paraglide output excluded);
+ * `cssSources` supplies the `preset-*` token definitions.
+ */
+export function findDesignViolations(
+  sources: readonly DesignSourceFile[],
+  cssSources: readonly DesignSourceFile[] = [],
+): DesignLintResult {
+  // The patterns are module-level and global; zero the scan cursor so repeated
+  // in-process calls (the aggregated gate) start every run from position 0.
+  for (const pattern of DEAD_CLASS_PATTERNS) pattern.regex.lastIndex = 0;
+
+  const definedPresets = collectDefinedPresets(cssSources);
+  const deadClassOffenses: DesignOffense[] = [];
+  const unresolvedPresetOffenses: DesignUnresolvedPreset[] = [];
+  const cardViolations: DesignCardViolation[] = [];
+  const nestedStyleOffenses: DesignNestedStyleOffense[] = [];
 
   // `AdminCard` must omit `variant`/`preset` so the `--admin-*` token path applies
   const ADMINCARD_EXEMPT = new Set(["design-system-preview.svelte"]);
@@ -139,17 +207,15 @@ function runDesignLint(): void {
   }
   const missingDynamic = DYNAMIC_REQUIRED.filter((n) => !definedPresets.has(n));
 
-  for (const file of walkDir(join(root, "src"))) {
-    if (file.endsWith(".css") || file.includes("lint-design")) continue;
+  for (const file of sources) {
+    if (file.path.endsWith(".css") || file.path.includes("lint-design")) continue;
 
-    const relPath = relative(root, file)
-      .replace(/^[/\\]/, "")
-      .replaceAll("\\", "/");
-    const content = readFileSync(file, "utf8");
+    const relPath = file.path;
+    const content = file.source;
     const lines = content.split("\n");
 
     // AdminCard check (svelte files only)
-    if (file.endsWith(".svelte") && !ADMINCARD_EXEMPT.has(basename(file))) {
+    if (file.path.endsWith(".svelte") && !ADMINCARD_EXEMPT.has(basename(file.path))) {
       for (const m of content.matchAll(ADMINCARD_RE)) {
         const tag = m[0];
         if (!/\bvariant=/.test(tag) && !/\bpreset=/.test(tag)) continue;
@@ -161,7 +227,29 @@ function runDesignLint(): void {
           .filter(Boolean)
           .map((x) => x![0])
           .join(" ");
-        cardViolations.push(`${relPath}:${lineNum}  ${attr}`);
+        cardViolations.push({ file: relPath, line: lineNum, attribute: attr });
+      }
+    }
+
+    // Top-level <style> check: Svelte components must place <style> at file root,
+    // not nested inside template markup/blocks where Svelte emits them verbatim.
+    if (file.path.endsWith(".svelte")) {
+      const styleMatches = [...content.matchAll(/<style\b[^>]*>/g)];
+      if (styleMatches.length > 0) {
+        const lastEndStyle = content.lastIndexOf("</style>");
+        if (lastEndStyle !== -1) {
+          const trailingMarkup = content.slice(lastEndStyle + 8).trim();
+          if (trailingMarkup.length > 0) {
+            const firstStyle = styleMatches[0];
+            const lineNum = content.slice(0, firstStyle.index).split("\n").length;
+            nestedStyleOffenses.push({
+              file: relPath,
+              line: lineNum,
+              reason:
+                "<style> block must be at the root of the file, not nested inside component markup",
+            });
+          }
+        }
       }
     }
 
@@ -195,15 +283,34 @@ function runDesignLint(): void {
     });
   }
 
+  return {
+    ok:
+      deadClassOffenses.length === 0 &&
+      unresolvedPresetOffenses.length === 0 &&
+      cardViolations.length === 0 &&
+      missingDynamic.length === 0 &&
+      nestedStyleOffenses.length === 0,
+    definedPresetCount: definedPresets.size,
+    deadClassOffenses,
+    unresolvedPresetOffenses,
+    cardViolations,
+    missingDynamic,
+    nestedStyleOffenses,
+  };
+}
+
+// ── 4. CLI ───────────────────────────────────────────────────────────────────
+
+function reportDesignLint(result: DesignLintResult): boolean {
   let hasError = false;
 
   // Report dead classes
-  if (deadClassOffenses.length > 0) {
+  if (result.deadClassOffenses.length > 0) {
     hasError = true;
     console.error(
-      `\n❌ Found ${deadClassOffenses.length} dead or invalid CSS class occurrence(s):\n`,
+      `\n❌ Found ${result.deadClassOffenses.length} dead or invalid CSS class occurrence(s):\n`,
     );
-    for (const o of deadClassOffenses) {
+    for (const o of result.deadClassOffenses) {
       console.error(`  ${o.file}:${o.line}`);
       console.error(`    Snippet: ${o.snippet}`);
       console.error(`    Reason:  ${o.reason}\n`);
@@ -211,12 +318,12 @@ function runDesignLint(): void {
   }
 
   // Report unresolved presets
-  if (unresolvedPresetOffenses.length > 0) {
+  if (result.unresolvedPresetOffenses.length > 0) {
     hasError = true;
     console.error(
-      `\n❌ Found ${unresolvedPresetOffenses.length} reference(s) to undefined preset classes:\n`,
+      `\n❌ Found ${result.unresolvedPresetOffenses.length} reference(s) to undefined preset classes:\n`,
     );
-    for (const o of unresolvedPresetOffenses) {
+    for (const o of result.unresolvedPresetOffenses) {
       console.error(
         `  ${o.file}:${o.line} — '${o.name}' is not defined in app.css or utilities.css`,
       );
@@ -224,29 +331,56 @@ function runDesignLint(): void {
   }
 
   // Report AdminCard violations
-  if (cardViolations.length > 0) {
+  if (result.cardViolations.length > 0) {
     hasError = true;
     console.error(
-      `\n❌ Found ${cardViolations.length} AdminCard prop violation(s) (omit variant/preset):`,
+      `\n❌ Found ${result.cardViolations.length} AdminCard prop violation(s) (omit variant/preset):`,
     );
-    for (const v of cardViolations) console.error(`    ${v}`);
+    for (const v of result.cardViolations) {
+      console.error(`    ${v.file}:${v.line}  ${v.attribute}`);
+    }
   }
 
   // Report missing dynamic definitions
-  if (missingDynamic.length > 0) {
+  if (result.missingDynamic.length > 0) {
     hasError = true;
-    console.error(`\n❌ Missing dynamic color recipes in safelist: ${missingDynamic.join(", ")}`);
+    console.error(
+      `\n❌ Missing dynamic color recipes in safelist: ${result.missingDynamic.join(", ")}`,
+    );
   }
 
-  if (hasError) {
+  // Report nested <style> blocks
+  if (result.nestedStyleOffenses.length > 0) {
+    hasError = true;
+    console.error(
+      `\n❌ Found ${result.nestedStyleOffenses.length} nested <style> block(s) (must be at root level of .svelte file):`,
+    );
+    for (const s of result.nestedStyleOffenses) {
+      console.error(`    ${s.file}:${s.line} — ${s.reason}`);
+    }
+  }
+
+  return hasError;
+}
+
+function main(): void {
+  const quiet =
+    process.env.CI === "true" ||
+    process.env.CI === "1" ||
+    process.argv.includes("--quiet") ||
+    process.argv.includes("--ci");
+
+  const result = findDesignViolations(loadDesignSources(), loadDesignCssSources());
+
+  if (reportDesignLint(result)) {
     process.exit(1);
   }
 
-  if (!QUIET) {
+  if (!quiet) {
     console.log(
-      `✅ Design lint OK — ${definedPresets.size} preset utilities defined, 0 dead classes, 0 card violations.`,
+      `✅ Design lint OK — ${result.definedPresetCount} preset utilities defined, 0 dead classes, 0 card violations.`,
     );
   }
 }
 
-runDesignLint();
+if (import.meta.main) main();

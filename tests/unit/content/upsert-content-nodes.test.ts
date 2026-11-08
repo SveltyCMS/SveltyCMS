@@ -137,6 +137,41 @@ describe("contentService.upsertContentNodes", () => {
     expect(updateVersion).not.toHaveBeenCalled();
   });
 
+  it("scopes the survivor re-read to the caller's tenant (no system-scope bypass)", async () => {
+    deleteMany.mockResolvedValueOnce({ success: true, data: { deletedCount: 0 } });
+    getStructure.mockResolvedValueOnce({ success: true, data: [] });
+
+    await expect(
+      contentService.upsertContentNodes(
+        [{ type: "delete", node: { path: "/collection/tenant-a-only" } }],
+        "tenant-a",
+      ),
+    ).resolves.toBeUndefined();
+
+    expect(getStructure).toHaveBeenCalledTimes(1);
+    const options = getStructure.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(options.tenantId).toBe("tenant-a");
+    // `withSystemScope` empties the tenant predicate — it must never accompany a
+    // live tenant, or the re-read returns every tenant's nodes (delete throws on
+    // a path another tenant happens to share).
+    expect(options).not.toHaveProperty("systemScope");
+  });
+
+  it("uses system scope for a tenant-less (global) survivor re-read", async () => {
+    deleteMany.mockResolvedValueOnce({ success: true, data: { deletedCount: 0 } });
+    getStructure.mockResolvedValueOnce({ success: true, data: [] });
+
+    await expect(
+      contentService.upsertContentNodes(
+        [{ type: "delete", node: { path: "/collection/global-only" } }],
+        null,
+      ),
+    ).resolves.toBeUndefined();
+
+    const options = getStructure.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(options).toHaveProperty("systemScope");
+  });
+
   it("treats deletes of already-absent nodes as idempotent", async () => {
     deleteMany.mockResolvedValueOnce({ success: true, data: { deletedCount: 0 } });
     getStructure.mockResolvedValueOnce({ success: true, data: [] });

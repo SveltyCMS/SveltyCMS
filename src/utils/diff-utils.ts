@@ -138,19 +138,24 @@ function isEqual(a: unknown, b: unknown, visited = new WeakSet<object>()): boole
 
     const objA = a as Record<string, unknown>;
     const objB = b as Record<string, unknown>;
-    const keysA = Object.keys(objA);
-    const keysB = Object.keys(objB);
 
-    if (keysA.length !== keysB.length) return false;
-    for (const key of keysA) {
-      if (
-        !Object.prototype.hasOwnProperty.call(objB, key) ||
-        !isEqual(objA[key], objB[key], visited)
-      ) {
-        return false;
+    let countA = 0;
+    for (const key in objA) {
+      if (Object.hasOwn(objA, key)) {
+        countA++;
+        if (!Object.hasOwn(objB, key) || !isEqual(objA[key], objB[key], visited)) {
+          return false;
+        }
       }
     }
-    return true;
+    let countB = 0;
+    for (const key in objB) {
+      if (Object.hasOwn(objB, key)) {
+        countB++;
+        if (countB > countA) return false;
+      }
+    }
+    return countA === countB;
   }
 
   return false;

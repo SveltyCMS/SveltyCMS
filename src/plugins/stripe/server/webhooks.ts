@@ -10,6 +10,7 @@
 
 import type { DatabaseId, IDBAdapter } from "@databases/db-interface";
 import { getStripe } from "./stripe";
+import { nowISODateString } from "@utils/date";
 
 interface WebhookEvent {
   type: string;
@@ -59,7 +60,7 @@ export async function handleStripeWebhook(
         : event.type === "payment_intent.refunded"
           ? "refunded"
           : "failed";
-    const now = new Date().toISOString();
+    const now = nowISODateString();
 
     const existing = await dbAdapter.crud.findOne("plugin_stripe_payments", {
       stripeIntentId: intent.id,

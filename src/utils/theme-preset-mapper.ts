@@ -212,7 +212,7 @@ export function mapPresetToAdminTheme(preset: ThemePreset): {
 
 /** Markers so palette studio can replace only its own block inside customCss. */
 export const PALETTE_CSS_START = "/* sveltycms-palette-start */";
-export const PALETTE_CSS_END = "/* sveltycms-palette-end */";
+const PALETTE_CSS_END = "/* sveltycms-palette-end */";
 
 export type PaletteSeedKey =
   | "primary"

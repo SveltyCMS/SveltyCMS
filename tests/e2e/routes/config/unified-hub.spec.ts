@@ -168,6 +168,7 @@ test.describe("Unified Data Hub — Postgres fixture", () => {
 
     // Brief pause to allow the plugin state cache (30s TTL in the plugin API
     // dispatcher) to pick up the freshly toggled state before the page loads.
+    // wait-allow: plugin-state cache (30s TTL) must pick up the toggle before page load
     await page.waitForTimeout(1_000);
 
     // First load — networkidle waits for the Svelte component to hydrate and

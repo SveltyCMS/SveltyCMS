@@ -146,12 +146,16 @@ export abstract class MongoAdapterCore extends BaseAdapter {
           // @ts-expect-error - optional peer for zstd wire compression
           await import("@mongodb-js/zstd");
           compressors.push("zstd");
-        } catch {}
+        } catch (error) {
+          logger.debug("[adapter-core] suppressed error", error);
+        }
         try {
           // @ts-expect-error - optional peer for snappy wire compression
           await import("snappy");
           compressors.push("snappy");
-        } catch {}
+        } catch (error) {
+          logger.debug("[adapter-core] suppressed error", error);
+        }
       }
       // Explicit override: MONGO_COMPRESSORS=zstd,snappy | none. Wire compression
       // is CPU-bound on small payloads (LAN/edge: disabling can nearly double

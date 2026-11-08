@@ -1,0 +1,150 @@
+{
+  "version": 1,
+  "summary": {
+    "generatedAt": "2026-11-08T15:42:18.983Z",
+    "totalFiles": 1505,
+    "totalLoc": 423193,
+    "totalBytes": 14314514,
+    "runtimeEdgeCount": 6186,
+    "typeEdgeCount": 1463,
+    "barrelCount": 8,
+    "passThroughBarrelCount": 0,
+    "reExportBridgeCount": 2,
+    "microFileCount": 262,
+    "singleCallerCount": 499,
+    "sameDirUntestedSingleCallerCount": 12,
+    "orphanFileCount": 19,
+    "unusedRuntimeExportCount": 123,
+    "testOnlyRuntimeExportCount": 502,
+    "runtimeCycleCount": 0,
+    "clientServerLeakCount": 0,
+    "clientReachableFiles": 464,
+    "clientReachableKB": 4130,
+    "byArea": {
+      "src/hooks.client.ts": {
+        "files": 1,
+        "loc": 41,
+        "microFiles": 1,
+        "barrels": 0,
+        "singleCallers": 0
+      },
+      "src/hooks.server.ts": {
+        "files": 1,
+        "loc": 1241,
+        "microFiles": 0,
+        "barrels": 0,
+        "singleCallers": 0
+      },
+      "src/hooks.ws.ts": {
+        "files": 1,
+        "loc": 323,
+        "microFiles": 0,
+        "barrels": 0,
+        "singleCallers": 0
+      },
+      "src/widgets": {
+        "files": 156,
+        "loc": 24989,
+        "microFiles": 46,
+        "barrels": 29,
+        "singleCallers": 13
+      },
+      "src/utils": {
+        "files": 221,
+        "loc": 45580,
+        "microFiles": 31,
+        "barrels": 2,
+        "singleCallers": 58
+      },
+      "src/types": {
+        "files": 2,
+        "loc": 141,
+        "microFiles": 0,
+        "barrels": 0,
+        "singleCallers": 0
+      },
+      "src/themes": {
+        "files": 1,
+        "loc": 77,
+        "microFiles": 0,
+        "barrels": 0,
+        "singleCallers": 0
+      },
+      "src/stores": {
+        "files": 23,
+        "loc": 7446,
+        "microFiles": 4,
+        "barrels": 0,
+        "singleCallers": 3
+      },
+      "src/services": {
+        "files": 165,
+        "loc": 60728,
+        "microFiles": 16,
+        "barrels": 2,
+        "singleCallers": 54
+      },
+      "src/routes": {
+        "files": 334,
+        "loc": 108610,
+        "microFiles": 61,
+        "barrels": 0,
+        "singleCallers": 138
+      },
+      "src/plugins": {
+        "files": 188,
+        "loc": 36672,
+        "microFiles": 46,
+        "barrels": 15,
+        "singleCallers": 63
+      },
+      "src/hooks": {
+        "files": 24,
+        "loc": 10887,
+        "microFiles": 2,
+        "barrels": 0,
+        "singleCallers": 8
+      },
+      "src/databases": {
+        "files": 147,
+        "loc": 69140,
+        "microFiles": 9,
+        "barrels": 2,
+        "singleCallers": 61
+      },
+      "src/content": {
+        "files": 21,
+        "loc": 7016,
+        "microFiles": 3,
+        "barrels": 1,
+        "singleCallers": 4
+      },
+      "src/components": {
+        "files": 220,
+        "loc": 50302,
+        "microFiles": 43,
+        "barrels": 9,
+        "singleCallers": 97
+      }
+    },
+    "smellSummary": {
+      "zombieIslands": 0,
+      "crossRouteSmugglings": 0,
+      "dataLayerInversions": 0,
+      "clientNodeLeaks": 0,
+      "deepRelativeImports": 0,
+      "testInvariantViolations": 0,
+      "clientBoundaryCandidates": 27
+    },
+    "publicApiBarrelPaths": [
+      "src/components/ui/tabs/index.ts",
+      "src/content/index.ts",
+      "src/databases/auth/types.ts",
+      "src/plugins/index.ts",
+      "src/plugins/smart-importer/parsers/index.ts",
+      "src/services/sdk/index.ts",
+      "src/utils/logger.server.ts",
+      "src/utils/rate-limit/index.ts"
+    ]
+  }
+}

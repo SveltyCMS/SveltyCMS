@@ -218,7 +218,9 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
   if (MULTI_TENANT && !IS_DEMO) {
     try {
       tenantId = getTenantIdFromHostname(url.hostname, true) || undefined;
-    } catch {}
+    } catch (error) {
+      logger.debug("[handle-security] suppressed error", error);
+    }
   }
 
   // Layer 0 WASM/JS WAF Inspection (memoized per request)

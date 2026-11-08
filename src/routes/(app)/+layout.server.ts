@@ -204,17 +204,16 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
       user: sessionUser?._id,
     });
 
-    let fallbackUser: any = null;
-    try {
-      fallbackUser = sessionUser ? structuredClone(sessionUser) : null;
-    } catch {
-      if (sessionUser) {
-        fallbackUser = {
-          _id: String((sessionUser as any)._id ?? ""),
-          email: (sessionUser as any).email,
-          role: (sessionUser as any).role,
-        };
-      }
+    let fallbackUser: Record<string, unknown> | null = null;
+    if (sessionUser) {
+      const u = sessionUser as unknown as Record<string, unknown>;
+      fallbackUser = {
+        ...u,
+        _id: String(u._id ?? ""),
+        email: u.email,
+        role: u.role,
+        permissions: Array.isArray(u.permissions) ? [...u.permissions] : [],
+      };
     }
 
     return {

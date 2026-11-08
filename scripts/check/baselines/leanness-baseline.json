@@ -1,0 +1,21 @@
+{
+  "recordedAt": "2026-11-08T15:12:25.391Z",
+  "source": "tests/benchmarks/results/linkmap-latest.json",
+  "metrics": {
+    "clientReachableKB": 4166,
+    "clientReachableFiles": 464,
+    "unusedRuntimeExportCount": 159,
+    "testOnlyRuntimeExportCount": 497,
+    "orphanFileCount": 19,
+    "singleCallerCount": 500,
+    "microFileCount": 260,
+    "passThroughBarrelCount": 0,
+    "reExportBridgeCount": 2,
+    "runtimeCycleCount": 0,
+    "clientServerLeakCount": 0,
+    "totalFiles": 1502,
+    "totalLoc": 424059,
+    "totalBytes": 14347390,
+    "barrelCount": 8
+  }
+}

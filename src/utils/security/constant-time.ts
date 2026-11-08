@@ -12,10 +12,14 @@ import { timingSafeEqual } from "node:crypto";
 
 /** Compare two buffers without leaking length or content via timing. */
 export function constantTimeBufferEqual(a: Buffer, b: Buffer): boolean {
+  if (a.length === b.length) {
+    return timingSafeEqual(a, b);
+  }
   const maxLen = Math.max(a.length, b.length);
   const paddedA = Buffer.alloc(maxLen, 0);
   const paddedB = Buffer.alloc(maxLen, 0);
   a.copy(paddedA);
   b.copy(paddedB);
-  return timingSafeEqual(paddedA, paddedB);
+  timingSafeEqual(paddedA, paddedB);
+  return false;
 }

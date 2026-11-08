@@ -8,7 +8,7 @@ import {
   legalPageBody,
   marketFromForm,
   suggestMarket,
-} from "@src/routes/setup/market";
+} from "@src/services/setup/market";
 import { describe, expect, it } from "vitest";
 
 describe("suggestMarket", () => {

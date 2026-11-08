@@ -37,7 +37,7 @@
 		SMART_TABLE_TD,
 		SMART_TABLE_TH,
 		SMART_TABLE_THEAD
-	} from '@components/ui/smart-table';
+	} from '@components/ui/smart-table/chrome';
 
 	let { data }: { data: PageData } = $props();
 

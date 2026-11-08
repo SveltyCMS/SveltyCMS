@@ -50,6 +50,8 @@ import {
 import path from "node:path";
 import { statSync } from "node:fs";
 import { createHash } from "node:crypto";
+// Relative on purpose: the compilation pipeline runs outside Vite (esbuild/bun),
+// where the `@root` alias is not configured.
 import { pathAliases } from "../../../path-aliases.ts";
 
 // ─── Compile-time aliases (strip ./ prefix for specifier matching) ──────
@@ -138,63 +140,7 @@ function isDeclarationPosition(node: Identifier): boolean {
   );
 }
 
-// ─── Individual transformers (backward compatible) ──────────────────────
-
-export const widgetTransformer: TransformerFactory<SourceFile> = (context) => (sourceFile) => {
-  const getUuid = makeUuidFactory(sourceFile.fileName);
-  const visitor = (node: Node): VisitResult<Node> => {
-    if (isImportDeclaration(node) && isStringLiteral(node.moduleSpecifier)) {
-      const moduleSpecifier = node.moduleSpecifier.text;
-      if (node.importClause?.namedBindings && isNamedImports(node.importClause.namedBindings)) {
-        const hasWidgetsAlias = node.importClause.namedBindings.elements.some(
-          (element) => element.name.text === "widgets",
-        );
-        if (
-          hasWidgetsAlias &&
-          (moduleSpecifier.includes("@src/stores/widget-store.svelte.ts") ||
-            /widgets/.test(moduleSpecifier))
-        ) {
-          return [];
-        }
-      }
-    }
-
-    // Rewrite `widgets` identifier → `globalThis.widgets` (skip declarations)
-    if (isIdentifier(node) && node.text === "widgets" && !isDeclarationPosition(node)) {
-      return factory.createPropertyAccessExpression(
-        factory.createIdentifier("globalThis"),
-        factory.createIdentifier("widgets"),
-      );
-    }
-
-    // Widget call argument UUID injection (deterministic, hash-derived).
-    // Fires on the FIRST-ARGUMENT object literal of a widget factory call
-    // (`widgets.X({...})` or pre-written `globalThis.widgets.X({...})`), never
-    // on the call node itself: in this pre-order traversal the callee
-    // identifier is still bare `widgets` when the call is visited, so a
-    // call-level check can never observe the rewritten `globalThis.widgets`.
-    // Injecting on the argument lets the framework rebuild the call with the
-    // enriched object; descend afterwards so nested widget calls (groups,
-    // repeaters) are processed too.
-    if (
-      isObjectLiteralExpression(node) &&
-      node.parent &&
-      isCallExpression(node.parent) &&
-      node.parent.arguments[0] === node &&
-      isWidgetFactoryCall(node.parent) &&
-      !hasUuidProperty(node)
-    ) {
-      const withUuid = factory.updateObjectLiteralExpression(node, [
-        factory.createPropertyAssignment("uuid", factory.createStringLiteral(getUuid())),
-        ...node.properties,
-      ]);
-      return visitEachChild(withUuid, visitor, context);
-    }
-
-    return visitEachChild(node, visitor, context);
-  };
-  return visitNode(sourceFile, visitor) as SourceFile;
-};
+// ─── Individual transformers ────────────────────────────────────────────
 
 export const addJsExtensionTransformer: TransformerFactory<SourceFile> =
   (context) => (sourceFile) => {
@@ -225,107 +171,6 @@ export const addJsExtensionTransformer: TransformerFactory<SourceFile> =
             ns,
             node.assertClause,
           );
-        }
-      }
-      return visitEachChild(node, visitor, context);
-    };
-    return visitNode(sourceFile, visitor) as SourceFile;
-  };
-
-export const commonjsToEsModuleTransformer: TransformerFactory<SourceFile> =
-  (context) => (sourceFile) => {
-    let needsFileURLToPath = false;
-    const visitor = (node: Node): VisitResult<Node> => {
-      if (isIdentifier(node) && node.text === "__filename") {
-        needsFileURLToPath = true;
-        return factory.createCallExpression(
-          factory.createIdentifier("fileURLToPath"),
-          undefined,
-          [],
-        );
-      }
-      if (isIdentifier(node) && node.text === "__dirname") {
-        needsFileURLToPath = true;
-        return factory.createCallExpression(
-          factory.createPropertyAccessExpression(factory.createIdentifier("path"), "dirname"),
-          undefined,
-          [],
-        );
-      }
-      return visitEachChild(node, visitor, context);
-    };
-    let transformedFile = visitNode(sourceFile, visitor) as SourceFile;
-
-    if (needsFileURLToPath) {
-      const urlImport = factory.createImportDeclaration(
-        undefined,
-        factory.createImportClause(
-          false,
-          undefined,
-          factory.createNamedImports([
-            factory.createImportSpecifier(
-              false,
-              undefined,
-              factory.createIdentifier("fileURLToPath"),
-            ),
-          ]),
-        ),
-        factory.createStringLiteral("url"),
-      );
-      const pathImport = factory.createImportDeclaration(
-        undefined,
-        factory.createImportClause(false, factory.createIdentifier("path"), undefined),
-        factory.createStringLiteral("path"),
-      );
-      transformedFile = factory.updateSourceFile(transformedFile, [
-        urlImport,
-        pathImport,
-        ...transformedFile.statements,
-      ]);
-    }
-
-    return transformedFile;
-  };
-
-export const aliasResolverTransformer: TransformerFactory<SourceFile> =
-  (context) => (sourceFile) => {
-    const visitor = (node: Node): VisitResult<Node> => {
-      if (
-        (isImportDeclaration(node) || isExportDeclaration(node)) &&
-        node.moduleSpecifier &&
-        isStringLiteral(node.moduleSpecifier)
-      ) {
-        const specifier = node.moduleSpecifier.text;
-        for (const [alias, target] of Object.entries(compileAliases)) {
-          if (specifier.startsWith(alias)) {
-            const cwd = process.cwd();
-            const sourceDir = path.dirname(path.resolve(sourceFile.fileName));
-            const targetDir = path.resolve(cwd, target);
-
-            let relativePath = path.relative(sourceDir, targetDir).replace(/\\/g, "/");
-            if (!relativePath.startsWith(".")) relativePath = "./" + relativePath;
-
-            const remaining = specifier.slice(alias.length);
-            const newSpecifier = factory.createStringLiteral(relativePath + remaining);
-
-            if (isImportDeclaration(node)) {
-              return factory.updateImportDeclaration(
-                node,
-                node.modifiers,
-                node.importClause,
-                newSpecifier,
-                node.assertClause,
-              );
-            }
-            return factory.updateExportDeclaration(
-              node,
-              node.modifiers,
-              node.isTypeOnly,
-              node.exportClause,
-              newSpecifier,
-              node.assertClause,
-            );
-          }
         }
       }
       return visitEachChild(node, visitor, context);

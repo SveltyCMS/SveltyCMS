@@ -3,8 +3,13 @@
 @component
 **SveltyCMS Toggle Switch — WCAG 3.0 Ready**
 
-iOS-style toggle switch with on/off icons, three sizes, label, description,
-and `role="switch"` with `aria-checked` for maximum screen reader support.
+* iOS-style toggle switch with three sizes, label, description, and
+* `role="switch"` with `aria-checked` for maximum screen reader support.
+*
+* The off state is **neutral**, not red: "off" is not an error. The brand ramp
+* marks on, and the thumb carries the state by position (plus an optional icon
+* pair) instead of the old ON/OFF text, which forced a thumb large enough to
+* make every switch look like a primary button.
 
 ### Props
 - `value` (boolean): Bindable toggle state.
@@ -19,19 +24,22 @@ and `role="switch"` with `aria-checked` for maximum screen reader support.
 
 ### Features:
 - WCAG 3.0 ready with `role="switch"`, `aria-checked`, and `<label>` association
-- green (on) / red (off) color transition on track
-- sm/md/lg sizes with proportional thumb and icons
+- neutral (off) / brand (on) track, no error red for a normal off state
+- sm/md/lg sizes with proportional thumb and optional icons
 - full Svelte 5 runes: $props, $bindable, $derived
 -->
 
 <script lang="ts">
 	import { cn } from '@utils/cn';
 	import { generateId } from '@utils/id-generator';
+	import type { Snippet } from 'svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
 
 	type Props = {
 		value?: boolean;
 		label?: string;
+		/** Rich label content (e.g. text + a `?` help trigger); wins over `label`. */
+		labelSnippet?: Snippet;
 		/** Accessible name for the switch when no visible `label` is rendered. */
 		ariaLabel?: string;
 		labelClass?: string;
@@ -48,9 +56,10 @@ and `role="switch"` with `aria-checked` for maximum screen reader support.
 	let {
 		value = $bindable(false),
 		label,
+		labelSnippet,
 		ariaLabel,
 		labelClass,
-		labelColor = 'text-tertiary-500 dark:text-primary-500',
+		labelColor = 'text-(--admin-text-body)',
 		description,
 		disabled = false,
 		iconOn,
@@ -61,28 +70,28 @@ and `role="switch"` with `aria-checked` for maximum screen reader support.
 		...rest
 	}: Props = $props();
 
-	// Sizes
+	// Every size keeps a 2px inset: track width − thumb width − 2 × inset = on position.
 	const sizes = {
 		sm: {
-			track: 'h-6 w-10 min-w-[40px]',
+			track: 'h-5 w-9 min-w-9',
 			thumb: 'h-4 w-4',
-			translateOn: 'translate-x-5',
-			translateOff: 'translate-x-1',
-			icon: '16'
+			translateOn: 'translate-x-[18px]',
+			translateOff: 'translate-x-[2px]',
+			icon: '12'
 		},
 		md: {
-			track: 'h-8 w-14 min-w-[48px]',
-			thumb: 'h-6 w-6',
-			translateOn: 'translate-x-7',
-			translateOff: 'translate-x-1',
-			icon: '24'
+			track: 'h-6 w-11 min-w-11',
+			thumb: 'h-5 w-5',
+			translateOn: 'translate-x-[22px]',
+			translateOff: 'translate-x-[2px]',
+			icon: '14'
 		},
 		lg: {
-			track: 'h-10 w-20 min-w-[56px]',
-			thumb: 'h-8 w-8',
-			translateOn: 'translate-x-11',
-			translateOff: 'translate-x-1',
-			icon: '32'
+			track: 'h-7 w-[52px] min-w-[52px]',
+			thumb: 'h-6 w-6',
+			translateOn: 'translate-x-[26px]',
+			translateOff: 'translate-x-[2px]',
+			icon: '18'
 		}
 	};
 
@@ -109,9 +118,9 @@ and `role="switch"` with `aria-checked` for maximum screen reader support.
 		<button
 			type="button"
 			class={cn(
-				'pointer-events-auto relative inline-flex shrink-0 items-center rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-surface-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:focus:ring-surface-300 dark:ring-offset-surface-950',
+				'pointer-events-auto relative inline-flex shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-surface-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:focus:ring-surface-300 dark:ring-offset-surface-950',
 				sizes[size].track,
-				value ? 'bg-tertiary-500 dark:bg-primary-500' : 'bg-error-500 transition-colors'
+				value ? 'bg-tertiary-500 dark:bg-primary-500' : 'bg-surface-500/40 dark:bg-surface-600'
 			)}
 			onclick={toggle}
 			{disabled}
@@ -134,37 +143,33 @@ and `role="switch"` with `aria-checked` for maximum screen reader support.
 						icon={value ? iconOn : iconOff}
 						width={sizes[size].icon}
 						class={cn(
-							value ? 'text-tertiary-500 dark:text-primary-500' : 'text-error-500',
+							value
+								? 'text-tertiary-500 dark:text-primary-500'
+								: 'text-surface-600 dark:text-surface-400',
 							disabled && 'text-surface-600'
 						)}
 					></iconify-icon>
-				{:else}
-					<span
-						class={cn(
-							'text-[10px] font-bold',
-							value ? 'text-tertiary-500 dark:text-primary-500' : 'text-error-500',
-							disabled && 'text-surface-600'
-						)}
-					>
-						{value ? 'ON' : 'OFF'}
-					</span>
 				{/if}
 			</span>
 		</button>
 	</div>
 
-	{#if label || description}
+	{#if label || labelSnippet || description}
 		<div class="grid gap-1.5 leading-none">
-			{#if label}
+			{#if label || labelSnippet}
 				<label
 					for={id}
 					class={cn(
 						'text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70',
-						value ? 'text-tertiary-500 dark:text-primary-500' : labelColor,
+						labelColor,
 						labelClass
 					)}
 				>
-					{label}
+					{#if labelSnippet}
+						{@render labelSnippet()}
+					{:else}
+						{label}
+					{/if}
 				</label>
 			{/if}
 			{#if description}

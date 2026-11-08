@@ -54,7 +54,7 @@ flowchart TB
 
   subgraph Platform["Core platform"]
     ENG["collection-filter-engine"]
-    CS[CollectionService]
+    CS[CollectionsNamespace]
     QB[QueryBuilder]
     CACHE["cacheService.getOrSetSWR"]
   end
@@ -75,13 +75,14 @@ flowchart TB
 
 ### Module map
 
-| Module                                   | Runtime          | Responsibility                                               |
-| ---------------------------------------- | ---------------- | ------------------------------------------------------------ |
-| `@utils/collection-filter-defs`          | Browser + server | Widget → control type, unsafe widgets, number-range encode   |
-| `@utils/collection-query-filters`        | Browser + server | URL parse, schema id whitelist, stable hash, cache key shape |
-| `services/core/collection-filter-engine` | Server           | FLAC resolve, secure compile, apply to QueryBuilder          |
-| `services/core/collection-service`       | Server           | SWR cache + load path using the engine                       |
-| `create-smart-filter.svelte.ts`          | Browser          | Reactive URL/filter state for admin tables                   |
+| Module                                   | Runtime          | Responsibility                                             |
+| ---------------------------------------- | ---------------- | ---------------------------------------------------------- |
+| `@utils/collection-filter-defs`          | Browser + server | Widget → control type, unsafe widgets, number-range encode |
+| `@utils/collection-query-filter-meta`    | Browser + server | URL prefix, filter map types, stable query hash            |
+| `@utils/collection-query-filters.server` | Server           | URL parse, schema id whitelist, coercion, cache key shape  |
+| `services/core/collection-filter-engine` | Server           | FLAC resolve, secure compile, apply to QueryBuilder        |
+| `services/sdk/namespaces/collections`    | Server           | SWR cache + load path (`CollectionsNamespace.find`)        |
+| `create-smart-filter.svelte.ts`          | Browser          | Reactive URL/filter state for admin tables                 |
 
 ---
 
@@ -124,7 +125,7 @@ Client filter keys
 | `text` (single)              | partial                 | `search(value, [field])`                                          |
 | Global `?search=`            | FTS                     | `search(q, searchableFields)`                                     |
 
-**Facets:** `CollectionService.getStatusFacets` / `countStatusFacets` → entry-list `SmartTableStatusFacets` chips
+**Facets:** `CollectionsNamespace.getStatusFacets` / `cms.collections.getStatusFacets` → entry-list `SmartTableStatusFacets` chips
 
 **Metrics:** `recordListQuery` on list loads; SSR snapshot as `listMetrics` → `SmartTableMetricsBadge` when `?debug=table`
 
@@ -132,7 +133,7 @@ This replaces the previous anti-pattern of passing `{ field: { contains: "x" } }
 
 ---
 
-## List load path (`CollectionService`)
+## List load path (`CollectionsNamespace.find`)
 
 Editorial lists do **not** require a full `findMany` + uncached `COUNT` on every request:
 
@@ -179,7 +180,7 @@ User id is part of the key so FLAC-different roles never share a poisoned cache 
 
 | Surface                              | How to integrate                                                       |
 | ------------------------------------ | ---------------------------------------------------------------------- |
-| **entry-list**                       | `createSmartFilter` + URL → SSR → CollectionService (current)          |
+| **entry-list**                       | `createSmartFilter` + URL → SSR → `CollectionsNamespace.find`          |
 | **REST `GET /api/collections/{id}`** | Parse query → `compileSecureFilters` → LocalCMS / QueryBuilder         |
 | **GraphQL list args**                | Map args → `CollectionFilterMap` → same engine                         |
 | **LocalCMS / SDK**                   | `compileAndApplyFilters(qb, raw, schema, user)`                        |

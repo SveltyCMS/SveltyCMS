@@ -56,7 +56,7 @@ if (!(globalThis as any)[SHIM_KEY]) {
           try {
             v8Module.startupSnapshot.isBuildingSnapshot = () => false;
             v8Module.startupSnapshot.addDeserializeCallback = () => {};
-          } catch {}
+          } catch {} // catch-allow: snapshot shim must not depend on the logger
         }
 
         // Return a frozen object to prevent downstream modification of the shim

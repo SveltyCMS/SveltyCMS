@@ -27,3 +27,40 @@ export function fieldDeclaresGuard(field: FieldInstance): boolean {
   const extra = field as { hidden?: boolean; visibility?: string };
   return Boolean(extra.hidden || extra.visibility === "hidden" || extra.visibility === "private");
 }
+
+/** Child fields of a group/object/repeater (`fields`, or `of.fields` on older shapes). */
+export function childFieldsOf(field: unknown): readonly FieldInstance[] {
+  if (!field || typeof field !== "object") return [];
+  const asRecord = field as { fields?: unknown; of?: { fields?: unknown } };
+  if (Array.isArray(asRecord.fields)) return asRecord.fields as FieldInstance[];
+  if (Array.isArray(asRecord.of?.fields)) return asRecord.of.fields as FieldInstance[];
+  return [];
+}
+
+/**
+ * True when this field or ANY descendant declares a guard.
+ * A top-level scan misses `group.salary` / `repeater.items.cost`, which makes the
+ * whole collection look unguarded and bypasses redaction and filter blocking.
+ */
+export function fieldDeclaresGuardDeep(field: unknown): boolean {
+  if (!field || typeof field !== "object") return false;
+  if (fieldDeclaresGuard(field as FieldInstance)) return true;
+  return childFieldsOf(field).some(fieldDeclaresGuardDeep);
+}
+
+/**
+ * Dotted paths of every guarded field below `fields` (own guard included).
+ * Used to block nested filters (`filter[team.salary]`), mirroring redaction.
+ */
+export function collectGuardedFieldPaths(fields: readonly FieldInstance[], prefix = ""): string[] {
+  const out: string[] = [];
+  for (const field of fields) {
+    const name = (field.db_fieldName || (field as { name?: string }).name) as string | undefined;
+    if (!name) continue;
+    const path = prefix ? `${prefix}.${name}` : name;
+    if (fieldDeclaresGuard(field)) out.push(path);
+    const children = childFieldsOf(field);
+    if (children.length > 0) out.push(...collectGuardedFieldPaths(children, path));
+  }
+  return out;
+}

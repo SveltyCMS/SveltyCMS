@@ -576,7 +576,10 @@ describe("Security Utils Baseline — pure per-request modules", () => {
 
     // Boundary: `my_auth_sessions_extra` must not match `auth_sessions`.
     expect(readSessionIdFromCookieHeader(COOKIE_HEADER, true)).toBe(SESSION_VALUE);
-    expect(readSessionIdFromCookieHeader("auth_sessions=plain; theme=dark", true)).toBe("plain");
+    // Secure mode accepts ONLY `__Host-`: a plain cookie may carry a Domain
+    // attribute and can be planted by a sibling subdomain.
+    expect(readSessionIdFromCookieHeader("auth_sessions=plain; theme=dark", true)).toBeUndefined();
+    expect(readSessionIdFromCookieHeader("auth_sessions=plain; theme=dark", false)).toBe("plain");
     expect(readSessionIdFromCookieHeader("", true)).toBeUndefined();
 
     recordBenchmark(

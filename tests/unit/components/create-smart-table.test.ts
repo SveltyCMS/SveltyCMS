@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { createSmartTable } from "@components/ui/smart-table";
+import { createSmartTable } from "@components/ui/smart-table/create-smart-table.svelte";
 
 describe("createSmartTable", () => {
   it("server mode keeps rows as provided page slice and emits query on sort/page", () => {
@@ -163,6 +163,26 @@ describe("createSmartTable", () => {
     // Switching back restores saved layout prefs
     table.setLayoutKey("test-table-1");
     expect(table.columnWidths.col1).toBe(180);
+  });
+
+  it("resets table prefs when a layout key has nothing saved", () => {
+    const table = createSmartTable({
+      mode: "client",
+      layoutKey: "test-layout-reset-a",
+    });
+    table.setPaginationMeta({ pagesCount: 5, totalItems: 50, pageSize: 10 });
+    table.setPage(3);
+    table.setDensity("compact");
+    table.setViewMode("card");
+    table.setPageSize(25);
+
+    // A key with no saved prefs must not inherit the previous key's layout.
+    table.setLayoutKey("test-layout-reset-empty-b");
+    expect(table.density).toBe("normal");
+    expect(table.viewMode).toBe("table");
+    expect(table.pagination.pageSize).toBe(10);
+    expect(table.pagination.currentPage).toBe(1);
+    expect(table.columnWidths).toEqual({});
   });
 
   it("composes multi-column sort with Shift (multi: true) and emits field:dir list", () => {

@@ -12,20 +12,19 @@ name: CodeQL
 # the default setup is enabled").
 #
 # - Default setup: continuous results on `main` pushes and PRs (GitHub-managed)
-# - This workflow: `next` pushes, manual and weekly advanced queries
-#   (security-extended), no upload while default setup is on. Re-enable upload
-#   after disabling default setup.
+# - This workflow: manual and weekly advanced queries (security-extended), no
+#   upload while default setup is on. Re-enable upload after disabling default
+#   setup.
+#
+# It deliberately does not run on `next` pushes: default setup already scans the
+# PR that lands them, and `upload: never` means a push run would only prove the
+# analysis completes while discarding every finding. Switch the repository to
+# advanced setup (then drop `upload: never`) to make `next` coverage useful.
 
 on:
   workflow_dispatch:
   schedule:
     - cron: "17 3 * * 1"
-  # GitHub default setup scans the default branch (`main`) and PRs only, so a
-  # push to `next` never gets a CodeQL analysis. Run this advanced workflow on
-  # `next` pushes too (`upload: never` keeps it compatible with default setup).
-  # Remove the branch restriction after switching the repo to advanced setup.
-  push:
-    branches: [next]
 
 concurrency:
   group: codeql-${{ github.ref }}

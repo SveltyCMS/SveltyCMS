@@ -5,7 +5,7 @@
  * widget payloads. No DB I/O — the dashboard handler fetches via LocalCMS
  * and maps here so widgets stay collection-schema-agnostic.
  *
- * Field names match `src/routes/setup/presets.ts` (`inventory`, `orderNumber`,
+ * Field names match `src/services/setup/presets.server.ts` (`inventory`, `orderNumber`,
  * `customerEmail`, `lowStockThreshold`, `variants`) plus aliases used by
  * Smart Importer / the commerce plan (`inventoryQty`).
  *

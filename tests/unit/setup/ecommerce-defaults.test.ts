@@ -5,7 +5,7 @@
 
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 import type { DatabaseAdapter } from "@src/databases/db-interface";
-import { seedEcommerceDefaults } from "@src/routes/setup/seed";
+import { seedEcommerceDefaults } from "@src/services/setup/seed";
 import { describe, expect, it, vi } from "vitest";
 
 function createMockAdapter(rowsByCollection: Record<string, unknown>) {

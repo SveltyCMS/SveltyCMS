@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:sitemap"
 author: "SveltyCMS Team"
 created: "2026-02-16"
-updated: "2026-11-01"
+updated: "2026-11-07"
 tags:
   - "architecture"
   - "media"
@@ -162,6 +162,26 @@ Implementation:
 
 ---
 
+## Listing, server search & the windowed grid
+
+The gallery never searches what it has already downloaded. `?q=` is a **server** query: `+page.server.ts` passes `search` to `media.files.getByFolder`, and every adapter filters on `filename` / `originalFilename` (`LIKE` on SQLite/PostgreSQL/MariaDB, escaped case-insensitive `$regex` on MongoDB). `?q=` therefore finds rows the client has never fetched, and a new query deletes `?page=` so the result set starts at page 1.
+
+| Concern           | Contract                                                                                                        |
+| :---------------- | :-------------------------------------------------------------------------------------------------------------- |
+| Page size         | `GALLERY_PAGE_SIZE = 100`; `?page=` is clamped to 10,000                                                        |
+| Search            | `?q=` (legacy `?search=` accepted), trimmed and capped at 100 chars; 300 ms debounce in `media-search-query.ts` |
+| Count             | the “x of y” label uses the adapter COUNT, never the rendered slice                                             |
+| Sorting           | `?sort=` / `?dir=` mapped onto the adapter's `sort`/`dir` contract                                              |
+| Structured filter | `?jsonPath=` (see above)                                                                                        |
+
+**Rendering.** Up to 500 loaded rows the grid keeps the original progressive reveal: 60 tiles, then 60 more each time the sentinel enters the scroll root. Above 500 rows it switches to a **window**: only the rows in view plus 3 overscan rows each side stay mounted, and top/bottom spacers preserve the exact scroll range of the full list. Geometry (columns, row height, gap) is measured once per layout and re-measured on resize; the math lives in `grid-window.ts`. Tiles also carry `content-visibility: auto` with a density-specific `contain-intrinsic-size`. Shift-range selection ranges over the full result list, not the mounted window, so an anchor outside the viewport still selects correctly.
+
+The sentinel is re-armed on a result-head change (`revealEpoch`) and the scroll handler also reveals/loads when it is within 600 px of the bottom — `IntersectionObserver` only reports threshold _changes_, so a reset alone could otherwise leave it silent.
+
+Implementation: `src/routes/(app)/mediagallery/media-grid.svelte`, `+page.svelte`, `+page.server.ts`, `grid-window.ts`, `media-search-query.ts`. Tests: `tests/unit/routes/mediagallery-grid-window.test.ts`, `tests/unit/routes/mediagallery-search-query.test.ts`, `tests/unit/components/dom/media-grid-virtual-window.test.ts`, `tests/e2e/routes/mediagallery/{large-library,media-pagination}.spec.ts`.
+
+---
+
 ## Upload Progress & Cancel
 
 | Feature        | Implementation                                                |
@@ -231,7 +251,9 @@ SveltyCMS employs a high-performance ingestion and delivery pipeline designed fo
 - **Derivative ladder (SIZES)**: `saveResized()` (`media-storage.server.ts`) writes one output per configured `SIZES` step into `{tenantId}/{size}/<name>-<hash>.<ext>` — **JPEG by default**, see [Derivative output format](#derivative-output-format) for the setting, the opt-ins and the measured cost. Two invariants hold: a step **wider than the decoded source is dropped** (plus `withoutEnlargement` at the encoder), so a 400 px icon produces the 200 px step only, and **each resolved path is written once** — a source that is already WebP no longer encodes its own primary twice. The `thumbnails` map records the encoder's real output dimensions; steps that were clamped away are simply absent, which `mediaUrl`/`mediaDisplayUrl` fall back from. Measured 2026-09-22: a 400 px source went from 8 files / 16,984 B to 2 files / 600 B.
 - **Responsive variants (deferred coalescer)**: after the record exists, deferred jobs derive `thumbnail`/`card`/`default` presets under `{tenantId}/{hash}/variants/{preset}-{width}.{format}` through a single-flight FIFO coalescer (`variant-job-scheduler.server.ts`, bounded by `SVELTY_VARIANT_JOBS`, default 2). Concurrent uploads of identical bytes share a single preset pipeline run, and bulk imports queue in waves to protect memory and CPU. Every upload lands with `metadata.processingStatus: "processing"`; the job flips it to `ready` (or `failed`, with `processingError`) in the media document. Full consolidation of this pass into the SIZES ladder is tracked in [2026 Roadmap](../../project/roadmap-2026.mdx).
 - **AI-Native Tagging [WIP]**: A conceptual background task that hooks into local Ollama (`llava`) for privacy-first image analysis.
-- **Document Thumbnails**: Automated extraction of PDF first-pages (requires `imagemagick`).
+- **Document Thumbnails**: `buildDocumentPreview()` (`media-storage.server.ts`) is the single preview entry point for non-image documents — the upload pipeline and the `process-media` job both call it, and a CLI backfill can import it. PDF first pages are rendered with bundled PDFium (WebAssembly) — no ImageMagick/Ghostscript install is required. CSV/TSV files render their first rows as a spreadsheet-style preview. Office documents (`.docx/.xlsx/.pptx/.odt/.ods/.odp`) are **optional**: when a LibreOffice binary (`soffice`, falling back to `libreoffice`) is on `PATH`, the buffer is converted to PDF in a throw-away temp dir (30 s hard timeout, per-run user profile) and page 1 goes through the same PDF path. A missing or failing converter never fails the upload — it logs once per process and the tile keeps its file icon. Every preview runs through the normal `SIZES` ladder and is used by the gallery grid/table; a byte-identical re-upload backfills a document row uploaded before this pipeline existed.
+- **Preview backfill**: `bun run media:backfill-previews --dry-run` reports document rows uploaded before the preview pipeline whose `thumbnails` map is still empty (narrow with `--tenant=<id>`, `--kind=pdf|csv|office|all`, `--limit=N`); re-running with `--apply` repairs those rows in place by generating the ladder and persisting `thumbnails` + `updatedAt`.
+- **Deferred document/video previews**: documents streamed above the 5 MB buffering threshold and videos of any size are handed to the `process-media` job after the record exists (`jobQueue.dispatch` from a dynamic import, fire-and-forget), so the upload response never waits for LibreOffice or ffmpeg. Video thumbnails capture the 1 s frame without a temp JPEG: non-ISO-BMFF containers (WebM/Matroska/FLV/Ogg) are piped stdin→stdout with no temp files, ISO-BMFF (MP4/MOV) keeps a seekable temp input but streams the JPEG to stdout, and any pipe failure falls back to the bounded temp path (500 MB cap, 30 s SIGKILL timeout). The handler always settles `metadata.processingStatus` — `ready` when the asset is servable even without a thumbnail, `failed` plus `processingError` when generation threw — so a host without the optional tools never leaves a row stuck on `processing`.
 
 ### Phase III: Storage & Deduplication
 
@@ -285,7 +307,7 @@ The format comes from the public setting `MEDIA_OUTPUT_FORMAT_QUALITY` (`{ forma
 
 - **Opting into WebP/AVIF** — set the same record, e.g. `{ "format": "webp", "quality": 80 }` or `{ "format": "avif", "quality": 50 }`. The setup wizard seeds `{ "format": "jpeg", "quality": 80 }` for new installs; the value is stored per tenant with the other public settings (`setPublicSetting` / `cms.system.settings.set`). Nested-object settings such as this one and `IMAGE_SIZES` are not part of the System Settings form yet.
 - **Existing installs keep what they stored.** A site that already saved `{ "format": "webp" }` keeps producing WebP until the value is changed — a stored setting always wins over the default.
-- **Fail safe**: an absent or unrecognised `format` (e.g. `heic`) falls back to JPEG (`normalizeDerivativeFormat()` in `media-models.ts`), so derivatives are never skipped over a typo.
+- **Fail safe**: an absent or unrecognised `format` (e.g. `heic`) falls back to JPEG (`normalizeDerivativeFormat()` in `media-values.ts`), so derivatives are never skipped over a typo.
 - **Transparency is preserved**: JPEG has no alpha channel, so a source whose decoded `hasAlpha` is true is written as WebP for that ladder instead of being flattened onto the encoder's background.
 - **WebP sidecars** belong to `original` mode — the pre-2026-09 pairing of a source-format primary with a modern-format alternative. An explicit `jpeg`/`webp`/`avif` writes exactly one file per step; a per-request alternative is available from the delivery route (`/files/**?fmt=webp`, or `Accept` negotiation).
 - **Unchanged**: the original upload is stored byte-for-byte and never re-encoded, and the 32 px LQIP lives on its own rule (`metadata.placeholder` stays a WebP data-URI, `media-processing.server.ts`).
@@ -456,6 +478,14 @@ The DAM API endpoints are wired into native Svelte 5 admin surfaces — no third
 | **Adaptive HLS playback** | Details modal → `hls-video-player.svelte`                | `metadata.hls.master`; native HLS or lazy `hls.js`         |
 | **Video transcoding**     | Details modal → Transcode → `transcode-modal.svelte`     | `POST /api/media/transcode` (ffmpeg; `503` when absent)    |
 
+### Gallery affordances
+
+- **Filenames are always visible** on every grid tile (bottom gradient strip). The earlier hover-only reveal forced users to probe tiles to know what they were looking at, and touch devices never hovered at all.
+- **Native browser tooltips are not used in the gallery.** The drag hint on a tile and the per-field help in Advanced Search render through `@components/ui/tooltip.svelte` (portaled, WCAG 3.0 `role="tooltip"` + `aria-describedby`), so they follow the theme and cannot be clipped by the grid's scroll container.
+- **Advanced Search labels carry a `?` trigger** per field (`HelpIcon` inside `Tooltip`, `tabindex={0}` so the help is reachable from the keyboard). The label text stays the control's accessible name; the tooltip only explains the filter.
+- **The tile actions keep `media-grid-action-tooltip.svelte`** rather than the shared `Tooltip`: the icon column stacks against the scroll edge, and positioning from each button's own rect avoids the shared-anchor drift that file was written to fix.
+- The grid scrolls with `px-2 sm:px-3` insets so the first and last tile never sit against the card border; the details tooltip shows the filename alone (no `File NAME :` label) and wraps long names instead of overflowing the panel.
+
 ### Media Details Modal
 
 `media-details-modal.svelte` is the asset control center with four tabs:
@@ -590,34 +620,23 @@ await parseMultipartStream(request, {
 
 ### Design
 
-`media-models.ts` uses `as const` maps (not enums) for tree-shakable, JSON-safe value lists. Each map doubles as the runtime valid-value list:
+`media-values.ts` holds the runtime surface (`as const` maps, guards, normalisers) and `media-models.ts` holds the type surface. The split exists so a client component can import one runtime value without charging the whole type module to the client graph; `media-models.ts` imports `MediaTypeEnum` from the leaf and creates no reverse runtime edge. `media-values.ts` uses `as const` maps (not enums) for tree-shakable, JSON-safe value lists. Each map doubles as the runtime valid-value list:
 
 ```typescript
 // Type guards — narrow discriminated union at runtime
-if (isMediaImage(item)) item.width;           // MediaImage
-if (isStoredMedia(item)) item.hash;           // StoredMedia (excludes remote video)
-if (isMediaOfType(item, MediaType.Video)) item.duration; // MediaVideo
+if (isMediaImage(item)) item.width; // MediaImage
+if (isStoredMedia(item)) item.hash; // StoredMedia (excludes remote video)
 
 // DTO types — server-assigned fields rejected at compile time
-const draft: NewMedia<MediaImage> = { ... };  // no _id, hash, url, createdBy
-const patch: MediaPatch = { alt: "photo" };   // PATCH-safe fields only
-
-// Exhaustiveness — add a new media type and every switch fails to compile
-switch (item.type) {
-  case MediaType.Image:    return item.width;
-  case MediaType.RemoteVideo: return item.provider;
-  // ...
-  default: return assertNever(item);
-}
+const draft: NewMedia<MediaImage> = { ... }; // no _id, hash, url, createdBy
+const patch: MediaPatch = { alt: "photo" }; // PATCH-safe fields only
 ```
 
-| Improvement         | Before                                      | After                                                    |
-| :------------------ | :------------------------------------------ | :------------------------------------------------------- |
-| Type safety         | `any` everywhere, zero guards               | Discriminated union + 7 type guards                      |
-| DTO safety          | Client could PATCH `hash`/`url`/`createdBy` | `NewMedia<T>`, `MediaPatch` block server-assigned fields |
-| Exhaustiveness      | Missing type = silent bug                   | `assertNever()` catches at compile time                  |
-| Tree-shaking        | `enum` blocks `erasableSyntaxOnly`          | `as const` maps are fully erasable                       |
-| Watermark positions | Sharp-rejected `"top"`/`"bottom"`           | `normalizeWatermarkPosition()` maps to compass values    |
+| Improvement  | Before                                      | After                                                    |
+| :----------- | :------------------------------------------ | :------------------------------------------------------- |
+| Type safety  | `any` everywhere, zero guards               | Discriminated union + type guards                        |
+| DTO safety   | Client could PATCH `hash`/`url`/`createdBy` | `NewMedia<T>`, `MediaPatch` block server-assigned fields |
+| Tree-shaking | `enum` blocks `erasableSyntaxOnly`          | `as const` maps are fully erasable                       |
 
 ---
 

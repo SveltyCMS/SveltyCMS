@@ -5,7 +5,7 @@ and renders it inside the admin shell with server props.
 -->
 
 <script lang="ts">
-	import '@src/plugins/index';
+	import '@src/plugins/client';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import Loader from '@components/ui/loader.svelte';
 	import { pluginPageRegistry } from '@src/plugins/plugin-page-registry.svelte.ts';

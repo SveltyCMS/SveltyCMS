@@ -195,6 +195,17 @@ export function isChunkedExportResponse(response: Response): boolean {
   );
 }
 
+/** True when the dispatcher must not buffer the body: SSE or any chunked transfer. */
+export function isStreamingResponse(response: Response): boolean {
+  const contentType = response.headers.get("content-type") || "";
+  // `streamingJsonResponse()` streams with an `application/json` content type plus
+  // `Transfer-Encoding: chunked`, which `isChunkedExportResponse()` does not match.
+  return (
+    contentType.includes("text/event-stream") ||
+    (response.headers.get("transfer-encoding") || "").toLowerCase().includes("chunked")
+  );
+}
+
 export function streamingExportResponse(
   iterator: AsyncIterable<any> | any[],
   options: StreamingExportOptions,

@@ -11,7 +11,7 @@
  * - shared by createWidget, widget-store register, marketplace install
  */
 
-import pkg from "../../package.json";
+import { version as pkgVersion } from "../../package.json";
 
 export type WidgetImportTier = "core" | "custom" | "marketplace" | "dashboard" | "plugin";
 
@@ -51,19 +51,19 @@ export function getCmsVersion(): string {
   } catch {
     /* ignore */
   }
-  if (pkg?.version && SEMVER_FULL.test(pkg.version)) {
-    cachedCmsVersion = pkg.version;
+  if (pkgVersion && SEMVER_FULL.test(pkgVersion)) {
+    cachedCmsVersion = pkgVersion;
     return cachedCmsVersion;
   }
   cachedCmsVersion = "0.1.3";
   return cachedCmsVersion;
 }
 
-export function isSemver(value: string): boolean {
+function isSemver(value: string): boolean {
   return SEMVER_FULL.test(value.trim());
 }
 
-export function parseSemver(value: string): [number, number, number] | null {
+function parseSemver(value: string): [number, number, number] | null {
   const m = String(value).trim().match(SEMVER_CORE);
   if (!m) return null;
   return [Number(m[1]), Number(m[2]), Number(m[3])];

@@ -160,8 +160,9 @@ export async function invalidateAllCaches(tenantId: DatabaseId) {
     // The settings-service cache is a separate in-memory map — resets wipe the
     // DB rows but not this cache, so post-reset requests would keep serving
     // stale public settings (e.g. SITE_STARTER_ENABLED) until the next boot.
-    const { invalidateSettingsCache } = await loadSettingsServiceModule();
-    invalidateSettingsCache(tenantId);
+    // Hard-clear: `invalidateSettingsCache` keeps the snapshot for sync readers.
+    const { clearSettingsCache } = await loadSettingsServiceModule();
+    clearSettingsCache(tenantId);
 
     const { apiSpecService } = await import("@services/system/api-spec-service");
     await apiSpecService.invalidateCache(tenantId);
@@ -180,9 +181,16 @@ export async function invalidateAllCaches(tenantId: DatabaseId) {
  * Wipe the media folder and recreate it empty.
  */
 export async function wipeMediaFolder() {
-  const { getPublicSettingSync } = await loadSettingsServiceModule();
-  const mediaRoot = getPublicSettingSync("MEDIA_FOLDER") || "mediaFolder";
+  // Resolve through the adapter helper so a harness `MEDIA_FOLDER` (E2E/
+  // benchmarks) wins over the persisted dev setting. Reading the DB setting
+  // directly wiped `./mediaFolder` — the developer's real library — whenever a
+  // test run isolated its uploads to another root.
+  const { assertHarnessMediaFolderWritable, resolveConfiguredMediaFolder } =
+    await import("@utils/media/storage-adapters");
+  const mediaRoot = resolveConfiguredMediaFolder() || "mediaFolder";
+  assertHarnessMediaFolderWritable(mediaRoot);
   const fullMediaRoot = path.resolve(process.cwd(), mediaRoot);
+  assertHarnessMediaFolderWritable(fullMediaRoot);
   if (fs.existsSync(fullMediaRoot)) {
     try {
       await fsp.rm(fullMediaRoot, { recursive: true, force: true });

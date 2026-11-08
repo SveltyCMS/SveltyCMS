@@ -21,6 +21,7 @@
 import { createHash, timingSafeEqual as nodeTimingSafeEqual } from "node:crypto";
 import { getTestSecret } from "@utils/server/setup-check";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
+import { logger } from "@utils/logger";
 
 // ── Shared test-secret resolution (single source for middleware gates) ─────
 // Moved here from handle-security.ts so the rate-limit hook does not depend on
@@ -49,7 +50,9 @@ export function getMasterSecret(): string | undefined {
       cachedMasterSecret = settingsSecret;
       return settingsSecret;
     }
-  } catch {}
+  } catch (error) {
+    logger.debug("[test-bypass.server] suppressed error", error);
+  }
   cachedMasterSecret = "";
 
   try {

@@ -40,8 +40,13 @@
 			.filter((u) => u.length > 0 && /^https?:\/\//i.test(u));
 	}
 
+	const parsedUrls = $derived(parseUrls(urlsText));
+	const ignoredLines = $derived(
+		urlsText.split('\n').filter((line) => line.trim().length > 0).length - parsedUrls.length
+	);
+
 	async function uploadRemoteUrls() {
-		const remoteUrls = parseUrls(urlsText);
+		const remoteUrls = parsedUrls;
 		if (remoteUrls.length === 0) {
 			toast.warning('Enter at least one valid http(s) URL (one per line)');
 			return;
@@ -51,7 +56,23 @@
 		try {
 			const result = await uploadRemoteUrlsRemote({ urls: remoteUrls, folder });
 			if (result.success) {
-				toast.success('Remote URLs submitted');
+				const processed = result.processed ?? remoteUrls.length;
+				const failed = result.failed ?? 0;
+				if (failed > 0) {
+					const details = (result.errors ?? [])
+						.slice(0, 3)
+						.map((entry) => entry.message)
+						.join('; ');
+					toast.warning(
+						`Imported ${processed} of ${processed + failed} URLs${details ? ` — ${details}` : ''}`
+					);
+					// Keep the text so the user can retry the URLs that failed.
+					return;
+				}
+
+				toast.success(
+					processed === 1 ? 'Imported 1 remote URL' : `Imported ${processed} remote URLs`
+				);
 				urlsText = '';
 				onUploadComplete?.();
 			} else {
@@ -89,6 +110,11 @@
 	/>
 	<p class="text-xs text-(--admin-text-muted)">
 		{mediagallery_remote_hint()}
+	</p>
+	<p class="text-xs text-(--admin-text-muted)" aria-live="polite" data-testid="remote-url-count">
+		{parsedUrls.length}
+		{parsedUrls.length === 1 ? 'valid URL' : 'valid URLs'} ready{#if ignoredLines > 0}
+			· {ignoredLines} ignored{/if}
 	</p>
 	<Button
 		variant="tertiary"

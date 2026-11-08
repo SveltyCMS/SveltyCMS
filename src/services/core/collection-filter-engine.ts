@@ -28,11 +28,8 @@ import {
   type FilterControlType,
   type SmartFilterDefinition,
 } from "@utils/collection-filter-defs";
-import {
-  getSearchableFieldNames,
-  hashQueryPayload,
-  type CollectionFilterMap,
-} from "@utils/collection-query-filters";
+import { hashQueryPayload, type CollectionFilterMap } from "@utils/collection-query-filter-meta";
+import { getSearchableFieldNames } from "@utils/collection-query-filters.server";
 import { canAccessField } from "@utils/field-access";
 import { getFieldName } from "@utils/schema/field-utils";
 import { logger } from "@utils/logger";
@@ -149,7 +146,7 @@ export function resolveFilterableFields(
 /**
  * Searchable field names restricted by FLAC (for global `?search=`).
  */
-export function resolveSearchableFields(
+function resolveSearchableFields(
   collection: Schema | null | undefined,
   user?: User | { _id: string; role: string } | null,
 ): string[] {

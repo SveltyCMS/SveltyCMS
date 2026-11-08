@@ -4,7 +4,7 @@ title: "Competitive Security Overview"
 description: "An EU-compliant, documentation-based comparison of security and compliance controls across SveltyCMS, Payload CMS, Strapi, and Directus."
 author: "SveltyCMS Team"
 created: "2026-08-25"
-updated: "2026-09-22"
+updated: "2026-11-08"
 tags:
   - "security"
   - "compliance"
@@ -84,6 +84,11 @@ with? How fast do permission changes propagate?_
   before the collections handler (no database query). Self-described, September 2026.
 - **Field-level encryption at rest (ALE)** — collection fields flagged `encrypt: true` are stored as
   AES-256-GCM envelopes (`v1:iv:tag:ciphertext`) using `ENCRYPTION_KEY` with HKDF-SHA-256 domain separation and AAD binding. Pure synchronous execution paths (`encryptFieldValueSync`) achieve <18 µs encryption time and <3% write duration overhead on benchmarked workloads (`tests/benchmarks/ale-encryption-impact.test.ts`), strictly satisfying the <5% write overhead tolerance gate. See [Field-Level Encryption](../reference/security/field-level-encryption.mdx) and [ALE Benchmark](benchmarks/encryption_impact.mdx).
+- **SAML 2.0 SP federation (2026-11-04)** — SP-initiated and IdP-initiated SAML 2.0 login (`@node-saml/node-saml`), public provider discovery, RFC 7636 PKCE, JIT auto-provisioning with claim-to-role mapping, and RP-initiated logout. Session authorization stays in-process (bitmask check), not on the SSO round-trip.
+- **Single-hash login parity (2026-11-07)** — every failed authentication path (unknown email, missing password, blocked account, wrong password) runs exactly one Argon2id verification. Previously a valid account with a wrong password paid two hashes and was measurably slower than an unknown email (a CWE-208 timing inversion). Pinned by `tests/unit/auth/authenticate-hash-count.test.ts`.
+- **Cloud KMS envelope encryption (2026-11-04)** — AWS KMS, GCP KMS, Azure Key Vault, HashiCorp Vault and Local HKDF behind one interface, with in-memory DEK caching: <0.008 ms/op and no network call on the hot path. Shipped in `src/utils/security/cloud-kms.ts`.
+- **Hybrid post-quantum envelopes (opt-in)** — AES-256-GCM payload under a random DEK, DEK wrapped with ML-KEM-768 + HKDF (`PQC_HYBRID_BACKUPS` / `PQC_HYBRID_FIELDS`). Key-ID envelopes and a configured decrypt ring make rotation a two-phase operation.
+- **Assurance artifacts (2026-11)** — advisory ledger + generated patch-latency table, mutation-score floors (measured baseline **19/19 killed**), a 35-payload executable red-team corpus, a threat-model drift gate covering **58/58** server route files, and executable invariants (no barrel imports, no `Math.random()` in security paths, a no-growth `new Date().toISOString()` ratchet). These are evidence artifacts, not a third-party audit.
 - **Unified upload allowlist & write-time MIME defense** — `isAllowedUploadMime()` enforces a unified upload allowlist derived from `MIME_MAP` (blocking scriptable and office types while admitting HEIC/AVIF/FLAC). Write-time `assertMimeAgreement()` inspects magic bytes (first 512 bytes) to reject polyglots (`MIME_MISMATCH`). Remote imports and `saveRemoteMedia` use the same `resolveRemoteAssetMime()` path. All media responses send `X-Content-Type-Options: nosniff`. Self-described, September 2026.
 
 ### Payload CMS
@@ -139,17 +144,20 @@ A common assumption in web architecture is that adding enterprise security contr
    SveltyCMS computes SHA-256 hash chains of entry JSON in-memory (< 2 µs). Flushes to disk and database storage are buffered and executed via asynchronous outbox workers, preventing I/O stalls on critical request paths while preserving audit-trail immutability.
 3. **Hardware-Accelerated Native Field Encryption (ALE):**
    Using AES-256-GCM with HKDF-SHA-256 domain separation, synchronous encryption (`encryptFieldValueSync`) executes in < 18 µs with < 3% write duration overhead, removing the latency penalties typical of asynchronous plugin hooks.
-4. **Fast-Lane Request Dispathing:**
+4. **Fast-Lane Request Dispatching:**
    Security checks (origin verification, CSRF tokens, bearer tokens) are validated in a unified, early SvelteKit hook pipeline (`handleSecurity`, `handleCollectionReadLane`) before entering generic routing layers, rejecting unauthorized requests before any database resources are consumed.
 
 ## Known gaps & roadmap (SveltyCMS)
 
-- **Zero open architectural gaps** — all tracked enterprise security controls (per-role MFA enforcement, trusted-device session elevation, native field-level AES-256-GCM encryption, cryptographic RBAC audit trail, SCIM 2.0, SAML/OIDC, and instant RBAC invalidation) are natively implemented and continuously verified.
+- **Implemented and continuously verified in core:** per-role MFA enforcement, trusted-device session elevation, native field-level AES-256-GCM encryption, cloud KMS envelopes, hybrid PQC envelopes (opt-in), cryptographic RBAC audit trail, SCIM 2.0, SAML 2.0/OIDC, and instant RBAC invalidation.
+- **Still open — do not read as delivered:** an independent third-party penetration test has **not** been performed; there is no public bug-bounty programme; SLSA provenance and Sigstore signing remain pending; the AI-triage/human-sign-off workflow is policy only. Tracked in [Enterprise, Security & Community](./roadmap-2026.mdx#8-enterprise-security-community-active-backlog) and the [security case](../reference/security/security-case.mdx).
+- **Scope of the claim:** this page compares documented controls. It is not a certification (no SOC 2 / HIPAA attestation) and no competitor instance was tested under our harness.
 
 ## Sources & methodology (self-described)
 
 - **Date of assessment:** July 2026 (tier/packaging); overview refreshed
-  **2026-09-03**.
+  **2026-11-08** (SveltyCMS control rows updated with the November 2026 shipments;
+  competitor rows remain July/September 2026 public documentation).
 - SveltyCMS rows are **self-reported** from our docs; competitor rows are from
   their **public documentation and pricing pages**.
 - No competitor instance was run under our benchmark harness; treat all

@@ -32,6 +32,7 @@ import { MediaService } from "@utils/media/media-service.server";
 import { type LocalApiOptions, type TokenOptions } from "./types";
 import { bulkImportCollectionDocuments } from "@src/services/background/jobs/import-jobs";
 import { lazyModule } from "@src/utils/lazy-module";
+import { nowISODateString } from "@utils/date";
 
 /** Cached lazy handle to the content engine — one module-registry lookup instead of one per call. */
 const loadContentModule = lazyModule(() => import("@src/content/index.server"));
@@ -641,7 +642,7 @@ export class WebsiteTokensNamespace extends BaseNamespace {
           {
             name,
             token: tokenValue,
-            updatedAt: new Date().toISOString() as ISODateString,
+            updatedAt: nowISODateString() as ISODateString,
             createdBy: user!._id,
             permissions: permissions || [],
             expiresAt: (expiresAt || undefined) as ISODateString | undefined,

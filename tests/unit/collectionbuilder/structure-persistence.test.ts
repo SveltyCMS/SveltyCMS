@@ -19,7 +19,7 @@ const tempRoots: string[] = [];
 async function withTempManifest(fn: (manifestPath: string) => Promise<void>) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "svelty-structure-"));
   tempRoots.push(root);
-  const compiledDir = path.join(root, ".compiledCollections");
+  const compiledDir = path.join(root, ".compiledCollections", "test-collections");
   await fs.mkdir(compiledDir, { recursive: true });
   const manifestPath = path.join(compiledDir, ".compilation-manifest.json");
   const cwd = process.cwd();

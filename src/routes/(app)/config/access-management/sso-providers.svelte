@@ -89,7 +89,7 @@
 		sso_sync_roles_label
 	} from '@src/paraglide/messages';
 	import { toast } from '@src/stores/toast.svelte';
-	import { fetchApi } from '@utils/api';
+	import { fetchApi } from '@utils/http-client';
 	import { showConfirm } from '@utils/modal.svelte';
 	import { logger } from '@utils/logger';
 	import type { SsoProviderConfig, RoleMappingRule } from '@src/databases/auth/sso-session';
@@ -360,7 +360,7 @@
 			</p>
 		</div>
 		<Button
-			variant="tertiary"
+			variant="primary"
 			onclick={openAddModal}
 			aria-label={sso_add_aria()}
 			class="shadow-xs shrink-0"
@@ -768,7 +768,7 @@
 					{button_cancel()}
 				</Button>
 				<Button
-					variant="tertiary"
+					variant="primary"
 					onclick={saveCurrentProvider}
 					loading={isSaving}
 					aria-label={sso_save_aria()}

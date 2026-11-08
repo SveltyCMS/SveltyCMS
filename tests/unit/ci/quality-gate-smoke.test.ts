@@ -40,6 +40,15 @@ describe("package gate scripts", () => {
     expect(existsSync(join(ROOT, "tests/e2e/smoke.spec.ts"))).toBe(true);
   });
 
+  it("runs the type gates concurrently without dropping the warning gate", () => {
+    const scripts = readPkgScripts();
+    expect(scripts.typecheck).toContain("svelte-kit sync");
+    expect(scripts.typecheck).toContain("scripts/check/run-typecheck.ts");
+    const runner = readFileSync(join(ROOT, "scripts/check/run-typecheck.ts"), "utf8");
+    expect(runner).toContain("node_modules/typescript/lib/tsc.js");
+    expect(runner).toContain("scripts/check/check-svelte-diagnostics.ts");
+  });
+
   it("does not ship deleted ghost entrypoints", () => {
     expect(existsSync(join(ROOT, "scripts/run-integration-tests.ts"))).toBe(false);
     expect(existsSync(join(ROOT, "scripts/security-regression.ts"))).toBe(false);
@@ -68,25 +77,27 @@ describe("pre-commit hook", () => {
     expect(hook).toContain("test:unit:components");
   });
 
-  it("builds before the diff integration instead of always deferring", () => {
+  it("keeps Stage 1 fast (white-box only) and leaves the harness build + integration to Stage 2", () => {
     const hook = readFileSync(join(ROOT, ".githooks/pre-commit"), "utf8");
-    expect(hook).toContain("Harness build (backend change)");
-    expect(hook).toContain("run-integration.ts --no-build --diff");
-    // The old freshness check skipped integration whenever src/ was edited.
-    expect(hook).not.toContain("deferred to pre-push");
+    const prePush = readFileSync(join(ROOT, ".githooks/pre-push"), "utf8");
+    expect(hook).not.toContain("run-integration.ts");
+    expect(prePush).toContain("--ensure-build");
+    expect(prePush).toContain("run-integration.ts --no-build --diff");
   });
 });
 
 describe("pre-push hook", () => {
   it("re-runs the CI unit job and build/integration", () => {
     const prePush = readFileSync(join(ROOT, ".githooks/pre-push"), "utf8");
-    expect(prePush).toMatch(/(pm_run|\$RUN_CMD|\$PM_BIN" run|bun run) build/);
-    expect(prePush).toContain("COMPILE_ALL_ADAPTERS");
+    // The harness build verifies/reuses the 4-adapter artifact; it sets
+    // COMPILE_ALL_ADAPTERS internally, so assert the entry point rather than a
+    // literal env assignment in the hook.
+    expect(prePush).toContain("--ensure-build");
     // CI Unit parity: coverage + components + mutation, because a suite can be
     // 100 % green and still exit 1 on unhandled errors under the CI reporter.
-    expect(prePush).toContain("test:unit:coverage");
+    expect(prePush).toContain("test:coverage");
     expect(prePush).toContain("test:unit:components");
-    expect(prePush).toContain("test:mutation");
+    expect(prePush).toContain("scripts/test/mutate-core.ts");
     // The plain suite is not re-run: pre-commit already did it.
     expect(prePush).not.toMatch(/(?:pm_run|bun run) test:unit(?!:)/);
     expect(prePush).toContain("run-integration.ts");
@@ -103,10 +114,14 @@ describe("pre-push hook", () => {
 
   it("enforces the CI flake budget and the full static gates", () => {
     const prePush = readFileSync(join(ROOT, ".githooks/pre-push"), "utf8");
+    const group = readFileSync(join(ROOT, "scripts/runs/run-probe-group.ts"), "utf8");
     expect(prePush).toContain("check-flake-budget.ts");
     expect(prePush).toContain("--max-flaky=0");
-    expect(prePush).toContain("probe-hardware-tiers.ts");
-    expect(prePush).toContain("lint:tenant -- --full");
+    // The static policy probes moved into the parallel group; assert the job
+    // list there so dropping one from the group fails this test.
+    expect(group).toContain("probe-hardware-tiers.ts");
+    expect(group).toContain("scan-secret-misuse.ts");
+    expect(group).toContain("lint:tenant");
   });
 
   it("diagnoses unhandled errors instead of swallowing them", () => {
@@ -124,13 +139,45 @@ describe("pre-push hook", () => {
     expect(prePush).toContain("SKIP_E2E_SMOKE");
   });
 
+  it("reuses gates already proven for the same tree", () => {
+    const preCommit = readFileSync(join(ROOT, ".githooks/pre-commit"), "utf8");
+    const prePush = readFileSync(join(ROOT, ".githooks/pre-push"), "utf8");
+    const lib = readFileSync(join(ROOT, ".githooks/lib.sh"), "utf8");
+
+    expect(lib).toContain("scripts/runs/gate-cache.ts");
+    expect(preCommit).toContain("record_gate --index check");
+    expect(prePush).toContain("gate_cached check");
+    expect(prePush).toContain("gate_cached coverage");
+    // Diff-scoped gates must key on the diff base as well as the tree, so a
+    // rebase re-runs them instead of borrowing a result from another diff.
+    expect(prePush).toContain('gate_cached "integration@${DIFF_SCOPE}"');
+    expect(prePush).toContain('gate_cached "e2e@${DIFF_SCOPE}"');
+    expect(prePush).toContain("No instrumented source or coverage config changed");
+  });
+
+  it("runs the independent probes concurrently and keeps the deploy probe late", () => {
+    const prePush = readFileSync(join(ROOT, ".githooks/pre-push"), "utf8");
+    expect(prePush).toContain("scripts/runs/run-probe-group.ts");
+    // The deploy probe rebuilds `build/` without the testing harness. Running it
+    // before the browser gate would leave E2E/integration on a stripped build;
+    // running it beside the bundle scan deleted a chunk mid-scan.
+    const deployAt = prePush.indexOf("Deploy Backdoor Probe (A01)");
+    expect(deployAt).toBeGreaterThan(prePush.indexOf("E2E Browser Gate"));
+    expect(deployAt).toBeLessThan(prePush.indexOf("Mutation (changed seams)"));
+    const group = readFileSync(join(ROOT, "scripts/runs/run-probe-group.ts"), "utf8");
+    expect(group).not.toContain('bunRun("scripts/check/check-bundle-size.ts")');
+    expect(group).not.toContain('bunRun("scripts/probe/probe-deploy-testing-api.ts")');
+  });
+
   it("runs mutation last and restores a dirty target", () => {
     const prePush = readFileSync(join(ROOT, ".githooks/pre-push"), "utf8");
     // The mutation harness rewrites source files. If it ran before the build,
     // integration or browser gate, an interrupted write would make every later
     // step fail on a mutated tree (observed locally as a cascade of unrelated
     // `includeDeleted` / `db.crud` errors).
-    expect(prePush.indexOf("test:mutation")).toBeGreaterThan(prePush.indexOf("E2E Browser Gate"));
+    expect(prePush.indexOf("scripts/test/mutate-core.ts")).toBeGreaterThan(
+      prePush.indexOf("E2E Browser Gate"),
+    );
     expect(prePush).toContain("MUTATION_CLEAN_BEFORE");
     expect(prePush).toContain("git checkout -- $MUTATION_TARGETS");
   });

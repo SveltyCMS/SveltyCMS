@@ -20,7 +20,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import ModalEditForm from "@src/routes/(app)/user/components/modal-edit-form.svelte";
+import ModalEditForm from "@components/user/modal-edit-form.svelte";
 import ModalEditToken from "@src/routes/(app)/user/components/modal-edit-token.svelte";
 import { page } from "$app/state";
 import { refreshAll } from "$app/navigation";

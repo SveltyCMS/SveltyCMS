@@ -265,7 +265,10 @@ const STATELESS_READ_ROUTES = new Set([
 ]);
 
 /** Page routes whose actions do not persist state (e.g. preview-only mail). */
-const STATELESS_PAGE_ROUTES = new Set(["src/routes/email-previews"]);
+const STATELESS_PAGE_ROUTES = new Set([
+  "src/routes/(app)/email-previews",
+  "src/routes/email-previews",
+]);
 
 /**
  * Multi-step state machines whose persistence/concurrency contracts are covered

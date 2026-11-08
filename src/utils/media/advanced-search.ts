@@ -1,9 +1,10 @@
 /**
  * @file src/utils/media/advanced-search.ts
- * @description Advanced client-side media search with filtering & suggestions
+ * @description Advanced client-side media search with filtering
  */
 
-import { isMediaImage, isStoredMedia, type MediaImage, type MediaItem } from "./media-models";
+import type { MediaImage, MediaItem } from "./media-models";
+import { isMediaImage, isStoredMedia } from "./media-values";
 
 export interface SearchCriteria {
   aspectRatio?: "landscape" | "portrait" | "square";
@@ -182,50 +183,5 @@ export function advancedSearch(files: MediaItem[], criteria: SearchCriteria): Se
     files: result,
     total: result.length,
     matched,
-  };
-}
-
-/** Search suggestions from media library */
-export function getSuggestions(files: MediaItem[]) {
-  const tags = new Set<string>();
-  const cameras = new Set<string>();
-  const dimensions = new Map<string, number>();
-
-  for (const file of files) {
-    const fileTags = file.metadata?.tags as string[] | undefined;
-    if (fileTags) {
-      for (const t of fileTags) {
-        tags.add(t);
-      }
-    }
-
-    const exif = file.metadata?.exif as { Make?: string; Model?: string } | undefined;
-    if (exif) {
-      const cam = `${exif.Make ?? ""} ${exif.Model ?? ""}`.trim();
-      if (cam) {
-        cameras.add(cam);
-      }
-    }
-
-    if (isMediaImage(file)) {
-      const key = `${file.width}x${file.height}`;
-      dimensions.set(key, (dimensions.get(key) ?? 0) + 1);
-    }
-  }
-
-  return {
-    tags: Array.from(tags).sort(),
-    cameras: Array.from(cameras).sort(),
-    commonDimensions: Array.from(dimensions.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .map(([dim]) => dim),
-    sizeRanges: [
-      { min: 0, max: 100_000, label: "< 100 KB" },
-      { min: 100_000, max: 1_000_000, label: "100 KB – 1 MB" },
-      { min: 1_000_000, max: 5_000_000, label: "1 – 5 MB" },
-      { min: 5_000_000, max: 10_000_000, label: "5 – 10 MB" },
-      { min: 10_000_000, max: Number.POSITIVE_INFINITY, label: "> 10 MB" },
-    ],
   };
 }

@@ -1,13 +1,10 @@
 /**
  * @file src/utils/string.ts
- * @description Optimized string manipulation and cryptographic utilities.
+ * @description Optimized string manipulation utilities.
  *
  * ### Hardening (audit 2026-07):
  * - Levenshtein: O(N) memory Int32Array replaces O(N×M) 2D matrix
- * - Prototype pollution: parse() filters __proto__, constructor, prototype
- * - Buffer performance: arrayBuffer2hex uses native Buffer.from().toString()
  * - O(1) RTL lookup: Set.has() replaces array.includes()
- * - Hex validation: odd-length guard in hex2arrayBuffer
  */
 
 export interface PluralForms {
@@ -91,13 +88,6 @@ export function englishPlural(noun: string, count: number): string {
   return `${word}s`;
 }
 
-/**
- * Escapes regex metacharacters in a string.
- */
-export function escapeRegex(string: string): string {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 const RTL_LANGUAGES = new Set([
   "ar",
   "he",
@@ -121,35 +111,6 @@ const RTL_LANGUAGES = new Set([
 export function getTextDirection(lang: string): "ltr" | "rtl" {
   const base = lang.trim().toLowerCase().replace(/_/g, "-").split("-")[0] ?? "";
   return RTL_LANGUAGES.has(base) ? "rtl" : "ltr";
-}
-
-/**
- * Converts hex string to ArrayBuffer.
- * 🛡️ Guards against odd-length strings.
- */
-export function hex2arrayBuffer(hex: string): ArrayBuffer {
-  if (hex.length % 2 !== 0) throw new Error("Invalid hex string length");
-  const bytes = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < hex.length; i += 2) {
-    bytes[i / 2] = Number.parseInt(hex.substring(i, i + 2), 16);
-  }
-  return bytes.buffer;
-}
-
-/**
- * Converts ArrayBuffer to hex string.
- * 🚀 Performance: Buffer.from is faster than Array.from for buffers.
- */
-export function arrayBuffer2hex(buffer: ArrayBuffer): string {
-  return Buffer.from(buffer).toString("hex");
-}
-
-/**
- * SHA-256 hash function.
- */
-export async function sha256(buffer: ArrayBuffer): Promise<string> {
-  const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
-  return arrayBuffer2hex(hashBuffer);
 }
 
 const EDIT_DISTANCE_SCRATCH_CAP = 257;
@@ -188,32 +149,6 @@ export function getEditDistance(a: string, b: string): number {
   }
 
   return v0[lenA] / Math.max(lenA, lenB);
-}
-
-/**
- * Recursively parses an object's string values as JSON where possible.
- * 🛡️ Hardened against prototype pollution.
- */
-export function parse<T>(obj: unknown): T {
-  if (typeof obj !== "object" || obj === null) return obj as T;
-  if (Array.isArray(obj)) return obj.map((item) => parse(item)) as unknown as T;
-
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(obj)) {
-    // 🛡️ Prevent Prototype Pollution
-    if (key === "__proto__" || key === "constructor" || key === "prototype") continue;
-
-    if (typeof value === "string") {
-      try {
-        result[key] = JSON.parse(value);
-      } catch {
-        result[key] = value;
-      }
-    } else {
-      result[key] = parse(value);
-    }
-  }
-  return result as T;
 }
 
 /**

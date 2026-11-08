@@ -7,7 +7,10 @@
  * - autosave writes `content_drafts` and never the live collection row
  * - a new-entry draft is resumable via its own `contentId` and keeps its marker
  * - entry drafts strip the internal `__draft` marker
- * - reads/deletes are author scoped; another author's draft is a 404
+ * - promotion writes the staged data through the normal update lane (revision
+ *   snapshot included) and removes the draft only after the live write lands
+ * - a failed live write leaves the draft intact (retry-safe)
+ * - reads/deletes/promotions are author scoped; another author's draft is a 404
  * - unknown collection and anonymous access fail closed
  */
 
@@ -15,8 +18,15 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { SQLiteAdapter } from "@src/databases/sqlite/sqlite-adapter";
 import { CollectionsNamespace } from "@src/services/sdk/namespaces/collections-namespace";
 import { DraftsNamespace } from "@src/services/sdk/namespaces/drafts-namespace";
-import type { ContentDraft, DatabaseId, DatabaseResult } from "@src/databases/db-interface";
-import type { Schema } from "@src/content/types";
+import { revisionSnapshot } from "@src/services/sdk/namespaces/collections/revisions";
+import type {
+  ContentDraft,
+  ContentRevision,
+  DatabaseId,
+  DatabaseResult,
+  PaginatedResult,
+} from "@src/databases/db-interface";
+import { StatusTypes, type Schema } from "@src/content/types";
 import { generateUUID } from "@src/utils/native-utils";
 
 const COLLECTION = "drafts_sdk_contract";
@@ -26,6 +36,8 @@ const schema: Schema = {
   _id: COLLECTION,
   name: COLLECTION,
   slug: COLLECTION,
+  revision: true,
+  revisionLimit: 100,
   fields: [{ db_fieldName: "title", label: "Title", widget: { Name: "Input" }, type: "string" }],
 } as Schema;
 
@@ -207,5 +219,173 @@ describe("DraftsNamespace on SQLite", () => {
     await expect(
       drafts.saveDraft(COLLECTION, { data: { title: "x" } }, { tenantId: TENANT }),
     ).rejects.toMatchObject({ status: 401 });
+  });
+
+  it("promotes a staged entry draft into the live row and records the previous revision", async () => {
+    const entryId = generateUUID();
+    unwrap(
+      await adapter.crud.insert(
+        COLLECTION,
+        { _id: entryId, title: "live title", status: "draft" } as never,
+        { tenantId: TENANT },
+      ),
+    );
+    const draft = unwrap(
+      await drafts.saveDraft(
+        COLLECTION,
+        {
+          entryId,
+          data: {
+            title: "staged title",
+            body: "staged body",
+            status: "schedule",
+            _scheduled: "2026-12-01T00:00:00.000Z",
+          },
+        },
+        { user, tenantId: TENANT },
+      ),
+    );
+
+    const promoted = unwrap(
+      await drafts.promoteDraft(COLLECTION, String(draft._id), {
+        user,
+        tenantId: TENANT,
+        status: StatusTypes.publish,
+      }),
+    ) as Record<string, unknown>;
+    expect(promoted._id).toBe(entryId);
+
+    const live = unwrap(
+      await adapter.crud.findOne(COLLECTION, { _id: entryId } as never, { tenantId: TENANT }),
+    ) as unknown as Record<string, unknown>;
+    // The draft is the source of truth; the status override makes it publish
+    // and drops a staged schedule timestamp.
+    expect(live.title).toBe("staged title");
+    expect(live.body).toBe("staged body");
+    expect(live.status).toBe(StatusTypes.publish);
+    expect(live._scheduled ?? null).toBeNull();
+    expect(live).not.toHaveProperty("__draft");
+
+    // Promotion went through the update lane, so the previous row was archived.
+    const history = unwrap<PaginatedResult<ContentRevision>>(
+      await adapter.content.revisions.getHistory(entryId as DatabaseId, {
+        page: 1,
+        pageSize: 10,
+      }),
+    );
+    expect(history.items).toHaveLength(1);
+    expect(revisionSnapshot(history.items[0] as unknown as Record<string, unknown>)?.title).toBe(
+      "live title",
+    );
+
+    const remaining = unwrap(
+      await drafts.getDraft(COLLECTION, entryId, { user, tenantId: TENANT }),
+    );
+    expect(remaining).toBeNull();
+  });
+
+  it("promotes a new-entry draft into a created live row", async () => {
+    const draft = unwrap(
+      await drafts.saveDraft(
+        COLLECTION,
+        { data: { title: "created from draft" } },
+        { user, tenantId: TENANT },
+      ),
+    );
+
+    const promoted = unwrap(
+      await drafts.promoteDraft(COLLECTION, String(draft._id), {
+        user,
+        tenantId: TENANT,
+        status: StatusTypes.publish,
+      }),
+    ) as Record<string, unknown>;
+    expect(promoted._id).not.toBe(String(draft._id));
+    expect(promoted._id).toBeTruthy();
+    expect(promoted.title).toBe("created from draft");
+    expect(promoted).not.toHaveProperty("__draft");
+    expect(promoted.status).toBe(StatusTypes.publish);
+
+    const remaining = unwrap(
+      await drafts.getDraft(COLLECTION, undefined, { user, tenantId: TENANT }),
+    );
+    expect(remaining).toBeNull();
+  });
+
+  it("keeps the draft when the live write fails", async () => {
+    const entryId = generateUUID();
+    unwrap(
+      await adapter.crud.insert(
+        COLLECTION,
+        { _id: entryId, title: "will vanish", status: "draft" } as never,
+        { tenantId: TENANT },
+      ),
+    );
+    const draft = unwrap(
+      await drafts.saveDraft(
+        COLLECTION,
+        { entryId, data: { title: "retry me" } },
+        { user, tenantId: TENANT },
+      ),
+    );
+    // The live row disappears between staging and promotion: the UPDATE fails.
+    unwrap(
+      await adapter.crud.delete(COLLECTION, entryId as DatabaseId, {
+        tenantId: TENANT,
+        permanent: true,
+      }),
+    );
+
+    const failed = await drafts.promoteDraft(COLLECTION, String(draft._id), {
+      user,
+      tenantId: TENANT,
+      status: StatusTypes.publish,
+    });
+    expect(failed.success).toBe(false);
+
+    const remaining = unwrap(
+      await drafts.getDraft(COLLECTION, entryId, { user, tenantId: TENANT }),
+    );
+    expect(remaining?._id).toBe(draft._id);
+  });
+
+  it("refuses to promote another author's draft", async () => {
+    const entryId = generateUUID();
+    unwrap(
+      await adapter.crud.insert(
+        COLLECTION,
+        { _id: entryId, title: "live only", status: "draft" } as never,
+        { tenantId: TENANT },
+      ),
+    );
+    const theirs = unwrap<ContentDraft>(
+      await adapter.content.drafts.upsertDraft(
+        {
+          authorId: authorTwo._id as DatabaseId,
+          collectionId: COLLECTION as DatabaseId,
+          contentId: entryId as DatabaseId,
+          data: { title: "their staged work" },
+          tenantId: TENANT,
+        },
+        { tenantId: TENANT },
+      ),
+    );
+
+    await expect(
+      drafts.promoteDraft(COLLECTION, String(theirs._id), { user, tenantId: TENANT }),
+    ).rejects.toMatchObject({ status: 404 });
+
+    const live = unwrap(
+      await adapter.crud.findOne(COLLECTION, { _id: entryId } as never, { tenantId: TENANT }),
+    ) as unknown as Record<string, unknown>;
+    expect(live.title).toBe("live only");
+
+    const stillThere = unwrap<ContentDraft | null>(
+      await adapter.content.drafts.getLatestForContent(entryId as DatabaseId, {
+        tenantId: TENANT,
+        authorId: authorTwo._id as DatabaseId,
+      }),
+    );
+    expect(stillThere?._id).toBe(theirs._id);
   });
 });

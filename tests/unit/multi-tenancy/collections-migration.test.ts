@@ -18,8 +18,10 @@ describe("migrateToMultiTenant", () => {
 
   beforeEach(async () => {
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "mt-test-"));
-    flatDir = path.join(tmpDir, "config", "collections");
-    tenantDir = path.join(tmpDir, "config", "tenant-a", "collections");
+    // `isAutomatedTestHarness()` is true under Vitest, so the migration reads
+    // `config/test-collections` — never the live `config/collections` tree.
+    flatDir = path.join(tmpDir, "config", "test-collections");
+    tenantDir = path.join(tmpDir, "config", "tenant-a", "test-collections");
     await fs.mkdir(flatDir, { recursive: true });
     await fs.mkdir(tenantDir, { recursive: true });
   });

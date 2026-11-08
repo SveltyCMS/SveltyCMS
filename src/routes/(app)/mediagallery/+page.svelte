@@ -28,6 +28,7 @@
 		mediagallery_folder_drop_path,
 		mediagallery_grid_size,
 		mediagallery_grid_view,
+		mediagallery_loading_more,
 		mediagallery_loading_table,
 		mediagallery_list_pagination_sr,
 		mediagallery_new_folder,
@@ -50,14 +51,19 @@
 		button_cancel
 	} from '@src/paraglide/messages';
 	import { slide } from 'svelte/transition';
-	import { refreshAll, goto } from '$app/navigation';
+	import { refreshAll, goto, replaceState } from '$app/navigation';
+	import { browser } from '$app/env';
 	import { page } from '$app/state';
 	import type { PageData } from './$types';
 	import MediaGrid from './media-grid.svelte';
 	import AdminCard from '@components/admin-card.svelte';
 	import Portal from '@components/ui/portal.svelte';
 	import type { SearchCriteria } from '@utils/media/advanced-search';
-	import { mediaUrl } from '@utils/media/media-utils';
+	import {
+		hasMediaStructuredFilters,
+		readMediaStructuredFilters
+	} from '@utils/media/media-query-filters';
+	import { mediaUrl, updateMediaMetadata, MEDIA_UPLOAD_ACCEPT } from '@utils/media/media-utils';
 	import {
 		IMAGE_EDITOR_MODAL_CLASSES,
 		IMAGE_EDITOR_MODAL_SIZE
@@ -67,13 +73,12 @@
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { logger } from '@utils/logger';
 	import { motionDuration } from '@utils/admin-transitions';
+	import type { MediaBase, MediaImage } from '@utils/media/media-models';
 	import {
-		type MediaBase,
-		type MediaImage,
-		type StoredMediaBase,
 		MediaTypeEnum,
-		normalizeProcessingStatus
-	} from '@utils/media/media-models';
+		normalizeProcessingStatus,
+		type MediaType
+	} from '@utils/media/media-values';
 	import { droppable, dndState, type DragDropState } from '@thisux/sveltednd';
 	import {
 		MEDIA_DRAG_CONTAINER,
@@ -91,10 +96,19 @@
 	import { matchesJsonPathFilter } from '@utils/json-path-filter';
 	import { SvelteSet } from 'svelte/reactivity';
 	import Button from '@components/ui/button.svelte';
+	import Breadcrumb from '@components/ui/breadcrumb.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
 	import SmartTableSavedViewsMenu from '@components/ui/smart-table/smart-table-saved-views-menu.svelte';
 	import type { SmartTableSavedView } from '@utils/smart-table-saved-views';
+	import {
+		buildMediaAdvancedSearchUrl,
+		buildMediaSearchUrl,
+		clientSideCriteria,
+		MEDIA_SEARCH_MAX_LENGTH,
+		structuredFiltersFromCriteria
+	} from './media-search-query';
+	import { compareMedia, dateBoundToIso, matchesDateBounds } from './media-sort';
 
 	let { data }: { data: PageData } = $props();
 
@@ -131,9 +145,38 @@
 		}
 	);
 	let isLoadingMore = $state(false);
-	let globalSearchValue = $state('');
-	let selectedMediaType = $state<'All' | MediaTypeEnum>('All');
-	let selectedProcessingStatus = $state<'all' | 'processing' | 'ready' | 'failed'>('all');
+
+	// Filters seed from the URL so a shared link restores the whole view, not just
+	// `jsonPath`. `replaceState` keeps the URL in step without re-running the load.
+	const initialParams = untrack(() => page.url.searchParams);
+	function mediaTypeFromParam(value: string | null): 'All' | MediaType {
+		return value && (Object.values(MediaTypeEnum) as string[]).includes(value)
+			? (value as MediaType)
+			: 'All';
+	}
+	function statusFromParam(value: string | null): 'all' | 'processing' | 'ready' | 'failed' {
+		return value === 'processing' || value === 'ready' || value === 'failed' ? value : 'all';
+	}
+	function sortFromParams(sort: string | null, dir: string | null): string {
+		const ascending = dir === 'asc';
+		switch (sort) {
+			case 'filename':
+				return ascending ? 'name-asc' : 'name-desc';
+			case 'size':
+				return ascending ? 'size-asc' : 'size-desc';
+			case 'createdAt':
+			case 'updatedAt':
+				return ascending ? 'oldest' : 'newest';
+			default:
+				return 'newest';
+		}
+	}
+
+	let globalSearchValue = $state(initialParams.get('q') ?? initialParams.get('search') ?? '');
+	let selectedMediaType = $state<'All' | MediaType>(mediaTypeFromParam(initialParams.get('type')));
+	let selectedProcessingStatus = $state<'all' | 'processing' | 'ready' | 'failed'>(
+		statusFromParam(initialParams.get('status'))
+	);
 	let view = $state<'grid' | 'table'>('grid');
 	let gridSize = $state<'tiny' | 'small' | 'medium' | 'large'>('small');
 	/** Grid density is one cycling control; the four-letter segmented row was redundant chrome. */
@@ -157,13 +200,235 @@
 	let uploadCancel: (() => void) | null = $state(null);
 	let isBulkDownloading = $state(false);
 	let showBatchProcessor = $state(false);
+	let focalFile = $state<MediaImage | null>(null);
+	let showFocalModal = $state(false);
 	let showAdvancedSearch = $state(false);
 	let searchCriteria = $state<SearchCriteria | null>(null);
 	// Seed from server ?jsonPath= for shareable filtered views
 	// svelte-ignore state_referenced_locally — data is from $props(), initial seed only
 	let jsonPathFilter = $state((data as { jsonPathFilter?: string }).jsonPathFilter ?? '');
-	let sortBy = $state('newest');
+	let sortBy = $state(sortFromParams(initialParams.get('sort'), initialParams.get('dir')));
 	let mobileFiltersExpanded = $state(false);
+
+	/** Client sort value → the adapter's `sort`/`dir` query contract. */
+	const MEDIA_SORT_PARAMS: Record<
+		string,
+		{ sort: 'updatedAt' | 'filename' | 'size'; dir: 'asc' | 'desc' }
+	> = {
+		newest: { sort: 'updatedAt', dir: 'desc' },
+		oldest: { sort: 'updatedAt', dir: 'asc' },
+		'name-asc': { sort: 'filename', dir: 'asc' },
+		'name-desc': { sort: 'filename', dir: 'desc' },
+		'size-desc': { sort: 'size', dir: 'desc' },
+		'size-asc': { sort: 'size', dir: 'asc' }
+	};
+
+	/** Last query the effect wrote — avoids a replaceState per unchanged render. */
+	let lastSyncedQuery: string | null = null;
+
+	/**
+	 * Query the server has already answered (`?q=`; the loader still accepts the
+	 * legacy `?search=` alias). The input is committed to the URL only after a
+	 * typing pause, so typing in a 20k folder does not spend one load per keystroke.
+	 */
+	const committedSearchQuery = $derived(
+		(page.url.searchParams.get('q') ?? page.url.searchParams.get('search') ?? '').trim()
+	);
+
+	/**
+	 * Structured filters the loader applied (`?mime=`, `?minSize=`, `?minWidth=`, …).
+	 * The URL is the single source of truth: the advanced modal writes it through
+	 * `goto`, so a shared link and the rendered result cannot disagree.
+	 */
+	const appliedFilters = $derived(readMediaStructuredFilters(page.url.searchParams));
+	const hasAppliedFilters = $derived(hasMediaStructuredFilters(appliedFilters));
+
+	const SEARCH_DEBOUNCE_MS = 300;
+	let isSearching = $state(false);
+	let searchInFlight = false;
+	let queuedSearchQuery: string | null = null;
+
+	$effect(() => {
+		if (!browser) return;
+		// A filter navigation owns the URL until its load settles, exactly like the
+		// search pipeline below; arming a timer mid-flight would race its target.
+		if (isSearching) return;
+
+		const next = globalSearchValue.trim().slice(0, MEDIA_SEARCH_MAX_LENGTH);
+		// `committedSearchQuery` is read so the effect settles after the server
+		// answers: the URL now carries the query and no new timer is armed.
+		if (next === committedSearchQuery) return;
+
+		const timer = setTimeout(() => void commitSearchQuery(next), SEARCH_DEBOUNCE_MS);
+		return () => clearTimeout(timer);
+	});
+
+	/**
+	 * Drive `?q=` from the debounced input. A second search can land while a load
+	 * is still in flight; queue it instead of cancelling the navigation so neither
+	 * result set is dropped.
+	 */
+	async function commitSearchQuery(query: string) {
+		if (searchInFlight) {
+			queuedSearchQuery = query;
+			return;
+		}
+		searchInFlight = true;
+		isSearching = true;
+		try {
+			let next: string | null = query;
+			while (next !== null) {
+				queuedSearchQuery = null;
+				await navigateToSearch(next);
+				next = queuedSearchQuery;
+			}
+		} catch (err) {
+			logger.error('Media search navigation failed', err);
+			toast.error('Could not load search results');
+		} finally {
+			searchInFlight = false;
+			isSearching = false;
+		}
+	}
+
+	async function navigateToSearch(query: string) {
+		if (query === committedSearchQuery) return;
+		// `replace` keeps the history stack clean while typing; `reset: false` leaves
+		// scroll and focus alone across the server round-trip (the grid resets its own
+		// scroll when the result head changes).
+		await goto(buildMediaSearchUrl(page.url.href, query), {
+			replace: true,
+			reset: false
+		});
+	}
+
+	/**
+	 * Apply an advanced search. The adapter-evaluable criteria (size, dimensions,
+	 * MIME) go into the URL and are re-queried across the whole folder; everything
+	 * else stays a page-scoped client filter. `?page=` is dropped by the builder —
+	 * page 7 of the previous result set is meaningless once the filter changed.
+	 */
+	async function applyAdvancedSearch(criteria: SearchCriteria, jsonPath: string) {
+		const target = buildMediaAdvancedSearchUrl(
+			buildMediaSearchUrl(page.url.href, globalSearchValue),
+			structuredFiltersFromCriteria(criteria),
+			{ jsonPath }
+		);
+
+		isSearching = true;
+		try {
+			await goto(target, { replace: true, reset: false });
+		} catch (err) {
+			logger.error('Advanced media search navigation failed', err);
+			toast.error('Could not apply the advanced search');
+		} finally {
+			isSearching = false;
+		}
+	}
+
+	$effect(() => {
+		// A search navigation owns the URL until its load settles; writing filter
+		// params from here mid-flight would race the `goto` target. The effect
+		// re-runs when `isSearching` drops and then writes the current values.
+		if (!browser || isSearching) return;
+
+		const jsonPath = jsonPathFilter.trim();
+		const sort = MEDIA_SORT_PARAMS[sortBy] ?? MEDIA_SORT_PARAMS.newest!;
+		const next: Record<string, string | null> = {
+			type: selectedMediaType === 'All' ? null : selectedMediaType,
+			status: selectedProcessingStatus === 'all' ? null : selectedProcessingStatus,
+			jsonPath: jsonPath || null,
+			sort: sortBy === 'newest' ? null : sort.sort,
+			dir: sortBy === 'newest' ? null : sort.dir
+		};
+
+		const params = new URLSearchParams(window.location.search);
+		// One-time alias normalisation: the loader accepts `?search=` from older
+		// links. `?q=` is owned by the debounced search effect above, so it is not
+		// written here on every keystroke.
+		if (params.has('search')) {
+			const legacy = (params.get('search') ?? '').trim();
+			params.delete('search');
+			if (legacy && !params.has('q')) params.set('q', legacy);
+		}
+		for (const [key, value] of Object.entries(next)) {
+			if (value) params.set(key, value);
+			else params.delete(key);
+		}
+
+		const query = params.toString();
+		if (query === lastSyncedQuery) return;
+		lastSyncedQuery = query;
+
+		const url = new URL(window.location.href);
+		url.search = query;
+		void replaceState(url, page.state);
+	});
+
+	/** Drives the "no matches" state instead of the first-run empty gallery. */
+	const hasActiveFilters = $derived(
+		Boolean(
+			globalSearchValue.trim() ||
+			selectedMediaType !== 'All' ||
+			selectedProcessingStatus !== 'all' ||
+			jsonPathFilter.trim() ||
+			hasAppliedFilters ||
+			searchCriteria
+		)
+	);
+
+	/**
+	 * Reset every filter. The structured ones are adapter filters, so they live in
+	 * the URL and clearing them needs one navigation. It is issued here together
+	 * with the `?q=` reset (`isSearching` holds the debounced search effect off) so
+	 * the two pipelines cannot race two different loads.
+	 */
+	async function clearMediaFilters() {
+		globalSearchValue = '';
+		selectedMediaType = 'All';
+		selectedProcessingStatus = 'all';
+		jsonPathFilter = '';
+		searchCriteria = null;
+		if (!hasAppliedFilters) return;
+
+		isSearching = true;
+		try {
+			await goto(
+				buildMediaAdvancedSearchUrl(buildMediaSearchUrl(page.url.href, ''), {}, { jsonPath: '' }),
+				{ replace: true, reset: false }
+			);
+		} catch (err) {
+			logger.error('Clearing media filters failed', err);
+			toast.error('Could not clear the filters');
+		} finally {
+			isSearching = false;
+		}
+	}
+
+	let bulkMoveFolderId = $state('');
+	const folderMoveOptions = $derived.by(() => {
+		const all = (data.systemVirtualFolders ?? []) as Array<{
+			_id: string;
+			name: string;
+			path: string;
+		}>;
+		return all
+			.filter((folder) => folder._id !== currentFolderId)
+			.map((folder) => ({
+				value: folder._id,
+				label:
+					folder.path && folder.path !== '/'
+						? folder.path.split('/').filter(Boolean).join(' / ')
+						: folder.name
+			}));
+	});
+
+	async function handleBulkMove() {
+		if (!bulkMoveFolderId) return;
+		const label = folderMoveOptions.find((option) => option.value === bulkMoveFolderId)?.label;
+		await moveIdsToFolder([...selectedFiles], bulkMoveFolderId, label ?? 'folder');
+		bulkMoveFolderId = '';
+	}
 	/** True only while a media-gallery card (not some unrelated drag) is in flight */
 	const isMediaDragActive = $derived(
 		dndState.isDragging && dndState.sourceContainer === MEDIA_DRAG_CONTAINER
@@ -186,7 +451,7 @@
 			},
 			search: globalSearchValue,
 			sort: { sortedBy: sortBy, isSorted: 1 as const },
-			pageSize: 10
+			pageSize: 25
 		};
 	}
 
@@ -256,7 +521,7 @@
 
 	/** Fetch the next 100 rows of the folder (grid sentinel / table "load more"). */
 	async function loadMoreMedia() {
-		if (isLoadingMore || !mediaPagination.hasNextPage) return;
+		if (isLoadingMore || isSearching || !mediaPagination.hasNextPage) return;
 		isLoadingMore = true;
 		try {
 			await navigateMediaPage(mediaPagination.page + 1);
@@ -303,14 +568,26 @@
 	);
 
 	// Derived
+	/** The batch engine (Sharp) only processes images; the panel explains the rest. */
+	const selectedImageIds = $derived(
+		files
+			.filter((file) => file.type === 'image' && selectedFiles.has(mediaFileKey(file)))
+			.map(mediaFileKey)
+	);
+
 	const filteredFiles = $derived.by(() => {
+		// Quick search (`?q=`) and the advanced size/dimension/MIME filters are
+		// server-side — the adapter applies them before LIMIT and COUNT, so they cover
+		// the whole library. Re-filtering them here would both duplicate the work and
+		// hide a valid server match whose slimmed gallery row omitted the field.
+		// Everything still below runs on the assets loaded so far (page-scoped).
+
+		// Advanced-search date bounds: converted once per filter pass (not two
+		// `Date` allocations per row). Canonical ISO rows then compare as strings.
+		const uploadedAfterIso = dateBoundToIso(searchCriteria?.uploadedAfter);
+		const uploadedBeforeIso = dateBoundToIso(searchCriteria?.uploadedBefore);
+
 		let result = files.filter((file) => {
-			if (globalSearchValue) {
-				const matchesSearch = (file.filename || '')
-					.toLowerCase()
-					.includes(globalSearchValue.toLowerCase());
-				if (!matchesSearch) return false;
-			}
 			if (selectedMediaType !== 'All' && file.type !== selectedMediaType) {
 				return false;
 			}
@@ -331,34 +608,9 @@
 					!file.filename?.toLowerCase().includes(searchCriteria.filename.toLowerCase())
 				)
 					return false;
-				if (searchCriteria.minSize && (file as StoredMediaBase).size < searchCriteria.minSize)
+				if (!matchesDateBounds(file.createdAt, uploadedAfterIso, uploadedBeforeIso)) {
 					return false;
-				if (searchCriteria.maxSize && (file as StoredMediaBase).size > searchCriteria.maxSize)
-					return false;
-				if (searchCriteria.minWidth && (!img.width || img.width < searchCriteria.minWidth))
-					return false;
-				if (searchCriteria.maxWidth && (!img.width || img.width > searchCriteria.maxWidth))
-					return false;
-				if (searchCriteria.minHeight && (!img.height || img.height < searchCriteria.minHeight))
-					return false;
-				if (searchCriteria.maxHeight && (!img.height || img.height > searchCriteria.maxHeight))
-					return false;
-				if (
-					searchCriteria.uploadedAfter &&
-					new Date(file.createdAt || 0) < searchCriteria.uploadedAfter
-				)
-					return false;
-				if (
-					searchCriteria.uploadedBefore &&
-					new Date(file.createdAt || 0) > searchCriteria.uploadedBefore
-				)
-					return false;
-				if (
-					searchCriteria.fileTypes &&
-					searchCriteria.fileTypes.length > 0 &&
-					!searchCriteria.fileTypes.some((t) => (file as any).mimeType?.includes(t))
-				)
-					return false;
+				}
 
 				if (searchCriteria.tags && searchCriteria.tags.length > 0) {
 					const tags = meta?.tags as string[] | undefined;
@@ -398,23 +650,7 @@
 			return true;
 		});
 
-		result.sort((a, b) => {
-			switch (sortBy) {
-				case 'oldest':
-					return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
-				case 'name-asc':
-					return (a.filename || '').localeCompare(b.filename || '');
-				case 'name-desc':
-					return (b.filename || '').localeCompare(a.filename || '');
-				case 'size-desc':
-					return (b as StoredMediaBase).size - (a as StoredMediaBase).size;
-				case 'size-asc':
-					return (a as StoredMediaBase).size - (b as StoredMediaBase).size;
-				case 'newest':
-				default:
-					return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-			}
-		});
+		result.sort((a, b) => compareMedia(a, b, sortBy));
 
 		return result;
 	});
@@ -444,6 +680,16 @@
 		return crumbs;
 	});
 
+	// The primitive owns the list semantics and separators; `data` carries the
+	// folder id into the custom crumb snippet so drop targets stay identical.
+	const breadcrumbItems = $derived(
+		breadcrumbs.map((crumb) => ({
+			label: crumb.name,
+			href: crumb.folderId ? `/mediagallery?folderId=${crumb.folderId}` : '/mediagallery',
+			data: { folderId: crumb.folderId }
+		}))
+	);
+
 	const assetStats = $derived.by(() => ({
 		total: files.length,
 		filtered: filteredFiles.length,
@@ -463,6 +709,12 @@
 	/** Key used for drop highlight / compare (`root` for media gallery root) */
 	function crumbDropKey(folderId: string | null): string {
 		return folderId ?? 'root';
+	}
+
+	/** Recover the folder id from a crumb's opaque `data` payload (null = media root). */
+	function crumbFolderId(item: { data?: Record<string, unknown> }): string | null {
+		const folderId = item.data?.folderId;
+		return typeof folderId === 'string' ? folderId : null;
 	}
 
 	function isCurrentCrumb(folderId: string | null): boolean {
@@ -681,9 +933,15 @@
 	}
 
 	async function handleBulkDelete(filesToDelete: (MediaBase | MediaImage)[]) {
+		const referenced = filesToDelete.filter((file) =>
+			publishedMediaIds.has(mediaFileKey(file))
+		).length;
 		showConfirm({
 			title: `Delete ${filesToDelete.length} files?`,
-			body: 'This action cannot be undone.',
+			body:
+				referenced > 0
+					? `${referenced} of these assets ${referenced === 1 ? 'is' : 'are'} referenced by published content — deleting will break those references. This action cannot be undone.`
+					: 'This action cannot be undone.',
 			onConfirm: async () => {
 				// Per-file outcomes: an HTTP or action error must never be announced as
 				// "complete" nor hide the asset — the row still exists on the server.
@@ -766,12 +1024,26 @@
 			const result = await handle.promise;
 			if (result.aborted) {
 				toast.info('Upload cancelled');
-			} else if (result.success) {
-				const n = result.files?.length || list.length;
-				toast.success(n > 1 ? `${n} files uploaded successfully` : 'Media uploaded successfully');
-				await reloadMediaFromFirstPage();
 			} else {
-				toast.error(result.message || 'Upload failed');
+				// Sequential uploads continue past a rejected file now, so the outcome
+				// list is the honest count — never "uploaded" for the whole batch.
+				const outcomes = result.files ?? [];
+				const uploaded = outcomes.filter((outcome) => outcome.success).length;
+				const reported = outcomes.length || list.length;
+
+				if (result.success) {
+					toast.success(
+						reported > 1 ? `${reported} files uploaded successfully` : 'Media uploaded successfully'
+					);
+					await reloadMediaFromFirstPage();
+				} else if (uploaded > 0) {
+					toast.warning(
+						`${uploaded} of ${reported} files uploaded — ${result.message || 'some files failed'}`
+					);
+					await reloadMediaFromFirstPage();
+				} else {
+					toast.error(result.message || 'Upload failed');
+				}
 			}
 		} catch (err) {
 			logger.error('Upload failed', err);
@@ -887,7 +1159,7 @@
 			dialogClass: 'max-md:p-0',
 			contentClass: 'max-md:overflow-hidden max-md:p-0',
 			modalClasses:
-				'w-full max-w-4xl max-md:max-w-none max-md:max-h-[100dvh] max-md:rounded-none max-md:border-0 max-md:shadow-none',
+				'w-full md:w-[min(88vw,56rem)] md:h-[min(85dvh,42rem)] max-md:max-w-none max-md:max-h-[100dvh] max-md:rounded-none max-md:border-0 max-md:shadow-none',
 			onUpdate: (updatedFile: any) => {
 				const index = files.findIndex((f) => f._id === updatedFile._id);
 				if (index !== -1) {
@@ -913,10 +1185,36 @@
 		}
 	}
 
+	/** Grid/table crosshair action → quick focal-point modal. */
+	function handleSetFocalPoint(file: MediaImage) {
+		focalFile = file;
+		showFocalModal = true;
+	}
+
+	async function handleFocalSave(focalPoint: { x: number; y: number }) {
+		const target = focalFile;
+		if (!target?._id) return;
+		try {
+			await updateMediaMetadata(String(target._id), { focalPoint });
+			// Optimistic tile update so the new object-position applies immediately;
+			// `refreshAll` reconciles the rest of the metadata.
+			handleUpdateImage({ ...target, metadata: { ...target.metadata, focalPoint } });
+			toast.success('Focal point saved');
+			focalFile = null;
+			await refreshAll();
+		} catch (err) {
+			logger.error('Focal point save failed', err);
+			toast.error('Could not save the focal point');
+		}
+	}
+
 	async function handleDeleteImage(file: MediaBase | MediaImage) {
+		const referenced = publishedMediaIds.has(mediaFileKey(file));
 		showConfirm({
 			title: `Delete "${file.filename}"?`,
-			body: 'This action cannot be undone.',
+			body: referenced
+				? 'This asset is referenced by published content — deleting it will break those references. This action cannot be undone.'
+				: 'This action cannot be undone.',
 			onConfirm: async () => {
 				const formData = new FormData();
 				formData.append('imageData', JSON.stringify(file));
@@ -958,8 +1256,8 @@
 	showBackButton={true}
 	backUrl="/"
 	fullHeight={true}
+	flushContent={true}
 	titleCompact={true}
-	spaceY="4"
 >
 	{#snippet actions()}
 		<div class="flex items-center gap-1 sm:gap-1.5">
@@ -990,7 +1288,20 @@
 					width="18"
 					class={isUploading ? 'animate-spin' : ''}
 				></iconify-icon>
-				<span class="hidden sm:inline">{isUploading ? `Uploading…` : 'Upload'}</span>
+				<span class="hidden sm:inline">{isUploading ? `Uploading…` : 'Quick upload'}</span>
+				<span class="sr-only sm:hidden">{isUploading ? 'Uploading' : 'Quick upload'}</span>
+			</Button>
+
+			<Button
+				size="sm"
+				variant="surface"
+				href={`/mediagallery/upload-media${data.currentFolder?._id ? `?folderId=${data.currentFolder._id}` : ''}`}
+				title="Stage several files in a queue before uploading"
+				class="h-9 gap-1.5 px-2 sm:px-3"
+			>
+				<iconify-icon icon="mdi:upload-multiple" width="18"></iconify-icon>
+				<span class="hidden sm:inline">Queue</span>
+				<span class="sr-only sm:hidden">Open the staged upload queue</span>
 			</Button>
 
 			<input
@@ -1000,7 +1311,7 @@
 				class="hidden"
 				bind:this={fileUploadInput}
 				onchange={handleUpload}
-				accept="image/*,video/*,audio/*,application/pdf"
+				accept={MEDIA_UPLOAD_ACCEPT}
 				data-testid="media-upload-input"
 			/>
 		</div>
@@ -1068,6 +1379,29 @@
 						>
 					</p>
 					<div class="flex flex-wrap items-center gap-2">
+						<div class="w-40 shrink-0">
+							<Select
+								bind:value={bulkMoveFolderId}
+								options={folderMoveOptions}
+								placeholder="Move to…"
+								aria-label="Move selected media to folder"
+								data-testid="media-bulk-move-target"
+							/>
+						</div>
+						<Button
+							variant="surface"
+							size="sm"
+							onclick={handleBulkMove}
+							disabled={!bulkMoveFolderId || isMovingMedia}
+							aria-busy={isMovingMedia}
+							aria-label="Move selected media"
+							data-testid="media-bulk-move"
+							class="h-8 gap-1.5 px-3"
+						>
+							<iconify-icon icon="mdi:folder-move-outline" width="16" aria-hidden="true"
+							></iconify-icon>
+							<span>Move</span>
+						</Button>
 						<Button
 							variant="surface"
 							size="sm"
@@ -1112,14 +1446,16 @@
 			(error ring) rather than being inert, so the gesture always gets feedback.
 		-->
 		<div class="shrink-0" data-testid="media-gallery-breadcrumbs">
-			<nav
-				class="flex min-w-0 items-center gap-1 overflow-x-auto border-b border-surface-500/30 py-1.5 text-sm text-(--admin-text-muted) sm:gap-2.5 sm:py-2 dark:border-surface-500/40 dark:text-(--admin-text-muted)"
-				aria-label={mediagallery_folder_drop_path()}
+			<Breadcrumb
+				items={breadcrumbItems}
+				ariaLabel={mediagallery_folder_drop_path()}
+				navClass="flex min-w-0 items-center gap-1 overflow-x-auto border-b border-surface-500/30 py-1 text-sm text-(--admin-text-muted) sm:gap-2.5 dark:border-surface-500/40 dark:text-(--admin-text-muted)"
+				listClass="flex w-max shrink-0 items-center gap-1 text-sm sm:gap-2.5"
 			>
-				{#each breadcrumbs as crumb, i (crumb.folderId ?? 'root')}
-					{@const isLast = i === breadcrumbs.length - 1}
-					{@const dropKey = crumbDropKey(crumb.folderId)}
-					{@const sameFolder = isCurrentCrumb(crumb.folderId)}
+				{#snippet crumb({ item, isLast })}
+					{@const folderId = crumbFolderId(item)}
+					{@const dropKey = crumbDropKey(folderId)}
+					{@const sameFolder = isCurrentCrumb(folderId)}
 					{@const isDropTarget = breadcrumbDropEnabled && dndState.targetContainer === dropKey}
 					{@const dropOptions = {
 						container: dropKey,
@@ -1127,28 +1463,19 @@
 						attributes: { dragOverClass: sameFolder ? MEDIA_DROP_SAME : MEDIA_DROP_OK },
 						callbacks: {
 							onDrop: (state: DragDropState<MediaDragData>) =>
-								handleBreadcrumbDrop(state, crumb.folderId, crumb.name)
+								handleBreadcrumbDrop(state, folderId, item.label)
 						}
 					}}
-
-					{#if i > 0}
-						<iconify-icon
-							icon="mdi:chevron-right"
-							width="16"
-							class="shrink-0 text-(--admin-text-muted)"
-							aria-hidden="true"
-						></iconify-icon>
-					{/if}
 
 					{#if isLast}
 						<!-- Current folder: not a link, but still a droppable so the drag is
 							 told "already here" with the same error ring the sidebar uses. -->
 						<span
-							class="inline-flex max-w-48 shrink-0 items-center gap-1 truncate rounded-md px-2 py-2 font-medium text-(--admin-text-muted) sm:max-w-[16rem] sm:px-1.5 sm:py-1 dark:text-surface-100"
+							class="inline-flex max-w-48 shrink-0 items-center gap-1 truncate rounded-md px-2 py-2 font-medium text-(--admin-text-body) sm:max-w-[16rem] sm:px-1.5 sm:py-1 dark:text-surface-100"
 							aria-current="page"
 							data-media-drop-target={dropKey}
 							data-testid={`media-breadcrumb-${dropKey}`}
-							title={sameFolder && breadcrumbDropEnabled ? 'Already in this folder' : crumb.name}
+							title={sameFolder && breadcrumbDropEnabled ? 'Already in this folder' : item.label}
 							use:droppable={dropOptions}
 						>
 							{#if isDropTarget}
@@ -1159,11 +1486,11 @@
 									aria-hidden="true"
 								></iconify-icon>
 							{/if}
-							<span class="truncate">{crumb.name}</span>
+							<span class="truncate">{item.label}</span>
 						</span>
 					{:else}
 						<a
-							href={crumb.folderId ? `/mediagallery?folderId=${crumb.folderId}` : '/mediagallery'}
+							href={item.href ?? '/mediagallery'}
 							class="inline-flex max-w-48 shrink-0 items-center gap-1 truncate rounded-md px-2 py-2 text-sm font-medium transition-colors sm:max-w-[16rem] sm:px-1.5 sm:py-1 sm:text-base
 								{selectedFiles.size > 0
 								? 'bg-surface-500/10 text-surface-800 hover:bg-primary-500/10 hover:text-primary-600 dark:bg-surface-800 dark:text-surface-100 dark:hover:text-primary-400'
@@ -1172,13 +1499,13 @@
 							data-media-drop-target={dropKey}
 							data-testid={`media-breadcrumb-${dropKey}`}
 							aria-label={selectedFiles.size > 0
-								? `Move ${selectedFiles.size} selected to ${crumb.name}`
-								: `Open folder ${crumb.name}`}
+								? `Move ${selectedFiles.size} selected to ${item.label}`
+								: `Open folder ${item.label}`}
 							title={selectedFiles.size > 0
-								? `Move selection to ${crumb.name}`
+								? `Move selection to ${item.label}`
 								: `Drop media here (or open) — same as sidebar`}
 							use:droppable={dropOptions}
-							onclick={(e) => handleBreadcrumbActivate(e, crumb.folderId, crumb.name, isLast)}
+							onclick={(e) => handleBreadcrumbActivate(e, folderId, item.label, isLast)}
 						>
 							{#if isDropTarget || selectedFiles.size > 0}
 								<iconify-icon
@@ -1188,11 +1515,11 @@
 									aria-hidden="true"
 								></iconify-icon>
 							{/if}
-							<span class="truncate">{crumb.name}</span>
+							<span class="truncate">{item.label}</span>
 						</a>
 					{/if}
-				{/each}
-			</nav>
+				{/snippet}
+			</Breadcrumb>
 
 			{#if selectedFiles.size > 0}
 				<p class="pb-2 text-[11px] leading-tight text-(--admin-text-muted)" role="status">
@@ -1210,7 +1537,7 @@
 		<!-- Toolbar -->
 		<div class="shrink-0" data-testid="media-gallery-toolbar">
 			<!-- Mobile toolbar: search + expand button, then collapsible filters -->
-			<div class="flex flex-col gap-1.5 py-2 sm:hidden">
+			<div class="flex flex-col gap-1.5 py-1 sm:hidden">
 				<div class="flex items-center gap-2">
 					<div class="relative min-w-0 flex-1">
 						<iconify-icon
@@ -1223,17 +1550,19 @@
 							bind:value={globalSearchValue}
 							type="search"
 							placeholder={mediagallery_search_modf()}
-							class="w-full ps-9 pe-10 dark:border-surface-500/40 focus-visible:ring-1"
+							class="w-full ps-9 pe-11 dark:border-surface-500/40 focus-visible:ring-1"
 							aria-label={mediagallery_search_assets()}
 						/>
-						<span class="absolute inset-e-2 top-1/2 z-10 -translate-y-1/2">
+						<span class="absolute inset-e-1 top-1/2 z-10 -translate-y-1/2">
 							<Button
 								type="button"
-								variant="ghost"
+								variant="transparent"
 								size="sm"
 								onclick={() => (showAdvancedSearch = true)}
 								aria-label={mediagallery_advanced_search()}
-								class="h-10! w-10! min-w-0! px-0! {searchCriteria || jsonPathFilter.trim()
+								class="h-10! w-10! min-w-0! px-0! text-(--admin-text-muted) hover:bg-surface-500/10 dark:hover:bg-surface-500/20 {searchCriteria ||
+								hasAppliedFilters ||
+								jsonPathFilter.trim()
 									? 'text-primary-500'
 									: ''}"
 								data-testid="media-advanced-search-mobile"
@@ -1355,7 +1684,7 @@
 			     without it the fixed controls squeezed it to ~24px and the
 			     absolutely positioned advanced-search button rendered under the
 			     left sidebar (pointer events hit the aside instead of the button). -->
-			<div class="hidden flex-wrap items-center gap-2 py-2 sm:flex">
+			<div class="hidden flex-wrap items-center justify-center gap-1 py-1 sm:flex">
 				<div class="relative min-w-40 flex-1">
 					<iconify-icon
 						icon="mdi:magnify"
@@ -1367,18 +1696,20 @@
 						bind:value={globalSearchValue}
 						type="search"
 						placeholder={mediagallery_search_modf()}
-						class="w-full ps-9 pe-10 dark:border-surface-500/40 focus-visible:ring-1"
+						class="w-full ps-9 pe-11 dark:border-surface-500/40 focus-visible:ring-1"
 						aria-label={mediagallery_search_assets()}
 					/>
-					<span class="absolute inset-e-2 top-1/2 z-10 -translate-y-1/2">
+					<span class="absolute inset-e-1 top-1/2 z-10 -translate-y-1/2">
 						<Button
 							type="button"
-							variant="ghost"
+							variant="transparent"
 							size="sm"
 							onclick={() => (showAdvancedSearch = true)}
 							aria-label={mediagallery_advanced_search()}
 							data-testid="media-advanced-search"
-							class="h-10! w-10! min-w-0! px-0! {searchCriteria || jsonPathFilter.trim()
+							class="h-10! w-10! min-w-0! px-0! text-(--admin-text-muted) hover:bg-surface-500/10 dark:hover:bg-surface-500/20 {searchCriteria ||
+							hasAppliedFilters ||
+							jsonPathFilter.trim()
 								? 'text-primary-500'
 								: ''}"
 						>
@@ -1494,22 +1825,51 @@
 			class="relative flex min-h-0 flex-1 flex-col"
 			data-testid="media-gallery-content"
 			data-view={view}
+			aria-busy={isSearching}
 		>
-			{#if view === 'grid'}
-				<AdminCard
-					class="my-2 flex h-full min-h-0 w-full flex-col sm:my-3"
-					data-testid="media-grid-card"
+			<!--
+				Non-blocking refresh state: the current tiles stay painted while the
+				debounced ?q= load is in flight, so the search box (toolbar, outside this
+				region) never unmounts or loses focus mid-query.
+			-->
+			{#if isSearching}
+				<div
+					class="pointer-events-none absolute inset-x-0 top-0 z-20 flex justify-center"
+					role="status"
+					aria-live="polite"
+					data-testid="media-gallery-searching"
 				>
+					<span
+						class="mt-2 inline-flex items-center gap-2 rounded-full border border-primary-500/30 bg-(--admin-bg-card)/95 px-3 py-1 text-xs font-medium text-(--admin-text-body) shadow-sm"
+					>
+						<iconify-icon
+							icon="mdi:loading"
+							width="14"
+							class="animate-spin text-primary-500 motion-reduce:animate-none"
+							aria-hidden="true"
+						></iconify-icon>
+						{mediagallery_loading_more()}
+					</span>
+				</div>
+			{/if}
+
+			{#if view === 'grid'}
+				<AdminCard class="flex min-h-0 w-full flex-1 flex-col" data-testid="media-grid-card">
 					<MediaGrid
 						{filteredFiles}
 						{gridSize}
 						{isSelectionMode}
 						bind:selectedFiles
 						{publishedMediaIds}
+						{hasActiveFilters}
+						onClearFilters={clearMediaFilters}
+						onCreateFolder={handleCreateFolder}
 						serverHasMore={mediaPagination.hasNextPage}
 						{isLoadingMore}
+						isRefreshing={isSearching}
 						onLoadMore={loadMoreMedia}
 						onEditImage={handleEditImage}
+						onSetFocalPoint={handleSetFocalPoint}
 						onOpenFileDetails={handleOpenFileDetails}
 						ondeleteImage={handleDeleteImage}
 						onUpdateImage={handleUpdateImage}
@@ -1528,12 +1888,15 @@
 						{isSelectionMode}
 						bind:selectedFiles
 						{publishedMediaIds}
+						{hasActiveFilters}
+						onClearFilters={clearMediaFilters}
 						serverHasMore={mediaPagination.hasNextPage}
 						serverTotal={mediaPagination.total}
 						serverLoaded={files.length}
 						{isLoadingMore}
 						onLoadMore={loadMoreMedia}
 						onEditImage={handleEditImage}
+						onSetFocalPoint={handleSetFocalPoint}
 						onOpenFileDetails={handleOpenFileDetails}
 						ondeleteImage={handleDeleteImage}
 						onUpdateImage={handleUpdateImage}
@@ -1543,11 +1906,26 @@
 		</div>
 	</div>
 
-	<Slot name="media_gallery" />
+	<Slot name="media_gallery" inline />
 
 	{#if showBatchProcessor && assetStats.selected > 0}
 		{#await import('./batch-processor.svelte') then mod}
-			<mod.default selectedIds={selectedFiles} onClose={() => (showBatchProcessor = false)} />
+			<mod.default
+				selectedIds={selectedFiles}
+				imageIds={selectedImageIds}
+				onClose={() => (showBatchProcessor = false)}
+			/>
+		{/await}
+	{/if}
+
+	{#if showFocalModal && focalFile}
+		{#await import('./focal-quick-modal.svelte') then mod}
+			<mod.default
+				media={focalFile}
+				bind:show={showFocalModal}
+				onClose={() => (focalFile = null)}
+				onSave={handleFocalSave}
+			/>
 		{/await}
 	{/if}
 
@@ -1568,10 +1946,14 @@
 					<mod.default
 						{files}
 						initialJsonPath={jsonPathFilter}
+						initialFilters={appliedFilters}
 						onSearch={(criteria, path) => {
-							searchCriteria = criteria;
+							// Only the page-scoped criteria stay client-side; the adapter filters
+							// are already on their way into the URL below.
+							searchCriteria = clientSideCriteria(criteria);
 							jsonPathFilter = path;
 							showAdvancedSearch = false;
+							void applyAdvancedSearch(criteria, path);
 						}}
 						onClose={() => {
 							showAdvancedSearch = false;

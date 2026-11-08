@@ -18,6 +18,7 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 	import { hydration } from '@src/stores/hydration.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { showConfirm } from '@utils/modal.svelte';
+	import { unwrapList } from '@utils/http-client';
 	import { generateSecureToken } from '@utils/native-utils';
 	import { fade, slide } from 'svelte/transition';
 	import Badge from '@components/ui/badge.svelte';
@@ -40,8 +41,7 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 		deleteWebhook as apiDeleteWebhook,
 		listWebhooks,
 		saveWebhook as apiSaveWebhook,
-		testWebhookDelivery,
-		unwrapWebhookList
+		testWebhookDelivery
 	} from './webhooks-api';
 	import {
 		automation_webhook_url_placeholder,
@@ -95,7 +95,7 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 		try {
 			const result = await listWebhooks();
 			if (result.success) {
-				webhooks = unwrapWebhookList(result);
+				webhooks = unwrapList<Webhook>(result);
 			} else {
 				toast.error(result.message || 'Failed to load webhooks');
 			}

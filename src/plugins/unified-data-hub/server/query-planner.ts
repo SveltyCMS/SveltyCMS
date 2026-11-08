@@ -168,7 +168,7 @@ export function normalizeVirtualQuery(
   };
 }
 
-export function validateQueryCapabilities(
+function validateQueryCapabilities(
   ast: FederatedQueryAST,
   capabilities: ConnectorCapabilities,
   connector: ConnectorRecord,
@@ -249,7 +249,7 @@ export function translateWordPressRestSort(sort: NormalizedSort | null): Record<
   };
 }
 
-export function translateToConnectorQuery(
+function translateToConnectorQuery(
   ast: FederatedQueryAST,
   collection: VirtualCollectionRecord,
   connector: ConnectorRecord,

@@ -198,7 +198,9 @@ export function getTestSecret(): string {
       cachedTestSecret = fs.readFileSync(secretPath, "utf8").trim();
       return cachedTestSecret!;
     }
-  } catch {}
+  } catch (error) {
+    logger.debug("[setup-check] suppressed error", error);
+  }
 
   // ⚠️ SECURITY: No hardcoded fallback secret. A known credential in source code
   // could be used against production if test mode is accidentally enabled.
@@ -233,7 +235,9 @@ export function invalidateSetupCache(
     import("../../utils/server/collection-utils.server").then(
       ({ invalidateFirstCollectionPathCache }) => invalidateFirstCollectionPathCache(),
     );
-  } catch {}
+  } catch (error) {
+    logger.debug("[setup-check] suppressed error", error);
+  }
 
   if (clearPrivateEnv) {
     import("../../databases/db").then(async (db) => {

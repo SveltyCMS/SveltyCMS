@@ -13,13 +13,16 @@ Provides comprehensive search interface with multiple criteria:
 Structure optimized for LLM integration and AI-powered search.
 
 ### Props
-- `files: MediaBase[]` - All available media files
-- `onSearch: (criteria: SearchCriteria, jsonPath: string) => void` - Callback with search results
+- `files: MediaBase[]` - Assets already loaded (drives the suggestion lists)
+- `onSearch: (criteria: SearchCriteria, jsonPath: string) => void` - Callback with the criteria
 - `onClose: () => void` - Callback to close modal
 - `initialJsonPath: string` - Existing metadata query, echoed back on reopen
+- `initialFilters: MediaStructuredFilters` - Size/dimension/MIME filters the server already applied
 
 ### Features
 - Multi-criteria form
+- Size, pixel dimensions and MIME type are applied by the database adapter across
+  the whole library; the remaining criteria narrow the loaded page
 - Search suggestions (tags, cameras, common dimensions)
 - Real-time validation
 - Keyboard shortcuts (Enter to search, Escape to close)
@@ -28,13 +31,17 @@ Structure optimized for LLM integration and AI-powered search.
 
 <script lang="ts">
 	import type { SearchCriteria } from '@utils/media/advanced-search';
+	import type { MediaStructuredFilters } from '@utils/media/media-query-filters';
 	import type { MediaBase } from '@utils/media/media-models';
+	import { untrack } from 'svelte';
 	import { SvelteDate, SvelteSet } from 'svelte/reactivity';
 	import AdminCard from '@components/admin-card.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Checkbox from '@components/ui/checkbox.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
+	import Tooltip from '@components/ui/tooltip.svelte';
+	import HelpIcon from '@components/ui/help-icon.svelte';
 	import {
 		button_cancel,
 		button_reset,
@@ -51,7 +58,6 @@ Structure optimized for LLM integration and AI-powered search.
 		mediagallery_found,
 		mediagallery_id_placeholder,
 		mediagallery_json_path_filter,
-		mediagallery_json_path_format,
 		mediagallery_json_path_helper_part1,
 		mediagallery_json_path_helper_part2,
 		mediagallery_json_path_helper_part3,
@@ -77,9 +83,11 @@ Structure optimized for LLM integration and AI-powered search.
 		onSearch: (criteria: SearchCriteria, jsonPath: string) => void;
 		/** Existing metadata query, echoed back so the filter survives a reopen. */
 		initialJsonPath?: string;
+		/** Size / dimension / MIME filters the loader already applied (`?minSize=`, …). */
+		initialFilters?: MediaStructuredFilters;
 	}
 
-	const { files, onSearch, onClose, initialJsonPath = '' }: Props = $props();
+	const { files, onSearch, onClose, initialJsonPath = '', initialFilters }: Props = $props();
 
 	const aspectRatioOptions = [
 		{ value: 'any', label: 'Any' },
@@ -94,18 +102,85 @@ Structure optimized for LLM integration and AI-powered search.
 		{ value: 'no', label: 'No' }
 	];
 
+	/**
+	 * Per-field help shown behind the `?` trigger next to each label. The labels
+	 * themselves are still the ones painted by the control, so the tooltip text
+	 * only explains what the value does to the result set — including whether the
+	 * database applies it to the whole library or the browser applies it to the
+	 * assets already loaded.
+	 */
+	const FIELD_HELP = {
+		filename: 'Match files whose name contains this text. Applied to the assets loaded so far.',
+		tags: 'Comma-separated tags. A file matches when it carries any of them. Applied to the assets loaded so far.',
+		minWidth:
+			'Smallest accepted original width in pixels. Applied by the database across the whole library.',
+		maxWidth:
+			'Largest accepted original width in pixels. Applied by the database across the whole library.',
+		minHeight:
+			'Smallest accepted original height in pixels. Applied by the database across the whole library.',
+		maxHeight:
+			'Largest accepted original height in pixels. Applied by the database across the whole library.',
+		aspectRatio:
+			'Landscape is wider than tall, portrait is taller than wide, square has equal sides. Applied to the assets loaded so far.',
+		minSize:
+			'Smallest accepted file size in megabytes (1 MB = 1024 × 1024 bytes). Applied by the database across the whole library.',
+		maxSize:
+			'Largest accepted file size in megabytes (1 MB = 1024 × 1024 bytes). Applied by the database across the whole library.',
+		fileTypes:
+			'Comma-separated MIME types, for example image/jpeg, image/png. Each entry must be a complete type/subtype; it is matched exactly across the whole library.',
+		uploadedAfter:
+			'Only files uploaded on or after this date. Applied to the assets loaded so far.',
+		uploadedBefore:
+			'Only files uploaded on or before this date. Applied to the assets loaded so far.',
+		hasEXIF:
+			'Restrict the result to files that do or do not carry EXIF metadata. Applied to the assets loaded so far.',
+		camera:
+			'Matches the camera model recorded in the EXIF data. Applied to the assets loaded so far.',
+		location:
+			'Matches the location string recorded in the EXIF data. Applied to the assets loaded so far.',
+		dominantColor:
+			'Hex colour; finds images whose dominant colour is close to this value. Applied to the assets loaded so far.',
+		hashMatch: 'Content hash, for finding exact duplicates of a file.',
+		jsonPath:
+			'Metadata expression evaluated per file. Supports `path = value` comparisons joined with `;`. Pushed into the database; clauses it cannot evaluate are matched on the loaded page.',
+		// No scope claim: the page-level fallback does not evaluate hash matches nor
+		// duplicate detection yet, so promising a scope here would be inaccurate.
+		duplicates: 'Only show files that share a content hash with another file.'
+	};
+
+	// untrack: the modal is mounted per open, so the URL echoes seed it exactly once.
+	const seedFilters = untrack(() => initialFilters);
+
+	/** Bytes → the MB field (one decimal keeps a bound written in bytes round-trippable). */
+	function megabytesFromBytes(bytes?: number): string {
+		if (!bytes || bytes <= 0) return '';
+		return String(Math.round((bytes / (1024 * 1024)) * 10) / 10);
+	}
+
+	/** Empty input is absent, not "0 MB" — the URL validator drops 0 as well. */
+	function megabytesToBytes(megabytes: string): number | undefined {
+		const value = Number.parseFloat(megabytes);
+		if (!Number.isFinite(value) || value <= 0) return undefined;
+		return Math.round(value * 1024 * 1024);
+	}
+
+	function pixelBound(pixels: string): number | undefined {
+		const value = Number.parseInt(pixels, 10);
+		return Number.isFinite(value) && value > 0 ? value : undefined;
+	}
+
 	// Form input values (separate from criteria for easier binding)
 	let formValues = $state({
 		filename: '',
 		tagsInput: '',
-		minWidth: '',
-		maxWidth: '',
-		minHeight: '',
-		maxHeight: '',
+		minWidth: seedFilters?.minWidth ? String(seedFilters.minWidth) : '',
+		maxWidth: seedFilters?.maxWidth ? String(seedFilters.maxWidth) : '',
+		minHeight: seedFilters?.minHeight ? String(seedFilters.minHeight) : '',
+		maxHeight: seedFilters?.maxHeight ? String(seedFilters.maxHeight) : '',
 		aspectRatio: 'any',
-		minSize: '',
-		maxSize: '',
-		fileTypesInput: '',
+		minSize: megabytesFromBytes(seedFilters?.minSize),
+		maxSize: megabytesFromBytes(seedFilters?.maxSize),
+		fileTypesInput: seedFilters?.mimeTypes?.join(', ') ?? '',
 		uploadedAfter: '',
 		uploadedBefore: '',
 		hasEXIF: 'any',
@@ -156,20 +231,16 @@ Structure optimized for LLM integration and AI-powered search.
 		const searchCriteria: SearchCriteria = {
 			filename: formValues.filename || undefined,
 			tags: formValues.tagsInput ? formValues.tagsInput.split(',').map((t) => t.trim()) : undefined,
-			minWidth: formValues.minWidth ? Number.parseInt(formValues.minWidth, 10) : undefined,
-			maxWidth: formValues.maxWidth ? Number.parseInt(formValues.maxWidth, 10) : undefined,
-			minHeight: formValues.minHeight ? Number.parseInt(formValues.minHeight, 10) : undefined,
-			maxHeight: formValues.maxHeight ? Number.parseInt(formValues.maxHeight, 10) : undefined,
+			minWidth: pixelBound(formValues.minWidth),
+			maxWidth: pixelBound(formValues.maxWidth),
+			minHeight: pixelBound(formValues.minHeight),
+			maxHeight: pixelBound(formValues.maxHeight),
 			aspectRatio:
 				formValues.aspectRatio !== 'any'
 					? (formValues.aspectRatio as 'landscape' | 'portrait' | 'square')
 					: undefined,
-			minSize: formValues.minSize
-				? Number.parseInt(formValues.minSize, 10) * 1024 * 1024
-				: undefined,
-			maxSize: formValues.maxSize
-				? Number.parseInt(formValues.maxSize, 10) * 1024 * 1024
-				: undefined,
+			minSize: megabytesToBytes(formValues.minSize),
+			maxSize: megabytesToBytes(formValues.maxSize),
 			fileTypes: formValues.fileTypesInput
 				? formValues.fileTypesInput.split(',').map((t) => t.trim())
 				: undefined,
@@ -219,6 +290,17 @@ Structure optimized for LLM integration and AI-powered search.
 	}
 </script>
 
+<!-- Shared label with a `?` help trigger — one trigger per field, never the
+     whole label wrapped, so the tooltip cannot swallow the control's click. -->
+{#snippet fieldLabel(text: string, help: string)}
+	<span class="inline-flex items-center gap-1.5 text-sm font-medium leading-none">
+		<span>{text}</span>
+		<Tooltip title={help}>
+			<HelpIcon ariaLabel="{text} information" tabindex={0} />
+		</Tooltip>
+	</span>
+{/snippet}
+
 <!-- Modal Content Wrapper -->
 <div class="flex h-full w-full flex-col items-center justify-center p-4">
 	<AdminCard
@@ -235,7 +317,7 @@ Structure optimized for LLM integration and AI-powered search.
 	>
 		<!-- Header -->
 		<div
-			class="flex-none border-b border-surface-500/30 bg-surface-200/50 p-4 dark:border-surface-600 dark:bg-surface-700/50"
+			class="flex-none border-b border-surface-500/30 bg-surface-200/50 px-4 py-3 dark:border-surface-600 dark:bg-surface-700/50"
 		>
 			<h2
 				id="advanced-search-title"
@@ -246,15 +328,28 @@ Structure optimized for LLM integration and AI-powered search.
 		</div>
 
 		<!-- Scrollable Body -->
-		<div class="flex-1 overflow-y-auto p-6">
+		<div class="flex-1 overflow-y-auto p-4 sm:p-5">
 			<form
 				id="advanced-search-form"
 				onsubmit={(e) => {
 					e.preventDefault();
 					handleSearch();
 				}}
-				class="space-y-6"
+				class="space-y-4"
 			>
+				<!-- Scope contract: the adapter owns size/dimensions/MIME (so a match on
+				     page 7 is found from page 1); the rest narrows the loaded slice.
+				     Stated up front so a tag search is never mistaken for a library-wide one. -->
+				<p
+					class="rounded border border-tertiary-500/30 bg-tertiary-500/10 px-3 py-2 text-xs text-(--admin-text-muted) dark:border-primary-500/30 dark:bg-primary-500/10 dark:text-surface-50"
+					data-testid="media-advanced-search-scope"
+				>
+					<strong class="font-semibold text-tertiary-500 dark:text-primary-400"
+						>Size, dimensions and file types</strong
+					>
+					are applied by the database across the whole library and reset paging. The other criteria narrow
+					the assets already loaded.
+				</p>
 				<!-- Search Presets -->
 				<div class="flex flex-wrap gap-2">
 					<Button
@@ -322,18 +417,24 @@ Structure optimized for LLM integration and AI-powered search.
 					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">
 						{mediagallery_basic_criteria()}
 					</h3>
-					<div class="grid gap-4 md:grid-cols-2">
+					<div class="grid gap-3 md:grid-cols-2">
 						<Input
 							bind:value={formValues.filename}
-							label="Filename"
 							placeholder={mediagallery_filename_placeholder()}
-						/>
+						>
+							{#snippet labelSnippet()}
+								{@render fieldLabel('Filename', FIELD_HELP.filename)}
+							{/snippet}
+						</Input>
 						<div>
 							<Input
 								bind:value={formValues.tagsInput}
-								label="Tags (comma-separated)"
 								placeholder={mediagallery_tags_placeholder()}
-							/>
+							>
+								{#snippet labelSnippet()}
+									{@render fieldLabel('Tags (comma-separated)', FIELD_HELP.tags)}
+								{/snippet}
+							</Input>
 							{#if suggestions.tags.length > 0}
 								<div class="mt-1 text-xs text-(--admin-text-muted) dark:text-surface-50">
 									{mediagallery_suggestions()}
@@ -349,40 +450,35 @@ Structure optimized for LLM integration and AI-powered search.
 					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">
 						{mediagallery_dimensions()}
 					</h3>
-					<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-						<Input
-							bind:value={formValues.minWidth}
-							type="number"
-							label="Min Width (px)"
-							placeholder="1920"
-						/>
-						<Input
-							bind:value={formValues.maxWidth}
-							type="number"
-							label="Max Width (px)"
-							placeholder="3840"
-						/>
-						<Input
-							bind:value={formValues.minHeight}
-							type="number"
-							label="Min Height (px)"
-							placeholder="1080"
-						/>
-						<Input
-							bind:value={formValues.maxHeight}
-							type="number"
-							label="Max Height (px)"
-							placeholder="2160"
-						/>
+					<div class="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+						<Input bind:value={formValues.minWidth} type="number" placeholder="1920">
+							{#snippet labelSnippet()}
+								{@render fieldLabel('Min Width (px)', FIELD_HELP.minWidth)}
+							{/snippet}
+						</Input>
+						<Input bind:value={formValues.maxWidth} type="number" placeholder="3840">
+							{#snippet labelSnippet()}
+								{@render fieldLabel('Max Width (px)', FIELD_HELP.maxWidth)}
+							{/snippet}
+						</Input>
+						<Input bind:value={formValues.minHeight} type="number" placeholder="1080">
+							{#snippet labelSnippet()}
+								{@render fieldLabel('Min Height (px)', FIELD_HELP.minHeight)}
+							{/snippet}
+						</Input>
+						<Input bind:value={formValues.maxHeight} type="number" placeholder="2160">
+							{#snippet labelSnippet()}
+								{@render fieldLabel('Max Height (px)', FIELD_HELP.maxHeight)}
+							{/snippet}
+						</Input>
 					</div>
 
-					<div class="mt-4">
-						<Select
-							bind:value={formValues.aspectRatio}
-							label="Aspect Ratio"
-							options={aspectRatioOptions}
-							placeholder=""
-						/>
+					<div class="mt-3">
+						<Select bind:value={formValues.aspectRatio} options={aspectRatioOptions} placeholder="">
+							{#snippet labelSnippet()}
+								{@render fieldLabel('Aspect Ratio', FIELD_HELP.aspectRatio)}
+							{/snippet}
+						</Select>
 					</div>
 
 					{#if suggestions.dimensions.length > 0}
@@ -398,26 +494,25 @@ Structure optimized for LLM integration and AI-powered search.
 					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">
 						{mediagallery_file_properties()}
 					</h3>
-					<div class="grid gap-4 md:grid-cols-3">
-						<Input
-							bind:value={formValues.minSize}
-							type="number"
-							label="Min Size (MB)"
-							placeholder="1"
-							step="0.1"
-						/>
-						<Input
-							bind:value={formValues.maxSize}
-							type="number"
-							label="Max Size (MB)"
-							placeholder="50"
-							step="0.1"
-						/>
+					<div class="grid gap-3 md:grid-cols-3">
+						<Input bind:value={formValues.minSize} type="number" placeholder="1" step="0.1">
+							{#snippet labelSnippet()}
+								{@render fieldLabel('Min Size (MB)', FIELD_HELP.minSize)}
+							{/snippet}
+						</Input>
+						<Input bind:value={formValues.maxSize} type="number" placeholder="50" step="0.1">
+							{#snippet labelSnippet()}
+								{@render fieldLabel('Max Size (MB)', FIELD_HELP.maxSize)}
+							{/snippet}
+						</Input>
 						<Input
 							bind:value={formValues.fileTypesInput}
-							label="File Types"
 							placeholder={mediagallery_mime_placeholder()}
-						/>
+						>
+							{#snippet labelSnippet()}
+								{@render fieldLabel('File Types', FIELD_HELP.fileTypes)}
+							{/snippet}
+						</Input>
 					</div>
 				</section>
 
@@ -426,9 +521,17 @@ Structure optimized for LLM integration and AI-powered search.
 					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">
 						{mediagallery_upload_dates()}
 					</h3>
-					<div class="grid gap-4 md:grid-cols-2">
-						<Input bind:value={formValues.uploadedAfter} type="date" label="Uploaded After" />
-						<Input bind:value={formValues.uploadedBefore} type="date" label="Uploaded Before" />
+					<div class="grid gap-3 md:grid-cols-2">
+						<Input bind:value={formValues.uploadedAfter} type="date">
+							{#snippet labelSnippet()}
+								{@render fieldLabel('Uploaded After', FIELD_HELP.uploadedAfter)}
+							{/snippet}
+						</Input>
+						<Input bind:value={formValues.uploadedBefore} type="date">
+							{#snippet labelSnippet()}
+								{@render fieldLabel('Uploaded Before', FIELD_HELP.uploadedBefore)}
+							{/snippet}
+						</Input>
 					</div>
 				</section>
 
@@ -437,19 +540,18 @@ Structure optimized for LLM integration and AI-powered search.
 					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">
 						{mediagallery_metadata_exif()}
 					</h3>
-					<div class="grid gap-4 md:grid-cols-3">
-						<Select
-							bind:value={formValues.hasEXIF}
-							label="Has EXIF Data"
-							options={hasExifOptions}
-							placeholder=""
-						/>
+					<div class="grid gap-3 md:grid-cols-3">
+						<Select bind:value={formValues.hasEXIF} options={hasExifOptions} placeholder="">
+							{#snippet labelSnippet()}
+								{@render fieldLabel('Has EXIF Data', FIELD_HELP.hasEXIF)}
+							{/snippet}
+						</Select>
 						<div>
-							<Input
-								bind:value={formValues.camera}
-								label="Camera"
-								placeholder={mediagallery_camera_placeholder()}
-							/>
+							<Input bind:value={formValues.camera} placeholder={mediagallery_camera_placeholder()}>
+								{#snippet labelSnippet()}
+									{@render fieldLabel('Camera', FIELD_HELP.camera)}
+								{/snippet}
+							</Input>
 							{#if suggestions.cameras.length > 0}
 								<div class="mt-1 text-xs text-(--admin-text-muted) dark:text-surface-50">
 									{mediagallery_found()}
@@ -459,9 +561,12 @@ Structure optimized for LLM integration and AI-powered search.
 						</div>
 						<Input
 							bind:value={formValues.location}
-							label="Location"
 							placeholder={mediagallery_location_placeholder()}
-						/>
+						>
+							{#snippet labelSnippet()}
+								{@render fieldLabel('Location', FIELD_HELP.location)}
+							{/snippet}
+						</Input>
 					</div>
 				</section>
 
@@ -470,27 +575,29 @@ Structure optimized for LLM integration and AI-powered search.
 					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">
 						{common_advanced()}
 					</h3>
-					<div class="grid gap-4 md:grid-cols-2">
-						<Input
-							bind:value={formValues.dominantColor}
-							label="Dominant Color (hex)"
-							placeholder="#FF5733"
-						/>
-						<Input
-							bind:value={formValues.hashMatch}
-							label="Hash Match"
-							placeholder={mediagallery_id_placeholder()}
-						/>
+					<div class="grid gap-3 md:grid-cols-2">
+						<Input bind:value={formValues.dominantColor} placeholder="#FF5733">
+							{#snippet labelSnippet()}
+								{@render fieldLabel('Dominant Color (hex)', FIELD_HELP.dominantColor)}
+							{/snippet}
+						</Input>
+						<Input bind:value={formValues.hashMatch} placeholder={mediagallery_id_placeholder()}>
+							{#snippet labelSnippet()}
+								{@render fieldLabel('Hash Match', FIELD_HELP.hashMatch)}
+							{/snippet}
+						</Input>
 					</div>
 
-					<div class="mt-4">
+					<div class="mt-3">
 						<Input
 							bind:value={formValues.jsonPath}
-							label={mediagallery_json_path_filter()}
 							placeholder={mediagallery_json_path_placeholder()}
-							title={mediagallery_json_path_format()}
 							data-testid="media-json-path-filter"
-						/>
+						>
+							{#snippet labelSnippet()}
+								{@render fieldLabel(mediagallery_json_path_filter(), FIELD_HELP.jsonPath)}
+							{/snippet}
+						</Input>
 						<p class="mt-1 text-xs text-(--admin-text-muted)">
 							{mediagallery_json_path_helper_part1()}{' '}
 							<code dir="ltr">metadata.exif.camera = Canon</code>.{' '}
@@ -499,8 +606,12 @@ Structure optimized for LLM integration and AI-powered search.
 						</p>
 					</div>
 
-					<div class="mt-4">
-						<Checkbox bind:checked={formValues.showDuplicatesOnly} label="Show Duplicates Only" />
+					<div class="mt-3">
+						<Checkbox
+							bind:checked={formValues.showDuplicatesOnly}
+							label="Show Duplicates Only"
+							description={FIELD_HELP.duplicates}
+						/>
 					</div>
 				</section>
 			</form>
@@ -508,14 +619,14 @@ Structure optimized for LLM integration and AI-powered search.
 
 		<!-- Footer -->
 		<div
-			class="flex-none border-t border-surface-500/30 bg-surface-200/50 p-4 dark:border-surface-600 dark:bg-surface-700/50"
+			class="flex-none border-t border-surface-500/30 bg-surface-200/50 px-4 py-3 dark:border-surface-600 dark:bg-surface-700/50"
 		>
 			<div class="flex items-center justify-between">
 				<div class="hidden text-sm sm:block">
 					<strong class="text-tertiary-500 dark:text-primary-500">{mediagallery_tip()}</strong>
 					{mediagallery_press()}
 					<kbd
-						class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold bg-tertiary-500 text-white dark:bg-primary-500 dark:text-white"
+						class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold bg-tertiary-500 text-white dark:bg-primary-500"
 						>{mediagallery_ctrl_enter()}</kbd
 					>
 					{mediagallery_to_search()}

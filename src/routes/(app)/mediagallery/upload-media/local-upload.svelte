@@ -5,12 +5,12 @@
 
 ## Props
 - `folder`: Target virtual folder (`global` keeps the media root).
-- `onUploadComplete`: Called after a successful batch.
-- `redirectOnSuccess`: Navigate to `/mediagallery` when true.
+- `onUploadComplete`: Called after a successful batch (the parent owns navigation).
 
 ### Features:
 - Drag and drop file upload with a full-height, non-clipped drop zone
-- File validation (size, type) and duplicate detection
+- File validation (size + the shared server upload allowlist) and duplicate detection
+- Per-file outcomes: a rejected file no longer hides the rest of the queue
 - Synchronous image/audio previews (no missing thumbnails on first paint)
 - Shared `formatBytes` / MIME-subtype labels with the media gallery
 - File upload progress and cancel
@@ -21,8 +21,8 @@
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { logger } from '@utils/logger';
 	import { formatBytes } from '@utils/file';
+	import { getMimeType, isAllowedUploadMime, MEDIA_UPLOAD_ACCEPT } from '@utils/media/media-utils';
 	import { SvelteSet } from 'svelte/reactivity';
-	import { goto } from '$app/navigation';
 	import { optimizeImage } from '@src/utils/media/canvas-image-optimizer';
 	import { uploadMediaFilesHandle } from '@utils/media/upload-client';
 	import Button from '@components/ui/button.svelte';
@@ -54,14 +54,9 @@
 	interface Props {
 		folder?: string;
 		onUploadComplete?: () => void;
-		redirectOnSuccess?: boolean;
 	}
 
-	const {
-		onUploadComplete = () => {},
-		redirectOnSuccess = true,
-		folder = 'global'
-	}: Props = $props();
+	const { onUploadComplete = () => {}, folder = 'global' }: Props = $props();
 
 	interface QueuedFile {
 		file: File;
@@ -83,20 +78,6 @@
 	const fileSet = new SvelteSet<string>();
 
 	const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
-	const ALLOWED_TYPES = [
-		'image/jpeg',
-		'image/png',
-		'image/gif',
-		'image/webp',
-		'image/svg+xml',
-		'video/mp4',
-		'video/webm',
-		'audio/mpeg',
-		'audio/wav',
-		'application/pdf',
-		'application/msword',
-		'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-	];
 
 	function fileKey(file: File): string {
 		return `${file.name}-${file.size}`;
@@ -180,9 +161,12 @@
 
 		newFiles.forEach((file) => {
 			const key = fileKey(file);
+			// Same allowlist the server enforces; fall back to the extension when the
+			// browser omits `File.type` so a valid `.webp` is not rejected client-side.
+			const declaredMime = file.type || getMimeType(file.name) || '';
 			if (file.size > MAX_FILE_SIZE) {
 				errors.push(`${file.name} exceeds maximum file size of 50MB`);
-			} else if (ALLOWED_TYPES.includes(file.type)) {
+			} else if (isAllowedUploadMime(declaredMime)) {
 				if (!fileSet.has(key)) {
 					validFiles.push({ file, key, previewUrl: createPreview(file) });
 					fileSet.add(key);
@@ -272,13 +256,16 @@
 		const startTime = Date.now();
 		const sourceFiles = files.map((entry) => entry.file);
 
-		// --- WebGPU OPTIMIZATION STEP ---
+		// --- CLIENT-SIDE OPTIMIZATION STEP (Canvas 2D: downscale + WebP) ---
 		let filesToUpload = [...sourceFiles];
 		if (optimizeBeforeUpload) {
-			toast.info('Optimizing media via WebGPU...');
+			toast.info('Optimizing images before upload…');
 			const optimized: File[] = [];
-			for (const file of sourceFiles) {
+			for (const [index, file] of sourceFiles.entries()) {
 				if (file.type.startsWith('image/') && file.type !== 'image/svg+xml') {
+					// A long preprocess must not look stuck at 0% — name the file being
+					// optimized in the same label the progress panel uses.
+					uploadFileLabel = `Optimizing ${index + 1}/${sourceFiles.length}: ${file.name}`;
 					try {
 						const result = await optimizeImage(file);
 						optimized.push(result.file);
@@ -328,13 +315,40 @@
 
 			if (result.aborted) {
 				toast.info('Upload cancelled');
-			} else if (result.success) {
-				toast.success('Files uploaded successfully');
+				return;
+			}
+
+			// Sequential uploads continue past a rejected file, so `files` is the
+			// per-file outcome list. Report it honestly and keep only the failures
+			// in the queue for a retry.
+			const outcomes = result.files ?? [];
+			const uploaded = outcomes.filter((outcome) => outcome.success).length;
+			const reported = outcomes.length || sourceFiles.length;
+
+			if (uploaded > 0) {
+				const kept: QueuedFile[] = [];
+				files.forEach((entry, index) => {
+					if (outcomes[index]?.success) {
+						fileSet.delete(entry.key);
+						revokePreview(entry);
+					} else {
+						kept.push(entry);
+					}
+				});
+				files = kept;
+			}
+
+			if (result.success) {
+				toast.success(
+					reported > 1 ? `${reported} files uploaded successfully` : 'File uploaded successfully'
+				);
 				handleCancel();
+				// The parent owns navigation — one redirect, not two.
 				onUploadComplete();
-				if (redirectOnSuccess) {
-					void goto('/mediagallery', { refreshAll: true });
-				}
+			} else if (uploaded > 0) {
+				toast.warning(
+					`${uploaded} of ${reported} files uploaded — ${reported - uploaded} failed and ${reported - uploaded === 1 ? 'stays' : 'stay'} in the queue.`
+				);
 			} else {
 				throw new Error(result.message || 'Upload failed');
 			}
@@ -413,6 +427,7 @@
 			class="sr-only"
 			hidden
 			multiple
+			accept={MEDIA_UPLOAD_ACCEPT}
 			onchange={onChange}
 			aria-hidden="true"
 			tabindex="-1"
@@ -534,6 +549,7 @@
 			type="file"
 			class="hidden"
 			multiple
+			accept={MEDIA_UPLOAD_ACCEPT}
 			onchange={onChange}
 			aria-label={common_input()}
 		/>

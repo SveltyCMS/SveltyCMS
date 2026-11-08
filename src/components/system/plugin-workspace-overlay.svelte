@@ -10,7 +10,7 @@
 -->
 
 <script lang="ts">
-	import '@src/plugins/index';
+	import '@src/plugins/client';
 	import Slot from '@components/system/slot.svelte';
 	import { pluginWorkspace } from '@stores/plugin-workspace.svelte';
 	import { onMount } from 'svelte';

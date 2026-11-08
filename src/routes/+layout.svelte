@@ -29,7 +29,7 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 	// A runtime call creates a hard dependency so the plugin catalog executes at
 	// app start even when the bundler ignores manualChunks (Rolldown client builds
 	// drop manualChunks when SvelteKit sets output.codeSplitting — see vite.config.ts).
-	import { registerPluginSlots } from '@src/plugins/index';
+	import { registerPluginSlots } from '@src/plugins/client';
 	registerPluginSlots();
 
 	// Deterministic DOM ids: hand every render (each SSR request, each client hydration) a fresh id
@@ -197,7 +197,7 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 	// ============================================================================
 
 	import { applyRemoteContentStructure } from '@src/stores/collection-store.svelte';
-	import { initializeContent } from '@src/content';
+	import { initializeContent } from '@src/content/context';
 	import Button from '@components/ui/button.svelte';
 
 	// Initialize public environment settings from server data
@@ -536,7 +536,7 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 <!-- Progressive Session Timeout Warning Overlay/Banners -->
 {#if sessionPhase === 'warning'}
 	<div
-		class="fixed bottom-[max(1rem,env(safe-area-inset-bottom,0px))] inset-e-4 z-50 flex max-w-[min(24rem,calc(100vw_-_2rem))] items-center justify-between gap-4 rounded border border-warning-500/30 bg-surface-500/10 p-4 shadow-xl backdrop-blur-md dark:bg-surface-800/80 text-surface-900 dark:text-surface-100"
+		class="fixed bottom-[max(1rem,env(safe-area-inset-bottom,0px))] inset-e-4 z-50 flex max-w-[min(24rem,calc(100vw-2rem))] items-center justify-between gap-4 rounded border border-warning-500/30 bg-surface-500/10 p-4 shadow-xl backdrop-blur-md dark:bg-surface-800/80 text-surface-900 dark:text-surface-100"
 		role="status"
 		aria-live="polite"
 	>

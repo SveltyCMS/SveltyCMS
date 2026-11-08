@@ -224,13 +224,34 @@ function queueInvalidation(
       } else {
         void rc.invalidateAll(tenantKey).catch(() => {});
       }
-    } catch {
+    } catch (error) {
+      logger.debug("[post-write] suppressed error", error);
     } finally {
       if (ids) releaseIdSet(ids);
       _pendingInvalidationTasks.delete(requestKey);
       if (_pendingInvalidationDirty.has(requestKey)) {
         _pendingInvalidationDirty.delete(requestKey);
-        queueInvalidation(schema, tenantId, true, undefined, undefined, false);
+        // Writes that landed while this flush was in flight live in a fresh id
+        // set (the flushed one was detached above). Replay them with their own
+        // intent instead of forcing a structural clear: a point burst that was
+        // replayed structurally lost its `doc:` tags (a structural clear carries
+        // neither `doc:` nor `res:all`), which left the HTTP body of the last
+        // point write stale for the full TTL.
+        const replayIds = _pendingInvalidationIds.get(requestKey);
+        const replayStructural = _pendingStructuralInvalidations.has(requestKey);
+        const replayIdList = replayIds ? Array.from(replayIds) : undefined;
+        if (replayIds) {
+          _pendingInvalidationIds.delete(requestKey);
+          releaseIdSet(replayIds);
+        }
+        queueInvalidation(
+          schema,
+          tenantId,
+          true,
+          undefined,
+          replayIdList,
+          !replayStructural && replayIdList !== undefined && replayIdList.length > 0,
+        );
       }
     }
   });
@@ -264,6 +285,14 @@ export function schedulePostWrite(
 
   // L2 invalidation starts IMMEDIATELY (debounced + coalesced) — never behind
   // workflow/pubsub work, so save-then-read can't race a stale cached list.
+  //
+  // Every action stays structural, including a single-id update: a cached list
+  // body embeds the written row, and a point write leaves the `collection:` /
+  // `res:` tags intact, so the edited row kept its old title for the whole list
+  // TTL (measured on the E2E stack — 172b68b75, restored by 5836daa78). Point
+  // semantics remain available to callers whose write cannot change a list body
+  // (the single-id bulk lanes call `invalidateCache({ writtenId })`), and the
+  // coalesced replay below preserves them for a mid-flush burst.
   queueInvalidation(schema, tenantId, true, id, undefined, false);
 
   if ((action === "create" || action === "update") && !options.skipReturning) {
@@ -561,7 +590,9 @@ async function enqueueOutboxBatch(batch: PendingOutboxItem[]): Promise<void> {
     _outboxRef = { isOutboxDisabled: mod.isOutboxDisabled, outboxService: mod.outboxService };
     if (mod.isOutboxDisabled()) return;
     for (let i = 0; i < batch.length; i++) enqueueOne(batch[i]);
-  } catch {}
+  } catch (error) {
+    logger.debug("[post-write] suppressed error", error);
+  }
 }
 
 /** Shared frozen empty tx-options — every caller only spreads it, never mutates. */
@@ -569,7 +600,11 @@ const EMPTY_TX_OPTS: Record<string, unknown> = Object.freeze({});
 
 /**
  * Persist a mutation; schedule outbox emit off the critical path.
- * Single-statement INSERT/UPDATE/DELETE are natively atomic — no BEGIN/COMMIT wrapper.
+ *
+ * A standalone write is one INSERT/UPDATE/DELETE and is natively atomic. A
+ * transactional caller (draft promotion) supplies the adapter handle so the
+ * statement joins its transaction, and an `afterCommit` queue so the outbox
+ * event is emitted only once that transaction lands.
  */
 export async function persistWithOutbox(
   action: "create" | "update" | "delete",
@@ -579,23 +614,36 @@ export async function persistWithOutbox(
   user: any,
   getId: (result: any) => string,
   getData: (result: any) => any,
-  options?: { skipSideEffects?: boolean; skipReturning?: boolean },
+  options?: {
+    skipSideEffects?: boolean;
+    skipReturning?: boolean;
+    transaction?: unknown;
+    afterCommit?: Array<() => void>;
+  },
 ): Promise<any> {
   const writeMark = PROFILE_WRITE_ENABLED ? profileMark("ns:persist:adapter-write") : null;
-  const result = await write(EMPTY_TX_OPTS);
+  const result = await write(
+    options?.transaction ? { transaction: options.transaction } : EMPTY_TX_OPTS,
+  );
   writeMark?.();
   if (result?.success) {
     const id = getId(result);
     if (id && !options?.skipSideEffects && !options?.skipReturning && !isOutboxDisabledEnv()) {
       const outboxMark = PROFILE_WRITE_ENABLED ? profileMark("ns:persist:outbox") : null;
-      scheduleOutboxEvent({
-        schema,
-        tenantId,
-        action,
-        id,
-        data: getData(result),
-        user,
-      });
+      const emit = () =>
+        scheduleOutboxEvent({
+          schema,
+          tenantId,
+          action,
+          id,
+          data: getData(result),
+          user,
+        });
+      // Inside a transaction the event must wait for COMMIT; a handle without a
+      // queue cannot be deferred, so the event is dropped rather than emitted
+      // for a write that may still roll back.
+      if (options?.transaction) options.afterCommit?.push(emit);
+      else emit();
       outboxMark?.();
     }
   }

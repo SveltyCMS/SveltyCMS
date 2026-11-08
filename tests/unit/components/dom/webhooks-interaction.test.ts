@@ -37,13 +37,6 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock("@src/routes/(app)/config/webhooks/webhooks-api", () => ({
-  unwrapWebhookList: (result: any) => {
-    if (!result?.success) return [];
-    const raw = result.data ?? result;
-    if (Array.isArray(raw)) return raw;
-    if (raw && typeof raw === "object" && Array.isArray(raw.data)) return raw.data;
-    return [];
-  },
   listWebhooks: h.list,
   saveWebhook: h.save,
   deleteWebhook: h.remove,

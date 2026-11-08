@@ -1,19 +1,31 @@
 /**
- * @file src/services/jobs/webhook-jobs.ts
+ * @file src/services/background/jobs/webhook-jobs.ts
  * @description Job handler for durable webhook delivery with Dead-Letter Queue (DLQ) logic.
  */
 
 import crypto from "node:crypto";
 import { generateUUID } from "@utils/native-utils";
+import { nowISODateString } from "@utils/date";
 import { logger } from "@utils/logger";
-import type { Webhook, WebhookEvent } from "@src/services/background/webhook-service";
+import type { Webhook } from "@src/services/background/webhook-service";
 
-import { safeFetch } from "../../../utils/egress-guard";
+import { safeFetch } from "@utils/egress-guard";
+import {
+  beforeWebhookRequest,
+  recordWebhookFailure,
+  recordWebhookSuccess,
+} from "./webhook-circuit-breaker";
 
 export interface WebhookJobPayload {
   webhook: Webhook;
-  event: WebhookEvent;
+  /** Any event name (admin `WebhookEvent` or automation `AutomationEvent`). */
+  event: string;
   payload: unknown;
+  /** Pre-rendered body (automation custom body); absent → CMS envelope. */
+  body?: string;
+  method?: string;
+  /** Automation deliveries always enforce HTTPS; configured webhooks keep the default. */
+  allowHttp?: boolean;
 }
 
 /**
@@ -23,18 +35,21 @@ export interface WebhookJobPayload {
 export async function webhookDeliveryHandler(jobPayload: WebhookJobPayload) {
   const { webhook, event, payload } = jobPayload;
 
-  const payloadStr = JSON.stringify({
-    event,
-    timestamp: new Date().toISOString(),
-    payload,
-    webhookId: webhook.id,
-    deliveryId: generateUUID(),
-    tenantId: webhook.tenantId,
-  });
+  const payloadStr =
+    jobPayload.body ??
+    JSON.stringify({
+      event,
+      timestamp: nowISODateString(),
+      payload,
+      webhookId: webhook.id,
+      deliveryId: generateUUID(),
+      tenantId: webhook.tenantId,
+    });
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     "X-SveltyCMS-Event": event,
+    "X-SveltyCMS-Tenant": webhook.tenantId,
     "X-SveltyCMS-Delivery": generateUUID(),
     "X-SveltyCMS-Timestamp": Math.floor(Date.now() / 1000).toString(),
     "User-Agent": "SveltyCMS-Webhook/1.0 (JobQueue)",
@@ -48,14 +63,21 @@ export async function webhookDeliveryHandler(jobPayload: WebhookJobPayload) {
   }
 
   try {
+    // Process-local per-origin breaker: while open this throws
+    // `RETRYABLE_ERROR: CIRCUIT_OPEN …` before any network I/O, so the queue
+    // backs off instead of every queued delivery hammering a dead endpoint.
+    beforeWebhookRequest(webhook.url);
+
     const response = await safeFetch(webhook.url, {
-      method: "POST",
+      method: jobPayload.method || "POST",
       headers,
       body: payloadStr,
       timeoutMs: 10000,
+      ...(jobPayload.allowHttp === undefined ? {} : { allowHttp: jobPayload.allowHttp }),
     });
 
     if (response.success) {
+      recordWebhookSuccess(webhook.url);
       logger.info(`[WebhookJob] Successfully delivered ${event} to ${webhook.name}`);
       return;
     }
@@ -65,6 +87,7 @@ export async function webhookDeliveryHandler(jobPayload: WebhookJobPayload) {
     // RETRYABLE transport failure, not a permanent dead-letter (previously it
     // fell through as `PERMANENT_FAILURE: HTTP 0`).
     if (!response.status) {
+      recordWebhookFailure(webhook.url, "retryable");
       throw new Error(
         `RETRYABLE_ERROR: ${response.error || "network failure"} from ${webhook.url}`,
       );
@@ -75,12 +98,17 @@ export async function webhookDeliveryHandler(jobPayload: WebhookJobPayload) {
 
     // 1. RETRYABLE ERRORS (5xx, 429, 408)
     if (status >= 500 || status === 429 || status === 408) {
+      recordWebhookFailure(webhook.url, "retryable");
       throw new Error(`RETRYABLE_ERROR: HTTP ${status} from ${webhook.url}`);
     }
 
     // 2. POISON PILLS (400, 401, 403, 404, etc.)
     // These will never succeed on retry (e.g. invalid API key, wrong URL).
     // We throw a special error that the JobQueue should recognize as PERMANENT.
+    // The endpoint answered, so the origin is healthy even though this payload
+    // is not — record the classification, then close/reset the breaker.
+    recordWebhookFailure(webhook.url, "permanent");
+    recordWebhookSuccess(webhook.url);
     throw new Error(`PERMANENT_FAILURE: HTTP ${status} - Routing to DLQ.`);
   } catch (error: any) {
     const errMessage = error.message;

@@ -480,7 +480,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 							<Button
 								variant="surface"
 								href={collections.length === 0 ? '/config/collectionbuilder' : firstCollectionPath}
-								data-preload="hover"
+								data-preload="smart"
 								onclick={handleBackToCollections}
 								aria-label="Back to Collections"
 								class="flex w-full items-center gap-1 rounded-lg h-auto! min-h-11 py-1.5 text-xs font-bold uppercase tracking-wider bg-surface-200/80 dark:bg-surface-800 hover:bg-surface-300 dark:hover:bg-surface-700 text-surface-900 dark:text-white transition-colors {isSidebarFull
@@ -529,7 +529,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 							<Button
 								variant="surface"
 								href="/mediagallery"
-								data-preload="hover"
+								data-preload="smart"
 								onclick={handleGoToMediaGallery}
 								aria-label="Go to Media Gallery"
 								class="flex w-full items-center gap-1 rounded-lg h-auto! min-h-11 py-1.5 text-xs font-bold uppercase tracking-wider bg-surface-200/80 dark:bg-surface-800 hover:bg-surface-300 dark:hover:bg-surface-700 text-surface-900 dark:text-white transition-colors {isSidebarFull

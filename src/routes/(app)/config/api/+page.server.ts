@@ -43,6 +43,10 @@ export const load: PageServerLoad = async ({ locals }) => {
       tenantId: locals.tenantId || null,
       openapiSpecUrl: "/api/openapi.json",
       graphqlEndpoint: "/api/graphql",
+      // Mirrors the CSP gate in `handle-security-headers.ts`: the Yoga landing
+      // page loads CDN assets and runs introspection, which production blocks.
+      graphqlPlaygroundEnabled:
+        process.env.NODE_ENV !== "production" && process.env.ALLOW_GRAPHQL_PLAYGROUND !== "false",
       collections: collectionsList,
     };
   } catch (err) {

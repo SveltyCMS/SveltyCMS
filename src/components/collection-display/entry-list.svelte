@@ -47,19 +47,18 @@ bulk actions, and predictive preloading.
 
 <script module lang="ts">
 	import Button from '@components/ui/button.svelte';
-	import { contentLanguage, systemLanguage } from '@src/stores/locale-store.svelte';
+	import { contentLanguage } from '@src/stores/locale-store.svelte';
 	export type SortOrder = 0 | 1 | -1; // Strict type for sort order
 </script>
 
 <script lang="ts">
 	// Components
 	import AdminCard from '@components/admin-card.svelte';
-	import SystemTooltip from '@components/system/system-tooltip.svelte';
 	import Status from '@components/system/table/status.svelte';
 	import TableFilter from '@components/system/table/table-filter.svelte';
 	import TableIcons from '@components/system/table/table-icons.svelte';
 	import PluginComponent from '@src/components/plugins/plugin-component.svelte';
-	import { availablePlugins } from '@src/plugins/index';
+	import { availablePlugins } from '@src/plugins/client';
 	// Types
 	// =================================================================
 	// 1. RECEIVE DATA AS PROPS (From +page.server.ts)
@@ -70,9 +69,9 @@ bulk actions, and predictive preloading.
 		TableHeader,
 		CollectionEntry
 	} from '@src/content/types';
-	import { StatusTypes } from '@src/content/types';
+	import { StatusTypes } from '@src/content/status';
 	// ParaglideJS
-	import { EntryList_no_collection, entrylist_all, entrylist_dnd } from '@src/paraglide/messages';
+	import { EntryList_no_collection } from '@src/paraglide/messages';
 	// Stores
 	import {
 		collections,
@@ -99,40 +98,35 @@ bulk actions, and predictive preloading.
 	import { loadEntryFormValues } from '@utils/entry-values';
 	// Using iconify-icon web component
 	import { logger } from '@utils/logger';
-	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	// Native UI Components
 	import { showDeleteConfirm, showStatusChangeConfirm } from '@utils/modal.svelte';
-	import { preloadEntry, reflectModeInURL } from '@utils/navigation';
+	import { reflectModeInURL } from '@utils/navigation';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { getFieldName } from '@utils/schema/field-utils';
 	import { meta_data } from '@utils/entry-actions';
 	import { untrack } from 'svelte';
-	import { flip } from 'svelte/animate';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-	import { draggable, droppable } from '@thisux/sveltednd';
-	import type { DragDropState } from '@thisux/sveltednd';
-	import Checkbox from '@components/ui/checkbox.svelte';
 	import { browser } from '$app/env';
 	import { goto, refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
+	import { createSmartTable } from '@components/ui/smart-table/create-smart-table.svelte';
+	import type { ColumnSortDescriptor } from '@components/ui/smart-table/types';
 	import {
-		createSmartTable,
 		pinCellClass,
 		SMART_TABLE,
-		SMART_TABLE_COLUMN_MANAGER,
 		SMART_TABLE_ROW_HOVER,
 		SMART_TABLE_ROW_SELECTED,
 		SMART_TABLE_SCROLL,
 		SMART_TABLE_TD,
 		SMART_TABLE_TH,
-		SMART_TABLE_THEAD,
-		type ColumnSortDescriptor
-	} from '@components/ui/smart-table';
+		SMART_TABLE_THEAD
+	} from '@components/ui/smart-table/chrome';
 	import SmartTableShell from '@components/ui/smart-table/smart-table-shell.svelte';
 	import SmartTableSavedViewsMenu from '@components/ui/smart-table/smart-table-saved-views-menu.svelte';
 	import SmartTableStatusFacets from '@components/ui/smart-table/smart-table-status-facets.svelte';
 	import SmartTableMetricsBadge from '@components/ui/smart-table/smart-table-metrics-badge.svelte';
 	import ColumnResizeHandle from '@components/ui/smart-table/column-resize-handle.svelte';
+	import { computeColumnWindow } from '@components/ui/smart-table/column-window';
 	import type { SmartTableSavedView } from '@utils/smart-table-saved-views';
 	import EntryListMultiButton from './entry-list-multi-button.svelte';
 	import TranslationStatus from './translation-status.svelte';
@@ -140,6 +134,10 @@ bulk actions, and predictive preloading.
 	import EntryListCell from './entry-list-cell.svelte';
 	import { createSmartFilter } from './create-smart-filter.svelte';
 	import SmartFilterRow from './smart-filter-row.svelte';
+	import EntryListColumnManager from './entry-list-column-manager.svelte';
+	import EntryListCardGrid from './entry-list-card-grid.svelte';
+	import { createEntryListHoverPreload } from './entry-list-hover-preload.svelte';
+	import { exportEntriesToCsv } from './entry-list-export';
 	import { memoizeLazyLoader } from '@utils/lazy-module';
 	import type { AdvancedFilterClause } from './advanced-filter-modal.svelte';
 	const loadBulkFieldEditModal = memoizeLazyLoader(() => import('./bulk-field-edit-modal.svelte'));
@@ -206,7 +204,7 @@ bulk actions, and predictive preloading.
 	}
 
 	// Unified Smart Table (server mode) — selection, virtualization, density, sort/page callbacks
-	// layoutKey is per-collection (EntryList remounts via {#key collectionSchema?._id})
+	// layoutKey is per-collection; `resetForCollection` swaps it when the table updates in place.
 	const smartTable = createSmartTable<CollectionEntry>({
 		mode: 'server',
 		layoutKey: initialCollectionId ? `entry-list:${initialCollectionId}` : 'entry-list',
@@ -323,12 +321,24 @@ bulk actions, and predictive preloading.
 	const spacerTop = $derived(smartTable.virtual.spacerTop);
 	const spacerBottom = $derived(smartTable.virtual.spacerBottom);
 
+	// Horizontal body-cell windowing. The header row stays complete (it is one row
+	// and carries sort/resize/column semantics); body cells outside the viewport
+	// collapse into two width-preserving placeholder cells. Widths are measured
+	// from the rendered header cells once per column-layout change, never on
+	// scroll ticks, and stay empty when layout is unavailable (SSR, jsdom).
+	let headerColumnOffsets = $state<number[]>([]);
+	let headerColumnWidths = $state<number[]>([]);
+	let tableViewportWidth = $state(0);
+	let tableScrollLeft = $state(0);
+
 	function onVirtualScroll() {
 		if (scrollContainerEl) {
 			smartTable.virtual.onScroll(
 				scrollContainerEl.scrollTop,
 				scrollContainerEl.clientHeight || 600
 			);
+			tableScrollLeft = scrollContainerEl.scrollLeft;
+			tableViewportWidth = scrollContainerEl.clientWidth || 0;
 		}
 	}
 
@@ -469,179 +479,25 @@ bulk actions, and predictive preloading.
 	// =================================================================
 	// 5. HOVER PRELOADING FOR EDIT MODE (Enterprise UX Optimization)
 	// =================================================================
-	let hoverPreloadTimeout: ReturnType<typeof setTimeout> | null = null;
-	const preloadedEntries = new SvelteMap<
-		string,
-		{ data: any; timestamp: number; hoverCount: number }
-	>();
-
-	const PRELOAD_CACHE_TTL = 30_000; // ms - keep preloaded data for 30 seconds
-
-	// Phase 2: Connection-aware preloading
-	let isSlowConnection = $state(false);
-	let isPreloadEnabled = $state(true);
-
-	// Phase 2: Predictive preloading - track hover patterns
-	const hoverPatterns = new SvelteMap<string, number>(); // entryId -> hover count
-	const predictivePreloadQueue: string[] = [];
-
-	// Detect connection speed
-	$effect(() => {
-		if (browser && 'connection' in navigator) {
-			const conn =
-				(navigator as any).connection ||
-				(navigator as any).mozConnection ||
-				(navigator as any).webkitConnection;
-			if (conn) {
-				const checkConnection = () => {
-					const effectiveType = conn.effectiveType;
-					const saveData = (conn as any).saveData;
-					isSlowConnection = saveData || effectiveType === 'slow-2g' || effectiveType === '2g';
-					isPreloadEnabled = !isSlowConnection;
-				};
-				checkConnection();
-				conn.addEventListener('change', checkConnection);
-				return () => conn.removeEventListener('change', checkConnection);
-			}
-		}
+	const hoverPreloader = createEntryListHoverPreload({
+		getCollectionId: () => (currentCollection?._id ? String(currentCollection._id) : null),
+		getTableData: () => tableData,
+		getMode: () => currentMode,
+		getPathname: () => page.url.pathname
 	});
 
-	function handleRowHoverStart(entryId: string) {
-		// Phase 2: Respect connection awareness
-		if (!isPreloadEnabled) {
-			logger.debug('[Preload] Disabled on slow connection');
-			return;
-		}
-
-		// ✅ Use SvelteKit's preloadData
-		preloadEntry(entryId, page.url.pathname);
-
-		// Phase 2: Track hover patterns for predictive preloading
-		const currentCount = hoverPatterns.get(entryId) || 0;
-		hoverPatterns.set(entryId, currentCount + 1);
-
-		// Phase 2: Predictive preloading - queue frequently hovered entries
-		if (currentCount >= 2) {
-			predictivePreloadQueue.push(entryId);
-		}
+	function handleHeadersChange(newHeaders: TableHeader[]) {
+		displayTableHeaders = newHeaders;
+		entryListPaginationSettings.displayTableHeaders = newHeaders;
 	}
 
-	function handleRowHoverEnd() {
-		// Cancel pending preload if user moves mouse away quickly
-		if (hoverPreloadTimeout) {
-			clearTimeout(hoverPreloadTimeout);
-			hoverPreloadTimeout = null;
+	function handleResetView() {
+		const currentCollId = currentCollection?._id;
+		if (browser && currentCollId) {
+			localStorage.removeItem(`entryListPaginationSettings_${currentCollId}`);
 		}
-	}
-
-	// Batch warm-cache: single POST for all visible row IDs (not one request per entry)
-	async function batchPreloadVisibleEntries() {
-		if (!(isPreloadEnabled && browser && currentCollection?._id)) {
-			return;
-		}
-
-		const entriesToPreload = tableData.slice(0, 5);
-		const entryIds = entriesToPreload
-			.map((e) => e._id as string)
-			.filter((id) => {
-				if (!id) return false;
-				const cached = preloadedEntries.get(id);
-				return !cached || Date.now() - cached.timestamp > PRELOAD_CACHE_TTL;
-			});
-
-		if (entryIds.length === 0) return;
-
-		const warm = async () => {
-			try {
-				await fetch('/api/collections/warm-cache', {
-					method: 'POST',
-					headers: clientJsonHeaders(),
-					body: JSON.stringify({
-						collectionId: currentCollection._id,
-						entryIds
-					})
-				});
-
-				const now = Date.now();
-				for (const id of entryIds) {
-					preloadedEntries.set(id, { data: null, timestamp: now, hoverCount: 0 });
-				}
-				logger.debug(`[Batch Preload] Warmed ${entryIds.length} entries in one request`);
-			} catch (error) {
-				logger.warn('[Batch Preload] Failed:', error);
-			}
-		};
-
-		if ('requestIdleCallback' in window) {
-			(window as any).requestIdleCallback(warm, { timeout: 2000 });
-		} else {
-			await warm();
-		}
-	}
-
-	// Trigger batch preload when data changes
-	$effect(() => {
-		if (tableData.length > 0 && currentMode === 'view') {
-			// Delay to avoid interfering with initial page load
-			setTimeout(() => batchPreloadVisibleEntries(), 2000);
-		}
-	});
-
-	// Cleanup preload cache periodically
-	$effect(() => {
-		const cleanupInterval = setInterval(() => {
-			const now = Date.now();
-			for (const [entryId, cached] of preloadedEntries.entries()) {
-				if (now - cached.timestamp > PRELOAD_CACHE_TTL) {
-					preloadedEntries.delete(entryId);
-				}
-			}
-		}, 10_000); // Cleanup every 10 seconds
-
-		return () => clearInterval(cleanupInterval);
-	});
-
-	// DND Logic for Headers — uses @thisux/sveltednd v0.7.0 dropPosition API
-	function handleColumnDrop(state: DragDropState<TableHeader>) {
-		const dragged = state.draggedItem;
-		if (!dragged) return;
-
-		const fromIndex = displayTableHeaders.findIndex(
-			(h) => h.id === dragged.id || (Boolean(dragged.name) && h.name === dragged.name)
-		);
-		if (fromIndex < 0) return;
-
-		const targetEl = state.targetElement?.closest('[data-header-id]') as HTMLElement | null;
-		const targetHeaderId = targetEl?.dataset?.headerId;
-
-		if (
-			targetHeaderId &&
-			(targetHeaderId === dragged.id || targetHeaderId === displayTableHeaders[fromIndex].id)
-		) {
-			return;
-		}
-
-		let targetIndex: number;
-		if (targetHeaderId) {
-			targetIndex = displayTableHeaders.findIndex((h) => h.id === targetHeaderId);
-			if (targetIndex >= 0 && state.dropPosition === 'after') {
-				targetIndex++;
-			}
-		} else {
-			targetIndex = displayTableHeaders.length;
-		}
-		if (targetIndex < 0) targetIndex = displayTableHeaders.length;
-		targetIndex = Math.max(0, Math.min(targetIndex, displayTableHeaders.length));
-
-		if (fromIndex === targetIndex) return;
-
-		displayTableHeaders = untrack(() => {
-			const newItems = [...displayTableHeaders];
-			const [movedItem] = newItems.splice(fromIndex, 1);
-			const adjusted = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
-			newItems.splice(adjusted, 0, movedItem);
-			return newItems;
-		});
+		entryListPaginationSettings = defaultPaginationSettings(currentCollId ?? null);
+		displayTableHeaders = tableHeaders.map((h) => ({ ...h, visible: true }));
 		entryListPaginationSettings.displayTableHeaders = displayTableHeaders;
 	}
 
@@ -686,14 +542,14 @@ bulk actions, and predictive preloading.
 
 	let entryListPaginationSettings = $state(loadPaginationSettings(initialCollectionId));
 
-	// Save settings to localStorage
+	// Save settings to localStorage. Keyed off the prop collection (not the store)
+	// and guarded by `collectionId`, so a switch cannot persist collection A's
+	// settings under collection B's key before the handover below runs.
 	$effect(() => {
-		if (browser && collections.active?._id && entryListPaginationSettings) {
-			const key = `entryListPaginationSettings_${collections.active._id}`;
-			// Debounce save slightly or just save? $effect runs after render.
-			// Use untrack? No, we want to track entryListPaginationSettings.
-			const stringified = JSON.stringify(entryListPaginationSettings);
-			localStorage.setItem(key, stringified);
+		const collectionId = propCollection?._id ? String(propCollection._id) : null;
+		const settings = entryListPaginationSettings;
+		if (browser && collectionId && settings && settings.collectionId === collectionId) {
+			localStorage.setItem(`entryListPaginationSettings_${collectionId}`, JSON.stringify(settings));
 		}
 	});
 
@@ -703,13 +559,6 @@ bulk actions, and predictive preloading.
 	let expand = $state(false);
 	let filterShow = $state(false);
 	let columnShow = $state(false);
-	const currentStates = $derived.by(() => ({
-		language: contentLanguage.value,
-		systemLanguage: systemLanguage.value,
-		mode: collections.mode,
-		collection: collections.active,
-		screenSize: screen.size
-	}));
 
 	// Sync the input FROM the URL — but only when the URL's `search` value
 	// changes (navigation, saved view, clear). Reading `globalSearchValue`
@@ -764,10 +613,12 @@ bulk actions, and predictive preloading.
 		});
 	});
 
-	// Destructure for easier access
-	const currentLanguage = $derived(propContentLanguage || currentStates.language);
-	const currentMode = $derived(currentStates.mode);
-	const currentCollection = $derived(propCollection ?? currentStates.collection);
+	// Destructure for easier access. These are separate derivations (and none of
+	// them reads `screen.size`), so a viewport resize cannot invalidate the table
+	// headers, rows or selection state.
+	const currentLanguage = $derived(propContentLanguage || contentLanguage.value);
+	const currentMode = $derived(collections.mode);
+	const currentCollection = $derived(propCollection ?? collections.active);
 	// Collection header icon (widget default if the collection has no custom icon)
 	const collectionIcon = $derived(currentCollection?.icon || 'bi:collection');
 
@@ -928,17 +779,109 @@ bulk actions, and predictive preloading.
 
 	const visibleTableHeaders = $derived(displayTableHeaders.filter((header) => header.visible));
 
-	const selectAllColumns = {
-		get value() {
-			return displayTableHeaders.length > 0 ? displayTableHeaders.every((h) => h.visible) : false;
-		},
-		set value(v: boolean) {
-			displayTableHeaders = displayTableHeaders.map((h) => ({ ...h, visible: v }));
-			entryListPaginationSettings.displayTableHeaders = displayTableHeaders;
-		}
-	};
-
 	const cellPaddingClass = $derived(smartTable.cellPaddingClass);
+
+	function measureHeaderColumns(): void {
+		const container = scrollContainerEl;
+		if (!container || smartTable.viewMode !== 'table') return;
+
+		// RTL scroll offsets are negative from the right edge in modern engines, so
+		// the physical left-to-right offsets below would not match. Keep the full
+		// table instead of risking misplaced cells.
+		if (browser && document.documentElement.dir === 'rtl') {
+			headerColumnOffsets = [];
+			headerColumnWidths = [];
+			return;
+		}
+
+		const cells = container.querySelectorAll<HTMLTableCellElement>('thead tr:last-child th');
+		if (cells.length !== visibleTableHeaders.length) {
+			headerColumnOffsets = [];
+			headerColumnWidths = [];
+			return;
+		}
+
+		const widths: number[] = [];
+		const offsets: number[] = [];
+		let left = 0;
+		for (const cell of cells) {
+			const width = cell.offsetWidth;
+			widths.push(width);
+			offsets.push(left);
+			left += width;
+		}
+
+		// No layout engine (SSR/jsdom) or a collapsed table: every width is 0.
+		if (!widths.some((width) => width > 0)) {
+			headerColumnOffsets = [];
+			headerColumnWidths = [];
+			return;
+		}
+
+		headerColumnWidths = widths;
+		headerColumnOffsets = offsets;
+		// A layout change can clamp a stale horizontal offset (e.g. switching to a
+		// narrower collection) without a scroll event; resync while measuring.
+		tableScrollLeft = container.scrollLeft;
+		tableViewportWidth = container.clientWidth || 0;
+	}
+
+	// Measure once per column set/order, persisted width, density or table↔card
+	// switch; ResizeObserver covers container resizes without re-reading layout on
+	// every scroll event.
+	$effect(() => {
+		const inTable = smartTable.viewMode === 'table';
+		const container = scrollContainerEl;
+		const layoutSignature = visibleTableHeaders
+			.map((header) => `${header.id}:${header.name ?? ''}`)
+			.join('|');
+		const widthSignature = Object.values(smartTable.columnWidths).join(',');
+		void layoutSignature;
+		void widthSignature;
+		void cellPaddingClass;
+		// The filter row's `min-w-28` inputs can widen columns when it appears.
+		void filterShow;
+
+		if (!inTable || !container) {
+			headerColumnOffsets = [];
+			headerColumnWidths = [];
+			tableViewportWidth = 0;
+			return;
+		}
+
+		measureHeaderColumns();
+
+		if (typeof ResizeObserver === 'undefined') return;
+		const observer = new ResizeObserver(() => measureHeaderColumns());
+		observer.observe(container);
+		return () => observer.disconnect();
+	});
+
+	const columnWindow = $derived.by(() => {
+		if (
+			smartTable.viewMode === 'table' &&
+			headerColumnWidths.length === visibleTableHeaders.length
+		) {
+			const window = computeColumnWindow({
+				offsets: headerColumnOffsets,
+				widths: headerColumnWidths,
+				viewportWidth: tableViewportWidth,
+				scrollLeft: tableScrollLeft
+			});
+			if (window.active) return window;
+		}
+
+		// No window (card view, narrow table, SSR/jsdom): the full column set.
+		return {
+			start: 0,
+			end: visibleTableHeaders.length,
+			leadingCount: 0,
+			trailingCount: 0,
+			leadingWidth: 0,
+			trailingWidth: 0,
+			active: false
+		};
+	});
 
 	/**
 	 * Start inset for the toolbar/title row. Mirrors `PageTitle` (`ps-5 md:ps-10`)
@@ -1108,23 +1051,6 @@ bulk actions, and predictive preloading.
 		setEntriesStatus(getSelectedIds(), StatusTypes.draft, onActionSuccess, payload);
 	};
 
-	function handleColumnVisibilityToggle(headerToToggle: TableHeader) {
-		displayTableHeaders = displayTableHeaders.map((h) =>
-			h.id === headerToToggle.id ? { ...h, visible: !h.visible } : h
-		);
-		entryListPaginationSettings.displayTableHeaders = displayTableHeaders;
-	}
-
-	function resetViewSettings() {
-		const currentCollId = currentCollection?._id;
-		if (browser && currentCollId) {
-			localStorage.removeItem(`entryListPaginationSettings_${currentCollId}`);
-		}
-		entryListPaginationSettings = defaultPaginationSettings(currentCollId ?? null);
-		displayTableHeaders = tableHeaders.map((h) => ({ ...h, visible: true }));
-		entryListPaginationSettings.displayTableHeaders = displayTableHeaders;
-	}
-
 	// Advanced Filters State & Handler
 	let isAdvancedFilterOpen = $state(false);
 	let advancedFilterClauses = $state<AdvancedFilterClause[]>([]);
@@ -1166,49 +1092,55 @@ bulk actions, and predictive preloading.
 
 	// Export Filtered Selection (Alt + X)
 	function exportData() {
-		const itemsToExport = smartTable.hasSelections ? smartTable.getSelectedRows() : tableData;
-		if (!itemsToExport || itemsToExport.length === 0) {
-			toast.warning('No data to export');
-			return;
-		}
-
-		const headersToUse = visibleTableHeaders.length > 0 ? visibleTableHeaders : tableHeaders;
-		const headerLabels = headersToUse.map(
-			(h) => `"${(h.label || h.name || '').replace(/"/g, '""')}"`
-		);
-		const headerKeys = headersToUse.map((h) => h.name || h.id || '');
-
-		const rowsCsv = itemsToExport.map((item) => {
-			return headerKeys
-				.map((k) => {
-					const val = (item as any)[k];
-					if (val == null) return '""';
-					if (typeof val === 'object') return `"${JSON.stringify(val).replace(/"/g, '""')}"`;
-					return `"${String(val).replace(/"/g, '""')}"`;
-				})
-				.join(',');
+		exportEntriesToCsv({
+			items: smartTable.hasSelections
+				? (smartTable.getSelectedRows() as CollectionEntry[])
+				: tableData,
+			visibleHeaders: visibleTableHeaders,
+			fallbackHeaders: tableHeaders,
+			collectionName: currentCollection?.name
 		});
-
-		const csvContent = [headerLabels.join(','), ...rowsCsv].join('\r\n');
-		const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		const collectionName = currentCollection?.name || 'collection';
-		a.href = url;
-		a.download = `${collectionName}-export-${new Date().toISOString().slice(0, 10)}.csv`;
-		document.body.appendChild(a);
-		a.click();
-		document.body.removeChild(a);
-		URL.revokeObjectURL(url);
-
-		toast.success(
-			`Exported ${itemsToExport.length} ${itemsToExport.length === 1 ? 'entry' : 'entries'} to CSV`
-		);
 	}
 
 	// Keyboard Grid Navigation (ATAG / WCAG 2.2 AA)
 	let focusedRowIndex = $state<number>(0);
 	let focusedColIndex = $state<number>(0);
+
+	/**
+	 * Scroll the body-cell viewport so the keyboard-focused column is rendered.
+	 * Only an active window can hide a column; narrow/inactive tables render the
+	 * full row, so there is nothing to reveal and no scroll is issued.
+	 */
+	function revealFocusedColumn(): void {
+		const container = scrollContainerEl;
+		const index = focusedColIndex;
+		if (
+			!container ||
+			!columnWindow.active ||
+			index < 0 ||
+			index >= headerColumnOffsets.length ||
+			index >= headerColumnWidths.length
+		) {
+			return;
+		}
+
+		const offset = headerColumnOffsets[index] ?? 0;
+		const width = headerColumnWidths[index] ?? 0;
+		const viewportWidth = container.clientWidth || 0;
+		if (width <= 0 || viewportWidth <= 0) return;
+
+		const scrollLeft = container.scrollLeft;
+		if (offset < scrollLeft) {
+			container.scrollLeft = offset;
+		} else if (offset + width > scrollLeft + viewportWidth) {
+			container.scrollLeft = offset + width - viewportWidth;
+		}
+
+		// Sync immediately: the browser scroll event that follows is asynchronous,
+		// so the derived window would otherwise lag one tick behind the focus ring.
+		tableScrollLeft = container.scrollLeft;
+		tableViewportWidth = container.clientWidth || 0;
+	}
 
 	function handleTableKeydown(e: KeyboardEvent) {
 		const target = e.target as HTMLElement | null;
@@ -1235,20 +1167,24 @@ bulk actions, and predictive preloading.
 			case 'ArrowRight':
 				e.preventDefault();
 				focusedColIndex = Math.min(colCount - 1, focusedColIndex + 1);
+				revealFocusedColumn();
 				break;
 			case 'ArrowLeft':
 				e.preventDefault();
 				focusedColIndex = Math.max(0, focusedColIndex - 1);
+				revealFocusedColumn();
 				break;
 			case 'Home':
 				e.preventDefault();
 				if (e.ctrlKey) focusedRowIndex = 0;
 				focusedColIndex = 0;
+				revealFocusedColumn();
 				break;
 			case 'End':
 				e.preventDefault();
 				if (e.ctrlKey) focusedRowIndex = tableData.length - 1;
 				focusedColIndex = colCount - 1;
+				revealFocusedColumn();
 				break;
 			case 'PageDown':
 				e.preventDefault();
@@ -1335,6 +1271,66 @@ bulk actions, and predictive preloading.
 			window.addEventListener('keydown', onGlobalKeydown);
 			return () => window.removeEventListener('keydown', onGlobalKeydown);
 		}
+	});
+
+	/**
+	 * Hand over the per-collection UI state when the table updates in place.
+	 *
+	 * `{#key}` used to remount EntryList on every collection switch, which reset
+	 * selection, layout and scroll for free. The table now keeps its component
+	 * instance, so the controller layout key and the persisted settings must be
+	 * swapped explicitly — otherwise the next collection inherits the previous
+	 * one's selection, column widths, scroll offset and local filters.
+	 */
+	function resetForCollection(collectionId: string | null): void {
+		smartTable.setLayoutKey(collectionId ? `entry-list:${collectionId}` : 'entry-list');
+		smartTable.clearSelection();
+		smartTable.setPage(1, { emit: false });
+		smartTable.virtual.onScroll(0, scrollContainerEl?.clientHeight ?? 0);
+
+		entryListPaginationSettings = loadPaginationSettings(collectionId);
+		displayTableHeaders = reconcileTableHeaders(
+			tableHeaders,
+			entryListPaginationSettings,
+			collectionId
+		);
+
+		if (scrollContainerEl) scrollContainerEl.scrollTop = 0;
+
+		focusedRowIndex = 0;
+		focusedColIndex = 0;
+		openingEntryId = null;
+		showDeleted = false;
+		expand = false;
+		columnShow = false;
+		isBulkEditOpen = false;
+		isAdvancedFilterOpen = false;
+		advancedFilterClauses = [];
+		advancedFilterConjunction = 'AND';
+
+		// The URL is authoritative for search/filters: clear the previous
+		// collection's values, then replay the current URL (filters that are not
+		// in the URL must not survive the switch).
+		smartFilter.clearAll();
+		smartFilter.syncFromURL(page.url.searchParams);
+		entryListPaginationSettings.filters = smartFilter.toPlainObject();
+		globalSearchValue = page.url.searchParams.get('search') || '';
+		filterShow = smartFilter.activeCount > 0;
+
+		clearTimeout(filterTimeoutId);
+		clearTimeout(searchTimeoutId);
+	}
+
+	let syncedCollectionId = untrack(() => initialCollectionId);
+
+	$effect.pre(() => {
+		const nextCollectionId = currentCollection?._id ? String(currentCollection._id) : null;
+		if (nextCollectionId === untrack(() => syncedCollectionId)) return;
+
+		untrack(() => {
+			syncedCollectionId = nextCollectionId;
+			resetForCollection(nextCollectionId);
+		});
 	});
 </script>
 
@@ -1506,84 +1502,11 @@ bulk actions, and predictive preloading.
 	</div>
 
 	{#if columnShow}
-		<!-- Column order -->
-		<div class="shrink-0 {CONTENT_PADDING}">
-			<div class={SMART_TABLE_COLUMN_MANAGER}>
-				<div class="text-sm dark:text-primary-500">{entrylist_dnd()}</div>
-				<!-- Select All Columns -->
-				<div
-					class="my-2 flex w-full flex-col items-center justify-center gap-2 sm:flex-row sm:gap-4"
-				>
-					<div class="flex items-center gap-2">
-						<Checkbox bind:checked={selectAllColumns.value} label={entrylist_all()} />
-
-						<Button
-							variant="outline"
-							onclick={resetViewSettings}
-							aria-label="reset-view"
-							class="bg-surface-400 text-white"
-						>
-							<iconify-icon icon="material-symbols-light:device-reset" width={24}></iconify-icon>
-							Reset View
-						</Button>
-					</div>
-					<!-- Droppable only on items (v0.7.0) — nested section+item droppables cause callback ambiguity -->
-					<section
-						class="flex w-full flex-wrap justify-center gap-2 p-2 border-2 border-dashed border-secondary-500/50 rounded transition-all hover:border-secondary-500"
-						role="list"
-						aria-label="Drag columns to reorder"
-					>
-						{#each displayTableHeaders as header (header.id)}
-							<div
-								animate:flip={{ duration: 300 }}
-								use:draggable={{
-									container: 'columns',
-									dragData: header,
-									keyboard: true,
-									handle: '.column-drag-handle'
-								}}
-								use:droppable={{
-									container: 'columns',
-									callbacks: { onDrop: handleColumnDrop },
-									direction: 'horizontal',
-									attributes: { dragOverClass: 'ring-2 ring-primary-500 scale-105' }
-								}}
-								data-header-id={header.id}
-								role="listitem"
-								class="inline-flex items-center rounded-lg border transition-all {header.visible
-									? 'bg-(--admin-bg-card) border-surface-500/30 dark:border-surface-600 text-(--admin-text-body)'
-									: 'bg-surface-500/10 dark:bg-surface-900/50 border-dashed border-surface-500 dark:border-surface-600 text-(--admin-text-muted)'}"
-							>
-								<button
-									type="button"
-									class="column-drag-handle cursor-grab active:cursor-grabbing p-1.5 inline-flex items-center justify-center text-surface-400 hover:text-primary-500 dark:hover:text-primary-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
-									aria-label={`Drag to reorder column ${header.label}. Press Space to grab, arrows to move.`}
-									title="Drag to reorder"
-								>
-									<iconify-icon icon="mdi:drag-vertical" width={18}></iconify-icon>
-								</button>
-
-								<button
-									type="button"
-									onclick={() => handleColumnVisibilityToggle(header)}
-									aria-label={`Toggle visibility of ${header.label} column`}
-									class="inline-flex items-center gap-1.5 py-1 pe-2.5 text-xs font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
-								>
-									{#if header.visible}
-										<iconify-icon icon="fa:check" width={14} class="text-success-500"
-										></iconify-icon>
-									{:else}
-										<iconify-icon icon="mdi:eye-off-outline" width={14} class="text-surface-400"
-										></iconify-icon>
-									{/if}
-									<span class="capitalize">{header.label}</span>
-								</button>
-							</div>
-						{/each}
-					</section>
-				</div>
-			</div>
-		</div>
+		<EntryListColumnManager
+			{displayTableHeaders}
+			onHeadersChange={handleHeadersChange}
+			onResetView={handleResetView}
+		/>
 	{/if}
 
 	<div class="flex min-h-0 flex-1 flex-col {CONTENT_PADDING}">
@@ -1617,151 +1540,25 @@ bulk actions, and predictive preloading.
 					{/snippet}
 
 					{#if smartTable.viewMode === 'card'}
-						<!-- Card View Grid -->
-						<div
-							bind:this={scrollContainerEl}
-							onscroll={onVirtualScroll}
-							class="{SMART_TABLE_SCROLL} max-h-none overflow-y-auto py-3"
-							tabindex="0"
-							role="grid"
-							aria-label="Collection entries card grid"
-							onkeydown={handleTableKeydown}
-						>
-							{#if filterShow && visibleTableHeaders.length > 0}
-								<div
-									class="mb-3 p-2 rounded-xl border border-surface-500/30 bg-surface-500/10 dark:bg-surface-900"
-								>
-									<SmartFilterRow
-										headers={visibleTableHeaders}
-										definitions={smartFilter.definitions}
-										filters={smartFilter.filters}
-										activeFilters={smartFilter.activeFilters}
-										{onFilterChange}
-										onClearAll={onClearAllFilters}
-										{onClearFilter}
-										onOpenAdvanced={() => (isAdvancedFilterOpen = true)}
-										advancedCount={advancedFilterClauses.length}
-									/>
-								</div>
-							{/if}
-
-							{#if tableData.length > 0}
-								<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-									{#each visibleRows as entry, index (entry._id)}
-										{@const rowId = String(entry._id ?? '')}
-										{@const rowSelected = smartTable.isSelected(rowId)}
-										{@const isFocused = focusedRowIndex === index}
-										<div
-											class="group relative flex flex-col justify-between rounded-xl border p-4 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 {rowSelected
-												? 'border-primary-500 bg-primary-500/10 dark:bg-primary-500/20 shadow-xs'
-												: 'border-(--admin-border-default) bg-(--admin-bg-card) hover:border-primary-500/50 hover:shadow-md'}"
-											role="row"
-											tabindex={isFocused ? 0 : -1}
-											onclick={(e) => {
-												const target = e.target as HTMLElement | null;
-												if (target?.closest('button, input, a, [data-prevent-row-click]')) return;
-												const originalEntry = tableData.find(
-													(item: CollectionEntry) => item._id === entry._id
-												);
-												if (originalEntry) void openEntryForEdit(originalEntry);
-											}}
-											onkeydown={(e) => {
-												// Keyboard parity for the card view (WCAG 2.1.1): Enter opens the entry,
-												// Space toggles selection — the same mapping the table view uses.
-												const target = e.target as HTMLElement | null;
-												if (target?.closest('button, input, a, [data-prevent-row-click]')) return;
-												if (e.key === 'Enter') {
-													e.preventDefault();
-													const originalEntry = tableData.find(
-														(item: CollectionEntry) => item._id === entry._id
-													);
-													if (originalEntry) void openEntryForEdit(originalEntry);
-												} else if (e.key === ' ') {
-													e.preventDefault();
-													smartTable.toggleSelect(rowId);
-												}
-											}}
-										>
-											<!-- Top: Checkbox, Title/ID, Status -->
-											<div
-												class="flex items-start justify-between gap-2 border-b border-surface-500/20 pb-2.5"
-											>
-												<div class="flex items-center gap-2 min-w-0" data-prevent-row-click>
-													<Checkbox
-														checked={rowSelected}
-														onchange={() => smartTable.toggleSelect(rowId)}
-														label="Select entry {rowId}"
-														hideLabel
-													/>
-													<span
-														class="text-xs font-bold text-(--admin-text-body) truncate"
-														dir="auto"
-													>
-														{String(
-															entry[visibleTableHeaders[0]?.name as any] || entry._id || 'Entry'
-														)}
-													</span>
-												</div>
-												<div data-prevent-row-click>
-													<Status value={entry.status || entry.raw_status || 'draft'} />
-												</div>
-											</div>
-
-											<!-- Body: Key Fields -->
-											<div class="my-3 space-y-1.5 text-xs text-(--admin-text-muted)">
-												{#each visibleTableHeaders.slice(1, 5) as header (header.id)}
-													{@const fieldName = (header as TableHeader).name || ''}
-													<!-- System timestamps are ISO strings in the row, so `String()`
-													     printed "2026-10-31T09:12:33.000Z" in the card while the
-													     table view formatted the same column. -->
-													{@const isDateField =
-														fieldName === 'createdAt' || fieldName === 'updatedAt'}
-													{@const rawValue = (entry as Record<string, unknown>)[fieldName]}
-													{@const displayValue = isDateField
-														? formatDisplayDate(rawValue as string) || '-'
-														: String(rawValue ?? '-')}
-													<div class="flex items-center justify-between gap-2">
-														<span class="font-medium text-surface-500 capitalize truncate"
-															>{header.label}:</span
-														>
-														<span
-															dir="auto"
-															class="font-semibold text-(--admin-text-muted) truncate max-w-[60%]"
-														>
-															{displayValue}
-														</span>
-													</div>
-												{/each}
-											</div>
-
-											<!-- Footer: Quick Actions -->
-											<div
-												class="flex items-center justify-between pt-2 border-t border-surface-500/20 text-xs text-surface-400"
-											>
-												<span class="text-[11px]">
-													{formatDisplayDate(
-														(entry.updatedAt as string) || (entry.createdAt as string) || ''
-													)}
-												</span>
-												<Button
-													variant="ghost"
-													size="sm"
-													class="text-xs gap-1 text-primary-600 dark:text-primary-400 p-1"
-													onclick={() => {
-														void openEntryForEdit(entry);
-													}}
-												>
-													<iconify-icon icon="ic:round-edit" width="14"></iconify-icon>
-													Edit
-												</Button>
-											</div>
-										</div>
-									{/each}
-								</div>
-							{:else}
-								<div class="p-8 text-center text-(--admin-text-muted)">No results found.</div>
-							{/if}
-						</div>
+						<EntryListCardGrid
+							{tableData}
+							{visibleRows}
+							{visibleTableHeaders}
+							{filterShow}
+							{smartFilter}
+							{focusedRowIndex}
+							bind:scrollContainerEl
+							isSelected={(id) => smartTable.isSelected(id)}
+							toggleSelect={(id) => smartTable.toggleSelect(id)}
+							{openEntryForEdit}
+							{onFilterChange}
+							{onClearAllFilters}
+							{onClearFilter}
+							onOpenAdvanced={() => (isAdvancedFilterOpen = true)}
+							advancedCount={advancedFilterClauses.length}
+							{handleTableKeydown}
+							{onVirtualScroll}
+						/>
 					{:else}
 						<!-- Scrollable grid region: `tabindex="0"` + keydown are what make keyboard
 				     scrolling (WCAG 2.1.1) and arrow-key cell navigation possible; `role="region"`
@@ -1870,8 +1667,9 @@ bulk actions, and predictive preloading.
 													: undefined}
 												aria-selected={rowSelected}
 												tabindex={isFocused ? 0 : -1}
-												onmouseenter={() => entry._id && handleRowHoverStart(entry._id)}
-												onmouseleave={handleRowHoverEnd}
+												onmouseenter={() =>
+													entry._id && hoverPreloader.handleRowHoverStart(String(entry._id))}
+												onmouseleave={hoverPreloader.handleRowHoverEnd}
 												onclick={(e) => {
 													const target = e.target as HTMLElement | null;
 													if (target?.closest('button, input, a, [data-prevent-row-click]')) return;
@@ -1889,13 +1687,24 @@ bulk actions, and predictive preloading.
 													}}
 												/>
 												{#if visibleTableHeaders}
-													{#each visibleTableHeaders as header, colIdx (header.id)}
+													{#if columnWindow.active && columnWindow.leadingCount > 0}
+														<td
+															colspan={columnWindow.leadingCount}
+															aria-hidden="true"
+															style="width:{columnWindow.leadingWidth}px; min-width:{columnWindow.leadingWidth}px"
+														></td>
+													{/if}
+													{#each visibleTableHeaders.slice(columnWindow.start, columnWindow.end) as header, sliceIdx (header.id)}
+														{@const colIdx = columnWindow.start + sliceIdx}
 														{@const cellKey = ((header as TableHeader).name || header.id) as string}
 														{@const isFocusedCell = isFocused && focusedColIndex === colIdx}
 														<td
 															role="gridcell"
 															dir="auto"
 															aria-colindex={colIdx + 2}
+															title={(header as TableHeader).name !== 'status'
+																? 'Click to edit this entry'
+																: 'Click to change status'}
 															class="{SMART_TABLE_TD} {cellPaddingClass} text-sm {(
 																header as TableHeader
 															).name !== 'status'
@@ -1968,76 +1777,71 @@ bulk actions, and predictive preloading.
 																}
 															}}
 														>
-															<SystemTooltip
-																title={(header as TableHeader).name !== 'status'
-																	? 'Click to edit this entry'
-																	: 'Click to change status'}
-															>
-																{#if (header as TableHeader).name === 'status'}
-																	<div class="flex w-full items-center justify-center">
-																		<Status value={entry.status || entry.raw_status || 'draft'} />
-																	</div>
-																{:else if (header as TableHeader).component}
-																	<!-- Dynamic Plugin Component Injection -->
-																	{const pluginId = ((header as TableHeader).id || '').split(
-																		'-'
-																	)[0]}
+															{#if (header as TableHeader).name === 'status'}
+																<div class="flex w-full items-center justify-center">
+																	<Status value={entry.status || entry.raw_status || 'draft'} />
+																</div>
+															{:else if (header as TableHeader).component}
+																<!-- Dynamic Plugin Component Injection -->
+																{const pluginId = ((header as TableHeader).id || '').split('-')[0]}
 
-																	<PluginComponent
-																		{pluginId}
-																		componentName={(header as TableHeader).component || ''}
-																		{...mapPluginProps((header as TableHeader).props, entry)}
-																		compact={true}
-																	/>
-																{:else if (header as TableHeader).name === 'createdAt' || (header as TableHeader).name === 'updatedAt'}
-																	<div class="flex flex-col text-xs">
-																		<div class="font-semibold">
-																			{formatDisplayDate(
-																				(entry as any)[
-																					(header as TableHeader).name || ''
-																				] as string,
-																				undefined,
-																				{
-																					year: 'numeric',
-																					month: 'short',
-																					day: 'numeric'
-																				}
-																			)}
-																		</div>
-																		<div class="text-(--admin-text-muted)">
-																			{formatDisplayDate(
-																				(entry as any)[
-																					(header as TableHeader).name || ''
-																				] as string,
-																				undefined,
-																				{
-																					hour: '2-digit',
-																					minute: '2-digit',
-																					second: '2-digit',
-																					hour12: false
-																				}
-																			)}
-																		</div>
-																	</div>
-																{:else if (header as TableHeader).widgetName}
-																	<EntryListCell
-																		widgetName={(header as TableHeader).widgetName}
-																		fieldName={(header as TableHeader).name || ''}
-																		value={(entry as any)[(header as TableHeader).name || '']}
-																		contentLanguage={currentLanguage}
-																		compact={true}
-																	/>
-																{:else}
-																	<Sanitize
-																		html={String(
-																			(entry as any)[(header as TableHeader).name || ''] || '-'
+																<PluginComponent
+																	{pluginId}
+																	componentName={(header as TableHeader).component || ''}
+																	{...mapPluginProps((header as TableHeader).props, entry)}
+																	compact={true}
+																/>
+															{:else if (header as TableHeader).name === 'createdAt' || (header as TableHeader).name === 'updatedAt'}
+																<div class="flex flex-col text-xs">
+																	<div class="font-semibold">
+																		{formatDisplayDate(
+																			(entry as any)[(header as TableHeader).name || ''] as string,
+																			undefined,
+																			{
+																				year: 'numeric',
+																				month: 'short',
+																				day: 'numeric'
+																			}
 																		)}
-																		profile="strict"
-																	/>
-																{/if}
-															</SystemTooltip>
+																	</div>
+																	<div class="text-(--admin-text-muted)">
+																		{formatDisplayDate(
+																			(entry as any)[(header as TableHeader).name || ''] as string,
+																			undefined,
+																			{
+																				hour: '2-digit',
+																				minute: '2-digit',
+																				second: '2-digit',
+																				hour12: false
+																			}
+																		)}
+																	</div>
+																</div>
+															{:else if (header as TableHeader).widgetName}
+																<EntryListCell
+																	widgetName={(header as TableHeader).widgetName}
+																	fieldName={(header as TableHeader).name || ''}
+																	value={(entry as any)[(header as TableHeader).name || '']}
+																	contentLanguage={currentLanguage}
+																	compact={true}
+																/>
+															{:else}
+																<Sanitize
+																	html={String(
+																		(entry as any)[(header as TableHeader).name || ''] || '-'
+																	)}
+																	profile="strict"
+																/>
+															{/if}
 														</td>
 													{/each}
+													{#if columnWindow.active && columnWindow.trailingCount > 0}
+														<td
+															colspan={columnWindow.trailingCount}
+															aria-hidden="true"
+															style="width:{columnWindow.trailingWidth}px; min-width:{columnWindow.trailingWidth}px"
+														></td>
+													{/if}
 												{/if}
 											</tr>
 										{/each}

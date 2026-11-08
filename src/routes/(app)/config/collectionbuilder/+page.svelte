@@ -38,9 +38,9 @@ None (TreeView has its own keyboard navigation)
 	import type { ContentNode, DatabaseId } from '@src/databases/db-interface';
 	import { nowISODateString } from '@src/utils/date';
 	import { generateUUID } from '@utils/native-utils';
-	import { hasDuplicateSiblingName } from '@src/content';
+	import { hasDuplicateSiblingName } from '@src/content/content-tree';
 	import { getDescendantIds } from './collectionbuilder-utils';
-	import { rethrow } from '@utils/error-handling';
+	import { rethrow } from '@utils/rethrow';
 	import { stripHtml } from '@utils/sanitize-html';
 	import {
 		button_save,
@@ -74,7 +74,7 @@ None (TreeView has its own keyboard navigation)
 		setContentStructure
 	} from '@src/stores/collection-store.svelte';
 	import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
-	import { useContent } from '@src/content';
+	import { useContent } from '@src/content/context';
 	// Native UI Components
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { setRouteContext } from '@src/stores/ui-store.svelte.ts';
@@ -640,8 +640,8 @@ None (TreeView has its own keyboard navigation)
 			async (response: { presetId: string } | null) => {
 				if (!response?.presetId) return;
 
-				const { PRESETS } = await import('@src/routes/setup/presets');
-				const preset = PRESETS.find((p) => p.id === response.presetId);
+				const { PRESET_METADATA } = await import('@src/services/setup/preset-meta');
+				const preset = PRESET_METADATA.find((p) => p.id === response.presetId);
 				if (!preset?.collections?.length) return;
 
 				// Stage the preset (no server write) and preview its collections in

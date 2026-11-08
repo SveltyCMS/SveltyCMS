@@ -26,10 +26,8 @@
 
 import type { RequestEvent } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
-import {
-  isSecureCookieContext,
-  readSessionIdFromCookieHeader,
-} from "@src/databases/auth/constants";
+import { isSecureCookieContext } from "@src/databases/auth/constants";
+import { readSessionIdFromCookieHeader } from "@utils/security/session-cookie";
 import { isSimpleCollectionRead, tryCollectionReadLane } from "./handle-collection-read-lane";
 import { tryCollectionWriteLane } from "./handle-collection-write-lane";
 import { isLaneServingAllowed } from "./lane-state-gate";

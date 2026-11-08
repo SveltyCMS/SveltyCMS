@@ -12,6 +12,7 @@ import { error } from "@sveltejs/kit";
 import { isAppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { FastLRU } from "@utils/native-utils";
+import { isAutomatedTestHarness } from "@utils/private-config-policy";
 import { safeFetch, validateEgressUrl } from "../egress-guard";
 import type { StorageType } from "./media-models";
 
@@ -107,20 +108,60 @@ export interface CloudStorageConfig {
   storageType: StorageType;
 }
 
+export const DEFAULT_HARNESS_MEDIA_FOLDER = "tests/integration/.media";
+
+/**
+ * True when `targetDir` points at the developer's live `mediaFolder` or `media`
+ * directory (or a subdirectory of either).
+ */
+export function isLiveMediaFolder(targetDir: string): boolean {
+  const cleaned = targetDir.trim().replace(/^\.\//, "");
+  if (!cleaned) return true;
+  const resolved = path.normalize(path.resolve(process.cwd(), cleaned));
+  const liveMediaFolder = path.normalize(path.resolve(process.cwd(), "mediaFolder"));
+  const liveMedia = path.normalize(path.resolve(process.cwd(), "media"));
+  return (
+    resolved === liveMediaFolder ||
+    resolved.startsWith(`${liveMediaFolder}${path.sep}`) ||
+    resolved === liveMedia ||
+    resolved.startsWith(`${liveMedia}${path.sep}`)
+  );
+}
+
+/**
+ * Fail-closed guard for test/benchmark media mutations and wipes.
+ */
+export function assertHarnessMediaFolderWritable(targetDir: string): void {
+  if (!isAutomatedTestHarness()) return;
+  if (isLiveMediaFolder(targetDir)) {
+    throw new Error(
+      `[LiveDataGuard] Automated harness refused to write or wipe live media folder at '${targetDir}'. ` +
+        "Use an isolated test media folder (tests/integration/.media or tests/e2e/.media) only.",
+    );
+  }
+}
+
 /**
  * Prefer process.env.MEDIA_FOLDER under any benchmark/test harness so matrix
- * isolation cannot be overridden by a stale DB setting (`mediaFolder`).
- * Applies to both local sandbox and ci-fresh wizard profiles.
+ * isolation cannot be overridden by a stale DB setting (`mediaFolder`), and
+ * never fall back to the developer's live `mediaFolder` when a harness runs
+ * without `MEDIA_FOLDER` in its environment.
  */
 export function resolveConfiguredMediaFolder(): string {
   const envFolder = process.env.MEDIA_FOLDER?.trim();
   const harness =
+    isAutomatedTestHarness() ||
     process.env.BENCHMARK_LOCAL_SANDBOX === "1" ||
     process.env.BENCHMARK_PROFILE === "local" ||
     process.env.BENCHMARK_PROFILE === "ci-fresh" ||
     process.env.BENCHMARK === "true" ||
     process.env.TEST_MODE === "true";
-  if (harness && envFolder) return envFolder;
+  if (harness) {
+    if (envFolder && !isLiveMediaFolder(envFolder)) return envFolder;
+    const configured = getPublicSettingSync("MEDIA_FOLDER");
+    if (configured && !isLiveMediaFolder(configured)) return configured;
+    return DEFAULT_HARNESS_MEDIA_FOLDER;
+  }
   return getPublicSettingSync("MEDIA_FOLDER") ?? "mediaFolder";
 }
 

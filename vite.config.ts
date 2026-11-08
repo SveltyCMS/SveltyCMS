@@ -169,6 +169,7 @@ const SERVER_STUB_FILES = [
   "/src/databases/db-utils.ts",
   "/src/databases/schemas.ts",
   "/src/databases/auth/index.ts",
+  "/src/databases/auth/auth-service.ts",
   "/src/databases/auth/session-manager.ts",
   "/src/databases/auth/two-factor-auth.ts",
   "/src/databases/auth/permissions.ts",
@@ -205,13 +206,30 @@ const TRUSTED_ORIGINS: string[] = [
   ...Array.from({ length: 600 }, (_, i) => `http://localhost:${4173 + i}`),
 ];
 
+const isHarnessBuildOrDev =
+  process.env.TEST_MODE === "true" ||
+  process.env.PLAYWRIGHT_TEST === "true" ||
+  process.env.PLAYWRIGHT_TEST === "1" ||
+  process.env.VITEST === "true" ||
+  process.env.BUN_TEST === "true" ||
+  process.env.BENCHMARK === "true" ||
+  process.env.COMPILE_ALL_ADAPTERS === "true";
+
 const paths = {
   configDir: path.resolve(CWD, "config"),
-  privateConfig: path.resolve(CWD, "config/private.ts"),
-  userCollections: path.resolve(CWD, process.env.COLLECTIONS_DIR || "config/collections"),
+  privateConfig: path.resolve(
+    CWD,
+    isHarnessBuildOrDev ? "config/private.test.ts" : "config/private.ts",
+  ),
+  userCollections: path.resolve(
+    CWD,
+    process.env.COLLECTIONS_DIR ||
+      (isHarnessBuildOrDev ? "config/test-collections" : "config/collections"),
+  ),
   compiledCollections: path.resolve(
     CWD,
-    process.env.COMPILED_COLLECTIONS_DIR || ".compiledCollections",
+    process.env.COMPILED_COLLECTIONS_DIR ||
+      (isHarnessBuildOrDev ? ".compiledCollections/test-collections" : ".compiledCollections"),
   ),
   widgets: path.resolve(CWD, "src/widgets"),
   dashboardWidgets: path.resolve(CWD, "src/routes/(app)/dashboard/widgets"),

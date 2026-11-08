@@ -33,7 +33,8 @@
  */
 
 import { SvelteMap, SvelteSet } from "svelte/reactivity";
-import { browser } from "$app/env";
+/** `$app/env` is virtual: non-SvelteKit loaders (db-init, workers, scripts) cannot resolve it. */
+const browser = typeof window !== "undefined" && typeof window.addEventListener === "function";
 import { logger } from "@utils/logger";
 
 // Test-friendly browser check

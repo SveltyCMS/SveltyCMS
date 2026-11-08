@@ -36,6 +36,7 @@ Advanced permission management interface with bulk actions and presets.
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { onMount } from 'svelte';
 	import { fade, slide } from 'svelte/transition';
+	import { nowISODateString } from '@utils/date';
 
 	type PermissionsMap = Record<string, Record<string, boolean>>;
 
@@ -251,7 +252,7 @@ Advanced permission management interface with bulk actions and presets.
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement('a');
 		a.href = url;
-		a.download = `permissions-${new Date().toISOString().split('T')[0]}.json`;
+		a.download = `permissions-${nowISODateString().split('T')[0]}.json`;
 		a.click();
 		URL.revokeObjectURL(url);
 		toast.success('Permissions exported');

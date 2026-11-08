@@ -13,7 +13,7 @@ function loadDbModule(): Promise<typeof import("@src/databases/db")> {
   return (dbModulePromise ??= import("@src/databases/db"));
 }
 
-export class MaintenanceService {
+class MaintenanceService {
   private static instance: MaintenanceService;
   private lastRun = 0;
   private running = false;

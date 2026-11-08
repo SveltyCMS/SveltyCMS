@@ -3,7 +3,7 @@
  * @description Browser API client for global trash (Testing 2026 pattern).
  */
 
-import { fetchApi, type ApiResponse } from "@utils/api";
+import { fetchApi, type ApiResponse } from "@utils/http-client";
 import type { TrashItem } from "@utils/trash-item";
 
 // One row shape for the SSR load, the API projection and the browser client.

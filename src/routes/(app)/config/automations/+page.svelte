@@ -11,6 +11,7 @@ Lists all configured workflow automations with status, trigger, and operation su
 	import { AUTOMATION_EVENTS } from '@src/services/background/automation/types';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { showConfirm } from '@utils/modal.svelte';
+	import { unwrapList } from '@utils/http-client';
 	import { formatDate } from '@utils/format-date';
 	import { slide } from 'svelte/transition';
 	import Badge from '@components/ui/badge.svelte';
@@ -57,7 +58,6 @@ Lists all configured workflow automations with status, trigger, and operation su
 		deleteAutomation,
 		listAutomations,
 		testAutomation,
-		unwrapFlowList,
 		updateAutomation
 	} from './automations-api';
 
@@ -86,7 +86,7 @@ Lists all configured workflow automations with status, trigger, and operation su
 		try {
 			const result = await listAutomations();
 			if (result.success) {
-				flows = unwrapFlowList(result);
+				flows = unwrapList<AutomationFlow>(result);
 			} else {
 				toast.error(result.error || result.message || 'Failed to load automations');
 			}

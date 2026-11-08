@@ -753,7 +753,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 							<iconify-icon
 								icon="ri:arrow-left-line"
 								width={24}
-								class="text-black"
+								class="text-black rtl:scale-x-[-1]"
 								aria-hidden="true"
 							></iconify-icon>
 						</Button>
@@ -955,7 +955,11 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 										aria-label={button_back()}
 										class="flex-1"
 									>
-										<iconify-icon icon="mdi:arrow-left" width={20} class="me-2" aria-hidden="true"
+										<iconify-icon
+											icon="mdi:arrow-left"
+											width={20}
+											class="me-2 rtl:scale-x-[-1]"
+											aria-hidden="true"
 										></iconify-icon>
 										{button_back()}
 									</Button>
@@ -1058,7 +1062,11 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 								}}
 								class="p-0! min-w-0 rounded-full"
 							>
-								<iconify-icon icon="mdi:arrow-left-circle" width={24} aria-hidden="true"
+								<iconify-icon
+									icon="mdi:arrow-left-circle"
+									width={24}
+									class="rtl:scale-x-[-1]"
+									aria-hidden="true"
 								></iconify-icon>
 							</Button>
 						</div>
@@ -1116,7 +1124,11 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 								}}
 								class="p-0! min-w-0 rounded-full"
 							>
-								<iconify-icon icon="mdi:arrow-left-circle" width={24} aria-hidden="true"
+								<iconify-icon
+									icon="mdi:arrow-left-circle"
+									width={24}
+									class="rtl:scale-x-[-1]"
+									aria-hidden="true"
 								></iconify-icon>
 							</Button>
 						</div>
@@ -1218,7 +1230,11 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 								}}
 								class="p-0! min-w-0"
 							>
-								<iconify-icon icon="mdi:arrow-left-circle" width={24} aria-hidden="true"
+								<iconify-icon
+									icon="mdi:arrow-left-circle"
+									width={24}
+									class="rtl:scale-x-[-1]"
+									aria-hidden="true"
 								></iconify-icon>
 							</Button>
 						</div>
@@ -1252,8 +1268,9 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	}
 	.hover:hover {
 		width: calc(var(--width) + 10%);
-		border-top-right-radius: 5% 50%;
-		border-bottom-right-radius: 5% 50%;
+		/* End edge = the seam with the Sign Up lane in both directions */
+		border-start-end-radius: 5% 50%;
+		border-end-end-radius: 5% 50%;
 	}
 
 	:global(.wiggle) {

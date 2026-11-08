@@ -14,7 +14,7 @@ import {
   type ShippingRateProvider,
 } from "../commerce/fulfillment";
 
-export const SHIPPING_LIVE_PLUGIN_ID = "shipping-live";
+const SHIPPING_LIVE_PLUGIN_ID = "shipping-live";
 
 const CARRIER_LABEL: Record<string, string> = {
   ups: "UPS",

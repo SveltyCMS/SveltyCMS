@@ -117,7 +117,10 @@ describe("POST /api/ai/chat", () => {
     });
 
     expect(response.status).toBe(200);
-    await vi.waitFor(() => expect(processMock).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(processMock).toHaveBeenCalledTimes(1), {
+      timeout: 1000,
+      interval: 5,
+    });
 
     const request = processMock.mock.calls[0][0] as {
       message: string;
@@ -140,6 +143,11 @@ describe("POST /api/ai/chat", () => {
     // The current message is supplied separately, never duplicated in history.
     expect(request.history.some((turn) => turn.content === "new question")).toBe(false);
 
+    await vi.waitFor(() => expect(appendMock).toHaveBeenCalledTimes(2), {
+      timeout: 1000,
+      interval: 5,
+    });
+
     expect(appendMock).toHaveBeenNthCalledWith(1, "tenant-1", "conv-1", {
       role: "user",
       content: "new question",
@@ -149,7 +157,10 @@ describe("POST /api/ai/chat", () => {
       content: "AI answer",
     });
 
-    await vi.waitFor(() => expect(emittedAiResponses()).toHaveLength(1));
+    await vi.waitFor(() => expect(emittedAiResponses()).toHaveLength(1), {
+      timeout: 1000,
+      interval: 5,
+    });
     expect(emittedAiResponses()[0][1]).toMatchObject({
       data: { text: "AI answer", done: true },
     });
@@ -165,7 +176,10 @@ describe("POST /api/ai/chat", () => {
       body: { userMessage: "hello", conversationId: "conv-1" },
     });
 
-    await vi.waitFor(() => expect(processMock).toHaveBeenCalled());
+    await vi.waitFor(() => expect(processMock).toHaveBeenCalled(), {
+      timeout: 1000,
+      interval: 5,
+    });
     const processorModule = await import("@src/services/ai/chat-processor");
     expect(vi.mocked(processorModule.getChatProcessor)).toHaveBeenCalledWith("custom-processor");
   });
@@ -180,7 +194,10 @@ describe("POST /api/ai/chat", () => {
       body: { userMessage: "blocked", conversationId: "conv-1" },
     });
 
-    await vi.waitFor(() => expect(emittedAiResponses()).toHaveLength(1));
+    await vi.waitFor(() => expect(emittedAiResponses()).toHaveLength(1), {
+      timeout: 1000,
+      interval: 5,
+    });
     expect(emittedAiResponses()[0][1]).toMatchObject({
       data: { text: "", done: true, error: "MODERATION_BLOCKED" },
     });
@@ -203,7 +220,10 @@ describe("POST /api/ai/chat", () => {
       body: { userMessage: "hello", conversationId: "conv-1" },
     });
 
-    await vi.waitFor(() => expect(emittedAiResponses()).toHaveLength(1));
+    await vi.waitFor(() => expect(emittedAiResponses()).toHaveLength(1), {
+      timeout: 1000,
+      interval: 5,
+    });
     expect(emittedAiResponses()[0][1]).toMatchObject({
       data: { text: "", done: true, error: "MODERATION_UNAVAILABLE" },
     });
@@ -270,6 +290,9 @@ describe("POST /api/system/ai/chat alias", () => {
     });
 
     expect(response.status).toBe(200);
-    await vi.waitFor(() => expect(processMock).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(processMock).toHaveBeenCalledTimes(1), {
+      timeout: 1000,
+      interval: 5,
+    });
   });
 });

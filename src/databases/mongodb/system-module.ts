@@ -24,6 +24,7 @@ import { MongoThemeMethods } from "./theme";
 import { MongoSystemVirtualFolderMethods } from "./system-virtual-folder";
 import { MongoWidgetMethods } from "./widget";
 import { MongoWebsiteTokenMethods } from "./website-token";
+import { nowISODateString } from "@utils/date";
 
 export { systemSettingSchema, SystemSettingModel, type SystemSetting };
 
@@ -45,7 +46,7 @@ function tenantIdOf(value: unknown): string | null {
   return null;
 }
 
-export class MongoSystemMethods {
+class MongoSystemMethods {
   private readonly SystemPreferencesModel: Model<SystemPreferencesDocument>;
   private readonly SystemSettingModel: Model<SystemSetting>;
 
@@ -410,7 +411,7 @@ export class MongoSystemMethods {
           const queryTenantId = pref.tenantId || null;
           const updateData: Record<string, unknown> = {
             value: pref.value,
-            updatedAt: new Date().toISOString(),
+            updatedAt: nowISODateString(),
             tenantId: queryTenantId,
           };
           if (pref.category) {
@@ -657,7 +658,7 @@ export class MongoSystemModule extends DatabaseModule<MongoAdapterCore> implemen
           jobRepo.findMany(
             {
               status: "pending",
-              nextRunAt: { $lte: new Date().toISOString() },
+              nextRunAt: { $lte: nowISODateString() },
             } as any,
             {
               limit,

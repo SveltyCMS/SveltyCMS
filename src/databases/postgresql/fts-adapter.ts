@@ -160,13 +160,17 @@ export class PostgresFtsAdapter implements IFtsAdapter {
       const exec = client ?? core.sql;
       try {
         await exec.unsafe("SET statement_timeout = 0");
-      } catch {}
+      } catch (error) {
+        logger.debug("[fts-adapter] suppressed error", error);
+      }
       await exec.unsafe(
         `CREATE INDEX CONCURRENTLY IF NOT EXISTS "${indexName}" ON "${safeTable}" USING gin (fts)`,
       );
       try {
         await exec.unsafe(`ANALYZE "${safeTable}"`);
-      } catch {}
+      } catch (error) {
+        logger.debug("[fts-adapter] suppressed error", error);
+      }
 
       this._provisionedTables.add(safeTable);
       return true;
@@ -176,7 +180,9 @@ export class PostgresFtsAdapter implements IFtsAdapter {
         if (cleanupExec) {
           try {
             await cleanupExec.unsafe(`DROP INDEX CONCURRENTLY IF EXISTS "${indexName}"`);
-          } catch {}
+          } catch (error) {
+            logger.debug("[fts-adapter] suppressed error", error);
+          }
         }
       }
       logger.debug(
@@ -188,7 +194,9 @@ export class PostgresFtsAdapter implements IFtsAdapter {
       if (client) {
         try {
           await client.end();
-        } catch {}
+        } catch (error) {
+          logger.debug("[fts-adapter] suppressed error", error);
+        }
       }
     }
   }

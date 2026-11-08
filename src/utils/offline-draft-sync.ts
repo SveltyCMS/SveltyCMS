@@ -17,6 +17,7 @@
 
 import { logger } from "@utils/logger";
 import { generateUUID } from "@utils/native-utils";
+import { nowISODateString } from "@utils/date";
 
 export interface PendingRemoteCall<T = unknown> {
   id: string;
@@ -37,7 +38,7 @@ export interface LocalDraftRecord<T = Record<string, unknown>> {
 }
 
 export const MAX_SYNC_RETRIES = 3;
-export const DRAFT_STORAGE_PREFIX = "sveltycms_draft:";
+const DRAFT_STORAGE_PREFIX = "sveltycms_draft:";
 
 export class OfflineDraftSync {
   private queue: PendingRemoteCall[] = [];
@@ -144,7 +145,7 @@ export class OfflineDraftSync {
         id: generateUUID(),
         functionName,
         payload: args,
-        timestamp: new Date().toISOString(),
+        timestamp: nowISODateString(),
         attempts: 0,
       };
 
@@ -240,7 +241,7 @@ export class OfflineDraftSync {
         entryId,
         tenantId,
         data,
-        updatedAt: new Date().toISOString(),
+        updatedAt: nowISODateString(),
       };
       localStorage.setItem(this.getDraftKey(collection, entryId, tenantId), JSON.stringify(record));
     } catch (err) {
@@ -276,7 +277,9 @@ export class OfflineDraftSync {
     if (typeof localStorage === "undefined") return;
     try {
       localStorage.removeItem(this.getDraftKey(collection, entryId, tenantId));
-    } catch {}
+    } catch (error) {
+      logger.debug("[offline-draft-sync] suppressed error", error);
+    }
   }
 
   /**

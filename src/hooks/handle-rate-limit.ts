@@ -70,6 +70,16 @@ void initRateLimiter();
 const DEFAULT_WINDOW_MS = 60_000;
 const MAX_TRACKED_BUCKETS = 10000;
 
+/**
+ * Harness-only L1 flood ceiling. Production keeps the 200 req/s default; the
+ * benchmark matrix raises it so a local load generator is not mistaken for a
+ * DDoS. The adaptive/Redis limiter still runs and still enforces its own cap.
+ */
+const L1_FILTER_OVERRIDES = {
+  capacity: Number(process.env.RATE_LIMIT_L1_CAPACITY) || undefined,
+  refillPerSec: Number(process.env.RATE_LIMIT_L1_REFILL_PER_SEC) || undefined,
+} as const;
+
 type RateLimitLane = "commerce" | "default";
 
 const COMMERCE_PREFIX = "/api/commerce";
@@ -219,7 +229,11 @@ export function resolveAdaptiveUserTier(event: RequestEvent): AdaptiveUserTier {
     try {
       const isSecure = isSecureCookieContext(event.url.protocol, event.url.hostname);
       const cookieName = getSessionCookieName(isSecure);
-      const sessionId = event.cookies.get(cookieName) || event.cookies.get(SESSION_COOKIE_NAME);
+      // Secure contexts accept only `__Host-` — a plain cookie can be planted
+      // by a sibling subdomain and must not steer tier classification either.
+      const sessionId = isSecure
+        ? event.cookies.get(cookieName)
+        : event.cookies.get(cookieName) || event.cookies.get(SESSION_COOKIE_NAME);
       return sessionId ? peekSessionUserSync(sessionId) : null;
     } catch {
       return null;
@@ -406,7 +420,7 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
 
   // ⚡ L1 PRE-FILTER: Synchronous zero-allocation token bucket to drop volumetric DDoS floods
   // (>200 req/s) before executing costly adaptive calculations or async Redis checks.
-  const l1Check = checkL1PreFilter(clientIp, now);
+  const l1Check = checkL1PreFilter(clientIp, now, L1_FILTER_OVERRIDES);
   if (!l1Check.allowed) {
     logger.warn(`[RateLimit] ${clientIp} exceeded L1 pre-filter flood threshold`, {
       pathname,
@@ -744,7 +758,9 @@ export class RateLimiter {
             sameSite: "lax",
             secure: event.url.protocol === "https:",
           });
-        } catch {}
+        } catch (error) {
+          logger.debug("[handle-rate-limit] suppressed error", error);
+        }
       }
       const key = hashClientKeySync(`cookie:${this._cookieRule.name}:${cookieVal}`);
       const res = checkMemoryTokenBucket(

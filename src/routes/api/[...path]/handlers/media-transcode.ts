@@ -27,7 +27,7 @@ import type { DatabaseId } from "@src/databases/db-interface";
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { getFile, saveFile } from "@utils/media/media-storage.server";
-import { isStoredMedia } from "@utils/media/media-models";
+import { isStoredMedia } from "@utils/media/media-values";
 import { nowISODateString } from "@utils/date";
 import { successResponse } from "./base";
 import { hasMediaPermission } from "./media-permissions";

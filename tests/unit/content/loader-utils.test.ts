@@ -18,6 +18,7 @@ vi.mock("@src/services/core/widget-registry-service", () => ({
 import {
   generateSchemaHash,
   isSafeCollectionPath,
+  isTransientSchemaLoadError,
   loadSchemaNative,
 } from "@src/content/loader.server";
 
@@ -31,9 +32,11 @@ function compiledPath(name: string): string {
 }
 
 beforeAll(async () => {
-  // Real confinement root: nested under <cwd>/.compiledCollections (gitignored),
-  // exactly like the production scanner's target directory.
-  tempDir = await fsPromises.mkdtemp(path.join(CWD, ".compiledCollections", ".loader-test-"));
+  // Real confinement root: nested under <cwd>/.compiledCollections/test-collections
+  // (never root .compiledCollections, which belongs to live user data).
+  const testCompiledRoot = path.join(CWD, ".compiledCollections", "test-collections");
+  await fsPromises.mkdir(testCompiledRoot, { recursive: true });
+  tempDir = await fsPromises.mkdtemp(path.join(testCompiledRoot, ".loader-test-"));
   await fsPromises.writeFile(
     compiledPath("posts.js"),
     `export const schema = {
@@ -109,6 +112,19 @@ describe("generateSchemaHash", () => {
   });
 });
 
+describe("isTransientSchemaLoadError", () => {
+  it("recognizes dev-runner teardown during HMR/restart", () => {
+    expect(isTransientSchemaLoadError(new Error("Vite module runner has been closed."))).toBe(true);
+    expect(isTransientSchemaLoadError("The server is being restarted")).toBe(true);
+  });
+
+  it("does not mask a genuinely broken compiled file", () => {
+    expect(isTransientSchemaLoadError(new SyntaxError("Unexpected token 'export'"))).toBe(false);
+    expect(isTransientSchemaLoadError(new Error("Cannot find module './missing.js'"))).toBe(false);
+    expect(isTransientSchemaLoadError(undefined)).toBe(false);
+  });
+});
+
 describe("loadSchemaNative (boot path)", () => {
   it("loads and normalizes a real compiled schema file", async () => {
     const result = await loadSchemaNative(compiledPath("posts.js"));
@@ -117,6 +133,24 @@ describe("loadSchemaNative (boot path)", () => {
     expect(result?.schema?.name).toBe("Posts");
     expect(result?.schema?.fields).toHaveLength(2);
     expect((result?.schema?.fields?.[0] as any)?.widget?.Name).toBe("Input");
+  });
+
+  it("defers (does not report broken) when the dev runner was restarting", async () => {
+    await fsPromises.writeFile(
+      compiledPath("runner-closed.js"),
+      `throw new Error("Vite module runner has been closed.");`,
+      "utf8",
+    );
+
+    const result = await loadSchemaNative(compiledPath("runner-closed.js"));
+    expect(result?.transient).toBe(true);
+    expect(result?.schema).toBeUndefined();
+  });
+
+  it("still returns null for a real evaluation failure", async () => {
+    await fsPromises.writeFile(compiledPath("broken.js"), `throw new Error("boom");`, "utf8");
+
+    await expect(loadSchemaNative(compiledPath("broken.js"))).resolves.toBeNull();
   });
 
   it("returns null for missing files without throwing", async () => {

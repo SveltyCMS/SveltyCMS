@@ -113,7 +113,7 @@ export type ConditionExpression =
 /**
  * Safely resolves a nested dot-delimited path from an object.
  */
-export function getFieldValueByPath(
+function getFieldValueByPath(
   data: Record<string, unknown> | null | undefined,
   path: string,
 ): unknown {

@@ -9,7 +9,13 @@ import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { successResponse } from "../base";
-import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
+import {
+  requireAdminUser,
+  requireAuthenticatedUser,
+  requireTenant,
+  resolveRequestTenant,
+} from "./system-shared";
+import { nowISODateString } from "@utils/date";
 
 /**
  * --- WORKFLOWS (content lifecycle FSM definitions) ---
@@ -20,24 +26,16 @@ export async function handleWorkflowRoutes(
   tenantId: DatabaseId,
   segments: string[],
 ) {
-  const { request, locals, url } = event;
-  const { user } = locals;
+  const { request, url } = event;
 
-  // 🛡️ SECURITY: Admin for mutations; authenticated for GET
-  if (!["GET", "OPTIONS"].includes(request.method)) {
-    if (!user || (!user.isAdmin && user.role !== "admin" && user.role !== "super-admin")) {
-      throw new AppError("Admin access required for workflow management", 403, "FORBIDDEN");
-    }
-  } else if (!user) {
-    throw new AppError("Authentication required", 401, "UNAUTHORIZED");
-  }
+  // 🛡️ SECURITY: Admin for mutations; authenticated for GET (401 before 403).
+  const user = ["GET", "OPTIONS"].includes(request.method)
+    ? requireAuthenticatedUser(event)
+    : requireAdminUser(event, "Admin access required for workflow management");
 
-  if (isMultiTenantEnabled() && !tenantId) {
-    throw new AppError("Tenant ID required", 400, "TENANT_REQUIRED");
-  }
+  const tid = requireTenant(tenantId) || undefined;
 
   const { workflowService } = await import("@src/services/background/workflow-service");
-  const tid = tenantId ? String(tenantId) : undefined;
 
   // PATCH = entry state transition OR assignee assignment (content ops, not definition CRUD)
   if (request.method === "PATCH") {
@@ -117,17 +115,10 @@ export async function handleAutomationRoutes(
   tenantId: DatabaseId,
   segments: string[],
 ) {
-  const { request, locals } = event;
-  const { user } = locals;
-
-  // 🛡️ SECURITY: Admin verification for automation management
+  const { request } = event;
+  // 🛡️ SECURITY: Admin verification for automation management (401 before 403).
   // Defense-in-depth: handler-level check independent of the middleware pipeline.
-  if (!user) {
-    throw new AppError("Authentication required", 401, "UNAUTHORIZED");
-  }
-  if (!user.isAdmin && user.role !== "admin" && user.role !== "super-admin") {
-    throw new AppError("Admin access required for automation management", 403, "FORBIDDEN");
-  }
+  requireAdminUser(event, "Admin access required for automation management");
 
   if (process.env.VERBOSE_TESTS === "true") {
     logger.debug(
@@ -135,21 +126,7 @@ export async function handleAutomationRoutes(
     );
   }
 
-  const { url } = event;
-  const queryTenantId = url.searchParams.get("tenantId");
-  let effectiveTenantId = tenantId as string;
-
-  if (queryTenantId && queryTenantId !== tenantId) {
-    if (user.role === "super-admin") {
-      effectiveTenantId = queryTenantId;
-    } else {
-      throw new AppError("Forbidden: Cannot access other tenants", 403, "FORBIDDEN");
-    }
-  }
-
-  if (isMultiTenantEnabled() && !effectiveTenantId) {
-    throw new AppError("Tenant ID required", 400, "TENANT_REQUIRED");
-  }
+  const effectiveTenantId = resolveRequestTenant(event, tenantId, event.locals.user);
   const id = segments[1]; // Corrected index: namespace is [0], id is [1]
 
   const { automationService: service } =
@@ -175,7 +152,7 @@ export async function handleAutomationRoutes(
       const result = await service.executeFlow(flow, {
         event: "entry:create",
         data: testPayload,
-        timestamp: new Date().toISOString(),
+        timestamp: nowISODateString(),
         tenantId: effectiveTenantId,
       });
       return successResponse(event, result);

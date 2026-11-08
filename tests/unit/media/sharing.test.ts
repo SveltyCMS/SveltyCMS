@@ -7,7 +7,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { scryptSync } from "node:crypto";
 import { mkdtemp, mkdir, rm, writeFile, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 import { gunzipSync } from "node:zlib";
 import {
   createLink,
@@ -19,6 +19,7 @@ import {
   newToken,
   createBulkArchive,
   cleanupArchive,
+  resolveMediaPathUnderRoot,
 } from "../../../src/utils/media/sharing";
 import {
   hashSharePassword,
@@ -283,5 +284,30 @@ describe("sharing — bulk archive root resolution", () => {
     await expect(
       createBulkArchive([storedMedia("../escape.jpg", "escape.jpg", bytes)], tmpdir()),
     ).rejects.toThrow(/\(1 blocked\)/);
+  });
+});
+
+describe("sharing — share-download root resolution", () => {
+  it("preserves an absolute media root instead of re-rooting it under cwd", () => {
+    const root = resolve(tmpdir(), "svelty-share-absolute");
+    const resolved = resolveMediaPathUnderRoot(root, "tenant/abc/original/photo.png");
+
+    expect(isAbsolute(resolved)).toBe(true);
+    expect(resolved).toBe(resolve(root, "tenant/abc/original/photo.png"));
+  });
+
+  it("preserves a POSIX leading-slash absolute root on all platforms", () => {
+    const posixRoot = "/home/runner/work/SveltyCMS/tests/integration/.media";
+    const resolved = resolveMediaPathUnderRoot(posixRoot, "tenant/abc/original/photo.png");
+
+    expect(resolved).toBe(resolve(process.cwd(), posixRoot, "tenant/abc/original/photo.png"));
+    expect(resolved).not.toContain(
+      resolve(process.cwd(), "home/runner/work/SveltyCMS/tests/integration/.media"),
+    );
+  });
+
+  it("strips only a leading ./ from a relative root and normalizes legacy /files/ stored paths", () => {
+    const resolved = resolveMediaPathUnderRoot("./mediaFolder", "/files/tenant/photo.png");
+    expect(resolved).toBe(resolve(process.cwd(), "mediaFolder", "tenant/photo.png"));
   });
 });

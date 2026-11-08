@@ -14,7 +14,13 @@ parentPort?.on("message", async (msg: { id: number; filePath: string; mtimeMs: n
   try {
     const { loadSchemaNative } = await import("./loader.server");
     const result = await loadSchemaNative(msg.filePath, msg.mtimeMs);
-    parentPort?.postMessage({ id: msg.id, success: true, schema: result ?? undefined });
+    parentPort?.postMessage({
+      id: msg.id,
+      success: true,
+      schema: result?.schema,
+      transient: result?.transient,
+      error: result?.error,
+    });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown worker error";
     parentPort?.postMessage({ id: msg.id, success: false, error: message });

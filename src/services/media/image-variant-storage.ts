@@ -191,7 +191,7 @@ export interface TransformVariantKey {
  * Preset token encoding the non-width components of the variant key.
  * `t0q82` = "height derived from source, quality 82".
  */
-export function getTransformPresetToken(height: number, quality: number): string {
+function getTransformPresetToken(height: number, quality: number): string {
   return `t${height}q${quality}`;
 }
 

@@ -149,7 +149,7 @@ export const actions: Record<string, (event: any) => Promise<Record<string, unkn
       connector._id as DatabaseId,
       {
         health: result.health,
-        lastHealthCheck: new Date().toISOString(),
+        lastHealthCheck: nowISODateString(),
         lastError: result.message,
       } as any,
       { tenantId },

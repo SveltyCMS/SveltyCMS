@@ -2,28 +2,34 @@
  * @file src/content/index.ts
  * @description Single Entry Point and Public API Facade for the SveltyCMS Content System (Browser-safe).
  * 🛡️ SECURITY: This file MUST remain browser-safe. No server-only imports allowed.
+ *
+ * ### Features:
+ * - re-exports the context (`context.ts`), tree helpers (`content-tree.ts`), and
+ *   navigation/metrics (`content-navigation.ts`) modules
+ * - `contentSystemBase` / `contentSystem` runtime entry points for server and SDK callers
+ *
+ * Client routes import `@src/content/context` and `@src/content/content-tree`
+ * directly — importing this facade also loads the server-side navigation surface.
  */
 
 const isBrowser = typeof window !== "undefined";
 import { logger } from "@utils/logger";
-import { setContext, getContext } from "svelte";
 import { contentStore } from "@stores/content-registry.svelte";
-import { contentNavigation, contentMetrics } from "./content-utils";
+import { contentNavigation, contentMetrics } from "./content-navigation";
 import { getCollectionRedirectPathFromSchema } from "./first-collection";
+import { initializeContent, setContentContext, useContent } from "./context";
 
 export * from "./types";
 export { contentStore } from "@stores/content-registry.svelte";
+export { contentNavigation, contentMetrics } from "./content-navigation";
 export {
-  contentNavigation,
-  contentMetrics,
   sortContentNodes,
   generateCategoryNodesFromPaths,
   hasDuplicateSiblingName,
-} from "./content-utils";
+} from "./content-tree";
+export { CONTENT_CONTEXT_KEY, setContentContext, useContent, initializeContent } from "./context";
 
 export type { DatabaseAdapter } from "@src/databases/db-interface";
-
-export const CONTENT_CONTEXT_KEY = Symbol("content-context");
 
 export const contentSystemBase = {
   get version() {
@@ -89,19 +95,10 @@ export const contentSystemBase = {
   },
 
   setContext(tenantId: string | null = null) {
-    const ctx = { tenantId, version: this.version };
-    try {
-      setContext(CONTENT_CONTEXT_KEY, ctx);
-    } catch {
-      // Fails soft if called outside active component initialization (e.g. async SSR / HMR)
-    }
-    return ctx;
+    return setContentContext(tenantId);
   },
   getContext() {
-    return getContext(CONTENT_CONTEXT_KEY) as {
-      tenantId: string | null;
-      version: number;
-    };
+    return useContent();
   },
 
   getNavigationStructureProgressive: (options: any) =>
@@ -119,18 +116,12 @@ export const contentSystemBase = {
 export const contentSystem = {
   ...contentSystemBase,
 
-  async initialize(_tenantId: string | null = null, _force = false, _adapter?: any): Promise<void> {
-    if (isBrowser) {
-      if (contentStore.initState === "uninitialized") {
-        contentStore.initState = "initialized";
-      }
-      const { contentLiveSync } = await import("./content-sse.svelte");
-      contentLiveSync.start();
-    } else {
-      logger.warn(
-        "[contentSystem] initialize() called on server from client facade. Import from './index.server' instead.",
-      );
-    }
+  async initialize(
+    _tenantId: string | null = null,
+    _force = false,
+    _adapter?: unknown,
+  ): Promise<void> {
+    await initializeContent();
   },
 
   async refresh(
@@ -179,15 +170,3 @@ export const contentSystem = {
     return [];
   },
 };
-
-export const setContentContext = (tenantId: string | null = null) =>
-  contentSystem.setContext(tenantId);
-
-export const useContent = () => contentSystem.getContext();
-
-export async function initializeContent(pageData?: any) {
-  if (pageData?.contentNodes) {
-    contentStore.sync(pageData.contentNodes);
-  }
-  await contentSystem.initialize(pageData?.tenantId ?? null);
-}

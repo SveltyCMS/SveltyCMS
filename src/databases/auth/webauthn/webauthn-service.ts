@@ -14,8 +14,36 @@ import type { Authenticator, User } from "@src/databases/auth/types";
 import { nowISODateString } from "@utils/date";
 import { parseAuthData, verifyAssertionSignature } from "./attestation";
 import { decodeCBOR } from "./cbor-decoder";
+import { cacheService } from "@src/databases/cache/cache-service";
+import { CacheCategory } from "@src/databases/cache/types";
 
 export const WEBAUTHN_CHALLENGE_TTL_S = 300;
+export const WEBAUTHN_CHALLENGE_PREFIX = "webauthn:challenge:";
+
+export async function storeWebAuthnChallenge(
+  challenge: string,
+  payload: { userId: string; type: "registration" | "authentication" },
+): Promise<void> {
+  await cacheService.set(
+    `${WEBAUTHN_CHALLENGE_PREFIX}${challenge}`,
+    payload,
+    WEBAUTHN_CHALLENGE_TTL_S,
+    null,
+    CacheCategory.SESSION,
+  );
+}
+
+export async function consumeWebAuthnChallenge(
+  challenge: string,
+): Promise<{ userId: string; type: "registration" | "authentication" } | null> {
+  const key = `${WEBAUTHN_CHALLENGE_PREFIX}${challenge}`;
+  const stored = await cacheService.get<{
+    userId: string;
+    type: "registration" | "authentication";
+  }>(key, null);
+  await cacheService.delete(key, null);
+  return stored ?? null;
+}
 
 export interface WebAuthnChallengePayload {
   userId: string;

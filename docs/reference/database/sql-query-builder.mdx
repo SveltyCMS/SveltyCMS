@@ -212,10 +212,9 @@ On MySQL/MariaDB a backslash inside a string literal is itself an escape, so `ES
 
 ## Callers
 
-- **`services/core/collection-service.ts`** — admin collection lists and status facets (`getStatusFacets` → `countStatusFacets`).
+- **`services/sdk/namespaces/collections-namespace.ts`** — admin collection lists (`find`), status facets (`getStatusFacets` → `countStatusFacets`), and exposes `queryBuilder(collectionId)` on the Local SDK, injecting `tenantId` as a `where` condition.
 - **`services/core/collection-filter-engine.ts`** — compiles schema + FLAC into portable QueryBuilder clauses (`where`/`whereBetween`/`whereIn`/`whereNull`/`whereNotNull`/`search`) via `applyFiltersToQueryBuilder`; see [Collection Filtering](../architecture/collection-filtering.mdx).
 - **link-suggestions route** (`routes/api/[...path]/handlers/utility.ts`) — `handleLinkSuggestions` uses `.search(...).where({ status, tenantId }).limit(5).execute()`.
-- **`services/sdk/namespaces/collections-namespace.ts`** — exposes `queryBuilder(collectionId)` on the Local SDK, injecting `tenantId` as a `where` condition.
 
 ## Related
 

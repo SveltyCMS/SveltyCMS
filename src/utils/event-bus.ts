@@ -91,7 +91,7 @@ class EventBus extends EventEmitter {
     }
 
     // Isolate the wildcard emission so it cannot sabotage the main event chain
-    if (event !== "*") {
+    if (event !== "*" && this.listenerCount("*") > 0) {
       try {
         super.emit("*", { event: String(event), data: args[0], args });
       } catch (err) {

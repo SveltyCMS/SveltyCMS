@@ -5,7 +5,7 @@
  * Mutations and list queries use fetchApi so CSRF is automatic.
  */
 
-import { fetchApi, type ApiResponse } from "@utils/api";
+import { fetchApi, type ApiResponse } from "@utils/http-client";
 import type { WebsiteToken } from "@src/content/types";
 import type { User } from "@src/databases/auth/types";
 

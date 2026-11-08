@@ -208,7 +208,7 @@ Pintura-style fine-tune dock — compact pills, inline accent slider, aligned ro
 		>
 			<div class="relative w-full">
 				<div
-					class="absolute top-1/2 inset-s-1/2 z-1 w-[1.5px] h-2.5 pointer-events-none bg-(--editor-chrome-border) rounded-[1px] -translate-x-1/2 -translate-y-1/2"
+					class="absolute inset-x-0 top-1/2 z-1 mx-auto w-[1.5px] h-2.5 pointer-events-none bg-(--editor-chrome-border) rounded-[1px] -translate-y-1/2"
 					aria-hidden="true"
 				></div>
 				<input

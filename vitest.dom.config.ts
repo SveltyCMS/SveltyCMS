@@ -55,15 +55,26 @@ export default defineConfig({
   },
   test: {
     globals: true,
+    fsModuleCache: true,
     environment: "jsdom",
     include: ["tests/unit/components/dom/**/*.test.ts"],
+    globalSetup: [path.resolve(__dirname, "tests/unit/global-setup.ts")],
     setupFiles: [path.resolve(__dirname, "tests/unit/components/dom/setup.ts")],
     testTimeout: 15_000,
     hookTimeout: 15_000,
+    silent: "passed-only",
+    env: {
+      TEST_MODE: "true",
+      MEDIA_FOLDER: "tests/integration/.media",
+      QUIET: "true",
+    },
     // Component tests share one jsdom document; parallel forks are safe but add
     // startup cost. Keep the suite fast without masking cross-test DOM leaks.
     pool: "forks",
     isolate: true,
+    // Same reason as vitest.config.ts: Node's ML-KEM Web Crypto warning is
+    // intentional usage, not a test problem.
+    execArgv: ["--disable-warning=ExperimentalWarning"],
     // Separate report from the unit run: the client build's statement maps are
     // incompatible with the SSR unit maps, so the two are unioned per file by
     // scripts/merge-coverage.ts instead of being merged statement-by-statement.

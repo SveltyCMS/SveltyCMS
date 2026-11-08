@@ -1,0 +1,13 @@
+{
+  "generatedAt": "2026-11-08T15:42:18.983Z",
+  "paths": [
+    "src/components/ui/tabs/index.ts",
+    "src/content/index.ts",
+    "src/databases/auth/types.ts",
+    "src/plugins/index.ts",
+    "src/plugins/smart-importer/parsers/index.ts",
+    "src/services/sdk/index.ts",
+    "src/utils/logger.server.ts",
+    "src/utils/rate-limit/index.ts"
+  ]
+}

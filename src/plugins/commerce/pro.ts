@@ -7,7 +7,7 @@
 import { checkExtensionLicense } from "@src/utils/license-manager";
 import { raise } from "@utils/error-handling";
 
-export const DEFAULT_CHECKOUT_PANES = ["contact", "shipping", "payment", "review"] as const;
+const DEFAULT_CHECKOUT_PANES = ["contact", "shipping", "payment", "review"] as const;
 
 export async function isCommercePro(): Promise<boolean> {
   const status = await checkExtensionLicense("plugin", "commerce");

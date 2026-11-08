@@ -49,7 +49,7 @@
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { logger } from '@utils/logger';
 	import { deepClone } from '@utils/native-utils';
-	import { rethrow } from '@utils/error-handling';
+	import { rethrow } from '@utils/rethrow';
 	import { page } from '$app/state';
 	import { beforeNavigate, goto } from '$app/navigation';
 	import { untrack } from 'svelte';
@@ -104,7 +104,7 @@
 					// Shared mutation client — CSRF attached automatically (Testing 2026)
 					// Uses /api/user/update-roles which calls cms.auth.updateRoles() for
 					// full role/permission persistence with validation.
-					const { fetchApi } = await import('@utils/api');
+					const { fetchApi } = await import('@utils/http-client');
 					const result = await fetchApi('/api/user/update-roles', {
 						method: 'POST',
 						body: JSON.stringify(rolesData)

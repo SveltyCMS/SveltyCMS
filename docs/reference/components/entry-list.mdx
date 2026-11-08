@@ -147,7 +147,7 @@ smartFilter.toFilterQuery(); // { status: { contains: "publish" } }
 | Concern                 | Responsibility                                                                                                                    |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | **Query safety**        | `parseCollectionListQuery` + `whitelistFilterParams` drop unknown field names before the DB. Client `allowedFieldIds` is UX-only. |
-| **RBAC / tenant**       | Auth + permission hooks; `CollectionService` injects `tenantId` when multi-tenant is enabled.                                     |
+| **RBAC / tenant**       | Auth + permission hooks; `CollectionsNamespace.find` injects `tenantId` when multi-tenant is enabled.                             |
 | **Caching (L1/L2 SWR)** | `getOrSetSWR` with key `collection:{id}:query:{hash}:…` (60s fresh / 5m stale). Empty pages are **not** Bloom-negative-cached.    |
 | **Prefix invalidation** | Mutations → `cacheService.invalidateCollection(id)` clears all filter/search/page variants.                                       |
 | **Server hooks**        | Authentication and authorization run before the collection page loader.                                                           |
@@ -157,13 +157,14 @@ smartFilter.toFilterQuery(); // { status: { contains: "publish" } }
 
 ### Shared modules
 
-| Module                             | Role                                                                 |
-| ---------------------------------- | -------------------------------------------------------------------- |
-| `@utils/collection-query-filters`  | URL parse, schema whitelist, stable `queryHash`, cache key builder   |
-| `create-smart-filter.svelte.ts`    | Reactive filter UI state + control types from schema widgets         |
-| `system/table/table-filter.svelte` | Toolbar (search, density, filter/column toggles)                     |
-| `ui/table/filter.svelte`           | Generic table toolbar primitive (design system)                      |
-| `@components/ui/smart-table`       | Shared SmartTable component suite (selection, sorting, layout prefs) |
+| Module                                   | Role                                                                 |
+| ---------------------------------------- | -------------------------------------------------------------------- |
+| `@utils/collection-query-filter-meta`    | URL prefix, filter map types, stable `queryHash`                     |
+| `@utils/collection-query-filters.server` | URL parse, schema whitelist, cache key builder                       |
+| `create-smart-filter.svelte.ts`          | Reactive filter UI state + control types from schema widgets         |
+| `system/table/table-filter.svelte`       | Toolbar (search, density, filter/column toggles)                     |
+| `ui/table/filter.svelte`                 | Generic table toolbar primitive (design system)                      |
+| `@components/ui/smart-table`             | Shared SmartTable component suite (selection, sorting, layout prefs) |
 
 ### Architecture docs
 

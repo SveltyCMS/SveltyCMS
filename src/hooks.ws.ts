@@ -15,7 +15,8 @@
  * - Active-connection tracking for graceful shutdown (1001 Going Away)
  */
 
-import { isSecureCookieContext, readSessionCookie } from "@src/databases/auth/constants";
+import { isSecureCookieContext } from "@src/databases/auth/constants";
+import { readSessionCookie } from "@utils/security/session-cookie";
 import { logger } from "@utils/logger";
 import { getDbInitPromise } from "@src/databases/db";
 import { getTenantIdFromHostname } from "@utils/tenant";

@@ -1,15 +1,16 @@
 /**
- * @file src/services/jobs/media-jobs.ts
+ * @file src/services/background/jobs/media-jobs.ts
  * @description Job handlers for background media processing.
  */
 
 import { getDb } from "@src/databases/db";
 import { logger } from "@utils/logger";
+import { nowISODateString } from "@utils/date";
 import {
   saveResizedImages,
   getFile,
   captureVideoThumbnail,
-  generatePdfThumbnail,
+  buildDocumentPreview,
 } from "@src/utils/media/media-storage.server";
 import path from "node:path";
 import type { DatabaseId } from "@src/databases/db-interface";
@@ -41,6 +42,9 @@ export async function processMediaHandler(payload: { fileId: string; basePath?: 
   }
 
   const media = mediaResult.data as any;
+  // Tenant scope for the metadata patch: multi-tenant mode rejects an unscoped write.
+  const tenantId = (media as { tenantId?: DatabaseId | null }).tenantId as DatabaseId;
+  let processingError: string | null = null;
 
   try {
     // 2. Load the original file buffer
@@ -51,7 +55,7 @@ export async function processMediaHandler(payload: { fileId: string; basePath?: 
     const ext = path.extname(media.filename).slice(1) || "jpg";
     const baseName = path.basename(media.filename, `.${ext}`);
 
-    let thumbnails: any = {};
+    let thumbnails: Record<string, unknown> = {};
 
     if (mimeType.startsWith("image/") && !mimeType.includes("svg")) {
       logger.debug(`[MediaJob] Generating image thumbnails for ${media.filename}`);
@@ -68,43 +72,53 @@ export async function processMediaHandler(payload: { fileId: string; basePath?: 
           basePath,
         );
       }
-    } else if (mimeType === "application/pdf") {
-      logger.debug(`[MediaJob] Generating PDF thumbnail for ${media.filename}`);
-      const thumbBuffer = await generatePdfThumbnail(buffer);
-      if (thumbBuffer) {
-        thumbnails = await saveResizedImages(
-          thumbBuffer,
-          media.hash,
-          `${baseName}-thumb`,
-          "jpg",
-          basePath,
-        );
-      }
+    } else {
+      // PDF, CSV/TSV and Office documents share the upload pipeline's helper, so
+      // the job produces exactly the same `-thumb` ladder as a buffered upload.
+      logger.debug(`[MediaJob] Generating document thumbnail for ${media.filename}`);
+      const documentPreview = await buildDocumentPreview(
+        buffer,
+        media.hash,
+        media.filename,
+        mimeType,
+        basePath,
+      );
+      thumbnails = documentPreview.thumbnails;
     }
 
     // 4. Update the database record with thumbnails
     if (Object.keys(thumbnails).length > 0) {
-      await db.crud.update("media", dbId, {
+      const update = await db.crud.update("media", dbId, {
         thumbnails: { ...media.thumbnails, ...thumbnails },
-        updatedAt: new Date().toISOString(),
+        updatedAt: nowISODateString(),
       } as any);
-      // `media` was read before thumbnail generation; writing its whole
-      // metadata blob back would delete keys added in the meantime (share
-      // links, editor fields). Patch the one key this job owns, scoped to the
-      // row's own tenant (multi-tenant mode rejects an unscoped write).
-      const statusUpdate = await db.media.files.updateMetadata(
-        dbId,
-        { processingStatus: "ready", processingError: null },
-        { tenantId: (media as { tenantId?: DatabaseId | null }).tenantId as DatabaseId },
-      );
-      if (!statusUpdate.success) {
-        logger.warn("[MediaJob] Status update failed", statusUpdate.message);
+      if (!update.success) {
+        throw new Error(update.message || "Thumbnail update failed");
       }
     }
 
     logger.info(`[MediaJob] Completed processing for file: ${fileId}`);
   } catch (error) {
+    processingError = error instanceof Error ? error.message : String(error);
     logger.error(`[MediaJob] Failed to process media ${fileId}:`, error);
     throw error;
+  } finally {
+    // `media` was read before thumbnail generation; writing its whole metadata
+    // blob back would delete keys added in the meantime (share links, editor
+    // fields). Patch the one key this job owns, scoped to the row's own tenant.
+    //
+    // Always settle: a host without ffmpeg/LibreOffice produces no thumbnail but
+    // the original is perfectly servable, so the row must leave "processing"
+    // instead of staying stuck there forever.
+    const statusUpdate = await db.media.files.updateMetadata(
+      dbId,
+      processingError
+        ? { processingStatus: "failed", processingError }
+        : { processingStatus: "ready", processingError: null },
+      { tenantId },
+    );
+    if (!statusUpdate.success) {
+      logger.warn("[MediaJob] Status update failed", statusUpdate.message);
+    }
   }
 }

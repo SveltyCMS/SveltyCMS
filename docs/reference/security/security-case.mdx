@@ -1,12 +1,12 @@
 ---
 path: "docs/reference/security/security-case.mdx"
 title: "Security Case"
-description: "Dated security-assurance map as of 2026-11-05: the producer and current status of each evidence file, how AI-assisted security work is reviewed, and the open items."
+description: "Dated security-assurance map as of 2026-11-07: the producer and current status of each evidence file, how AI-assisted security work is reviewed, and the open items."
 order: 54
 icon: "mdi:file-certificate-outline"
 author: "SveltyCMS Team"
 created: "2026-11-05"
-updated: "2026-11-05"
+updated: "2026-11-07"
 tags:
   - "security"
   - "assurance"
@@ -15,7 +15,7 @@ tags:
 
 # Security Case
 
-This page is the entry point for a buyer, integrator, or reviewer who wants to check security evidence without trusting a summary. Each row points at the file that produces or records the metric, and the machine-readable status lives in [`docs/security/external-validation.json`](../../security/external-validation.json). The status is dated **2026-11-05**. A change to a status must update this page and that JSON record together.
+This page is the entry point for a buyer, integrator, or reviewer who wants to check security evidence without trusting a summary. Each row points at the file that produces or records the metric, and the machine-readable status lives in [`docs/security/external-validation.json`](../../security/external-validation.json). The status is dated **2026-11-07**. A change to a status must update this page and that JSON record together.
 
 ## What this page is for
 
@@ -33,7 +33,7 @@ This page is the entry point for a buyer, integrator, or reviewer who wants to c
 
 ## Compliance note
 
-Security statements in this repository follow **EU Directive 2006/114/EC** on misleading and comparative advertising and **German UWG §6**. As of 2026-11-05, the rules applied here are:
+Security statements in this repository follow **EU Directive 2006/114/EC** on misleading and comparative advertising and **German UWG §6**. As of 2026-11-07, the rules applied here are:
 
 - every factual claim is dated and links to a source that can be checked;
 - self-assessments are labelled as self-assessments;
@@ -42,16 +42,16 @@ Security statements in this repository follow **EU Directive 2006/114/EC** on mi
 
 ## Evidence map
 
-The status column describes what exists in this repository on 2026-11-05. Internal metrics are produced by project scripts and have not been independently reviewed.
+The status column describes what exists in this repository on 2026-11-07. Internal metrics are produced by project scripts and have not been independently reviewed.
 
-Every row is checked by one command: `bun run security:assurance` (also part of `bun run check` and the CI whitebox job). `--only=<id>` runs a single check and `--json` prints a machine-readable summary.
+Every row is checked by one command: `bun run security:assurance` (also part of `bun run check` and the CI whitebox job). `--only=<id>` runs a single check and `--json` prints a machine-readable summary. `bun run check` additionally runs 22 concurrent static policy, architecture and assurance gates. The AST tier is a single process (`scripts/check/run-ast-gates.ts`) that runs the tenant-scope lint (a system-scope spread next to a live `tenantId`) and the module-graph linkmap over one workspace read; the linkmap gate covers cycles, client→server leaks, UI data-layer inversions, client Node leaks, test invariants, ratcheted advisories, and public-API barrel removal.
 
-| Metric                                     | Produced by                                                                                                                                                    | Current status (2026-11-05)                                                                                                                                                    |
+| Metric                                     | Produced by                                                                                                                                                    | Current status (2026-11-07)                                                                                                                                                    |
 | :----------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Patch latency                              | `scripts/security/check-advisories.ts`; published in [patch latency](./patch-latency.mdx)                                                                      | Self-assessed internal gate. No advisory has been published as of 2026-11-05: the table is empty by design, and `provenance: "example"` records are excluded from every count. |
 | Advisories per fix (OSV / CVE)             | [Advisory process](./advisory-process.mdx); ledger in `scripts/security/check-advisories.ts`, dependency data from `scripts/security/scan-osv.ts`              | Process documented and enforced by the ledger gate. No public advisory exists yet; the first real record will carry the OSV/CVE ids.                                           |
 | Test strength (mutation score)             | `scripts/security/check-test-strength.ts`; published in [test strength](./test-strength.mdx)                                                                   | Self-assessed internal measurement. Floors are defined; no mutation run has been published yet.                                                                                |
-| Threat-model coverage                      | `scripts/security/check-threat-model-drift.ts`; [`docs/security/threat-model.json`](../../security/threat-model.json) and [threat models](./threat-models.mdx) | Self-assessed inventory, machine-checked: 58/58 server route files (100.0%) covered as of 2026-11-05; not independently reviewed.                                              |
+| Threat-model coverage                      | `scripts/security/check-threat-model-drift.ts`; [`docs/security/threat-model.json`](../../security/threat-model.json) and [threat models](./threat-models.mdx) | Self-assessed inventory, machine-checked: 58/58 server route files (100.0%) covered as of 2026-11-07; not independently reviewed.                                              |
 | Supply chain (Scorecard/SLSA/Sigstore)     | [`docs/security/external-validation.json`](../../security/external-validation.json); Scorecard runs in `.github/workflows/scorecard.yml`                       | `pending` — no Scorecard score, SLSA level, or Sigstore identity is recorded as of 2026-11-05.                                                                                 |
 | Independent validation (pen test / bounty) | [`docs/security/external-validation.json`](../../security/external-validation.json)                                                                            | `pending` — no dated external penetration test and no live public bug-bounty programme as of 2026-11-05.                                                                       |
 
@@ -66,14 +66,14 @@ AI tools assist this project under rules that keep a human accountable for every
 
 ## Open items
 
-- **External penetration test.** No dated report by a party outside the project exists as of 2026-10-18. The JSON record stays `pending` until a report exists. See [security posture](./security-posture.mdx).
+- **External penetration test.** No dated report by a party outside the project exists as of 2026-11-07. The JSON record stays `pending` until a report exists. See [security posture](./security-posture.mdx).
 - **OpenSSF Scorecard.** The `scorecard.yml` workflow is configured, but no score is recorded; the record stays `pending` until a run result is written into `openssf_scorecard.latest_score`.
 - **SLSA provenance.** `pending`. The level is recorded when a verifiable build attestation exists.
 - **Sigstore signing.** `pending`. The identity is recorded when release artifacts are signed.
 - **Bug bounty.** `pending`. No public programme is live; the responsible-disclosure route in [SECURITY.md](../../../SECURITY.md) remains open.
 - **Independent review of internal metrics.** Patch latency, mutation score, and threat-model coverage are self-assessed samples. They are not an external audit.
 - **OWASP ASVS.** The [OWASP ASVS matrix](./owasp-asvs-compliance.mdx) maps controls to chapters; it is not a passed audit and not a certificate.
-- **Next review.** `last_reviewed_at` in the JSON record is `2026-11-05`; `scripts/security/check-external-validation.ts` fails when the review is more than 180 days old or a completed penetration test is more than 365 days old.
+- **Next review.** `last_reviewed_at` in the JSON record is `2026-11-07`; `scripts/security/check-external-validation.ts` fails when the review is more than 180 days old or a completed penetration test is more than 365 days old.
 
 ## Reporting and disclosure
 

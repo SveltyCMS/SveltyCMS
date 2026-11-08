@@ -6,8 +6,12 @@
  * - calculateReconciledOperations (FS ↔ DB merge)
  * - contentSystemBase API surface (shared between index.ts and index.server.ts)
  * - refreshContent mode dispatch
+ * - transient dev-runner deferral during the compiled-schema scan
  */
 
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Schema, ContentNode } from "../../../src/content/types";
 
@@ -502,6 +506,36 @@ describe("refreshContent", () => {
     await refreshContent("t1", { mode: "schemas", adapter: {} as any });
     // "schemas" mode calls refreshCollectionsCache, not fullReload
     expect(contentService.fullReload).not.toHaveBeenCalled();
+  });
+});
+
+// ─── Tests: scanCompiledCollections transient deferral ──────────────
+
+describe("scanCompiledCollections transient deferral", () => {
+  let scanCompiledCollections: any;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    const mod = await import("../../../src/content/engine.server");
+    scanCompiledCollections = mod.scanCompiledCollections;
+  });
+
+  it("keeps the compiled artifact when the dev runner was restarting", async () => {
+    const { loadSchema } = await import("../../../src/content/loader.server");
+    (loadSchema as any).mockResolvedValue({ transient: true });
+
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "svelty-scan-transient-"));
+    const compiled = path.join(dir, "pages.js");
+    await fs.writeFile(compiled, "export const schema = {};", "utf8");
+
+    try {
+      await expect(scanCompiledCollections(dir)).resolves.toEqual([]);
+      // Broken-schema handling deletes the file + touches the source; a
+      // transient load must leave both alone (otherwise HMR loops).
+      await expect(fs.stat(compiled)).resolves.toBeDefined();
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
   });
 });
 

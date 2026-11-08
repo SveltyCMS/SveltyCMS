@@ -24,8 +24,14 @@ import { collectionTableName, buildCollectionCacheTags } from "@src/databases/co
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import { logger } from "@utils/logger";
 import { successResponse, fastSuccessResponse, rawResponse } from "./base";
-import { fastEscapeString } from "@utils/fast-json";
 import { prefersMinimalReturn } from "@utils/http-preferences";
+import {
+  unwrapWritePayload,
+  isPublishWrite,
+  promoteStagedDraft,
+  minimalWriteAck,
+  extractExpectedVersion,
+} from "@src/services/sdk/namespaces/collections/http-bridge";
 import { trimPointReadEnvelope, trimListEnvelope } from "@utils/point-read-payload";
 import { streamingExportResponse, streamingJsonResponse } from "./streaming";
 import {
@@ -53,26 +59,6 @@ const MAX_BULK_ITEMS = 1000;
 /** Default / cap for streamed collection exports (cursor-backed, not fully buffered). */
 const DEFAULT_EXPORT_LIMIT = 100_000;
 const MAX_EXPORT_LIMIT = 1_000_000;
-
-/**
- * Admin list/edit clients historically wrapped writes as `{ data, tenantId }`.
- * Only unwrap when those are the sole keys so a real `data` widget field is preserved.
- */
-function unwrapWritePayload(raw: unknown): unknown {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
-  const obj = raw as Record<string, unknown>;
-  if (obj.data && typeof obj.data === "object" && !Array.isArray(obj.data)) {
-    let hasExtras = false;
-    for (const k in obj) {
-      if (Object.hasOwn(obj, k) && k !== "data" && k !== "tenantId") {
-        hasExtras = true;
-        break;
-      }
-    }
-    if (!hasExtras) return obj.data;
-  }
-  return raw;
-}
 
 /** Accept `string[]`, `{ entryIds }`, `{ ids }`, or `{ entries: [{ _id }] }`. */
 function extractEntryIds(payload: unknown): string[] {
@@ -662,6 +648,19 @@ export async function handleCollectionCreate(
   }
 
   const isMinimal = prefersMinimalReturn(event.request.headers.get("prefer"), event.url);
+
+  // 📝 PUBLISH PROMOTION: a publish replaces the submitted form with the author's
+  // staged draft (autosave sink). The draft is the source of truth for the fields
+  // it staged; no live row is written from the payload in that case. Without a
+  // draft the historical create path below is untouched.
+  if (isPublishWrite(rawData)) {
+    const promoted = await promoteStagedDraft(cms, collectionId, undefined, tenantId, user);
+    if (promoted) {
+      if (promoted.success && isMinimal) return minimalWriteAck(event, promoted, 201);
+      return successResponse(event, promoted, 201);
+    }
+  }
+
   const result = PROFILE_WRITE_ENABLED
     ? await profileSpan("handler:namespace.create", () =>
         cms.collections.create(collectionId, rawData, {
@@ -678,9 +677,7 @@ export async function handleCollectionCreate(
 
   // RFC 7240: `Prefer: return=minimal` asks for a status-only ack with created ID.
   if (result?.success && isMinimal) {
-    const rawId = (result.data as any)?._id || (result.data as any)?.id;
-    const safeId = fastEscapeString(String(rawId ?? ""));
-    return fastSuccessResponse(event, `{"_id":"${safeId}"}`, { _id: rawId }, 201);
+    return minimalWriteAck(event, result, 201);
   }
 
   if (!PROFILE_WRITE_ENABLED) return successResponse(event, result, 201);
@@ -710,23 +707,7 @@ export async function handleCollectionUpdate(
         : await event.request.json()),
   );
   const isMinimal = prefersMinimalReturn(event.request.headers.get("prefer"), event.url);
-  // 🔒 OPTIMISTIC LOCKING: the version the client loaded. `If-Match` wins over a
-  // body field (HTTP semantics); the query param is the escape hatch for clients
-  // that cannot set headers. `expectedVersion` is stripped from the payload so it
-  // is never mistaken for a schema field.
-  const bodyExpected =
-    rawData && typeof rawData === "object"
-      ? (rawData as Record<string, unknown>).expectedVersion
-      : undefined;
-  if (bodyExpected !== undefined && rawData && typeof rawData === "object") {
-    delete (rawData as Record<string, unknown>).expectedVersion;
-  }
-  const expectedVersion =
-    event.request.headers.get("if-match") ??
-    (typeof bodyExpected === "string" || typeof bodyExpected === "number"
-      ? bodyExpected
-      : undefined) ??
-    event.url.searchParams.get("expectedVersion");
+  const expectedVersion = extractExpectedVersion(event, rawData);
   // 🔭 FIELD PROJECTION: `?fields=_id,count,updatedAt` prunes the UPDATE's
   // RETURNING read-back to the requested columns — a caller that only needs
   // the changed fields skips re-reading (and de-TOASTing) the JSON `data`
@@ -744,6 +725,20 @@ export async function handleCollectionUpdate(
       ? { expectedVersion }
       : {}),
   };
+
+  // 📝 PUBLISH PROMOTION: prefer the author's staged draft over the submitted
+  // form. `expectedVersion` still applies (optimistic locking is part of
+  // "exactly as today"); the SDK raises 409 before writing if the row moved.
+  if (isPublishWrite(rawData)) {
+    const promoted = await promoteStagedDraft(cms, collectionId, entryId, tenantId, user, {
+      expectedVersion,
+    });
+    if (promoted) {
+      if (promoted.success && isMinimal) return minimalWriteAck(event, promoted, 200);
+      return successResponse(event, promoted);
+    }
+  }
+
   const result = PROFILE_WRITE_ENABLED
     ? await profileSpan("handler:namespace.update", () =>
         cms.collections.update(collectionId, entryId, rawData, writeOptions),
@@ -755,8 +750,7 @@ export async function handleCollectionUpdate(
   // which is 82x what a caller that only needs "it worked" puts on the wire. The write
   // itself, its validation and its hooks are unchanged; only the representation is dropped.
   if (result?.success && isMinimal) {
-    const safeEntryId = fastEscapeString(String(entryId ?? ""));
-    return fastSuccessResponse(event, `{"_id":"${safeEntryId}"}`, { _id: entryId }, 200);
+    return minimalWriteAck(event, result, 200, entryId);
   }
 
   if (!PROFILE_WRITE_ENABLED) return successResponse(event, result);
@@ -1261,7 +1255,6 @@ export async function handleCollectionIncrement(
     // Fast path: native atomic increment via adapter
     result = await (cms.db.crud as any).atomicIncrement(collectionName, entryId, field, amount, {
       tenantId,
-      bypassSafeQuery: true,
       ...(minimal ? { skipReturning: true } : {}),
     });
   } else {

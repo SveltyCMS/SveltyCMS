@@ -4,7 +4,7 @@ title: Compilation Pipeline
 description: Detailed architecture of the SveltyCMS compilation system — TypeScript collections to runtime JS, unified ContentSync HMR, atomic writes, and hash-backed drift detection.
 author: "SveltyCMS Team"
 created: "2025-12-29"
-updated: "2026-10-06"
+updated: "2026-11-06"
 tags:
   - "architecture"
   - "compilation"
@@ -87,6 +87,22 @@ After full builds, the compiler:
 2. **Removes empty directories** — stale mirrored directories from renamed/deleted source folders (e.g., renaming `subfolder/` → `subfolder1/`). Directories listed as categories in `structureNodes` are created if missing and kept while that category exists, so an empty Add Category folder survives the compile. A new directory under `config/collections/` is recorded as a `source: "filesystem"` category on that compile. The dev server watcher in `vite.config.ts` runs this compile when the folder is created or removed.
 
 The manifest keys use absolute paths with compiled-dir prefix stripping so orphan cleanup never deletes freshly compiled output.
+
+### 6. Load-Time Failure Classification (Dev HMR)
+
+The runtime loader (`src/content/loader.server.ts`) distinguishes _unreadable right now_ from _actually broken_:
+
+| Load result           | Signal                                                                                                     | Scanner behaviour                                                                            |
+| :-------------------- | :--------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------- |
+| `{ schema }`          | module evaluated and passed the schema contract                                                            | cached; mtime recorded                                                                       |
+| `null`                | module evaluated but threw, or failed the contract                                                         | **broken** — delete the compiled file and `utimes()` the source to trigger a recompile       |
+| `{ transient: true }` | Vite closed its SSR module runner (`Vite module runner has been closed.`, `The server is being restarted`) | **defer** — keep the artifact, do not touch the source, one `debug` line per path per minute |
+
+Vite closes the module runner during HMR and dev-server restarts. Imports that land in that window used to be classified as broken, so the scanner deleted a valid `pages.js` and touched `pages.ts`, which started another compile that hit the same window — a self-sustaining loop (observed as seven `Broken compiled schema` warnings in one second). The deferral path breaks the loop; the next scan retries against the new runner.
+
+The directory walk also tolerates a file disappearing between `readdir` and `stat` (`ENOENT`): the compiler's atomic rewrite replaces `pages.js`, and one vanished entry must not abort the scan (`Walk failed`).
+
+Pinned by `tests/unit/content/loader-utils.test.ts` (classification plus a real module that throws the runner-closed message) and `tests/unit/content/content-reconcile.test.ts` (a transient result leaves the compiled artifact on disk). Cache warming applies the same rule: `cache-warming-service.ts` treats the closed runner as a skip (`debug`), and `dispose()` is wired to HMR teardown and process exit.
 
 ## Integration (2026 unified path)
 

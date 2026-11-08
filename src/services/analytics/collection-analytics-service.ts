@@ -182,7 +182,7 @@ function resolvePreviousRange(
 }
 
 /** Format numbers with appropriate unit compacting (e.g. 1.2K, 3.4M) */
-export function formatMetricNumber(val: number): string {
+function formatMetricNumber(val: number): string {
   if (!Number.isFinite(val)) return "0";
   if (Math.abs(val) >= 1_000_000) {
     return (val / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
@@ -190,7 +190,7 @@ export function formatMetricNumber(val: number): string {
   if (Math.abs(val) >= 1_000) {
     return (val / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
   }
-  return Number.isInteger(val) ? val.toLocaleString() : val.toFixed(2);
+  return Number.isInteger(val) ? val.toLocaleString("en-US") : val.toFixed(2);
 }
 
 class CollectionAnalyticsService {
@@ -476,7 +476,7 @@ class CollectionAnalyticsService {
             } else if (timeGranularity === "year") {
               key = String(d.getFullYear());
             } else {
-              key = d.toLocaleString("default", { month: "short" });
+              key = d.toLocaleString("en-US", { month: "short" });
             }
           }
         }

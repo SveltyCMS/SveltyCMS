@@ -59,6 +59,8 @@ import {
   mergeDiscoveredCategories,
 } from "./category-directories.ts";
 import { createCompositeTransformer } from "./transformers.ts";
+// Relative on purpose: the compilation pipeline runs outside Vite (esbuild/bun),
+// where the `@root` alias is not configured.
 import { pathAliases } from "../../../path-aliases.ts";
 import type { CompilationResult, CompileOptions, Logger, ManifestEntry } from "./types.ts";
 

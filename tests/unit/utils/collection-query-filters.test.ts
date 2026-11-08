@@ -5,18 +5,17 @@
 
 import { describe, expect, it } from "vitest";
 import type { Schema } from "@src/content/types";
+import { hashQueryPayload, stableSerialize } from "@utils/collection-query-filter-meta";
 import {
   buildCollectionQueryCacheKey,
   getAllowedFilterFieldIds,
   getNestedFilterPaths,
-  hashQueryPayload,
   isFilterablePath,
   parseCollectionListQuery,
   parseUrlFilterParams,
   rejectedFilterKeys,
-  stableSerialize,
   whitelistFilterParams,
-} from "@utils/collection-query-filters";
+} from "@utils/collection-query-filters.server";
 
 const sampleCollection = {
   _id: "col_posts",

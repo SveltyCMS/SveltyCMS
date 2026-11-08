@@ -89,7 +89,7 @@
 		role="dialog"
 		aria-modal="true"
 		aria-labelledby="video-dialog-title"
-		class="fixed inset-s-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 transform rounded bg-white p-6 shadow-xl"
+		class="fixed inset-0 z-50 m-auto h-fit w-full max-w-lg rounded bg-white p-6 shadow-xl"
 	>
 		<Button
 			variant="ghost"

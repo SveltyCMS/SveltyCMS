@@ -46,42 +46,47 @@ git config core.hooksPath .githooks
 
 SveltyCMS uses native Git hooks for local quality gates — no external precheck orchestrator script required.
 
-#### Pre-commit (`DB safety` → format+lint → lint-staged → **risk:audit** → unit → SBOM)
+#### Pre-commit (Stage 1: `DB safety` → lint-staged → `check` → **risk:audit** → unit → UI components → SBOM)
 
-`.githooks/pre-commit` runs:
+`.githooks/pre-commit` is the white-box gate (~2–3 min warm; the quality gate and the unit suite dominate) and runs:
 
-1. **Database safety** — `scripts/check/check-test-db-safety.ts` blocks unsafe `private.test.ts`, live `private.ts` pointing at test DBs, and **matching live/test DB names** (user data protection).
-2. **Format + lint** — `bun run check` (oxfmt + oxlint).
-3. **Lint-staged** — `bun run gate:fast`.
+1. **Database & live-config safety** — `scripts/check/check-test-db-safety.ts` blocks unsafe `private.test.ts`, live `private.ts` pointing at test DBs, live `MEDIA_FOLDER` leaks under test mode, and benchmark/test debris in live `config/collections/`.
+2. **Lint-staged** — `bun run gate:fast` auto-formats staged files first so `bun run check` never fails on formatting or runs twice.
+3. **Quality Gate (`check`)** — `bun run check` (`oxfmt --check` + `oxlint` + custom guards + `svelte-kit sync` + `tsc` + `svelte-check`).
 4. **`risk:audit`** — security-risk scan (all adapters) + secret misuse + slop + `bun audit` + OSV (skipped if only docs changed).
-5. **Unit tests** — `vitest run` (skipped if only docs changed).
-6. **SBOM sync** — when `bun.lock` / `package.json` changed.
+5. **Unit tests** — `node ./node_modules/vitest/vitest.mjs run` directly (reusing `svelte-kit sync` from Step 3; skipped if only docs changed).
+6. **Component interactions (conditional)** — `bun run test:unit:components` (runs when `.svelte` or UI/component/route/widget/store files are staged).
+7. **SBOM sync** — when `bun.lock` / `package.json` changed.
 
 > [!IMPORTANT]
-> **CI-parity unit rule:** pre-commit runs the plain unit suite; pre-push intentionally re-runs it under coverage (`test:unit:coverage`) plus `test:unit:components` and `test:mutation`. Unhandled errors and coverage thresholds only surface under the CI reporter, so this is the one deliberate double-run.
+> **Two-stage separation:** pre-commit never runs a production build or starts an integration server. Stage 2 (`.githooks/pre-push`) owns the 4-adapter build (with freshness reuse), CI-parity unit coverage (`test:coverage`), SQLite integration, DB parity, E2E browser contracts, and diff-scoped seam mutations.
 >
-> **Live data rule:** automated local runs never use `config/private.ts` or the user database — only `private.test.ts` + isolated DB names.
+> **Live data rule:** automated local runs never read, write, or wipe `config/private.ts`, `config/collections/`, `.compiledCollections/` (root), `mediaFolder/`, or the user database — only `private.test.ts`, `config/test-collections/`, `.compiledCollections/test-collections/`, `tests/integration/.media/`, `tests/e2e/.media/`, and isolated DB names.
 
-#### Pre-push (~5–8 min) — production build + verifiers + tenant + SQLite integration
+#### Pre-push (Stage 2: ~10–15 min warm) — smart build + CI unit coverage + SQLite integration + E2E + changed mutations
 
 `.githooks/pre-push` runs:
 
-| Check                         | Command                                                               | Est.     |
-| :---------------------------- | :-------------------------------------------------------------------- | :------- |
-| Production build (4 adapters) | `COMPILE_ALL_ADAPTERS=true bun run build`                             | ~25–120s |
-| Prod backdoor verify          | `scripts/security/verify-prod-build-backdoor.ts --mode=bench`         | ~5–15s   |
-| Bundle size gate              | `scripts/check/check-bundle-size.ts`                                  | ~1s      |
-| Quality gate                  | `bun run check`                                                       | ~50s     |
-| Unit coverage (CI parity)     | `bun run test:unit:coverage`                                          | ~65–130s |
-| Component interactions        | `bun run test:unit:components`                                        | ~11s     |
-| Secret misuse scan            | `scripts/security/scan-secret-misuse.ts --strict --full`              | ~1–5s    |
-| Hardware tiers probe          | `scripts/probe/probe-hardware-tiers.ts`                               | ~1s      |
-| Tenant isolation              | `lint:tenant -- --full` + `test:tenant`                               | ~2–20s   |
-| Deploy backdoor probe         | `scripts/probe/probe-deploy-testing-api.ts`                           | ~30s     |
-| SQLite integration tests      | `run-integration.ts --no-build --diff`                                | ~35–180s |
-| DB parity (conditional)       | `test:parity` when adapter/service code changed                       | ~1–5 min |
-| E2E browser gate              | same changed-path contract set + `smoke.spec.ts` on `next` and `main` | ~70–180s |
-| Mutation (last)               | `bun run test:mutation`                                               | ~6s      |
+| Check                         | Command                                                                                                                                     | Est.      |
+| :---------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------ | :-------- |
+| Database & live-config safety | `scripts/check/check-test-db-safety.ts`                                                                                                     | <1s       |
+| Production build (4 adapters) | `scripts/runs/integration-harness.ts --ensure-build` (smart reuse)                                                                          | <1s–90s   |
+| Bundle size gate              | `scripts/check/check-bundle-size.ts`                                                                                                        | <1s       |
+| Build & security probes       | `scripts/runs/run-probe-group.ts` — prod-backdoor, secret-misuse, hardware-tiers, tenant-isolation (parallel)                               | ~15s      |
+| Quality gate                  | `bun run check` (21 parallel policy gates + parallel typecheck; cached per tree)                                                            | ~60s      |
+| Unit coverage + budget        | `bun run test:coverage` (skipped when no `src/`/`tests/`/coverage config changed; cached per tree)                                          | ~4 min    |
+| Component interactions        | `bun run test:unit:components` (cached per tree)                                                                                            | ~25s      |
+| CVE audit                     | `bun audit --severity=high` (informational, never blocks)                                                                                   | <1s       |
+| SQLite integration tests      | `run-integration.ts --no-build --diff` (cached per tree + diff base)                                                                        | ~1m40s    |
+| DB parity (conditional)       | `test:parity` when adapter/service code changed (cached)                                                                                    | ~1–2 min  |
+| E2E browser gate              | same changed-path contract set + `smoke.spec.ts` (cached per tree + diff base)                                                              | ~1m35s    |
+| E2E flake budget              | `check-flake-budget.ts --max-flaky=0`                                                                                                       | <1s       |
+| Deploy backdoor probe         | `scripts/probe/probe-deploy-testing-api.ts` — runs **after** E2E because it rebuilds `build/` without the testing harness (cached per tree) | ~1m       |
+| Mutation (changed seams)      | `scripts/test/mutate-core.ts --changed` (`FULL_MUTATION=true` for all; cached per tree + diff base)                                         | <1s–1m15s |
+
+Measured end to end on 2026-11-07 before the cache and the parallel probe group: **14m23s** (18/18 steps), including a 50s 4-adapter rebuild, 4m02s coverage, 1m41s integration, 1m35s E2E, 1m12s mutation and both DB-parity profiles (55s + 1m00s).
+
+**Tree-scoped cache.** `check`, coverage, components, integration, E2E, mutation, parity and the deploy probe record a pass in `.git/svelty-gate-cache.json`, keyed on the Git tree hash plus `package.json`, `bun.lock`, the Vitest/Playwright configs, the Node/Bun runtime and the DB mode. Diff-scoped gates (integration, E2E, parity, mutation) also key on the diff base, so a rebase re-runs them. A dirty or untracked worktree can never record or hit; `bun run scripts/runs/gate-cache.ts clear` forces a full run. On the baseline cycle this removes the repeated `check` + component runs (~80s) and the parallel probe group saves ~15s of serial boot latency; a retried push of an unchanged commit reuses the remaining gates instead of re-running the 4-minute coverage job.
 
 **`next` and `main` run the same gate.** Both compute the browser targets from the same diff base (`origin/next`) and the same path mapping, so the release bump (`package.json` + `sbom.json`) is the only difference between them. The full serial suite is **CI-only**: it is split into 9 shards with isolated databases, because one shared local database takes ~17 min and surfaces spec-isolation artefacts rather than product regressions.
 

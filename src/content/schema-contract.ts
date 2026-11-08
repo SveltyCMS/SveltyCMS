@@ -38,7 +38,7 @@ export interface SchemaContractResult {
 }
 
 /** Widget config on a field — Name/name/widgetId + optional GuiFields bag */
-export const WidgetConfigSchema = looseObject({
+const WidgetConfigSchema = looseObject({
   Name: optional(string()),
   name: optional(string()),
   widgetId: optional(string()),
@@ -48,7 +48,7 @@ export const WidgetConfigSchema = looseObject({
 });
 
 /** Single field entry — requires identity via db_fieldName or name (enforced after parse) */
-export const FieldWidgetSchema = looseObject({
+const FieldWidgetSchema = looseObject({
   db_fieldName: optional(string()),
   name: optional(string()),
   label: optional(union([string(), unknown()])),
@@ -63,7 +63,7 @@ export const FieldWidgetSchema = looseObject({
 });
 
 /** Top-level compiled schema shape (loose — plugins may add keys) */
-export const CompiledSchemaShapeSchema = looseObject({
+const CompiledSchemaShapeSchema = looseObject({
   _id: optional(string()),
   // Non-empty names only — guards against whitespace/empty collection names
   // slipping through the compile pipeline. pipe() is required here: in valibot
@@ -86,7 +86,7 @@ export const CompiledSchemaShapeSchema = looseObject({
 /**
  * Normalize module export to a candidate schema object (no validation yet).
  */
-export function unwrapSchemaExport(moduleData: unknown): unknown {
+function unwrapSchemaExport(moduleData: unknown): unknown {
   let schema = moduleData as any;
   if (schema?.default && typeof schema.default === "object") {
     schema = schema.default?.default || schema.default || schema.schema;

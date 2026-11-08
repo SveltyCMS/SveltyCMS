@@ -9,7 +9,7 @@
  * - metadata keep-list for focal point, tags, EXIF search, share links
  */
 
-import { normalizeProcessingStatus } from "@utils/media/media-models";
+import { normalizeProcessingStatus } from "@utils/media/media-values";
 
 const META_KEEP = new Set([
   "focalPoint",

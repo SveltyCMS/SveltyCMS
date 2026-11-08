@@ -34,7 +34,7 @@ import { databaseConfigSchema, type DatabaseConfig } from "@src/databases/schema
 import { setupAdminSchema } from "@utils/schemas";
 import { SESSION_COOKIE_NAME, isAdmin } from "@src/databases/auth/constants";
 import type { ISODateString } from "@src/databases/db-interface";
-import { setupManager } from "@src/routes/setup/setup-manager";
+import { setupManager } from "@src/services/setup/setup-manager";
 
 // ─── Main Dispatcher ─────────────────────────────────────────────────────────
 
@@ -153,7 +153,7 @@ async function handleTestDatabase(event: RequestEvent) {
 
   // Shared read-only probe: no DB file/schema creation, no seeding and no
   // config/private.ts write — provisioning is deferred to the seed/complete steps.
-  const { testDatabaseConnection } = await import("@src/routes/setup/setup.server");
+  const { testDatabaseConnection } = await import("@src/services/setup/setup.server");
   const result = await testDatabaseConnection(
     { ...dbConfig, port: dbConfig.port ?? "" },
     false,
@@ -180,15 +180,15 @@ async function handleSeedDatabase(event: RequestEvent) {
   await verifyDatabaseUnseeded(dbConfig);
 
   // Write private config and invalidate cache
-  const { writePrivateConfig } = await import("@src/routes/setup/write-private-config");
+  const { writePrivateConfig } = await import("@src/services/setup/write-private-config");
   await writePrivateConfig(dbConfig);
 
   const { invalidateSetupCache } = await import("@src/utils/server/setup-check");
   invalidateSetupCache(true);
 
   // Initialize adapter and start seeding
-  const { getSetupDatabaseAdapter } = await import("@src/routes/setup/utils");
-  const { initSystemFast } = await import("@src/routes/setup/seed");
+  const { getSetupDatabaseAdapter } = await import("@src/services/setup/setup-utils");
+  const { initSystemFast } = await import("@src/services/setup/seed");
   const adapterWrapper = await getSetupDatabaseAdapter(dbConfig, {
     createIfMissing: true,
   });
@@ -234,7 +234,7 @@ async function handleCompleteSetup(event: RequestEvent, _cms: LocalCMS, url: URL
   await verifyDatabaseUnseeded(database);
 
   // Get adapter and keep it alive for authentication
-  const { getSetupDatabaseAdapter } = await import("@src/routes/setup/utils");
+  const { getSetupDatabaseAdapter } = await import("@src/services/setup/setup-utils");
   const adapterWrapper = await getSetupDatabaseAdapter(database, {
     createIfMissing: true,
   });
@@ -324,7 +324,7 @@ function notAllowed(): never {
 // Check database state to verify no existing administrators are registered.
 // This prevents Setup hijacking if config/private.ts is lost or corrupted.
 async function verifyDatabaseUnseeded(dbConfig: DatabaseConfig) {
-  const { getSetupDatabaseAdapter } = await import("@src/routes/setup/utils");
+  const { getSetupDatabaseAdapter } = await import("@src/services/setup/setup-utils");
   let adapterWrapper;
   try {
     adapterWrapper = await getSetupDatabaseAdapter(dbConfig, {

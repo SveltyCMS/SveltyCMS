@@ -511,16 +511,22 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
   private compileOrClause(clause: Record<string, unknown>): CompiledOrAlt | null {
     if (!clause || typeof clause !== "object" || Array.isArray(clause)) return null;
     const leaves: CompiledOrLeaf[] = [];
-    for (const key of Object.keys(clause)) {
+    for (const key in clause) {
+      if (!Object.hasOwn(clause, key)) continue;
       const value = clause[key];
       if (key === "$and") {
         // Nested conjunction inside an OR alternative (keyset's compound tie).
         if (!Array.isArray(value)) return null;
-        for (const sub of value) {
+        for (let i = 0; i < value.length; i++) {
+          const sub = value[i];
           if (!sub || typeof sub !== "object" || Array.isArray(sub)) return null;
-          const subKeys = Object.keys(sub);
-          if (subKeys.length !== 1) return null;
-          const subKey = subKeys[0];
+          let subKey: string | null = null;
+          for (const k in sub) {
+            if (!Object.hasOwn(sub, k)) continue;
+            if (subKey !== null) return null; // more than 1 key
+            subKey = k;
+          }
+          if (subKey === null) return null;
           const leaf = this.compileOrLeaf(subKey, (sub as Record<string, unknown>)[subKey]);
           if (!leaf) return null;
           leaves.push(leaf);
@@ -546,7 +552,14 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
       return { k: "eq", name, value: this.coerceFilterValue(column, value) as never };
     if (typeof value !== "object" || value instanceof Date || Array.isArray(value)) return null;
     const ops = value as Record<string, unknown>;
-    if (Object.keys(ops).length !== 1) return null;
+    let opCount = 0;
+    for (const opKey in ops) {
+      if (Object.hasOwn(ops, opKey)) {
+        opCount++;
+        if (opCount > 1) return null;
+      }
+    }
+    if (opCount !== 1) return null;
     if ("$eq" in ops && isBindable(ops.$eq))
       return { k: "eq", name, value: this.coerceFilterValue(column, ops.$eq) as never };
     if ("$gt" in ops && (typeof ops.$gt === "string" || typeof ops.$gt === "number"))
@@ -569,12 +582,14 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
   private drizzleOrClause(clause: Record<string, unknown>): SQL | undefined {
     if (!clause || typeof clause !== "object" || Array.isArray(clause)) return undefined;
     const parts: SQL[] = [];
-    for (const [key, value] of Object.entries(clause)) {
+    for (const key in clause) {
+      if (!Object.hasOwn(clause, key)) continue;
+      const value = clause[key];
       if (key === "$and") {
         if (!Array.isArray(value)) return undefined;
         const inner: SQL[] = [];
-        for (const sub of value) {
-          const condition = this.drizzleOrClause(sub as Record<string, unknown>);
+        for (let i = 0; i < value.length; i++) {
+          const condition = this.drizzleOrClause(value[i] as Record<string, unknown>);
           if (!condition) return undefined;
           inner.push(condition);
         }
@@ -1370,21 +1385,25 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
           if (Array.isArray(item) && item.length >= 2) {
             this.sort(item[0] as keyof T, normalizeSortDirection(item[1]));
           } else if (typeof item === "object" && item !== null) {
-            const keys = Object.keys(item);
-            if (keys.length > 0) {
-              this.sort(
-                keys[0] as keyof T,
-                normalizeSortDirection((item as unknown as Record<string, unknown>)[keys[0]]),
-              );
+            for (const key in item) {
+              if (Object.hasOwn(item, key)) {
+                this.sort(
+                  key as keyof T,
+                  normalizeSortDirection((item as unknown as Record<string, unknown>)[key]),
+                );
+                break;
+              }
             }
           }
         }
       } else if (typeof options.sort === "object") {
-        for (const field of Object.keys(options.sort)) {
-          this.sort(
-            field as keyof T,
-            normalizeSortDirection((options.sort as Record<string, unknown>)[field]),
-          );
+        for (const field in options.sort) {
+          if (Object.hasOwn(options.sort, field)) {
+            this.sort(
+              field as keyof T,
+              normalizeSortDirection((options.sort as Record<string, unknown>)[field]),
+            );
+          }
         }
       }
     }
@@ -1417,7 +1436,8 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
    * in, so flattening it keeps keyset pages on the compiled prepared plan.
    */
   private applyFilterObject(filter: Record<string, unknown>): void {
-    for (const key of Object.keys(filter)) {
+    for (const key in filter) {
+      if (!Object.hasOwn(filter, key)) continue;
       const value = filter[key];
       if (key === "$and" && Array.isArray(value)) {
         for (const sub of value) {

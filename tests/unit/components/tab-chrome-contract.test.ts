@@ -29,7 +29,6 @@ function source(relativePath: string): string {
 const HAND_ROLLED_STRIPS = [
   "src/routes/(app)/user/components/user-management.svelte",
   "src/routes/(app)/config/extensions/+page.svelte",
-  "src/routes/(app)/config/sync/+page.svelte",
   "src/routes/(app)/config/design-system/+page.svelte",
   "src/routes/(app)/config/collectionbuilder/[action]/[...contentPath]/+page.svelte",
   "src/routes/(app)/config/collectionbuilder/[action]/[...contentPath]/tabs/collection-widget/modal-widget-form.svelte",

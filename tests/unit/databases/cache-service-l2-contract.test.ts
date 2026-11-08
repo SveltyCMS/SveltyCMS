@@ -128,6 +128,38 @@ function runL2Contract(label: string, driver: L2Driver) {
       await expect(serviceB.get("other:keep", "t1")).resolves.toBe("keep");
     });
 
+    it("clearByPattern() with wildcard tenant evicts matching keys across instances in batches", async () => {
+      // Seed keys for multiple tenants to exercise chunked scan/eviction
+      for (let i = 0; i < 60; i++) {
+        await serviceA.set(`item:${i}`, `val-${i}`, 60, i % 2 === 0 ? "t1" : "t2");
+      }
+      await serviceA.set("unmatched:key", "keep-me", 60, "t1");
+      await flushWrites(serviceA);
+
+      await serviceA.clearByPattern("item:*", "*");
+      await expectEventuallyUndefined(() => serviceB.get("item:0", "t1"));
+      await expectEventuallyUndefined(() => serviceB.get("item:1", "t2"));
+      await expectEventuallyUndefined(() => serviceB.get("item:59", "t2"));
+      await expect(serviceB.get("unmatched:key", "t1")).resolves.toBe("keep-me");
+    });
+
+    it("clearByTags() with wildcard tenant evicts tagged keys in parallel batches", async () => {
+      // Seed 60 entries with the same tag across tenants
+      for (let i = 0; i < 60; i++) {
+        await serviceA.set(`batch-tagged-${i}`, `val-${i}`, 60, `tenant-${i % 3}`, undefined, [
+          "multi-tag",
+        ]);
+      }
+      await serviceA.set("untagged-keep", "keep-val", 60, "tenant-0");
+      await flushWrites(serviceA);
+
+      await serviceA.clearByTags(["multi-tag"], "*");
+      await expectEventuallyUndefined(() => serviceB.get("batch-tagged-0", "tenant-0"));
+      await expectEventuallyUndefined(() => serviceB.get("batch-tagged-1", "tenant-1"));
+      await expectEventuallyUndefined(() => serviceB.get("batch-tagged-59", "tenant-2"));
+      await expect(serviceB.get("untagged-keep", "tenant-0")).resolves.toBe("keep-val");
+    });
+
     it("clearByTags() purges tagged entries across instances with tenant partition", async () => {
       await serviceA.set("tagged-a", "va", 60, "tenant-a", undefined, ["shared-tag"]);
       await serviceA.set("tagged-b", "vb", 60, "tenant-b", undefined, ["shared-tag"]);

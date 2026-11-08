@@ -61,7 +61,7 @@
 	import type { PageData } from './$types';
 	import VersionCheck from '@src/components/version-check.svelte';
 	import { logger } from '@src/utils/logger.ts';
-	import { dbConfigForHint, isPresetId } from './market';
+	import { dbConfigForHint, isPresetId } from '@src/services/setup/market';
 	import { readSetupHints } from './setup.remote';
 
 	// --- 1. STATE MANAGEMENT (Wired to Store) ---

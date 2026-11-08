@@ -26,6 +26,7 @@
 	} from '@better-svelte-email/components';
 	import { dev } from '$app/env';
 	import { formatDateTime } from '@utils/format-date';
+	import { nowISODateString } from '@utils/date';
 
 	interface Props {
 		error?: {
@@ -63,14 +64,14 @@
 			successfulReconnections: 0,
 			failedRetries: 0,
 			averageRecoveryTime: 0,
-			lastFailureTime: new Date().toISOString()
+			lastFailureTime: nowISODateString()
 		},
 		systemState = {
 			overall: 'FAILED',
 			databaseStatus: 'unhealthy',
 			databaseMessage: 'Connection lost'
 		},
-		timestamp = new Date().toISOString(),
+		timestamp = nowISODateString(),
 		hostLink = dev ? publicEnv?.HOST_DEV : publicEnv?.HOST_PROD || 'http://localhost:5173',
 		languageTag = 'en'
 	}: Props = $props();

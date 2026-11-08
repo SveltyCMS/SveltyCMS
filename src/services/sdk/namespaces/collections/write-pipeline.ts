@@ -61,7 +61,7 @@ export interface PrepareWritePayloadOptions {
   skipValidation?: boolean;
 }
 
-export const SYSTEM_WRITABLE_FIELDS = new Set([
+const SYSTEM_WRITABLE_FIELDS = new Set([
   "_id",
   "id",
   "tenantId",
@@ -84,7 +84,7 @@ export const SYSTEM_WRITABLE_FIELDS = new Set([
  */
 const declaredFieldNamesCache = new WeakMap<object, Set<string>>();
 
-export function getDeclaredFieldNames(schema: Schema): Set<string> | null {
+function getDeclaredFieldNames(schema: Schema): Set<string> | null {
   const fields = schema.fields;
   if (!fields || fields.length === 0) return null;
   let set = declaredFieldNamesCache.get(schema as object);
@@ -210,7 +210,7 @@ export function getOrCompileValidationPlan(
  */
 const allowedKeysCache = new WeakMap<object, Set<string>>();
 
-export function getAllowedKeys(schema: Schema): Set<string> | null {
+function getAllowedKeys(schema: Schema): Set<string> | null {
   const declared = getDeclaredFieldNames(schema);
   if (!declared) return null;
   let allowed = allowedKeysCache.get(schema as object);

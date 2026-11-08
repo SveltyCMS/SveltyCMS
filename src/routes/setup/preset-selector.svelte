@@ -9,13 +9,13 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 	import HelpIcon from '@components/ui/help-icon.svelte';
 	import Badge from '@components/ui/badge.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
-	import type { Preset } from './presets';
+	import type { PresetMeta } from '@src/services/setup/preset-meta';
 
 	let {
 		presets,
 		selected = $bindable('blank')
 	}: {
-		presets: Preset[];
+		presets: PresetMeta[];
 		selected: string | null;
 	} = $props();
 
@@ -301,8 +301,8 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 			"Website Starter" selected — SvelteKit frontend, Svedit page design, and a published homepage
 			will be ready after setup.
 		{:else if selected}
-			"{presets.find((p: Preset) => p.id === selected)?.title ?? selected}" selected — collections
-			added automatically after setup.
+			"{presets.find((p: PresetMeta) => p.id === selected)?.title ?? selected}" selected —
+			collections added automatically after setup.
 		{:else}
 			No preset — configure collections manually after setup.
 		{/if}

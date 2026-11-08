@@ -10,19 +10,8 @@
  * - Uses shared fetchApi mutation CSRF policy
  */
 
-import { fetchApi, type ApiResponse } from "@utils/api";
+import { fetchApi, type ApiResponse } from "@utils/http-client";
 import type { Webhook } from "@src/services/background/webhook-service";
-
-/** Normalize list payload from successResponse envelopes. */
-export function unwrapWebhookList(result: ApiResponse<unknown>): Webhook[] {
-  if (!result.success) return [];
-  const raw = (result as { data?: unknown }).data ?? result;
-  if (Array.isArray(raw)) return raw as Webhook[];
-  if (raw && typeof raw === "object" && Array.isArray((raw as { data?: unknown }).data)) {
-    return (raw as { data: Webhook[] }).data;
-  }
-  return [];
-}
 
 export async function listWebhooks(): Promise<ApiResponse<Webhook[]>> {
   return fetchApi<Webhook[]>("/api/webhooks");

@@ -16,7 +16,8 @@
  */
 
 import { isISODateString } from "@utils/date";
-import { decodeStoredHtmlEntities, pickSeoLocaleData, type SeoWidgetStoredValue } from "./seo-head";
+import { decodeStoredHtmlEntities, pickSeoLocaleData } from "./seo-head-core";
+import type { SeoWidgetStoredValue } from "./seo-head";
 
 /** Matches BCP-47-ish language tags (`en`, `de`, `pt-BR`, `zh-Hant`). */
 const LOCALE_TAG = /^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/;
@@ -260,7 +261,7 @@ export interface BuildNewsSitemapOptions {
 }
 
 /** Extracts image URLs and titles associated with an entry. */
-export function extractEntryImages(
+function extractEntryImages(
   entry: SitemapEntryInput,
   origin: string,
 ): Array<{ loc: string; title?: string }> {

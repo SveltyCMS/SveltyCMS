@@ -102,7 +102,7 @@ test.describe("Media — remote URL ingestion", () => {
     const response = await remoteResponse;
     expect(response.ok(), `remote query ${response.status()} ${response.url()}`).toBe(true);
 
-    await expect(page.getByText(/Remote URLs submitted/i)).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText(/Imported 1 remote URL/i)).toBeVisible({ timeout: 60_000 });
 
     // The stored row must be visible through the gallery list, not just a toast.
     await page.goto("/mediagallery", { waitUntil: "domcontentloaded" });

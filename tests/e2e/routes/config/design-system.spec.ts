@@ -52,6 +52,22 @@ test.describe("Design System workspace", () => {
     await expect(page.getByTestId("appearance-tab-overrides")).toBeVisible();
     await expect(page.getByTestId("appearance-tab-preview")).toBeVisible();
     await expect(page.getByTestId("appearance-tab-themes")).toBeVisible();
+    await expect(page.getByTestId("appearance-tab-customizer")).toBeVisible();
+  });
+
+  test("Themes & Catalog is the first tab and the admin default", async ({ page }) => {
+    await seedCookieConsent(page);
+    await loginAsAdmin(page);
+    // No ?tab= — the landing tab is part of the contract now.
+    await page.goto("/config/design-system", { waitUntil: "domcontentloaded" });
+    await page
+      .locator("html[data-hydrated='true']")
+      .waitFor({ state: "attached", timeout: 15_000 });
+
+    const tabs = page.getByTestId("appearance-tabs").getByRole("tab");
+    await expect(tabs.first()).toHaveAttribute("data-testid", "appearance-tab-themes");
+    await expect(page.getByTestId("appearance-tabs").getByRole("tab")).toHaveCount(4);
+    await expect(page.getByTestId("appearance-themes-panel")).toBeVisible({ timeout: 10_000 });
   });
 
   test("live preview tab shows playground", async ({ page }) => {
@@ -77,10 +93,16 @@ test.describe("Design System workspace", () => {
     await expect(page.getByTestId("appearance-overrides-panel")).toBeVisible({ timeout: 10_000 });
   });
 
-  test("palette studio is on Palette & Import tab", async ({ page }) => {
-    await openWorkspace(page, "presets");
+  test("palette studio lives in the Theme Customizer", async ({ page }) => {
+    await openWorkspace(page, "customizer");
     await expect(page.getByTestId("palette-studio")).toBeVisible({ timeout: 10_000 });
     await expect(page.getByTestId("palette-studio-apply")).toBeVisible();
+  });
+
+  test("legacy ?tab=presets deep link opens the customizer", async ({ page }) => {
+    await openWorkspace(page, "presets");
+    await expect(page.getByTestId("appearance-customizer-panel")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("palette-studio")).toBeVisible({ timeout: 10_000 });
   });
 
   test("my overrides density persists across reload", async ({ page }) => {

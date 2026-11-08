@@ -15,6 +15,7 @@
 import { hashPassword, verifyPassword } from "@src/utils/security/crypto";
 import { createChecksum } from "@src/utils/security/checksum";
 import { timingSafeStringEqual } from "@src/utils/native-utils";
+import { constantTimeBufferEqual } from "@src/utils/security/constant-time";
 import { describe, it, expect } from "vitest";
 
 describe("Crypto Utils - Password Hashing", () => {
@@ -199,5 +200,19 @@ describe("Crypto Utils - Security Properties", () => {
     expect(timingSafeStringEqual("", "")).toBe(true);
     expect(timingSafeStringEqual("a", "")).toBe(false);
     expect(timingSafeStringEqual(null as any, "abc")).toBe(false);
+  });
+
+  it("constantTimeBufferEqual correctly checks buffer equality without length leaks", () => {
+    const bufA = Buffer.from("secret-hash-12345");
+    const bufB = Buffer.from("secret-hash-12345");
+    const bufC = Buffer.from("secret-hash-12349");
+    const bufDiffLen = Buffer.from("secret-hash-123");
+    const bufWithTrailingZero = Buffer.from("secret-hash-123\0\0");
+
+    expect(constantTimeBufferEqual(bufA, bufB)).toBe(true);
+    expect(constantTimeBufferEqual(bufA, bufC)).toBe(false);
+    expect(constantTimeBufferEqual(bufA, bufDiffLen)).toBe(false);
+    expect(constantTimeBufferEqual(bufDiffLen, bufA)).toBe(false);
+    expect(constantTimeBufferEqual(bufDiffLen, bufWithTrailingZero)).toBe(false);
   });
 });

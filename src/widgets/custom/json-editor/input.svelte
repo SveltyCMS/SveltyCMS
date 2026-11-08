@@ -50,7 +50,7 @@
 				jsonString = JSON.stringify(obj, null, 2);
 				value = obj;
 			}
-		} catch (err) {}
+		} catch (err) {} // catch-allow: parseError is already set by handleInput on invalid JSON
 	}
 </script>
 

@@ -65,6 +65,16 @@ export function resolveLocale(explicitLocale?: string): string {
 // 🛡️ Format caches — avoids repeated instantiation on high-frequency rendering loops
 const dateTimeFormatCache = new Map<string, Intl.DateTimeFormat>();
 const numberFormatCache = new Map<string, Intl.NumberFormat>();
+const optionsKeyCache = new WeakMap<object, string>();
+
+function getOptionsKey(options: object): string {
+  let key = optionsKeyCache.get(options);
+  if (key === undefined) {
+    key = JSON.stringify(options);
+    optionsKeyCache.set(options, key);
+  }
+  return key;
+}
 
 /**
  * Safely parses input into a valid Date instance.
@@ -148,7 +158,7 @@ export function formatDateTime(
   const cacheKey =
     options === DEFAULT_DATETIME_OPTIONS
       ? `${locale}:dt:default`
-      : `${locale}:dt:${JSON.stringify(options)}`;
+      : `${locale}:dt:${getOptionsKey(options)}`;
   let formatter = dateTimeFormatCache.get(cacheKey);
   if (!formatter) {
     formatter = new Intl.DateTimeFormat(locale, options);
@@ -181,7 +191,7 @@ export function formatDate(
 
   const { options, locale } = normalizeDateArgs(optionsOrLocale, explicitLocale);
 
-  const cacheKey = `${locale}:d:${options ? JSON.stringify(options) : "default"}`;
+  const cacheKey = `${locale}:d:${options ? getOptionsKey(options) : "default"}`;
   let formatter = dateTimeFormatCache.get(cacheKey);
   if (!formatter) {
     formatter = options
@@ -222,7 +232,7 @@ export function formatTime(
   const cacheKey =
     options === DEFAULT_TIME_OPTIONS
       ? `${locale}:t:default`
-      : `${locale}:t:${JSON.stringify(options)}`;
+      : `${locale}:t:${getOptionsKey(options)}`;
   let formatter = dateTimeFormatCache.get(cacheKey);
   if (!formatter) {
     formatter = new Intl.DateTimeFormat(locale, options);
@@ -258,7 +268,7 @@ export function formatNumber(
     locale = resolveLocale(explicitLocale);
   }
 
-  const cacheKey = `${locale}:num:${options ? JSON.stringify(options) : "default"}`;
+  const cacheKey = `${locale}:num:${options ? getOptionsKey(options) : "default"}`;
   let formatter = numberFormatCache.get(cacheKey);
   if (!formatter) {
     formatter = options ? new Intl.NumberFormat(locale, options) : new Intl.NumberFormat(locale);

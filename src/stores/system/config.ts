@@ -32,7 +32,7 @@ export const SERVICE_BASELINE_TIMES: Record<ServiceName, number> = {
 
 // --- Default Anomaly Thresholds ---
 // These are the initial values before self-calibration kicks in.
-export const DEFAULT_ANOMALY_THRESHOLDS: AnomalyThresholds = {
+const DEFAULT_ANOMALY_THRESHOLDS: AnomalyThresholds = {
   maxStartupTime: 5000, // 5 seconds default
   maxShutdownTime: 2000, // 2 seconds default
   maxConsecutiveFailures: 3,

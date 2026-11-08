@@ -5,7 +5,7 @@
  */
 import { logger } from "@utils/logger";
 import { browser } from "$app/env";
-import { fetchApi } from "@utils/api";
+import { fetchApi } from "@utils/http-client";
 import { nowISODateString } from "@utils/date";
 
 export type ConsentCategory = "necessary" | "analytics" | "marketing";

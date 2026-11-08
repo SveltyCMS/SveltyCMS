@@ -1,12 +1,12 @@
 ---
 path: "docs/development/ui/primitives.mdx"
 title: "Native Controls"
-description: "Props, usage, and accessibility for Button, Badge, Input, Select, Textarea, Toggle, Checkbox, Tabs, and Modal."
+description: "Props, usage, and accessibility for Button, Badge, Breadcrumb, Input, Select, Textarea, Toggle, Checkbox, Tabs, and Modal."
 order: 3
 icon: "mdi:button-pointer"
 author: "SveltyCMS Team"
 created: "2026-10-11"
-updated: "2026-10-25"
+updated: "2026-11-06"
 tags:
   - "ui"
   - "button"
@@ -20,6 +20,7 @@ Import the version-1 controls directly from their files:
 
 ```svelte
 import Badge from '@components/ui/badge.svelte';
+import Breadcrumb from '@components/ui/breadcrumb.svelte';
 import Button from '@components/ui/button.svelte';
 import Checkbox from '@components/ui/checkbox.svelte';
 import Input from '@components/ui/input.svelte';
@@ -99,6 +100,48 @@ Default `variant` is `primary`, which maps to a filled primary preset. `rounded`
 | `children` | snippet                                                                                                 | —              | Label.                                                                    |
 
 Filled warning badges keep dark text. White on amber fails WCAG AA. The status-shade contract is in the [GUI styling guide](../../contributing/style-guide-gui.mdx#status-shade-contract).
+
+## Breadcrumb
+
+`src/components/ui/breadcrumb.svelte`. A `<nav>` landmark around an ordered list: one `<li>` per crumb, an icon separator before every crumb after the first, a link for a crumb with `href` that is not last, and `aria-current="page"` on the last one.
+
+```svelte
+<Breadcrumb
+  items={[
+    { label: 'Media Root', href: '/mediagallery', icon: 'mdi:folder-outline' },
+    { label: 'Campaigns', href: '/mediagallery?folderId=f1' },
+    { label: 'Spring' },
+  ]}
+/>
+```
+
+| Prop        | Type                                         | Default               | Role                                                                      |
+| :---------- | :------------------------------------------- | :-------------------- | :------------------------------------------------------------------------ |
+| `items`     | `Crumb[]` — `{ label, icon?, href?, data? }` | `[]`                  | Crumbs in trail order. `data` is opaque to the primitive.                 |
+| `separator` | `string`                                     | `'mdi:chevron-right'` | Iconify name painted before every crumb after the first.                  |
+| `ariaLabel` | `string`                                     | `'Breadcrumb'`        | Accessible name of the `<nav>` landmark.                                  |
+| `navClass`  | `string`                                     | —                     | Replaces the default `flex py-3` classes on `<nav>`.                      |
+| `listClass` | `string`                                     | —                     | Replaces the default `flex items-center gap-2 text-sm` classes on `<ol>`. |
+| `class`     | `string`                                     | —                     | Extra classes appended to `<nav>`.                                        |
+| `crumb`     | `Snippet<[{ item, index, isLast }]>`         | —                     | Custom crumb rendering; see below.                                        |
+
+### Custom crumb rendering
+
+The media gallery needs an interactive trail: every crumb is a drop target, and tapping an ancestor with a selection active moves the selection. Pass `crumb` to render the inner link/span yourself; the primitive still renders the `<li>` wrapper and the separator, so the trail keeps its list semantics.
+
+```svelte
+<Breadcrumb items={breadcrumbItems} ariaLabel="Folder path" navClass="…" listClass="…">
+  {#snippet crumb({ item, isLast })}
+    {#if isLast}
+      <span aria-current="page" title="Already in this folder">{item.label}</span>
+    {:else}
+      <a href={item.href} data-preload="hover">{item.label}</a>
+    {/if}
+  {/snippet}
+</Breadcrumb>
+```
+
+`item.data` is a `Record<string, unknown>` payload forwarded untouched — the gallery stores `{ folderId }` there to rebuild its drop keys and move targets. In this path the caller owns every attribute on the rendered element, including `aria-current="page"` on the last crumb. The primitive only writes `aria-current` in the default markup, so do not rely on it when `crumb` is set.
 
 ## Input
 
@@ -180,22 +223,37 @@ Radius follows `--admin-radius-input`. The control stays user-resizable (`resize
 
 `src/components/ui/toggle.svelte`. An on/off switch with `role="switch"` and `aria-checked`. Use it for a setting that takes effect as a boolean. Use `Checkbox` for a value that is submitted with a form or that can be indeterminate.
 
+The **on** track is the brand ramp and the **off** track is neutral (`surface-500/40`) — off is a state, not an error, so it never paints `error-500`. The thumb carries state by position (and an optional icon pair); there is no ON/OFF text, which is what previously forced an oversized thumb.
+
 ```svelte
 <Toggle label="Reduced motion" bind:value={reducedMotion} onToggle={(next) => save(next)} />
+
+<!-- Label with a `?` help trigger -->
+<Toggle bind:value={highContrast}>
+  {#snippet labelSnippet()}
+    <span class="inline-flex items-center gap-1.5">
+      <span>High contrast</span>
+      <Tooltip title="Raises text and border contrast for your account.">
+        <HelpIcon ariaLabel="Help for high contrast" tabindex={0} />
+      </Tooltip>
+    </span>
+  {/snippet}
+</Toggle>
 ```
 
-| Prop                | Type                       | Default       | Role                                          |
-| :------------------ | :------------------------- | :------------ | :-------------------------------------------- |
-| `value`             | `boolean`                  | `false`       | Bindable.                                     |
-| `label`             | `string`                   | —             | Visible name. The switch is inside the label. |
-| `ariaLabel`         | `string`                   | —             | Name when `label` is omitted.                 |
-| `description`       | `string`                   | —             | Helper text under the label.                  |
-| `size`              | `'sm' \| 'md' \| 'lg'`     | `'md'`        | Track width is at least 40px, 48px, or 56px.  |
-| `iconOn`, `iconOff` | `string`                   | —             | Iconify names drawn on the thumb.             |
-| `labelColor`        | `string`                   | theme classes | Classes for the label text.                   |
-| `disabled`          | `boolean`                  | `false`       | Blocks interaction.                           |
-| `onToggle`          | `(value: boolean) => void` | —             | Called with the next value.                   |
-| `class`             | `string`                   | —             | Wrapper classes.                              |
+| Prop                | Type                       | Default   | Role                                          |
+| :------------------ | :------------------------- | :-------- | :-------------------------------------------- |
+| `value`             | `boolean`                  | `false`   | Bindable.                                     |
+| `label`             | `string`                   | —         | Visible name. The switch is inside the label. |
+| `labelSnippet`      | `Snippet`                  | —         | Rich label content (wins over `label`).       |
+| `ariaLabel`         | `string`                   | —         | Name when `label` is omitted.                 |
+| `description`       | `string`                   | —         | Helper text under the label.                  |
+| `size`              | `'sm' \| 'md' \| 'lg'`     | `'md'`    | Track is 36×20, 44×24, or 52×28 px.           |
+| `iconOn`, `iconOff` | `string`                   | —         | Iconify names drawn on the thumb.             |
+| `labelColor`        | `string`                   | body text | Classes for the label text.                   |
+| `disabled`          | `boolean`                  | `false`   | Blocks interaction.                           |
+| `onToggle`          | `(value: boolean) => void` | —         | Called with the next value.                   |
+| `class`             | `string`                   | —         | Wrapper classes.                              |
 
 ## Checkbox
 

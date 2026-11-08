@@ -12,6 +12,7 @@ Allows synchronization between filesystem and database, safety mode selection, a
 -->
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { fetchApi, type ApiResponse } from '@utils/http-client';
 	import { logger } from '@utils/logger';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
@@ -19,16 +20,17 @@ Allows synchronization between filesystem and database, safety mode selection, a
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Loader from '@components/ui/loader.svelte';
+	import Tabs from '@components/ui/tabs.svelte';
+	import HelpIcon from '@components/ui/help-icon.svelte';
 	import AdminCard from '@components/admin-card.svelte';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
-	import { TAB_STRIP, tabTrigger } from '@components/ui/tabs/chrome';
 	import {
 		SMART_TABLE,
 		SMART_TABLE_ROW_HOVER,
 		SMART_TABLE_TD,
 		SMART_TABLE_TH,
 		SMART_TABLE_THEAD
-	} from '@components/ui/smart-table';
+	} from '@components/ui/smart-table/chrome';
 	import {
 		sync_action,
 		sync_backup_heading,
@@ -39,16 +41,12 @@ Allows synchronization between filesystem and database, safety mode selection, a
 		sync_export_schema,
 		sync_in_sync,
 		sync_in_sync_desc,
-		sync_intro_part1,
-		sync_intro_part2,
-		sync_intro_part3,
 		sync_name,
 		sync_new_create,
 		sync_options_aria,
 		sync_raw_api,
 		sync_safety_mode,
 		sync_safety_mode_aria,
-		sync_schema_code,
 		sync_sync_path,
 		sync_title,
 		sync_type,
@@ -69,6 +67,8 @@ Allows synchronization between filesystem and database, safety mode selection, a
 
 	type SafetyMode = 'merge' | 'add' | 'mirror' | 'replace';
 
+	type SyncTab = 'sync' | 'backups' | 'debug';
+
 	let { data } = $props();
 
 	let status: ConfigStatus = $state(
@@ -77,8 +77,20 @@ Allows synchronization between filesystem and database, safety mode selection, a
 	let isLoading = $state(false);
 	let isProcessing = $state(false);
 	let isExporting = $state(false);
-	let activeTab: 'sync' | 'backups' | 'debug' = $state('sync');
+	let activeTab: SyncTab = $state('sync');
 	let selectedMode: SafetyMode = $state('merge');
+
+	/** Same shared `Tabs` component as /user, extensions and access management. */
+	const syncTabs = [
+		{ id: 'sync', label: 'Sync', shortLabel: 'Sync', icon: 'mdi:sync' },
+		{
+			id: 'backups',
+			label: 'Data & Backups',
+			shortLabel: 'Data',
+			icon: 'mdi:database-export-outline'
+		},
+		{ id: 'debug', label: 'Debug', shortLabel: 'Debug', icon: 'mdi:bug-outline' }
+	];
 
 	const modeDescriptions: Record<
 		SafetyMode,
@@ -116,8 +128,7 @@ Allows synchronization between filesystem and database, safety mode selection, a
 	async function loadStatus() {
 		isLoading = true;
 		try {
-			const { fetchSyncStatus } = await import('./sync-api');
-			const result = await fetchSyncStatus();
+			const result = await fetchApi<ConfigStatus>('/api/config/status');
 			if (!result.success) {
 				throw new Error(result.message || 'Failed to fetch status');
 			}
@@ -151,9 +162,13 @@ Allows synchronization between filesystem and database, safety mode selection, a
 		isProcessing = true;
 		try {
 			toast.info(`Creating configuration plan (${selectedMode} mode)...`);
-			const { createSyncPlan, applySyncPlan } = await import('./sync-api');
-
-			const planResult = await createSyncPlan(selectedMode);
+			const planResult: ApiResponse<{ planId?: string; mode?: string }> = await fetchApi(
+				'/api/config/plan',
+				{
+					method: 'POST',
+					body: JSON.stringify({ mode: selectedMode })
+				}
+			);
 			if (!planResult.success) {
 				throw new Error(planResult.message || 'Plan failed');
 			}
@@ -164,7 +179,10 @@ Allows synchronization between filesystem and database, safety mode selection, a
 				throw new Error('Plan response did not include a planId.');
 			}
 
-			const applyResult = await applySyncPlan(plan.planId, plan.mode || selectedMode);
+			const applyResult: ApiResponse<{ message?: string }> = await fetchApi('/api/config/apply', {
+				method: 'POST',
+				body: JSON.stringify({ planId: plan.planId, mode: plan.mode || selectedMode })
+			});
 			if (!applyResult.success) {
 				throw new Error(applyResult.message || 'Apply failed');
 			}
@@ -185,8 +203,10 @@ Allows synchronization between filesystem and database, safety mode selection, a
 		isExporting = true;
 		try {
 			toast.info('Exporting database configuration to filesystem...');
-			const { exportConfig } = await import('./sync-api');
-			const result = await exportConfig();
+			const result: ApiResponse<{ dirPath: string }> = await fetchApi('/api/config/export', {
+				method: 'POST',
+				body: JSON.stringify({})
+			});
 			if (!result.success) {
 				throw new Error(result.message || 'Export failed');
 			}
@@ -210,53 +230,93 @@ Allows synchronization between filesystem and database, safety mode selection, a
 	showBackButton={true}
 	backUrl="/config"
 >
-	<div data-testid="sync-page" class="contents">
+	<div data-testid="sync-page" class="flex w-full min-w-0 flex-col gap-2">
+		<!-- A new user needs the model before the controls: configuration lives in
+		     two places and this page reconciles them. -->
 		<AdminCard
-			class="p-6 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs"
+			class="border border-(--admin-border-default) bg-(--admin-bg-card) p-3 shadow-xs"
+			data-testid="sync-explainer"
 		>
-			<div class="mb-4 rounded-md border border-surface-500/20 bg-surface-500/10 p-4">
-				<p class="text-surface-600 dark:text-surface-400 text-sm">
-					{sync_intro_part1()}{' '}<strong>{sync_schema_code()}</strong>{sync_intro_part2()}
-					<code>{sync_sync_path()}</code>{' '}{sync_intro_part3()}
-				</p>
+			<div class="flex items-start gap-2">
+				<iconify-icon
+					icon="mdi:information-outline"
+					width="20"
+					class="mt-0.5 shrink-0 text-tertiary-500 dark:text-primary-500"
+				></iconify-icon>
+				<div class="min-w-0 space-y-1">
+					<h2 class="text-sm font-semibold text-(--admin-text-body)">What Config Sync does</h2>
+					<p class="text-sm text-(--admin-text-muted)">
+						Configuration — collections, roles, permissions, settings, widgets, themes, webhooks and
+						automations — exists twice: in the database and as JSON under
+						<code class="rounded bg-surface-500/10 px-1 py-0.5">{sync_sync_path()}</code>. This page
+						keeps the two sides in step, like Drupal's <code>drush cex</code> /
+						<code>drush cim</code>.
+					</p>
+				</div>
 			</div>
 
-			<!-- Underline tabs — same strip as /user, extensions and access management
-			     (the old boxed segmented control was the last divergent tab chrome). -->
-			<div
-				class="{TAB_STRIP} mb-6"
-				role="tablist"
-				aria-label={sync_options_aria()}
-				data-testid="sync-tabs"
-			>
-				{#each ['sync', 'backups', 'debug'] as tab (tab)}
-					<SystemTooltip
-						title={tab === 'sync'
-							? 'Deploy & Export Changes'
-							: tab === 'backups'
-								? 'Import/Export Data'
-								: 'Debug Info'}
-						positioning={{ placement: 'top' }}
-						role={null}
-						tabindex={null}
-					>
-						<Button
-							variant="ghost"
-							class={tabTrigger(activeTab === tab, 'justify-center')}
-							onclick={() => (activeTab = tab as 'sync' | 'backups' | 'debug')}
-							role="tab"
-							aria-selected={activeTab === tab}
-							aria-controls="{tab}-panel"
-							id="{tab}-tab"
-							data-testid={`sync-tab-${tab}`}
-						>
-							{tab.charAt(0).toUpperCase() + tab.slice(1)}
-						</Button>
-					</SystemTooltip>
-				{/each}
+			<div class="mt-3 grid gap-2 md:grid-cols-3">
+				<div class="rounded-md border border-surface-500/20 bg-surface-500/10 p-3">
+					<div class="flex items-center gap-1.5 text-sm font-semibold">
+						<iconify-icon
+							icon="mdi:export"
+							width="16"
+							class="text-tertiary-500 dark:text-primary-500"
+						></iconify-icon>
+						1. Export <code class="text-xs">drush cex</code>
+					</div>
+					<p class="mt-1 text-xs text-(--admin-text-muted)">
+						Writes the active database configuration into that folder. Commit it — the JSON becomes
+						the reviewable source of truth.
+					</p>
+				</div>
+				<div class="rounded-md border border-surface-500/20 bg-surface-500/10 p-3">
+					<div class="flex items-center gap-1.5 text-sm font-semibold">
+						<iconify-icon
+							icon="mdi:source-branch"
+							width="16"
+							class="text-tertiary-500 dark:text-primary-500"
+						></iconify-icon>
+						2. Review the diff
+					</div>
+					<p class="mt-1 text-xs text-(--admin-text-muted)">
+						The table below lists what differs as New, Updated or Deleted. Nothing has been written
+						to the database at this point.
+					</p>
+				</div>
+				<div class="rounded-md border border-surface-500/20 bg-surface-500/10 p-3">
+					<div class="flex items-center gap-1.5 text-sm font-semibold">
+						<iconify-icon icon="mdi:sync" width="16" class="text-tertiary-500 dark:text-primary-500"
+						></iconify-icon>
+						3. Apply <code class="text-xs">drush cim</code>
+					</div>
+					<p class="mt-1 text-xs text-(--admin-text-muted)">
+						Imports the folder into the database using the selected safety mode. Unmet requirements
+						block the import.
+					</p>
+				</div>
 			</div>
 
-			<section transition:fade|local>
+			<p class="mt-2 text-xs text-(--admin-text-muted)">
+				<strong>Content is separate.</strong> Entries, media and pages are not exported here — use
+				<a href="/config?plugin=smart-importer" class="underline">Smart Importer</a> or content
+				packages, and let the database engine own full backups (<code>pg_dump</code>,
+				<code>mariadb-dump</code>,
+				<code>sqlite3 .backup</code>).
+			</p>
+		</AdminCard>
+
+		<AdminCard class="border border-(--admin-border-default) bg-(--admin-bg-card) p-2 shadow-xs">
+			<Tabs
+				tabs={syncTabs}
+				bind:activeTab
+				variant="underline"
+				ariaLabel={sync_options_aria()}
+				testId="sync-tabs"
+				onTabChange={(id) => (activeTab = id as SyncTab)}
+			/>
+
+			<section id="tabpanel-{activeTab}" role="tabpanel" class="pt-2" transition:fade|local>
 				{#if activeTab === 'sync'}
 					{#if status?.unmetRequirements && status.unmetRequirements.length > 0}
 						<div
@@ -280,16 +340,23 @@ Allows synchronization between filesystem and database, safety mode selection, a
 
 					<!-- Action Controls -->
 					<div
-						class="my-6 p-4 rounded-lg border border-(--admin-border-default) bg-surface-500/50 dark:bg-surface-900/20 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between"
+						class="mt-2 rounded-lg border border-(--admin-border-default) bg-surface-500/10 p-3 flex flex-col md:flex-row gap-3 items-start md:items-center justify-between"
 					>
 						<!-- Safety Mode Selector -->
 						<div class="flex flex-col gap-1.5 w-full md:w-auto">
-							<label
-								for="safety-mode-select"
-								class="text-xs font-semibold uppercase tracking-wider text-surface-500"
-							>
-								{sync_safety_mode()}
-							</label>
+							<div class="flex items-center gap-1.5">
+								<label
+									for="safety-mode-select"
+									class="text-xs font-semibold uppercase tracking-wider text-surface-500"
+								>
+									{sync_safety_mode()}
+								</label>
+								<SystemTooltip
+									title="How the import treats records that already exist. Merge keeps everything and updates matches; Add only creates; Mirror makes the database match the folder (deletes extras); Replace drops and re-imports everything."
+								>
+									<HelpIcon ariaLabel="Help for promotion safety mode" tabindex={0} />
+								</SystemTooltip>
+							</div>
 							<div class="flex items-center gap-2">
 								<select
 									id="safety-mode-select"
@@ -321,25 +388,33 @@ Allows synchronization between filesystem and database, safety mode selection, a
 
 						<!-- Action Buttons -->
 						<div class="flex flex-wrap gap-2 w-full md:w-auto justify-end">
-							<Button
-								variant="ghost"
-								disabled={isExporting || isLoading}
-								onclick={exportCurrentConfig}
-								data-testid="config-export-btn"
-								leadingIcon="mdi:export"
+							<SystemTooltip
+								title="Writes the active database configuration to config/sync/ (drush cex). Commit the folder so the change is reviewable."
 							>
-								{isExporting ? 'Exporting...' : 'Export to Filesystem'}
-							</Button>
+								<Button
+									variant="ghost"
+									disabled={isExporting || isLoading}
+									onclick={exportCurrentConfig}
+									data-testid="config-export-btn"
+									leadingIcon="mdi:export"
+								>
+									{isExporting ? 'Exporting...' : 'Export to Filesystem'}
+								</Button>
+							</SystemTooltip>
 
-							<Button
-								variant="ghost"
-								disabled={isLoading || isProcessing}
-								onclick={loadStatus}
-								data-testid="sync-refresh"
-								leadingIcon="mdi:refresh"
+							<SystemTooltip
+								title="Re-reads the filesystem and the database and recomputes the diff. Writes nothing."
 							>
-								{isLoading ? 'Checking...' : 'Refresh'}
-							</Button>
+								<Button
+									variant="ghost"
+									disabled={isLoading || isProcessing}
+									onclick={loadStatus}
+									data-testid="sync-refresh"
+									leadingIcon="mdi:refresh"
+								>
+									{isLoading ? 'Checking...' : 'Refresh'}
+								</Button>
+							</SystemTooltip>
 
 							<Button
 								variant="tertiary"
@@ -354,6 +429,9 @@ Allows synchronization between filesystem and database, safety mode selection, a
 								{isProcessing ? 'Syncing...' : 'Apply Changes'}
 							</Button>
 						</div>
+						<p class="mt-1 w-full text-end text-xs text-(--admin-text-muted)">
+							Apply is disabled while there is nothing to import or a requirement is unmet.
+						</p>
 					</div>
 
 					{#if isLoading}
@@ -392,6 +470,12 @@ Allows synchronization between filesystem and database, safety mode selection, a
 									})}
 								</p>
 							</div>
+
+							<p class="text-xs text-(--admin-text-muted)">
+								<strong>New</strong> exists on disk but not in the database ·
+								<strong>Updated</strong> differs between the two ·
+								<strong>Deleted</strong> exists in the database but not on disk.
+							</p>
 
 							<AdminCard
 								class="my-2 w-full overflow-x-auto border border-(--admin-border-default) sm:my-3"
@@ -445,38 +529,77 @@ Allows synchronization between filesystem and database, safety mode selection, a
 				{/if}
 
 				{#if activeTab === 'backups'}
-					<div transition:slide|local class="space-y-4">
-						<AdminCard class="p-8 text-center">
-							<iconify-icon
-								icon="mdi:database-export-outline"
-								class="mx-auto text-5xl text-surface-400"
-							></iconify-icon>
-							<h3 class="mt-4 text-lg font-semibold">{sync_backup_heading()}</h3>
-							<p class="mt-2 text-surface-500 text-sm">
-								{sync_backup_intro()}
+					<div transition:slide|local class="space-y-2">
+						<div class="rounded-lg border border-(--admin-border-default) bg-surface-500/10 p-3">
+							<h3 class="flex items-center gap-2 text-sm font-semibold">
+								<iconify-icon icon="mdi:database-export-outline"></iconify-icon>
+								{sync_backup_heading()}
+							</h3>
+							<p class="mt-1 text-sm text-(--admin-text-muted)">{sync_backup_intro()}</p>
+							<p class="mt-2 text-xs text-(--admin-text-muted)">
+								The button below writes <strong>schema files</strong> — the same export as the Sync tab.
+								It is not a database dump and not a content archive.
 							</p>
-							<div class="mt-4 flex justify-center gap-3">
+						</div>
+
+						<div class="grid gap-2 md:grid-cols-3">
+							<div class="rounded-lg border border-(--admin-border-default) p-3">
+								<h4 class="text-sm font-semibold">Configuration</h4>
+								<p class="mt-1 text-xs text-(--admin-text-muted)">
+									Collections, roles, permissions, settings, widgets, themes, webhooks and
+									automations, serialized to <code>{sync_sync_path()}</code> for Git.
+								</p>
 								<Button
 									variant="tertiary"
+									size="sm"
+									class="mt-2"
 									onclick={exportCurrentConfig}
+									loading={isExporting}
 									leadingIcon="mdi:file-export"
 								>
 									{sync_export_schema()}
 								</Button>
 							</div>
-						</AdminCard>
+
+							<div class="rounded-lg border border-(--admin-border-default) p-3">
+								<h4 class="text-sm font-semibold">Content</h4>
+								<p class="mt-1 text-xs text-(--admin-text-muted)">
+									Entries, media and pages travel as content packages (NDJSON), not as schema.
+									Import them with Smart Importer.
+								</p>
+								<a
+									href="/config?plugin=smart-importer"
+									class="mt-2 inline-flex text-xs font-medium text-tertiary-500 underline dark:text-primary-500"
+								>
+									Open Smart Importer
+								</a>
+							</div>
+
+							<div class="rounded-lg border border-(--admin-border-default) p-3">
+								<h4 class="text-sm font-semibold">Full database backup</h4>
+								<p class="mt-1 text-xs text-(--admin-text-muted)">
+									Snapshots belong to the database engine: <code>pg_dump</code>,
+									<code>mariadb-dump</code>, or <code>sqlite3 .backup</code>. The CMS does not run
+									them for you.
+								</p>
+							</div>
+						</div>
 					</div>
 				{/if}
 
 				{#if activeTab === 'debug'}
 					<div
 						transition:slide|local
-						class="rounded border border-surface-500/30 bg-surface-500/10 p-4 dark:border-surface-500/40 dark:bg-surface-900/20"
+						class="rounded border border-surface-500/30 bg-surface-500/10 p-3 dark:border-surface-500/40 dark:bg-surface-900/20"
 					>
-						<h3 class="mb-3 flex items-center gap-2 font-semibold">
+						<h3 class="mb-1 flex items-center gap-2 font-semibold">
 							<iconify-icon icon="mdi:bug-outline"></iconify-icon>
 							{sync_raw_api()}
 						</h3>
+						<p class="mb-3 text-xs text-(--admin-text-muted)">
+							Read-only JSON from the last status call. Attach it to a support ticket; it contains
+							no secrets or entry content.
+						</p>
 						<pre
 							class="whitespace-pre-wrap text-xs max-h-125 overflow-y-auto p-2 border border-(--admin-border-default) rounded bg-surface-500/10 dark:bg-surface-800">{JSON.stringify(
 								status,

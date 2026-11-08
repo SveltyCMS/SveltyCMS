@@ -10,6 +10,7 @@ import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { successResponse, validateRequestBody } from "../base";
+import { requireAdminUser } from "./system-shared";
 import { webhookService, type Webhook } from "@src/services/background/webhook-service";
 import { array, boolean, object, optional, record, string } from "valibot";
 
@@ -81,17 +82,10 @@ export async function handleWebhookRoutes(
   tenantId: DatabaseId,
   segments: string[],
 ) {
-  const { request, locals } = event;
-  const { user } = locals;
-
-  // 🛡️ SECURITY: Admin-only for all webhook operations
+  const { request } = event;
+  // 🛡️ SECURITY: Admin-only for all webhook operations (401 before 403).
   // Defense-in-depth: handler-level check independent of the middleware pipeline.
-  if (!user) {
-    throw new AppError("Authentication required", 401, "UNAUTHORIZED");
-  }
-  if (!user.isAdmin && user.role !== "admin" && user.role !== "super-admin") {
-    throw new AppError("Admin access required for webhook management", 403, "FORBIDDEN");
-  }
+  const user = requireAdminUser(event, "Admin access required for webhook management");
 
   const isDirect = segments[0] === "webhooks" || segments[0] === "system-webhooks";
   const baseIndex = isDirect ? 1 : 2;

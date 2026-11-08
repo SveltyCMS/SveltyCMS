@@ -1,7 +1,7 @@
 <!--
 @file src/routes/(app)/mediagallery/media-table-row-menu.svelte
 @component
-Per-row action menu for media gallery table view — mirrors grid actions (details, edit, tags, delete).
+Per-row action menu for media gallery table view — mirrors grid actions (details, edit, focal point, tags, delete).
 -->
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
@@ -12,19 +12,29 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 		builder_tag_input_label,
 		button_edit,
 		mediagallery_actions_for,
+		mediagallery_copy_url,
+		mediagallery_copy_url_failed,
+		mediagallery_copy_url_missing,
+		mediagallery_copy_url_success,
+		mediagallery_focal_title,
 		mp_details
 	} from '@src/paraglide/messages';
+	import { logger } from '@utils/logger';
+	import { mediaDisplayUrl } from '@utils/media/media-utils';
+	import { toast } from '@src/stores/toast.svelte.ts';
 
 	let {
 		file,
 		onDetails,
 		onEdit,
+		onFocal,
 		onTags,
 		onDelete
 	}: {
 		file: MediaBase | MediaImage;
 		onDetails: () => void;
 		onEdit: () => void;
+		onFocal: () => void;
 		onTags: () => void;
 		onDelete: () => void;
 	} = $props();
@@ -48,10 +58,51 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 	function updateMenuPosition() {
 		if (!triggerEl) return;
 		const rect = triggerEl.getBoundingClientRect();
+		// Anchor to the whole row (or tile in the tiny grid), not the trigger: the
+		// trigger sits inside the row, so flipping above it would still cover the
+		// row's SIZE cell.
+		const anchorEl =
+			triggerEl.closest('tr') ?? triggerEl.closest('[data-testid="media-item"]') ?? triggerEl;
+		const anchor = anchorEl.getBoundingClientRect();
 		const menuWidth = 176;
-		const left = Math.min(Math.max(8, rect.right - menuWidth), window.innerWidth - menuWidth - 8);
-		const top = rect.bottom + 4;
-		menuStyle = `top:${top}px;left:${left}px;`;
+		const rtl = document.documentElement.dir === 'rtl';
+		const preferredLeft = rtl ? rect.left : rect.right - menuWidth;
+		const left = Math.min(Math.max(8, preferredLeft), window.innerWidth - menuWidth - 8);
+
+		// The first pass runs before the portal mounts; the next-frame measure below
+		// replaces the estimate with the real height.
+		const measured = menuEl?.offsetHeight ?? 220;
+		const gutter = 4;
+		const margin = 8;
+		const spaceBelow = window.innerHeight - anchor.bottom - gutter - margin;
+		const spaceAbove = anchor.top - gutter - margin;
+		const openBelow = spaceBelow >= measured || spaceBelow >= spaceAbove;
+		const available = Math.max(96, openBelow ? spaceBelow : spaceAbove);
+		const top = openBelow
+			? anchor.bottom + gutter
+			: Math.max(margin, anchor.top - gutter - measured);
+
+		// Cap the height to the chosen side so the menu scrolls instead of painting
+		// over its own row (the reported SIZE-cell overlap).
+		menuStyle = `top:${top}px;left:${left}px;max-height:${available}px;`;
+	}
+
+	async function copyUrl() {
+		const raw = file.url || mediaDisplayUrl(file);
+		if (!raw) {
+			toast.error(mediagallery_copy_url_missing());
+			return;
+		}
+		try {
+			const absolute = raw.startsWith('http')
+				? raw
+				: new URL(raw, window.location.origin).toString();
+			await navigator.clipboard.writeText(absolute);
+			toast.success(mediagallery_copy_url_success());
+		} catch (error) {
+			logger.warn('Clipboard write failed', error);
+			toast.error(mediagallery_copy_url_failed());
+		}
 	}
 
 	async function toggleMenu(e: MouseEvent) {
@@ -61,6 +112,11 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 		if (open) {
 			await tick();
 			updateMenuPosition();
+			// The Portal mounts on the next frame; measure the real height then and
+			// clamp the menu so it can never hang below the viewport.
+			if (typeof requestAnimationFrame === 'function') {
+				requestAnimationFrame(updateMenuPosition);
+			}
 		}
 	}
 
@@ -127,7 +183,7 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 				role="menu"
 				tabindex="-1"
 				aria-label={mediagallery_actions_for({ name: file.filename })}
-				class="fixed z-200 w-44 min-w-44 rounded-(--admin-radius-card) border border-surface-500/30 bg-surface-500/10 p-1 shadow-xl dark:border-surface-500/40 dark:bg-surface-900"
+				class="fixed z-200 max-h-[calc(100dvh-1rem)] w-44 min-w-44 overflow-y-auto rounded-(--admin-radius-card) border border-surface-500/30 bg-surface-500/10 p-1 shadow-xl dark:border-surface-500/40 dark:bg-surface-900"
 				style={menuStyle}
 				onclick={(e) => e.stopPropagation()}
 				onkeydown={(e) => e.stopPropagation()}
@@ -162,6 +218,21 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 						variant="transparent"
 						role="menuitem"
 						class={menuItemClass}
+						onclick={() => closeAndRun(onFocal)}
+					>
+						<iconify-icon
+							icon="mdi:crosshairs-gps"
+							width="16"
+							class="shrink-0 text-(--admin-text-muted)"
+						></iconify-icon>
+						<span>{mediagallery_focal_title()}</span>
+					</Button>
+
+					<Button
+						type="button"
+						variant="transparent"
+						role="menuitem"
+						class={menuItemClass}
 						onclick={() => closeAndRun(onTags)}
 					>
 						<iconify-icon
@@ -172,6 +243,21 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 						<span>{builder_tag_input_label()}</span>
 					</Button>
 				{/if}
+
+				<Button
+					type="button"
+					variant="transparent"
+					role="menuitem"
+					class={menuItemClass}
+					onclick={() => closeAndRun(() => void copyUrl())}
+				>
+					<iconify-icon
+						icon="mdi:link-variant"
+						width="16"
+						class="shrink-0 text-(--admin-text-muted)"
+					></iconify-icon>
+					<span>{mediagallery_copy_url()}</span>
+				</Button>
 
 				<Button
 					type="button"

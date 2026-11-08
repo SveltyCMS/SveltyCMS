@@ -393,7 +393,10 @@ test("Competitive 11-Workload Replica Benchmark", async () => {
             : headers,
         body: payload,
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw new Error(`HTTP ${res.status}${body ? `: ${body.slice(0, 300)}` : ""}`);
+      }
       recordSplitSample("create", res);
       await res.arrayBuffer();
     };

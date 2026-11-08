@@ -33,22 +33,22 @@
 	} from '@src/paraglide/messages';
 
 	// Native UI Components
-	import { modalState } from '@utils/modal.svelte';
-
-	// No Props needed
-
-	// --- Component State ---
-	// --- Component State ---
-	// Removed modalStore
+	import { untrack } from 'svelte';
+	import { nowISODateString } from '@utils/date';
 
 	type ActionType = 'publish' | 'unpublish' | 'delete';
 
+	interface Props {
+		initialAction?: ActionType;
+		meta?: { initialAction?: ActionType };
+		close?: (result?: { confirmed: boolean; date: Date; action: ActionType }) => void;
+	}
+
+	let { initialAction, meta, close }: Props = $props();
+
 	let scheduleDateOnly = $state('');
 	let scheduleTimeOnly = $state('');
-	// Access meta prop through modalState.active
-	let action: ActionType = $state(
-		(modalState.active?.props?.meta?.initialAction as ActionType) || 'publish'
-	);
+	let action: ActionType = $state(untrack(() => initialAction || meta?.initialAction || 'publish'));
 	let errorMessage = $state('');
 
 	const scheduleDate = $derived(`${scheduleDateOnly}T${scheduleTimeOnly}`);
@@ -85,8 +85,8 @@
 			return;
 		}
 
-		// Pass data back via modalState.close(), which calls the response callback
-		modalState.close({
+		// Pass data back via close(), which calls the modalState response callback
+		close?.({
 			confirmed: true,
 			date: new Date(scheduleDate),
 			action
@@ -99,59 +99,57 @@
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-lg';
 </script>
 
-{#if modalState.active}
-	<AdminCard
-		class="modal-schedule {cBase}"
-		role="dialog"
-		aria-modal="true"
-		aria-labelledby="schedule-modal-title"
+<AdminCard
+	class="modal-schedule {cBase}"
+	role="dialog"
+	aria-modal="true"
+	aria-labelledby="schedule-modal-title"
+>
+	<header
+		id="schedule-modal-title"
+		class={`text-center text-tertiary-500 dark:text-primary-500 ${cHeader}`}
 	>
-		<header
-			id="schedule-modal-title"
-			class={`text-center text-tertiary-500 dark:text-primary-500 ${cHeader}`}
+		Schedule Entry
+	</header>
+	<article class="text-center text-sm">Set a date and time to publish this entry.</article>
+
+	<form
+		class="modal-form {cForm}"
+		onsubmit={(e) => {
+			e.preventDefault();
+			handleSubmission();
+		}}
+	>
+		<!-- Date and Time Inputs -->
+		<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+			<Input
+				type="date"
+				label="Date"
+				bind:value={scheduleDateOnly}
+				min={nowISODateString().slice(0, 10)}
+				required
+			/>
+			<Input type="time" label="Time" bind:value={scheduleTimeOnly} required />
+		</div>
+
+		<!-- Action Select -->
+		<Select bind:value={action} label="Action" options={actionOptions} />
+
+		<!-- Error Message -->
+		{#if errorMessage}
+			<div class="text-sm text-error-500" role="alert">{errorMessage}</div>
+		{/if}
+	</form>
+
+	<footer class="modal-footer flex items-center justify-end gap-4">
+		<Button variant="outline" onclick={() => close?.()}>{button_cancel()}</Button>
+		<Button
+			variant="tertiary"
+			onclick={() => handleSubmission()}
+			disabled={!isFormValid}
+			class="dark:preset-filled-primary-500"
 		>
-			Schedule Entry
-		</header>
-		<article class="text-center text-sm">Set a date and time to publish this entry.</article>
-
-		<form
-			class="modal-form {cForm}"
-			onsubmit={(e) => {
-				e.preventDefault();
-				handleSubmission();
-			}}
-		>
-			<!-- Date and Time Inputs -->
-			<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-				<Input
-					type="date"
-					label="Date"
-					bind:value={scheduleDateOnly}
-					min={new Date().toISOString().slice(0, 10)}
-					required
-				/>
-				<Input type="time" label="Time" bind:value={scheduleTimeOnly} required />
-			</div>
-
-			<!-- Action Select -->
-			<Select bind:value={action} label="Action" options={actionOptions} />
-
-			<!-- Error Message -->
-			{#if errorMessage}
-				<div class="text-sm text-error-500" role="alert">{errorMessage}</div>
-			{/if}
-		</form>
-
-		<footer class="modal-footer flex items-center justify-end gap-4">
-			<Button variant="outline" onclick={() => modalState.close()}>{button_cancel()}</Button>
-			<Button
-				variant="tertiary"
-				onclick={() => handleSubmission()}
-				disabled={!isFormValid}
-				class="dark:preset-filled-primary-500"
-			>
-				{entrylist_multibutton_schedule()}
-			</Button>
-		</footer>
-	</AdminCard>
-{/if}
+			{entrylist_multibutton_schedule()}
+		</Button>
+	</footer>
+</AdminCard>

@@ -34,6 +34,7 @@
 		widget_calendar_prev_month,
 		widget_calendar_next_month
 	} from '@src/paraglide/messages';
+	import { nowISODateString } from '@utils/date';
 
 	const {
 		label = widget_calendar_title(),
@@ -56,7 +57,7 @@
 	let selectedDate = $state(new Date());
 	let events = $state<{ dateStr: string; title: string; type: string }[]>([
 		{
-			dateStr: new Date().toISOString().split('T')[0],
+			dateStr: nowISODateString().split('T')[0],
 			title: 'Product Launch Release',
 			type: 'release'
 		},
@@ -135,7 +136,7 @@
 					{@const dayNum = i + 1}
 					{@const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`}
 					{@const hasEvent = events.some((e) => e.dateStr === dateStr)}
-					{@const isToday = new Date().toISOString().split('T')[0] === dateStr}
+					{@const isToday = nowISODateString().split('T')[0] === dateStr}
 					<div
 						class="h-6 flex items-center justify-center rounded-lg text-xs font-semibold relative transition-all {isToday
 							? 'bg-primary-500 text-white shadow-md'

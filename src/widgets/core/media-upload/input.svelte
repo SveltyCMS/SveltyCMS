@@ -42,6 +42,13 @@
 	import type { MediaFile } from './types';
 	import { loadMediaDocs, mediaCache } from './media-cache';
 	import AspectPreviewModal from '@components/media/aspect-preview-modal.svelte';
+	import {
+		IMAGE_EDITOR_MODAL_CLASSES,
+		IMAGE_EDITOR_MODAL_SIZE
+	} from '@src/components/image-editor/image-editor-modal.ts';
+	import { clientJsonHeaders } from '@utils/security/client-csrf';
+	import { modalState } from '@utils/modal.svelte';
+	import { toast } from '@src/stores/toast.svelte.ts';
 	import 'iconify-icon';
 
 	const tenantId = $derived(page.data?.tenantId);
@@ -130,6 +137,7 @@
 			size: typeof found.size === 'number' ? found.size : 0,
 			url: original,
 			thumbnailUrl: mediaDisplayUrl(found as { url?: string | null }, 'sm') || original,
+			metadata: (found.metadata as Record<string, unknown> | undefined) ?? undefined,
 			aiTags: Array.isArray((found.metadata as Record<string, unknown> | undefined)?.aiTags)
 				? ((found.metadata as Record<string, unknown>).aiTags as string[])
 				: []
@@ -280,6 +288,62 @@
 		showMediaLibrary = false;
 	}
 
+	/** Open the image editor for a stored asset and write the result back in place. */
+	async function handleEditImage(file: MediaFile) {
+		if (!file._id) return;
+		const { default: ImageEditorModal } =
+			await import('@src/components/image-editor/image-editor-modal.svelte');
+		modalState.trigger(ImageEditorModal as any, {
+			image: {
+				_id: file._id,
+				url: file.url || file.thumbnailUrl,
+				filename: file.name,
+				mimeType: file.type,
+				metadata: file.metadata,
+				thumbnails: { sm: { url: file.thumbnailUrl } }
+			},
+			onsave: handleEditorSave,
+			size: IMAGE_EDITOR_MODAL_SIZE,
+			modalClasses: IMAGE_EDITOR_MODAL_CLASSES
+		});
+	}
+
+	async function handleEditorSave(detail: {
+		mediaId?: string;
+		manipulations?: Record<string, unknown>;
+	}) {
+		const mediaId = detail.mediaId;
+		if (!mediaId || !detail.manipulations) return;
+
+		try {
+			const response = await fetch(`/api/media/manipulate/${encodeURIComponent(mediaId)}`, {
+				method: 'POST',
+				headers: clientJsonHeaders(page.data.csrfToken),
+				body: JSON.stringify({ manipulations: detail.manipulations })
+			});
+			const payload = (await response.json().catch(() => null)) as {
+				success?: boolean;
+				data?: Record<string, unknown>;
+				message?: string;
+			} | null;
+
+			if (!response.ok || !payload?.success || !payload.data) {
+				toast.error(payload?.message || 'Could not save the edited image');
+				return;
+			}
+
+			// The hash (and therefore the URL) changes on save — replace the cached
+			// DTO so the field preview cannot keep serving the old renditions.
+			const updated = toMediaFile(payload.data, mediaId);
+			mediaCache.set(mediaId, updated);
+			selectedFiles = selectedFiles.map((file) => (file._id === mediaId ? updated : file));
+			toast.success('Image updated');
+		} catch (err) {
+			logger.error('Failed to save the edited image from the media widget', err);
+			toast.error('Could not save the edited image');
+		}
+	}
+
 	function removeFile(fileId: string) {
 		selectedFiles = selectedFiles.filter((file) => file._id !== fileId);
 	}
@@ -414,6 +478,20 @@
 							title={widget_aspect_ratio_preview()}
 						>
 							<iconify-icon icon="mdi:aspect-ratio" width="12"></iconify-icon>
+						</button>
+					{/if}
+					{#if file.type?.startsWith('image/')}
+						<button
+							type="button"
+							onclick={(e) => {
+								e.stopPropagation();
+								handleEditImage(file);
+							}}
+							class="absolute inset-s-1 top-7 flex h-5 w-5 items-center justify-center rounded-full border-none bg-surface-900/50 text-white transition-colors hover:bg-surface-900/75"
+							aria-label={`Edit image ${file.name}`}
+							title="Edit image"
+						>
+							<iconify-icon icon="mdi:tune-variant" width="12"></iconify-icon>
 						</button>
 					{/if}
 					<button

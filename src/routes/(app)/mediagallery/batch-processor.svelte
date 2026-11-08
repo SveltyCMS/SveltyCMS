@@ -5,11 +5,15 @@
 
 ### Props
 - `selectedIds` (SvelteSet<string>): The gallery selection at the time the panel opens.
+- `imageIds` (string[]): The selected rows that are images. Sharp only processes
+  images, so non-image selections are counted and skipped before the request.
 - `onClose` (function): Dismisses the panel.
 
 ### Features:
 - Filters (`vivid`, `bw`, `sepia`, `dramatic`) and a uniform width, matching
   `POST /api/media/batch-process` (`{ ids, operation, params }`).
+- Image-only pre-flight: states how many selected assets will be skipped and
+  disables the run button when the selection holds no images.
 - Reports the server's per-asset outcome (`processed` / `failed`) instead of
   claiming success for the whole batch.
 - Refreshes gallery data after a run so dimensions/thumbnails re-render.
@@ -29,7 +33,6 @@
 	import {
 		button_close,
 		mediagallery_batch_apply_filter,
-		mediagallery_batch_assets,
 		mediagallery_batch_configure,
 		mediagallery_batch_engine,
 		mediagallery_batch_filter_preset,
@@ -42,10 +45,14 @@
 
 	interface Props {
 		selectedIds: SvelteSet<string>;
+		imageIds: string[];
 		onClose: () => void;
 	}
 
-	let { selectedIds, onClose }: Props = $props();
+	let { selectedIds, imageIds, onClose }: Props = $props();
+
+	const imageCount = $derived(imageIds.length);
+	const skippedCount = $derived(Math.max(0, selectedIds.size - imageCount));
 
 	const widthInputId = $props.id();
 
@@ -63,12 +70,12 @@
 	];
 
 	async function runBatch() {
-		if (isProcessing || selectedIds.size === 0) return;
+		if (isProcessing || imageIds.length === 0) return;
 
 		isProcessing = true;
 		errorMessage = '';
 
-		const ids = Array.from(selectedIds);
+		const ids = [...imageIds];
 
 		try {
 			const response = await fetch('/api/media/batch-process', {
@@ -130,7 +137,7 @@
 						class="flex size-10 shrink-0 items-center justify-center rounded-full bg-tertiary-500 font-bold text-white"
 						aria-hidden="true"
 					>
-						{selectedIds.size}
+						{imageCount}
 					</div>
 					<div class="min-w-0">
 						<h3 class="truncate text-base font-bold sm:text-lg">
@@ -224,6 +231,15 @@
 
 				<!-- Step 3: Run -->
 				<div class="flex flex-col justify-end gap-2">
+					{#if skippedCount > 0}
+						<p
+							class="text-xs text-(--admin-text-muted)"
+							role="note"
+							data-testid="batch-skipped-note"
+						>
+							{skippedCount} non-image {skippedCount === 1 ? 'asset' : 'assets'} will be skipped.
+						</p>
+					{/if}
 					{#if errorMessage}
 						<p class="text-xs text-error-500" role="alert" data-testid="batch-error">
 							{errorMessage}
@@ -232,7 +248,7 @@
 					<Button
 						variant="primary"
 						onclick={runBatch}
-						disabled={isProcessing || selectedIds.size === 0}
+						disabled={isProcessing || imageCount === 0}
 						aria-busy={isProcessing}
 						class="w-full gap-2"
 						data-testid="batch-run"
@@ -241,9 +257,12 @@
 							<iconify-icon icon="mdi:play-circle" width="20"></iconify-icon>
 						{/if}
 						{mediagallery_batch_run()}
-						{selectedIds.size}
-						{mediagallery_batch_assets()}
+						{imageCount}
+						{imageCount === 1 ? 'image' : 'images'}
 					</Button>
+					{#if imageCount === 0}
+						<p class="text-xs text-(--admin-text-muted)">Select at least one image.</p>
+					{/if}
 				</div>
 			</div>
 		</AdminCard>

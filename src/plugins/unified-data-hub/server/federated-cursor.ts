@@ -13,7 +13,7 @@
 
 import { FederationError } from "../types";
 
-export const CURSOR_VERSION = 1;
+const CURSOR_VERSION = 1;
 
 export interface SourceCursorPayload {
   v: number;

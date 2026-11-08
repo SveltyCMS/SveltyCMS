@@ -6,48 +6,77 @@
  * - Resizing (sharp)
  * - Avatar processing
  * - Video thumbnail capturing (ffmpeg)
- * - PDF thumbnail generation (imagemagick)
+ * - PDF thumbnail generation (bundled PDFium)
+ * - CSV/TSV spreadsheet previews (sharp)
+ * - Office document previews via an optional LibreOffice binary
  * - Bounded LRU for storage existence probes
  */
 
 import path from "node:path";
 import os from "node:os";
 import { spawn } from "node:child_process";
-import { writeFile, readFile, unlink } from "node:fs/promises";
+import { writeFile, readFile, unlink, mkdtemp, rm } from "node:fs/promises";
+import { pathToFileURL } from "node:url";
 import { logger } from "@utils/logger";
 import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { getStorageAdapter, getConfig } from "./storage-adapters";
 import { getMimeType } from "./media-utils";
-import {
-  normalizeDerivativeFormat,
-  type DerivativeFormat,
-  type ResizedImage,
-} from "./media-models";
+import type { DerivativeFormat, ResizedImage } from "./media-models";
+import { normalizeDerivativeFormat } from "./media-values";
 import { getSharp, MAX_INPUT_PIXELS } from "./sharp-loader.server";
 import { FastLRU, generateUUID } from "@utils/native-utils";
 import { nowISODateString } from "@src/utils/date";
 
 /**
  * Helper to run a process and wait for completion.
+ *
+ * `timeoutMs` kills the child and rejects, so a hung external converter can
+ * never pin an upload request or a job worker indefinitely.
  */
-function spawnAsync(command: string, args: string[]): Promise<void> {
+function spawnAsync(
+  command: string,
+  args: string[],
+  options: { timeoutMs?: number } = {},
+): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args);
     let stderr = "";
+    let settled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const finish = (error?: Error) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      if (error) reject(error);
+      else resolve();
+    };
+
+    if (options.timeoutMs) {
+      timer = setTimeout(() => {
+        try {
+          child.kill("SIGKILL");
+        } catch {
+          /* process already gone */
+        }
+        finish(new Error(`${command} timed out after ${options.timeoutMs}ms`));
+      }, options.timeoutMs);
+      (timer as { unref?: () => void }).unref?.();
+    }
 
     child.stderr?.on("data", (data) => {
       stderr += data.toString();
     });
 
     child.on("error", (err) => {
-      reject(err);
+      finish(err);
     });
 
     child.on("exit", (code) => {
       if (code === 0) {
-        resolve();
+        finish();
       } else {
-        reject(new Error(`${command} exited with code ${code}: ${stderr.slice(-200)}`));
+        finish(new Error(`${command} exited with code ${code}: ${stderr.slice(-200)}`));
       }
     });
   });
@@ -326,15 +355,158 @@ export async function saveAvatar(file: File, userId: string): Promise<string> {
   return await saveFile(resized, rel);
 }
 
-/**
- * Captures a thumbnail from a video at the 1s mark using ffmpeg
- */
-export async function captureVideoThumbnail(buffer: Buffer): Promise<Buffer | null> {
-  if (buffer.length > MAX_TEMP_BUFFER_SIZE) {
-    logger.error("Video buffer too large for thumbnail capture", { size: buffer.length });
-    return null;
-  }
+/** Cap on captured ffmpeg stderr; it is a failure diagnostic, not a log sink. */
+const FFMPEG_STDERR_LIMIT_BYTES = 8 * 1024;
 
+/** Default budget for a single-frame ffmpeg grab. */
+const FFMPEG_THUMBNAIL_TIMEOUT_MS = 30_000;
+
+/**
+ * Args for a video supplied on stdin.
+ *
+ * `-ss` must follow `-i`: a pipe cannot seek, so ffmpeg has to decode up to the
+ * requested timestamp instead of jumping to it.
+ */
+const FFMPEG_PIPE_INPUT_ARGS: readonly string[] = [
+  "-i",
+  "pipe:0",
+  "-ss",
+  "00:00:01",
+  "-frames:v",
+  "1",
+  "-q:v",
+  "2",
+  "-f",
+  "image2",
+  "-vcodec",
+  "mjpeg",
+  "pipe:1",
+];
+
+/**
+ * Args for a seekable temp input: the input-side `-ss` skips the first second.
+ * The JPEG still streams to stdout, so no output temp file or read-back exists.
+ */
+function ffmpegTempInputArgs(tempInput: string): string[] {
+  return [
+    "-ss",
+    "00:00:01",
+    "-i",
+    tempInput,
+    "-frames:v",
+    "1",
+    "-q:v",
+    "2",
+    "-f",
+    "image2",
+    "-vcodec",
+    "mjpeg",
+    "pipe:1",
+  ];
+}
+
+/**
+ * Whether a video buffer can be decoded from a non-seekable stdin pipe.
+ *
+ * ISO-BMFF containers (MP4/MOV/M4V/HEIF) carry an `ftyp` box at offset 4 and
+ * keep their index (`moov`) anywhere in the file; ffmpeg needs a seekable input
+ * to jump to the 1s mark there. Every other container (WebM/Matroska, FLV,
+ * Ogg, …) can be piped. A short buffer has no `ftyp` and is attempted as a pipe:
+ * the caller falls back to the temp-file path when ffmpeg rejects it.
+ */
+export function shouldPipeVideoInput(buffer: Buffer): boolean {
+  return buffer.length < 8 || buffer.toString("latin1", 4, 8) !== "ftyp";
+}
+
+/** Runs ffmpeg with the video on stdin/args and resolves the JPEG from stdout. */
+function runFfmpegToStdout(
+  args: readonly string[],
+  input: Buffer | null,
+  timeoutMs: number,
+): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    let child: ReturnType<typeof spawn>;
+    try {
+      child = spawn("ffmpeg", args, { stdio: ["pipe", "pipe", "pipe"] });
+    } catch (err) {
+      reject(err instanceof Error ? err : new Error(String(err)));
+      return;
+    }
+
+    const chunks: Buffer[] = [];
+    let stderr = "";
+    let settled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const finish = (error?: Error, output?: Buffer) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      if (error) reject(error);
+      else resolve(output ?? Buffer.alloc(0));
+    };
+
+    timer = setTimeout(() => {
+      try {
+        child.kill("SIGKILL");
+      } catch {
+        /* process already gone */
+      }
+      finish(new Error(`ffmpeg timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+    (timer as { unref?: () => void }).unref?.();
+
+    child.stdout?.on("data", (data: Buffer) => {
+      chunks.push(data);
+    });
+    child.stderr?.on("data", (data: Buffer) => {
+      if (stderr.length >= FFMPEG_STDERR_LIMIT_BYTES) return;
+      stderr += data.toString();
+      if (stderr.length > FFMPEG_STDERR_LIMIT_BYTES) {
+        stderr = stderr.slice(0, FFMPEG_STDERR_LIMIT_BYTES);
+      }
+    });
+    child.stdin?.on("error", (err: NodeJS.ErrnoException) => {
+      // A child that stops reading stdin (EPIPE) reports the real diagnosis via
+      // its exit code, so only a pipe error on a live process is fatal.
+      if (err.code === "EPIPE") return;
+      finish(err);
+    });
+    child.on("error", (err) => {
+      finish(err);
+    });
+    child.on("close", (code) => {
+      if (code !== 0) {
+        finish(
+          new Error(`ffmpeg exited with code ${code}: ${stderr.slice(-FFMPEG_STDERR_LIMIT_BYTES)}`),
+        );
+        return;
+      }
+      const output = Buffer.concat(chunks);
+      if (output.length === 0) {
+        finish(new Error("ffmpeg produced no thumbnail data on stdout"));
+        return;
+      }
+      finish(undefined, output);
+    });
+
+    child.stdin?.end(input ?? undefined);
+  });
+}
+
+/**
+ * Captures the 1s frame from a video piped on stdin and returns the JPEG bytes
+ * ffmpeg writes to stdout. No temp files are created.
+ */
+export function runFfmpegPipe(
+  input: Buffer,
+  timeoutMs = FFMPEG_THUMBNAIL_TIMEOUT_MS,
+): Promise<Buffer> {
+  return runFfmpegToStdout(FFMPEG_PIPE_INPUT_ARGS, input, timeoutMs);
+}
+
+/** Legacy full temp-file capture, kept as the fallback when an ffmpeg pipe fails. */
+async function captureVideoThumbnailWithTempFiles(buffer: Buffer): Promise<Buffer | null> {
   const tempInput = path.join(os.tmpdir(), `ffmpeg-input-${generateUUID()}.mp4`);
   const tempOutput = path.join(os.tmpdir(), `ffmpeg-output-${generateUUID()}.jpg`);
   try {
@@ -371,57 +543,473 @@ export async function captureVideoThumbnail(buffer: Buffer): Promise<Buffer | nu
 }
 
 /**
- * Generates a thumbnail from the first page of a PDF using ImageMagick
+ * Captures a thumbnail from a video at the 1s mark using ffmpeg.
+ *
+ * Non-ISO-BMFF containers are piped end-to-end (no temp files). ISO-BMFF keeps
+ * a temp input so ffmpeg can seek, but the JPEG streams back on stdout instead
+ * of a second temp file. Any pipe failure falls back to the original full
+ * temp-file path so capture behaviour never regresses.
  */
-export async function generatePdfThumbnail(buffer: Buffer): Promise<Buffer | null> {
+export async function captureVideoThumbnail(buffer: Buffer): Promise<Buffer | null> {
   if (buffer.length > MAX_TEMP_BUFFER_SIZE) {
-    logger.error("PDF buffer too large for thumbnail generation", { size: buffer.length });
+    logger.error("Video buffer too large for thumbnail capture", { size: buffer.length });
     return null;
   }
 
-  const tempInput = path.join(os.tmpdir(), `pdf-input-${generateUUID()}.pdf`);
-  const tempOutput = path.join(os.tmpdir(), `pdf-output-${generateUUID()}.jpg`);
+  if (shouldPipeVideoInput(buffer)) {
+    try {
+      return await runFfmpegPipe(buffer);
+    } catch (err) {
+      logger.debug("Piped video thumbnail failed; falling back to temp files", { error: err });
+      return await captureVideoThumbnailWithTempFiles(buffer);
+    }
+  }
+
+  // ISO-BMFF keeps a seekable input (fast `-ss` before `-i`); only the output is piped.
+  const tempInput = path.join(os.tmpdir(), `ffmpeg-input-${generateUUID()}.mp4`);
   try {
     await writeFile(tempInput, buffer);
-    // Use ImageMagick (magick) to extract the first page [0] at 150 DPI
-    // -background white -flatten handles transparency
-    await spawnAsync("magick", [
-      "-density",
-      "150",
-      `${tempInput}[0]`,
-      "-background",
-      "white",
-      "-flatten",
-      "-alpha",
-      "remove",
-      "-quality",
-      "90",
-      tempOutput,
-    ]);
-    return await readFile(tempOutput);
+    return await runFfmpegToStdout(
+      ffmpegTempInputArgs(tempInput),
+      null,
+      FFMPEG_THUMBNAIL_TIMEOUT_MS,
+    );
   } catch (err) {
-    const isMagickMissing =
-      err instanceof Error &&
-      (err.message.includes("not found") || err.message.includes("not recognized"));
-    if (isMagickMissing) {
-      logger.warn(
-        'PDF thumbnail generation skipped: "magick" command not found. Install ImageMagick and Ghostscript to enable PDF previews.',
-      );
-    } else {
-      logger.error("Error generating PDF thumbnail", { error: err });
-    }
-    return null;
+    logger.debug("Piped video thumbnail from temp input failed; falling back to temp files", {
+      error: err,
+    });
   } finally {
     try {
       await unlink(tempInput);
     } catch {
       /* ignore */
     }
+  }
+
+  return await captureVideoThumbnailWithTempFiles(buffer);
+}
+
+/**
+ * Generates a thumbnail from the first page of a PDF.
+ *
+ * Uses PDFium compiled to WebAssembly (`@hyzyla/pdfium/inline`), so previews do
+ * not depend on ImageMagick/Ghostscript/Poppler being installed on the host.
+ * The library is initialised once per process and reused; the render is capped
+ * to the first page at ~108 DPI (scale 1.5), then the ladder downsizes it.
+ */
+let pdfiumLibraryPromise: Promise<import("@hyzyla/pdfium").PDFiumLibrary> | undefined;
+
+function getPdfiumLibrary(): Promise<import("@hyzyla/pdfium").PDFiumLibrary> {
+  pdfiumLibraryPromise ??= import("@hyzyla/pdfium/inline").then(({ PDFiumLibrary }) =>
+    PDFiumLibrary.init({ disableBase64Warning: true }),
+  );
+  return pdfiumLibraryPromise;
+}
+
+export async function generatePdfThumbnail(buffer: Buffer): Promise<Buffer | null> {
+  if (buffer.length === 0) return null;
+  if (buffer.length > MAX_TEMP_BUFFER_SIZE) {
+    logger.error("PDF buffer too large for thumbnail generation", { size: buffer.length });
+    return null;
+  }
+
+  let document: import("@hyzyla/pdfium").PDFiumDocument | undefined;
+  try {
+    const library = await getPdfiumLibrary();
+    document = await library.loadDocument(new Uint8Array(buffer));
+    const page = document.getPage(0);
     try {
-      await unlink(tempOutput);
-    } catch {
-      /* ignore */
+      const image = await page.render({
+        // A4 at scale 2 ≈ 1190 px wide — enough for the `md` (900) ladder step.
+        scale: 2,
+        render: async (options) => {
+          const sharp = await getSharp();
+          return sharp(options.data, {
+            raw: { width: options.width, height: options.height, channels: 4 },
+          })
+            .flatten({ background: "#ffffff" })
+            .jpeg({ quality: 88 })
+            .toBuffer();
+        },
+      });
+      return Buffer.from(image.data);
+    } finally {
+      page.close();
     }
+  } catch (err) {
+    logger.warn("[Media] PDF preview generation failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return null;
+  } finally {
+    document?.destroy();
+  }
+}
+
+/** Rows/columns/bytes kept from a delimited text file for its preview tile. */
+const CSV_PREVIEW_MAX_BYTES = 256 * 1024;
+const CSV_PREVIEW_MAX_ROWS = 10;
+const CSV_PREVIEW_MAX_COLS = 6;
+const CSV_PREVIEW_WIDTH = 1200;
+const CSV_PREVIEW_ROW_HEIGHT = 52;
+
+/** Count delimiter occurrences outside quotes — enough to pick `,` vs `;` vs tab. */
+function countDelimiter(line: string, delimiter: string): number {
+  let count = 0;
+  let quoted = false;
+  for (const ch of line) {
+    if (ch === '"') quoted = !quoted;
+    else if (!quoted && ch === delimiter) count++;
+  }
+  return count;
+}
+
+/** Minimal RFC-4180 reader for a preview (quotes, escaped quotes, CRLF). */
+function readDelimitedPreview(text: string, delimiter: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = "";
+  let quoted = false;
+
+  const pushRow = () => {
+    row.push(cell);
+    if (row.some((value) => value.trim().length > 0)) rows.push(row);
+    row = [];
+    cell = "";
+  };
+
+  for (let i = 0; i < text.length && rows.length < CSV_PREVIEW_MAX_ROWS; i++) {
+    const ch = text[i]!;
+    if (quoted) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') {
+          cell += '"';
+          i++;
+        } else {
+          quoted = false;
+        }
+      } else {
+        cell += ch;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      quoted = true;
+    } else if (ch === delimiter) {
+      row.push(cell);
+      cell = "";
+    } else if (ch === "\n" || ch === "\r") {
+      if (ch === "\r" && text[i + 1] === "\n") i++;
+      pushRow();
+    } else {
+      cell += ch;
+    }
+  }
+  if (rows.length < CSV_PREVIEW_MAX_ROWS && (cell.length > 0 || row.length > 0)) pushRow();
+
+  return rows.map((r) => r.slice(0, CSV_PREVIEW_MAX_COLS));
+}
+
+function escapeXml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function truncateCell(value: string, maxChars: number): string {
+  const singleLine = value.replace(/\s+/g, " ").trim();
+  return singleLine.length > maxChars ? `${singleLine.slice(0, maxChars - 1)}…` : singleLine;
+}
+
+/**
+ * Render the first rows of a CSV/TSV as a spreadsheet-style preview image.
+ *
+ * Deliberately dependency-free: a small SVG table is rasterised with the
+ * already-loaded sharp, so every host gets a preview without a document
+ * converter. The output is a normal image buffer that the ladder resizes.
+ */
+export async function generateCsvThumbnail(buffer: Buffer): Promise<Buffer | null> {
+  if (buffer.length === 0) return null;
+  const text = buffer
+    .subarray(0, CSV_PREVIEW_MAX_BYTES)
+    .toString("utf8")
+    .replace(/^\uFEFF/, "");
+  if (!text.trim() || text.includes("\u0000")) return null;
+
+  const firstLine = text.split(/\r?\n/, 1)[0] ?? "";
+  const delimiter = ([",", ";", "\t"] as const).reduce((best, candidate) =>
+    countDelimiter(firstLine, candidate) > countDelimiter(firstLine, best) ? candidate : best,
+  );
+  const rows = readDelimitedPreview(text, delimiter);
+  if (rows.length === 0) return null;
+
+  const columns = Math.max(...rows.map((row) => row.length), 1);
+  const rowNumberGutter = 36;
+  const gridWidth = CSV_PREVIEW_WIDTH - 40 - rowNumberGutter;
+  const columnWidth = gridWidth / columns;
+  const height = 24 + rows.length * CSV_PREVIEW_ROW_HEIGHT + 24;
+  const fontSize = 14;
+  const maxChars = Math.max(6, Math.floor(columnWidth / (fontSize * 0.62)));
+  const fontFamily = "'Cascadia Mono','Consolas','DejaVu Sans Mono','Menlo',monospace";
+
+  const body = rows
+    .map((row, rowIndex) => {
+      const y = 24 + rowIndex * CSV_PREVIEW_ROW_HEIGHT;
+      const header = rowIndex === 0;
+      const cells = Array.from({ length: columns }, (_, columnIndex) => {
+        const x = 20 + rowNumberGutter + columnIndex * columnWidth;
+        const value = escapeXml(truncateCell(row[columnIndex] ?? "", maxChars));
+        return `<text x="${x + 8}" y="${y + 31}" font-family="${fontFamily}" font-size="${fontSize}" fill="${header ? "#0f172a" : "#334155"}" font-weight="${header ? 600 : 400}">${value}</text>`;
+      }).join("");
+      return (
+        `<rect x="${20 + rowNumberGutter}" y="${y}" width="${gridWidth}" height="${CSV_PREVIEW_ROW_HEIGHT}" fill="${header ? "#e2e8f0" : "#ffffff"}" stroke="#cbd5e1" stroke-width="1"/>` +
+        `<text x="${20 + rowNumberGutter - 8}" y="${y + 31}" text-anchor="end" font-family="${fontFamily}" font-size="12" fill="#94a3b8">${rowIndex + 1}</text>` +
+        cells
+      );
+    })
+    .join("");
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${CSV_PREVIEW_WIDTH}" height="${height}" viewBox="0 0 ${CSV_PREVIEW_WIDTH} ${height}"><rect width="100%" height="100%" fill="#f8fafc"/>${body}</svg>`;
+
+  try {
+    const sharp = await getSharp();
+    return await sharp(Buffer.from(svg)).png().toBuffer();
+  } catch (err) {
+    logger.warn("[Media] CSV preview generation failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return null;
+  }
+}
+
+// ─── Document previews (PDF, delimited text, Office) ─────────────────────────
+
+/** Document families the gallery can render as a tile preview. */
+export type DocumentPreviewKind = "pdf" | "delimited" | "office";
+
+const OFFICE_EXTENSIONS = new Set([".docx", ".xlsx", ".pptx", ".odt", ".ods", ".odp"]);
+
+const OFFICE_MIME_TYPES = new Set([
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/vnd.oasis.opendocument.text",
+  "application/vnd.oasis.opendocument.spreadsheet",
+  "application/vnd.oasis.opendocument.presentation",
+]);
+
+/** Hard budget for one LibreOffice conversion — a hung `soffice` must not pin a worker. */
+const OFFICE_CONVERT_TIMEOUT_MS = 30_000;
+
+/** `libreoffice` is only tried when `soffice` is absent from PATH. */
+const OFFICE_CONVERTERS = ["soffice", "libreoffice"] as const;
+
+let officePreviewWarningLogged = false;
+
+/** Warn once per process: a host without a converter must not log per upload. */
+function warnOfficePreviewOnce(message: string, details: Record<string, unknown>): void {
+  if (officePreviewWarningLogged) return;
+  officePreviewWarningLogged = true;
+  logger.warn(message, details);
+}
+
+/**
+ * Classify a document for preview generation.
+ *
+ * Extension and MIME are both checked because uploads can arrive with a generic
+ * `application/octet-stream` type (remote imports, CLI backfills) or without an
+ * extension. Returns `null` for images, audio, video and anything unsupported.
+ */
+export function detectDocumentPreviewKind(
+  filename: string,
+  mimeType: string,
+): DocumentPreviewKind | null {
+  const lower = (filename || "").toLowerCase();
+  const ext = path.extname(lower);
+  const mime = (mimeType || "").split(";")[0]!.trim().toLowerCase();
+
+  if (mime === "application/pdf" || ext === ".pdf") return "pdf";
+  if (
+    ext === ".csv" ||
+    ext === ".tsv" ||
+    mime === "text/csv" ||
+    mime === "application/csv" ||
+    mime === "text/tab-separated-values"
+  ) {
+    return "delimited";
+  }
+  if (OFFICE_EXTENSIONS.has(ext) || OFFICE_MIME_TYPES.has(mime)) return "office";
+  return null;
+}
+
+/**
+ * One converter invocation. `missing` separates "not installed" (try the next
+ * candidate) from "installed but failed" (stop and warn).
+ */
+type OfficeConversionAttempt =
+  | { ok: true; pdf: Buffer }
+  | { ok: false; missing: boolean; error?: string };
+
+async function runOfficeConverter(
+  command: string,
+  tempDir: string,
+  inputPath: string,
+): Promise<OfficeConversionAttempt> {
+  try {
+    await spawnAsync(
+      command,
+      [
+        "--headless",
+        "--norestore",
+        `-env:UserInstallation=${pathToFileURL(path.join(tempDir, "profile")).href}`,
+        "--convert-to",
+        "pdf",
+        "--outdir",
+        tempDir,
+        inputPath,
+      ],
+      { timeoutMs: OFFICE_CONVERT_TIMEOUT_MS },
+    );
+  } catch (err) {
+    return {
+      ok: false,
+      missing: (err as NodeJS.ErrnoException).code === "ENOENT",
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+
+  try {
+    return { ok: true, pdf: await readFile(path.join(tempDir, "source.pdf")) };
+  } catch {
+    // The binary returned success without writing the PDF (broken install).
+    return { ok: false, missing: false, error: "converter produced no PDF" };
+  }
+}
+
+/**
+ * Convert an Office document to PDF with a headless LibreOffice instance.
+ *
+ * The converter is optional: a missing binary or a failed conversion returns
+ * `null` and the operator is warned once per process (never once per upload).
+ * Each run gets its own throw-away user profile so concurrent jobs cannot
+ * attach to a sibling `soffice` instance and exit without writing the PDF.
+ */
+async function convertOfficeDocumentToPdf(
+  buffer: Buffer,
+  filename: string,
+): Promise<Buffer | null> {
+  if (buffer.length > MAX_TEMP_BUFFER_SIZE) {
+    logger.error("Office buffer too large for preview conversion", { size: buffer.length });
+    return null;
+  }
+
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "sveltycms-office-"));
+  const ext = path.extname(filename).toLowerCase() || ".bin";
+  const inputPath = path.join(tempDir, `source${ext}`);
+
+  try {
+    await writeFile(inputPath, buffer);
+
+    // `soffice` first; only a genuinely absent binary falls back to `libreoffice`
+    // (a broken install should not be invoked twice under a second name).
+    let attempt = await runOfficeConverter(OFFICE_CONVERTERS[0], tempDir, inputPath);
+    if (!attempt.ok && attempt.missing) {
+      attempt = await runOfficeConverter(OFFICE_CONVERTERS[1], tempDir, inputPath);
+    }
+
+    if (attempt.ok) return attempt.pdf;
+
+    warnOfficePreviewOnce(
+      attempt.missing
+        ? "[Media] LibreOffice (soffice/libreoffice) not found — Office document previews disabled"
+        : "[Media] Office document conversion failed",
+      { file: filename, error: attempt.error },
+    );
+    return null;
+  } catch (err) {
+    warnOfficePreviewOnce("[Media] Office preview could not be prepared", {
+      file: filename,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return null;
+  } finally {
+    await rm(tempDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+export interface DocumentPreviewResult {
+  metadata: Record<string, unknown>;
+  thumbnails: Record<string, ResizedImage>;
+}
+
+/**
+ * Render a document preview buffer without persisting any derivative files.
+ *
+ * Used by the backfill CLI's dry run; {@link buildDocumentPreview} wraps this and
+ * writes the ladder. Returns `null` when the document is unsupported, malformed,
+ * or the optional Office converter is unavailable.
+ */
+export async function renderDocumentPreview(
+  buffer: Buffer,
+  filename: string,
+  mimeType: string,
+): Promise<Buffer | null> {
+  const kind = detectDocumentPreviewKind(filename, mimeType);
+  if (!kind || buffer.length === 0) return null;
+
+  try {
+    if (kind === "pdf") return await generatePdfThumbnail(buffer);
+    if (kind === "delimited") return await generateCsvThumbnail(buffer);
+    const pdf = await convertOfficeDocumentToPdf(buffer, filename);
+    return pdf ? await generatePdfThumbnail(pdf) : null;
+  } catch (err) {
+    logger.warn("[Media] Document preview skipped", {
+      file: filename,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return null;
+  }
+}
+
+/**
+ * Build the gallery preview for a non-image document (PDF, CSV/TSV, Office).
+ *
+ * Documents have no source pixels to resize, so one preview buffer is rendered
+ * (PDF page 1, spreadsheet rows, or page 1 of a LibreOffice-converted document)
+ * and run through the normal `SIZES` ladder. Failure is always non-fatal: an
+ * empty result means the tile falls back to its file icon and the upload still
+ * succeeds. Shared by the upload pipeline (`MediaService`) and the
+ * `process-media` job, so both produce identical derivatives.
+ */
+export async function buildDocumentPreview(
+  buffer: Buffer,
+  hash: string,
+  filename: string,
+  mimeType: string,
+  tenantId?: string | null,
+): Promise<DocumentPreviewResult> {
+  const preview = await renderDocumentPreview(buffer, filename, mimeType);
+  if (!preview) return { metadata: {}, thumbnails: {} };
+
+  try {
+    const dotIdx = filename.lastIndexOf(".");
+    const baseName = dotIdx > 0 ? filename.slice(0, dotIdx) : filename;
+    const thumbnails = await saveResizedImages(
+      preview,
+      hash,
+      `${baseName}-thumb`,
+      "jpg",
+      tenantId || "global",
+    );
+    return { metadata: {}, thumbnails };
+  } catch (err) {
+    logger.warn("[Media] Document preview skipped", {
+      file: filename,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { metadata: {}, thumbnails: {} };
   }
 }
 

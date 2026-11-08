@@ -131,6 +131,10 @@ export function createSmartTable<T extends Record<string, unknown> = Record<stri
   const rowHeight = options.rowHeight ?? ROW_HEIGHT;
   const virtualBuffer = options.virtualBuffer ?? VIRTUAL_BUFFER;
   const onQueryChange = options.onQueryChange;
+  /** Fallbacks applied when a layout key has no saved prefs (see `setLayoutKey`). */
+  const defaultDensity: TableDensity = options.density ?? "normal";
+  const defaultViewMode: TableViewMode = options.viewMode ?? "table";
+  const defaultPageSize = options.pageSize ?? 10;
   let currentLayoutKey = $state(options.layoutKey);
 
   const savedLayout = options.layoutKey ? loadTableLayout(options.layoutKey) : null;
@@ -138,14 +142,14 @@ export function createSmartTable<T extends Record<string, unknown> = Record<stri
   let rows = $state.raw<T[]>([]);
   let columns = $state<SmartTableColumn<T>[]>([]);
   let density = $state<TableDensity>(
-    (savedLayout?.density && isValidDensity(savedLayout.density)
+    savedLayout?.density && isValidDensity(savedLayout.density)
       ? savedLayout.density
-      : options.density) ?? "normal",
+      : defaultDensity,
   );
   let viewMode = $state<TableViewMode>(
-    (savedLayout?.viewMode && isValidViewMode(savedLayout.viewMode)
+    savedLayout?.viewMode && isValidViewMode(savedLayout.viewMode)
       ? savedLayout.viewMode
-      : options.viewMode) ?? "table",
+      : defaultViewMode,
   );
   let multiSort = $state<ColumnSortDescriptor[]>(
     options.initialSort?.multiSort && options.initialSort.multiSort.length > 0
@@ -166,7 +170,7 @@ export function createSmartTable<T extends Record<string, unknown> = Record<stri
   });
   let pagination = $state<SmartTablePagination>({
     currentPage: 1,
-    pageSize: savedLayout?.pageSize ?? options.pageSize ?? 10,
+    pageSize: savedLayout?.pageSize ?? defaultPageSize,
     totalItems: 0,
     pagesCount: 1,
   });
@@ -336,14 +340,25 @@ export function createSmartTable<T extends Record<string, unknown> = Record<stri
     currentLayoutKey = nextKey;
     const saved = nextKey ? loadTableLayout(nextKey) : null;
     if (saved) {
-      if (saved.density && isValidDensity(saved.density)) density = saved.density;
-      if (saved.viewMode && isValidViewMode(saved.viewMode)) viewMode = saved.viewMode;
-      if (saved.pageSize) pagination.pageSize = saved.pageSize;
+      density = saved.density && isValidDensity(saved.density) ? saved.density : defaultDensity;
+      viewMode =
+        saved.viewMode && isValidViewMode(saved.viewMode) ? saved.viewMode : defaultViewMode;
+      pagination = {
+        ...pagination,
+        pageSize: saved.pageSize ?? defaultPageSize,
+        currentPage: 1,
+      };
       columnWidths = saved.columnWidths ?? {};
       if (columns.length > 0) {
         columns = mergeLayoutIntoColumns(columns, saved);
       }
     } else {
+      // Layout prefs are per key: switching to a key with nothing saved must
+      // start from the defaults instead of inheriting the previous table's
+      // density, view mode, page size or widths.
+      density = defaultDensity;
+      viewMode = defaultViewMode;
+      pagination = { ...pagination, pageSize: defaultPageSize, currentPage: 1 };
       columnWidths = {};
     }
   }

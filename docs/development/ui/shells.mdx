@@ -49,6 +49,8 @@ Every `(app)` page is one `AdminPageShell` and one or more `AdminCard` blocks. T
 
 `fullHeight` switches the root to a column that does not scroll, and the content area becomes `flex-1 min-h-0`. Use it for an editor that scrolls an inner pane.
 
+`flushContent` is for the rare full-height workspace whose first row is its own sub-header (the media gallery's breadcrumb and toolbar bands): it removes `pt-4`, `pb-2` and the `space-y` rhythm so that row sits directly under `PageTitle` and the card reaches the bottom edge. The horizontal `px-2` inset stays. Leave it off for editor layouts that need the normal breathing room.
+
 ### Motion
 
 Two transitions run, and both drop to 0ms when the user prefers reduced motion or the theme turns reduced motion on (`src/utils/admin-transitions.ts`):
@@ -76,6 +78,7 @@ Leave `animate` on. Add `in:adminStagger` on a grid of cards when a list should 
 | `titleCompact`    | `boolean`           | `false`       | Tighter title row.                                                                           |
 | `titleBorderless` | `boolean`           | `true`        | Hides the title-row border.                                                                  |
 | `fullHeight`      | `boolean`           | `false`       | Editor layout: the shell does not scroll.                                                    |
+| `flushContent`    | `boolean`           | `false`       | Full-height workspace: no `pt-4`/`pb-2`/`space-y`, content flush under the title and bottom. |
 | `animate`         | `boolean`           | `true`        | Plays `adminFade` on mount.                                                                  |
 | `navColor`        | favorite color      | theme default | Tailwind background class for this route's FloatingNav spoke when a user favorites it.       |
 | `children`        | snippet             | —             | The page body.                                                                               |

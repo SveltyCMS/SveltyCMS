@@ -68,7 +68,7 @@ export async function handleTestingResetRoutes(ctx: TestingContext): Promise<Res
       // Transition to ready mode
       // 1. Write mock private config if missing
       if (!fs.existsSync(privateConfigPath)) {
-        const { writePrivateConfig } = await import("@src/routes/setup/write-private-config");
+        const { writePrivateConfig } = await import("@src/services/setup/write-private-config");
         const dbType = process.env.DB_TYPE || "sqlite";
         const dummyConfig = {
           type: dbType as any,
@@ -87,7 +87,7 @@ export async function handleTestingResetRoutes(ctx: TestingContext): Promise<Res
 
       // 2. Seed roles
       try {
-        const { seedRoles } = await import("@src/routes/setup/seed");
+        const { seedRoles } = await import("@src/services/setup/seed");
         await seedRoles(initializedAdapter, tenantId);
       } catch (err: any) {
         logger.warn(`[TestingHandler] Role seeding error: ${err.message}`);

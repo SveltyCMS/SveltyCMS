@@ -28,15 +28,18 @@ import { generateSecureToken, generateUUID } from "@utils/native-utils";
 import {
   getSessionCookieName,
   isSecureCookieContext,
-  readSessionCookie,
-  clearAllSessionCookies as clearCookiesHelper,
   sessionTtlMs,
   isAdmin,
 } from "@src/databases/auth/constants";
+import {
+  readSessionCookie,
+  clearAllSessionCookies as clearCookiesHelper,
+} from "@utils/security/session-cookie";
 import type { Role, User } from "@src/databases/auth/types";
 import { isValidApiKeyFormat, hashApiKey } from "@src/databases/auth/api-keys";
 import { recordApiKeyUsage } from "@src/databases/auth/api-key-usage-accumulator";
 import { validateSessionMfaRequirement } from "@src/databases/auth/permissions";
+import { isSessionRevoked } from "@src/databases/auth/revocation-epoch";
 import {
   getApiKeyAuthCacheSync,
   getWebsiteTokenAuthCacheSync,
@@ -171,6 +174,7 @@ import {
   bindRequestDbAdapter,
   runWithTenantAdapter,
 } from "@src/databases/tenant-adapter";
+import { nowISODateString } from "@utils/date";
 
 let sessionManagerPromise: Promise<typeof import("@src/databases/auth/session-manager")> | null =
   null;
@@ -242,6 +246,12 @@ export function prewarmAuthenticationHotPaths(): void {
 
 interface SessionCacheEntry {
   timestamp: number;
+  /**
+   * Creation time of the underlying session row. Compared against the user /
+   * tenant / global revocation epochs on every LRU hit, so a logout-everywhere
+   * or a privilege change cannot be outlived by a warm in-memory snapshot.
+   */
+  issuedAtMs?: number;
   user: User;
   amr?: string[];
   mfaVerifiedAt?: string;
@@ -275,6 +285,59 @@ const MAX_SESSION_CACHE = 10_000;
 const sessionCache = new Map<string, SessionCacheEntry>();
 const lastRefreshAttempt = new Map<string, number>();
 const lastRotationAttempt = new Map<string, number>();
+
+/**
+ * Distributed revocation markers: the in-process epoch only covers sessions
+ * handled by THIS process. A privilege change/block on worker A is published to
+ * the shared cache so a warm LRU snapshot on worker B stops authorizing.
+ * Memoized per user for a few seconds — one cache read per user per window, not
+ * per request.
+ */
+const USER_REVOKE_CACHE_PREFIX = "auth:revoke:user:";
+const DISTRIBUTED_REVOKE_MEMO_MS = 5_000;
+const distributedRevocations = new Map<string, { checkedAt: number; epoch: number }>();
+
+async function isRevokedDistributed(
+  userId: string | undefined,
+  issuedAtMs: number | undefined,
+  tenantId?: string | null,
+): Promise<boolean> {
+  if (!userId || !issuedAtMs) return false;
+  const now = Date.now();
+  const memo = distributedRevocations.get(userId);
+  let epoch: number;
+  if (memo && now - memo.checkedAt < DISTRIBUTED_REVOKE_MEMO_MS) {
+    epoch = memo.epoch;
+  } else {
+    epoch = 0;
+    try {
+      const marker = await cacheService.get<number>(
+        `${USER_REVOKE_CACHE_PREFIX}${userId}`,
+        tenantId ?? undefined,
+      );
+      epoch = typeof marker === "number" ? marker : Number(marker) || 0;
+    } catch {
+      // Distributed cache unavailable — the in-process epoch still applies.
+    }
+    if (distributedRevocations.size > MAX_SESSION_CACHE) distributedRevocations.clear();
+    distributedRevocations.set(userId, { checkedAt: now, epoch });
+  }
+  return epoch > 0 && issuedAtMs < epoch;
+}
+
+/** Best-effort creation time for a stored session row (falls back to "now"). */
+function issuedAtFromSession(session: unknown, fallback: number): number {
+  const raw =
+    (session as { createdAt?: unknown } | null)?.createdAt ??
+    (session as { issuedAt?: unknown } | null)?.issuedAt;
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  if (typeof raw === "string") {
+    const ms = Date.parse(raw);
+    if (Number.isFinite(ms)) return ms;
+  }
+  if (raw instanceof Date) return raw.getTime();
+  return fallback;
+}
 
 /**
  * Successor session id for sessions this process rotated a moment ago.
@@ -520,6 +583,21 @@ async function getUserFromSession(
     }
     // Slide the clock — the entry object is shared with the Map.
     memCached.timestamp = now;
+    // A warm snapshot must respect revocation: a logout-everywhere, tenant
+    // lockout, or privilege change after this session was issued invalidates it
+    // even when the store/DB layers are not consulted on this request.
+    if (
+      isSessionRevoked(memCached.issuedAtMs, memCached.user?._id, tenantId) ||
+      (await isRevokedDistributed(
+        String(memCached.user?._id ?? ""),
+        memCached.issuedAtMs,
+        tenantId,
+      ))
+    ) {
+      invalidateSessionCache(sessionId, tenantId);
+      addNegativeSessionHit(sessionId);
+      return { status: "invalid" };
+    }
     // NOTE: cached users are snapshots — a NEW block is detected via cache
     // invalidation on block/unblock/delete (batchAction purge), after which the
     // next request re-validates against the DB and hits the blocked check below.
@@ -549,6 +627,7 @@ async function getUserFromSession(
         setSessionInCache(sessionId, {
           user: safeStoredUser,
           timestamp: now,
+          issuedAtMs: storedData.issuedAtMs ?? now,
           amr: storedData.amr,
           mfaVerifiedAt: storedData.mfaVerifiedAt,
           permMask,
@@ -583,7 +662,11 @@ async function getUserFromSession(
         addNegativeSessionHit(sessionId);
         return { status: "invalid" };
       }
-      setSessionInCache(sessionId, { user: toSafeSessionUser(redisCached.user), timestamp: now });
+      setSessionInCache(sessionId, {
+        user: toSafeSessionUser(redisCached.user),
+        timestamp: now,
+        issuedAtMs: (redisCached as SessionCacheEntry).issuedAtMs ?? now,
+      });
       return { status: "ok", user: toSafeSessionUser(redisCached.user) };
     }
   } catch (err: any) {
@@ -626,7 +709,11 @@ async function getUserFromSession(
             return { status: "invalid" };
           }
           const safeUser = toSafeSessionUser(user);
-          const sessionData: SessionCacheEntry = { user: safeUser, timestamp: now };
+          const sessionData: SessionCacheEntry = {
+            user: safeUser,
+            timestamp: now,
+            issuedAtMs: now,
+          };
           setSessionInCache(sessionId, sessionData);
           const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
           await cacheService
@@ -711,11 +798,11 @@ async function getUserFromSession(
           const safeUser = toSafeSessionUser(user);
           const amr: string[] = rawSession.amr ?? (rawSession.has2fa ? ["pwd", "mfa"] : ["pwd"]);
           const mfaVerifiedAt: string | undefined =
-            rawSession.mfaVerifiedAt ??
-            (amr.includes("mfa") ? new Date().toISOString() : undefined);
+            rawSession.mfaVerifiedAt ?? (amr.includes("mfa") ? nowISODateString() : undefined);
           const sessionData: SessionCacheEntry = {
             user: safeUser,
             timestamp: now,
+            issuedAtMs: issuedAtFromSession(rawSession, now),
             amr,
             mfaVerifiedAt,
             boundIp: risk.storedIp,
@@ -848,7 +935,9 @@ async function handleSessionRotation(
       const cookieName = getSessionCookieName(isSecure);
 
       event.cookies.set(cookieName, newSessionId, {
-        path: getCookiePath(),
+        // `__Host-` requires path=/, and browsers reject it otherwise — the
+        // configurable COOKIE_PATH may only shape the unprefixed dev cookie.
+        path: isSecure ? "/" : getCookiePath(),
         httpOnly: true,
         secure: isSecure,
         sameSite: isSecure ? "strict" : "lax",
@@ -871,7 +960,10 @@ async function handleSessionRotation(
         await auth.destroySession(oldSessionId as DatabaseId).catch(() => {});
       }
       invalidateSessionCache(oldSessionId, event.locals.tenantId as DatabaseId);
-      setSessionInCache(newSessionId, { user: toSafeSessionUser(user), timestamp: now });
+      // Do not prime the new session's LRU with the pre-rotation user snapshot:
+      // if the user's role changed since login, that snapshot would resurrect
+      // the old role for the session lifetime. The next request hydrates the
+      // LRU from the freshly created session instead.
       lastRotationAttempt.set(oldSessionId, now);
       lastRotationAttempt.set(newSessionId, now);
       recentRotations.set(oldSessionId, { id: newSessionId, at: now });
@@ -944,7 +1036,7 @@ async function handleDemoTenantAssignment(event: RequestEvent, isUserPresent: bo
 
   // Seed immediately so the first authenticated demo route has its content tree.
   try {
-    const { seedDemoTenant } = await import("@src/routes/setup/seed");
+    const { seedDemoTenant } = await import("@src/services/setup/seed");
     await seedDemoTenant(dbAdapter!, tenantId);
   } catch (e) {
     logger.error(`Failed to seed demo tenant ${tenantId}:`, e);
@@ -1354,7 +1446,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
           const rotatedTo = recentRotations.get(sessionId);
           if (rotatedTo && Date.now() - rotatedTo.at < ROTATION_GRACE_MS) {
             event.cookies.set(cookieName, rotatedTo.id, {
-              path: getCookiePath(),
+              path: isSecure ? "/" : getCookiePath(),
               httpOnly: true,
               secure: isSecure,
               sameSite: isSecure ? "strict" : "lax",
@@ -1822,7 +1914,13 @@ export function primeSessionMemoryCache(
   // Credential-free snapshot — the in-memory cache must never hold password
   // hashes, TOTP secrets, backup codes, or reset/refresh tokens.
   const safeUser = toSafeSessionUser(user);
-  const entry: SessionCacheEntry = { user: safeUser, timestamp: Date.now(), amr, mfaVerifiedAt };
+  const entry: SessionCacheEntry = {
+    user: safeUser,
+    timestamp: Date.now(),
+    issuedAtMs: Date.now(),
+    amr,
+    mfaVerifiedAt,
+  };
   setSessionInCache(sessionId, entry);
   const resolvedTenant = tenantId ?? (safeUser as User).tenantId ?? null;
   const safeRoles = roles ?? [];

@@ -5,7 +5,12 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { streamingJsonResponse } from "@src/routes/api/[...path]/handlers/streaming";
+import {
+  isChunkedExportResponse,
+  isStreamingResponse,
+  streamingExportResponse,
+  streamingJsonResponse,
+} from "@src/routes/api/[...path]/handlers/streaming";
 
 async function* rows(n: number) {
   for (let i = 0; i < n; i++) yield { _id: String(i), n: i };
@@ -49,5 +54,40 @@ describe("streamingJsonResponse", () => {
     const elapsed = Date.now() - started;
     expect(body.length).toBeGreaterThan(5000);
     expect(elapsed).toBeLessThan(1500);
+  });
+});
+
+describe("isStreamingResponse", () => {
+  it("flags the chunked JSON stream as non-bufferable", async () => {
+    const response = streamingJsonResponse(rows(2), 2);
+    expect(response.headers.get("transfer-encoding")).toBe("chunked");
+    expect(isStreamingResponse(response)).toBe(true);
+    await response.text();
+  });
+
+  it("does not flag a buffered JSON response", () => {
+    const response = new Response(JSON.stringify({ ok: true }), {
+      headers: { "Content-Type": "application/json" },
+    });
+    expect(isStreamingResponse(response)).toBe(false);
+  });
+
+  it("flags server-sent events", () => {
+    const response = new Response("data: {}\n\n", {
+      headers: { "Content-Type": "text/event-stream" },
+    });
+    expect(isStreamingResponse(response)).toBe(true);
+  });
+
+  it("flags export streams too — they claim chunked transfer as well", async () => {
+    const response = streamingExportResponse([{ a: 1 }], {
+      format: "ndjson",
+      filename: "export.ndjson",
+    });
+    expect(isChunkedExportResponse(response)).toBe(true);
+    // `streamingExportResponse()` sets `Transfer-Encoding: chunked`, so the chunked
+    // predicate matches too; the dispatcher skips buffering when either matches.
+    expect(isStreamingResponse(response)).toBe(true);
+    await response.text();
   });
 });

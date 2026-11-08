@@ -15,6 +15,7 @@ export * from "./storage/plugin-storage-adapter";
 export * from "./storage/types";
 
 import { pluginServerRegistry } from "./plugin-server-registry";
+import { registerPlugins } from "./register-plugins";
 import { pluginRegistry } from "./registry";
 import { slotRegistry } from "./slot-registry.svelte.ts";
 import { pluginPageRegistry } from "./plugin-page-registry.svelte.ts";
@@ -103,48 +104,16 @@ for (const path in pluginModulesRaw) {
 
 // Isomorphic UI registration — available on client and server for slot/page renderers.
 //
-// Idempotency guard: `+layout.svelte` (app shell) calls `registerPluginSlots()`
-// so bundlers can never hoist this module into a lazy route node without
-// executing it (Rolldown client builds ignore `manualChunks` when SvelteKit
-// sets `codeSplitting` — see vite.config.ts). The top-level call below keeps
-// server boot, dev, and eager consumers working; the exported function makes
-// the app shell a runtime dependency of the registration loop.
-let registrationsApplied = false;
-
+// The registration loop (and its idempotency guard) lives in `./register-plugins`
+// so the client catalog (`./client.ts`) can reuse it without importing this
+// server-facing module (eager glob + Node fallback). `+layout.svelte` (app shell)
+// calls `registerPluginSlots()` so bundlers can never hoist this module into a
+// lazy route node without executing it (Rolldown client builds ignore
+// `manualChunks` when SvelteKit sets `codeSplitting` — see vite.config.ts). The
+// top-level call below keeps server boot, dev, and eager consumers working; the
+// exported function makes the app shell a runtime dependency of the loop.
 export function registerPluginSlots(): void {
-  if (registrationsApplied) return;
-  registrationsApplied = true;
-
-  for (const plugin of availablePlugins) {
-    const pluginId = plugin.metadata.id;
-
-    if (plugin.ui?.slots) {
-      for (const slot of plugin.ui.slots) {
-        const registered = { ...slot, pluginId };
-        slotRegistry.register(registered);
-
-        if (slot.zone === "plugin_workspace" && slot.server) {
-          pluginServerRegistry.register(pluginId, slot.server);
-        }
-      }
-    }
-
-    // Structured parts → isomorphic registries (pages + admin zones). Server-side
-    // validation happens in pluginRegistry.resolveParts during initializePlugins.
-    if (plugin.parts) {
-      for (const part of plugin.parts) {
-        if (part.type === "page") {
-          for (const page of part.pages) {
-            pluginPageRegistry.register(pluginId, page);
-          }
-        } else if (part.type === "adminTool") {
-          for (const tool of part.tools) {
-            adminZoneRegistry.registerTool(pluginId, tool);
-          }
-        }
-      }
-    }
-  }
+  registerPlugins(availablePlugins);
 }
 
 // Register eagerly — runs wherever this module executes (server boot, dev, HMR).

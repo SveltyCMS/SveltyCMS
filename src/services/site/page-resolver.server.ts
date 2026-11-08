@@ -18,10 +18,28 @@ export interface ResolveSitePageOptions {
   user?: any;
 }
 
-function localizeField(value: string | Record<string, string> | undefined, lang: string): string {
-  if (!value) return "";
+/**
+ * Pick the string for `lang`, tolerating legacy/malformed shapes.
+ *
+ * Rows exist where a locale maps to an object (`{ en: { title, content } }`)
+ * rather than HTML; treating that as text made the render-side sanitizer throw
+ * on `.includes`. A non-string falls back to its `content` field when present,
+ * then to the empty string, so a data problem cannot 500 the page.
+ */
+function localizeField(value: unknown, lang: string): string {
   if (typeof value === "string") return value;
-  return value[lang] || value.en || (Object.values(value)[0] as string) || "";
+  if (!value || typeof value !== "object") return "";
+
+  const record = value as Record<string, unknown>;
+  const candidate = record[lang] ?? record.en ?? Object.values(record)[0];
+  if (typeof candidate === "string") return candidate;
+
+  if (candidate && typeof candidate === "object") {
+    const content = (candidate as Record<string, unknown>).content;
+    if (typeof content === "string") return content;
+  }
+
+  return "";
 }
 
 /**

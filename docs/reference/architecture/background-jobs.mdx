@@ -49,6 +49,10 @@ stateDiagram-v2
 
 The two poller-driven rows are maintenance sweeps. They run even when there is nothing to do and still record a completed job — **a 0–5 ms “completed” row usually means the sweep found nothing**, not that it performed work. `status-transition` rows live in the same table but are claimed and executed by the scheduler, which is why the queue poller skips that task type.
 
+### Webhook circuit breaker
+
+Webhook deliveries pass through a **process-local, per-origin** circuit breaker (`webhook-circuit-breaker.ts`) before `safeFetch`: five consecutive retryable failures (network, 5xx, 429, 408) open that origin for **60 s**, during which queued deliveries fail fast with `RETRYABLE_ERROR: CIRCUIT_OPEN` and back off in the normal queue. After the window, exactly **one** half-open probe is admitted; its success closes the circuit, its failure reopens it. A probe whose outcome is never recorded expires after one window so an origin cannot stay wedged. Other 4xx responses are poison-pill payloads, not origin health, and never trip the breaker. State is per server instance; the job queue remains the shared retry source of truth.
+
 ## Poller
 
 `jobQueue.startPolling()` (default 10 s) is installed **once per process**; the bookkeeping lives on `globalThis` so a dev-server module reload reuses the same timer instead of installing another one. Ticks:

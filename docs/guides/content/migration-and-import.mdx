@@ -151,6 +151,15 @@ SveltyCMS follows a **Schema as Code** paradigm similar to **Drupal's `drush cex
 5. **Check Drift & Review Plan** — The system checks drift (`GET /api/config/status` / `POST /api/config/plan`) to detect what is new, updated, or deleted.
 6. **Apply the Plan** — Apply the configuration via the UI or `POST /api/config/apply`. All operations are audit-logged with deterministic checksums.
 
+### The admin page (`/config/sync`)
+
+The page is meant to be usable without this document:
+
+- **Explainer card** — states the two copies of configuration (database + `config/sync/`) and the three moves: Export (`drush cex`), Review (the drift table), Apply (`drush cim`).
+- **Sync tab** — safety mode (Merge / Add / Mirror / Replace) with a per-mode description, `?` help on the control, and the drift table. `New` = on disk, not in the database; `Updated` = differs; `Deleted` = in the database, not on disk. Apply is disabled while the system is in sync or a requirement is unmet.
+- **Data & Backups tab** — separates the three layers: configuration (this page), content (Smart Importer / content packages), and full database backup (`pg_dump`, `mariadb-dump`, `sqlite3 .backup`). The export button here writes the same schema files as the Sync tab; it is not a database dump.
+- **Debug tab** — read-only JSON of the last status call, safe to attach to a support ticket.
+
 > [!IMPORTANT]
 > **Configuration Promotion moves structure (schemas, settings, roles), not content.** Use [Content Transfer](#2-exporting-importing-content) for editorial content packages, or [Content Sync](#5-content-sync-cross-environment) for real-time channel synchronization.
 

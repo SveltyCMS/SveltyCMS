@@ -1,0 +1,128 @@
+---
+path: "docs/tests/coverage-budget.mdx"
+title: "Coverage Budget (Per-Area Ratchet)"
+description: "How the per-area statement-coverage ratchet keeps the single global P0 floor from hiding a regression in a small, security-critical area."
+order: 16
+icon: "mdi:gauge"
+author: "SveltyCMS Team"
+created: "2026-11-06"
+updated: "2026-11-06"
+tags:
+  - "testing"
+  - "coverage"
+  - "ratchet"
+  - "regression"
+  - "ci"
+---
+
+# Coverage Budget — Per-Area Ratchet
+
+`bun run test:coverage` enforces one global statement floor (`70 %`) across the P0 include set. A single number is easy to reason about, but it also lets a small area regress while a large area improves: the total stays above the floor and nothing turns red. The coverage budget closes that gap by comparing **each area's statement coverage** with a committed baseline.
+
+The gate is implemented in [`scripts/test/check-coverage-budget.ts`](../../scripts/test/check-coverage-budget.ts) and stores its baseline in [`scripts/test/coverage-budget.json`](../../scripts/test/coverage-budget.json). It runs automatically at the end of `bun run test:coverage`.
+
+## What the gate measures
+
+| Input          | Detail                                                                                                    |
+| :------------- | :-------------------------------------------------------------------------------------------------------- |
+| Report         | `.vitest/coverage/coverage-final.json`, written by `bun run test:unit:coverage`                           |
+| Metric         | Statement coverage per area and for the whole report (`coveredStatements / statements`)                   |
+| Baseline       | `scripts/test/coverage-budget.json` (`generatedAt`, `note`, `tolerance`, per-area counts and percentages) |
+| Drop tolerance | `0.5` percentage points — a drop of exactly `0.5 pp` passes, anything larger fails                        |
+| Line coverage  | Recorded in the baseline for context and future use; the ratchet compares statement percentages           |
+
+The gate reads the report only. It never runs tests, so it is cheap enough to chain after every coverage run. Areas are compared from counts, not from averaged percentages: a large file weighs more than a small one, exactly as the report does.
+
+## Why the global floor hides area regressions
+
+The following numbers are illustrative, not a benchmark. Two areas trade coverage, and the global statement percentage does not move:
+
+| Area       | Statements |  Before |   After |     Delta |
+| :--------- | ---------: | ------: | ------: | --------: |
+| Large area |     10,000 | 70.00 % | 72.00 % |  +2.00 pp |
+| Small area |      1,000 | 80.00 % | 60.00 % | −20.00 pp |
+| Total      |     11,000 | 70.91 % | 70.91 % |   0.00 pp |
+
+The global floor (`70 %`) passes before and after, even though the small area lost a fifth of its statement coverage. With the budget gate, that small area fails against its own baseline.
+
+## Area grouping (deterministic)
+
+Every file in the report is assigned to the first matching rule. The table is the contract — changing it requires a baseline update.
+
+| Report path                        | Area                                               |
+| :--------------------------------- | :------------------------------------------------- |
+| `src/hooks/**`                     | `hooks`                                            |
+| `src/databases/auth/**`            | `databases/auth`                                   |
+| `src/utils/security/**`            | `utils/security`                                   |
+| `src/routes/api/**`                | `routes/api`                                       |
+| a file directly under `src/utils/` | `utils/core`                                       |
+| anything else                      | `src/<first segment>` (for example `src/services`) |
+
+Windows and POSIX report paths are normalized to forward slashes before grouping, so the baseline is portable across developer machines and CI.
+
+## Run it
+
+```sh
+bun run test:coverage          # unit coverage + global floors + this gate
+bun run test:coverage:budget   # check the existing report only
+```
+
+A passing run prints one row per area plus the report total:
+
+```text
+Coverage budget — statement coverage (tolerance 0.50 pp)
+area            baseline   current     delta
+--------------  --------  --------  --------
+databases/auth     73.86     73.86     +0.00
+hooks              72.23     72.23     +0.00
+routes/api         67.80     67.80     +0.00
+utils/core         69.89     69.89     +0.00
+utils/security     84.89     84.89     +0.00
+total              74.60     74.60     +0.00
+```
+
+A failing run names every area below its baseline:
+
+```text
+❌ coverage budget: 1 area(s) dropped below baseline.
+   routes/api: 64.20% vs baseline 67.80%
+   Cover the regression. If the coverage scope genuinely changed, verify it and run --update.
+```
+
+If the report is missing, the gate exits with instructions to run `bun run test:coverage`; it never reports success against an absent report.
+
+## Update the baseline after improving coverage
+
+`--update` writes the baseline from the **current report**. Because improvements already pass the check, the update exists to lock the improvement in (ratchet up), not to make a red gate green.
+
+1. Add or fix tests until the area's coverage improves.
+2. Run `bun run test:coverage` and confirm both the global floors and the per-area check pass.
+3. Regenerate the baseline:
+
+   ```sh
+   bun run scripts/test/check-coverage-budget.ts --update
+   # or, through the package script:
+   bun run test:coverage:budget -- --update
+   ```
+
+4. Review the `scripts/test/coverage-budget.json` diff. Percentages should move up (or stay flat); a lower value needs an explanation in the pull request.
+5. Commit the baseline together with the tests that produced it.
+
+Never regenerate the baseline from an unverified run. `--update` records whatever the report says, including a regression if the report was produced before the fix.
+
+## The no-drop rule
+
+- An area may not fall **more than `0.5 pp`** below its baseline; exactly `0.5 pp` is tolerated for normal churn.
+- An area that is above its baseline passes and permanently lowers nothing — improvements only take effect after `--update`.
+- A **new area** has no baseline, so it is reported but not failed. Run `--update` to start ratcheting it.
+- A baseline area that is **absent from the report** is treated as `0 %` and fails until it is reviewed. This catches an accidental delete or an include-set change; if the removal is intentional, update the baseline in the same change.
+- Baseline edits must be justified by a test change. Lowering a number to silence the gate defeats the ratchet and is treated as a review blocker.
+
+## Scope and caveats
+
+- Only the P0 include set from `vitest.config.ts` is measured: `src/hooks/**`, `src/databases/auth/**`, `src/utils/security/**`, `src/routes/api/[...path]/+server.ts`, `src/utils/error-handling.ts`, and `src/utils/test-bypass.server.ts`. Other `src` areas appear only when the include set widens.
+- The baseline is bound to the default P0 profile. `COVERAGE_ALL=1` and `COVERAGE_WRITE_PATH=1` widen the recorded files but keep writing `.vitest/coverage/coverage-final.json`, so do not run this check against those reports.
+- The gate compares statement coverage. Line, function, and branch percentages remain governed by the existing global floors in `vitest.config.ts`.
+- A stale report produces the wrong verdict. Regenerate it with `bun run test:coverage` rather than reusing a report from an older checkout.
+
+Related: [Test Status](./test-status.mdx) for the live coverage numbers and [Testing Scripts](./testing-scripts.mdx) for the other gates in `scripts/test/`.

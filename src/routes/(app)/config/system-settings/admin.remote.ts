@@ -65,7 +65,7 @@ export const testRedisConnection = command(
       };
     }
 
-    const { testRedisConnection: runTest } = await import("@src/routes/setup/setup.server");
+    const { testRedisConnection: runTest } = await import("@src/services/setup/setup.server");
     return runTest(payload.host || "localhost", Number(payload.port) || 6379, payload.password);
   },
 );
@@ -88,7 +88,7 @@ export const setMultiTenantConfig = command(
     }
 
     try {
-      const { updatePrivateConfigMode } = await import("@src/routes/setup/write-private-config");
+      const { updatePrivateConfigMode } = await import("@src/services/setup/write-private-config");
       await updatePrivateConfigMode({ multiTenant: payload.enabled });
       const { invalidateSettingsCache } = await import("@src/services/core/settings-service");
       invalidateSettingsCache();
@@ -137,7 +137,7 @@ export const runTenantMigration = command(
 
     try {
       const { runFullMigration } = await import("@utils/collections-migration.server");
-      const { updatePrivateConfigMode } = await import("@src/routes/setup/write-private-config");
+      const { updatePrivateConfigMode } = await import("@src/services/setup/write-private-config");
       const tenantId = payload.tenantId || "primary";
 
       const result = await runFullMigration(tenantId, payload.direction);

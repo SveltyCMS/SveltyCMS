@@ -26,7 +26,7 @@ export function vatFromGross(
   return { net: gross - vat, vat };
 }
 
-export function rateForClass(taxClass: TaxClass, standard: number, reduced: number | null): number {
+function rateForClass(taxClass: TaxClass, standard: number, reduced: number | null): number {
   if (taxClass === "zero") return 0;
   if (taxClass === "reduced") return reduced != null && reduced >= 0 ? reduced : standard;
   return standard;

@@ -95,6 +95,7 @@ const DRAFT_METHODS = [
   { name: "getDraft", optionsIndex: 2 },
   { name: "discardDraft", optionsIndex: 2 },
   { name: "discardDraftsForEntry", optionsIndex: 2 },
+  { name: "promoteDraft", optionsIndex: 2 },
 ] as const;
 
 /**

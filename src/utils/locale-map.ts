@@ -9,9 +9,9 @@
  */
 
 /** BCP 47 language tags used as object keys (`en`, `ar`, `en-US`). */
-export const LOCALE_KEY = /^[a-z]{2}(?:-[A-Za-z]{2})?$/;
+const LOCALE_KEY = /^[a-z]{2}(?:-[A-Za-z]{2})?$/;
 
-export function isLocaleKey(key: string): boolean {
+function isLocaleKey(key: string): boolean {
   return LOCALE_KEY.test(key);
 }
 

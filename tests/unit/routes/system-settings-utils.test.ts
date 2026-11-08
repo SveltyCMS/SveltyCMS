@@ -14,10 +14,8 @@ import {
   initializeGroupValues,
   validateSettingField,
 } from "../../../src/routes/(app)/config/system-settings/settings-utils";
-import {
-  settingsGroups,
-  type SettingField,
-} from "../../../src/routes/(app)/config/system-settings/settings-groups";
+import { settingsGroups } from "@src/services/system/settings-groups.server";
+import type { SettingField } from "@src/services/system/settings-groups.meta";
 
 function numberField(overrides: Partial<SettingField> = {}): SettingField {
   return {
@@ -95,6 +93,12 @@ describe("validateSettingField", () => {
     const field = numberField({ key: "PASSWORD_MIN_LENGTH", required: true });
     expect(validateSettingField(field, null)).toMatch(/required/);
     expect(validateSettingField(field, 8)).toBeNull();
+  });
+
+  it("enforces declarative maxLength with the documented message", () => {
+    const field = numberField({ key: "SITE_NAME", type: "text", maxLength: 5 });
+    expect(validateSettingField(field, "abcdef")).toBe("Max 5 characters");
+    expect(validateSettingField(field, "abcde")).toBeNull();
   });
 });
 

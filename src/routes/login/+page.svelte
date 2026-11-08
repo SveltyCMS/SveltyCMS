@@ -420,7 +420,7 @@
 		{#if data.demoMode}
 			<!-- DEMO MODE -->
 			<div
-				class="absolute bottom-2.75 inset-s-1/2 flex min-w-87.5 -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center rounded bg-error-500 p-3 text-center text-white transition-opacity duration-300 sm:bottom-12"
+				class="absolute inset-x-0 bottom-2.75 mx-auto flex w-fit min-w-87.5 -translate-y-1/2 flex-col items-center justify-center rounded bg-error-500 p-3 text-center text-white transition-opacity duration-300 sm:bottom-12"
 				class:opacity-50={isTransitioning}
 				aria-live="polite"
 				aria-atomic="true"
@@ -445,7 +445,7 @@
 
 		<!-- CMS Logo / Tenant Branding -->
 		<div
-			class="absolute inset-s-1/2 top-1/4 -translate-x-1/2 -translate-y-1/2 transform items-center justify-center transition-[filter] duration-300"
+			class="absolute inset-x-0 top-1/4 flex -translate-y-1/2 flex-col items-center justify-center transition-[filter] duration-300"
 			style="filter: drop-shadow(0 6px 10px {background === 'white'
 				? 'rgba(0, 0, 0, 0.3)'
 				: 'rgba(0, 0, 0, 0.85)'});"
@@ -539,7 +539,7 @@
 			</Dropdown>
 		</div>
 		<!-- CMS Version -->
-		<div class="absolute bottom-5 inset-s-1/2 -translate-x-1/2">
+		<div class="absolute inset-x-0 bottom-5 flex justify-center">
 			<VersionCheck transparent={true} />
 		</div>
 	{/if}

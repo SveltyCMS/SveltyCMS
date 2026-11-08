@@ -9,6 +9,7 @@ import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { successResponse } from "../base";
+import { requireAdminUser } from "./system-shared";
 import { invalidateHealthCache } from "./system-health";
 
 /**
@@ -20,11 +21,8 @@ export async function handleSystemMgmtRoutes(
   _tenantId: DatabaseId,
   segments: string[],
 ) {
-  // 🛡️ SECURITY: Admin verification for system management
-  const { user } = event.locals;
-  if (!user || (!user.isAdmin && user.role !== "admin")) {
-    throw new AppError("Admin access required for system management", 403, "FORBIDDEN");
-  }
+  // 🛡️ SECURITY: Admin verification for system management (401 before 403).
+  requireAdminUser(event, "Admin access required for system management");
 
   const action = segments[1];
   if (action === "reinitialize" && event.request.method === "POST") {

@@ -16,7 +16,11 @@ import type {
 } from "../db-interface";
 import type { MongoAdapterCore } from "./adapter-core";
 import { type IMedia, mediaSchema } from "./schema";
-import { buildMediaJsonPathMongoFilter } from "../core/relational-media";
+import {
+  buildMediaJsonPathMongoFilter,
+  buildMediaStructuredMongoFilter,
+} from "../core/relational-media";
+import { normalizeMediaStructuredFilters } from "@utils/media/media-query-filters";
 import { CacheCategory, invalidateCategoryCache, withCache } from "./mongodb-cache-utils";
 import { createDatabaseError, generateId, processDates } from "./mongodb-utils";
 import { assertTenantContext, safeQuery } from "@src/utils/security/safe-query";
@@ -24,7 +28,7 @@ import { isAdmin } from "@src/databases/auth/constants";
 import { logger } from "@utils/logger";
 import type { Model, QueryFilter } from "mongoose";
 
-export class MongoMediaMethods {
+class MongoMediaMethods {
   constructor(private readonly mediaModel: Model<IMedia>) {
     logger.debug("MongoMediaMethods initialized with media model.");
   }
@@ -304,7 +308,13 @@ export class MongoMediaMethods {
     const shouldFilterByUser = user && !isAdminUser;
 
     const jsonPathKey = jsonPath?.trim() ? `:jp:${jsonPath.trim().slice(0, 120)}` : "";
-    const cacheKey = `media:files:${folderId || "root"}:${page}:${pageSize}:${sortField}:${sortDirection}:rec:${recursive}:${tenantId || "no-tenant"}${shouldFilterByUser ? `:user:${userId}` : ""}${jsonPathKey}:leg:${includeLegacyUntenanted ? 1 : 0}`;
+    // Structured filters must be part of the cache identity: two size ranges are
+    // two result sets, and a shared cache key would serve one for the other.
+    const structuredFilter = buildMediaStructuredMongoFilter(
+      normalizeMediaStructuredFilters(options),
+    );
+    const filterKey = structuredFilter ? `:f:${JSON.stringify(structuredFilter)}` : "";
+    const cacheKey = `media:files:${folderId || "root"}:${page}:${pageSize}:${sortField}:${sortDirection}:rec:${recursive}:${tenantId || "no-tenant"}${shouldFilterByUser ? `:user:${userId}` : ""}${jsonPathKey}${filterKey}:leg:${includeLegacyUntenanted ? 1 : 0}`;
 
     const fetchData = async (): Promise<DatabaseResult<PaginatedResult<MediaItem>>> => {
       try {
@@ -315,28 +325,33 @@ export class MongoMediaMethods {
           query = folderId ? { folderId } : { folderId: { $in: [null, undefined] } };
         }
 
+        // Every extra predicate goes into `$and` instead of being spread onto the
+        // query: `$or` keys would overwrite each other, so a search used to drop
+        // the ownership scope (and find another user's private rows).
+        const matchClauses: Record<string, unknown>[] = [];
+
         if (shouldFilterByUser) {
-          query = {
-            ...query,
+          matchClauses.push({
             $or: [{ createdBy: userId }, { user: userId }, { path: /^global\// }],
-          };
+          });
         }
 
         if (options.search?.trim()) {
           const s = options.search.trim();
           const searchRegex = new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
-          query = {
-            ...query,
+          matchClauses.push({
             $or: [{ filename: searchRegex }, { originalFilename: searchRegex }],
-          };
+          });
         }
 
         if (jsonPath?.trim()) {
           const { filter: jpFilter } = buildMediaJsonPathMongoFilter(jsonPath.trim());
-          if (jpFilter) {
-            query = { $and: [query, jpFilter] };
-          }
+          if (jpFilter) matchClauses.push(jpFilter);
         }
+
+        if (structuredFilter) matchClauses.push(structuredFilter);
+
+        if (matchClauses.length > 0) query = { $and: [query, ...matchClauses] };
 
         const secureQuery = safeQuery(
           query as unknown as import("../db-interface").QueryFilter<MediaItem>,

@@ -62,6 +62,7 @@ flowchart LR
 - Real-time remote cursor tracking with user-specific colors via the Yjs **awareness** protocol.
 - "Active Editors" presence rendered inline in `fields.svelte`.
 - Field-level focus highlights to prevent overlapping edits (`setFieldFocus`).
+- **Disconnect cleanup (2026-11-07):** each socket's awareness client IDs are tracked on the document; `close`/`error` calls `removeAwarenessStates()` and broadcasts the removal frame to peers, so a disconnected cursor disappears immediately instead of waiting for the 5 min idle TTL. A 30 s ping/pong heartbeat terminates half-open sockets on the next missed interval.
 
 ### RichText
 

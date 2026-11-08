@@ -36,7 +36,7 @@ import type {
   QueryFilter,
 } from "@src/databases/db-interface";
 import { buildOriginalRelPath } from "./media-utils";
-import { normalizeProcessingStatus, type MediaProcessingStatusValue } from "./media-models";
+import { normalizeProcessingStatus, type MediaProcessingStatusValue } from "./media-values";
 import { getStorageAdapter } from "./storage-adapters";
 import { scheduleVariantJob } from "./variant-job-scheduler.server";
 

@@ -10,7 +10,7 @@ import {
   saveAdminTheme,
   updateUserThemePrefs,
   resetAdminTheme,
-} from "../../../src/routes/(app)/config/design-system/appearance-api";
+} from "@utils/appearance-api";
 import { stubDocumentCookie, unstubAllGlobals } from "../helpers/stub-global";
 
 describe("appearance-api", () => {

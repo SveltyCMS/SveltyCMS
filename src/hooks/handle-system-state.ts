@@ -16,6 +16,7 @@
  */
 
 import { dbInitPromise } from "@src/databases/db";
+import { markBoot } from "@utils/boot-profile";
 import { metricsService } from "@src/services/observability/metrics-service";
 import { getSystemState, isSystemReady } from "@src/stores/system/state.svelte.ts";
 import type { SystemState } from "@src/stores/system/types";
@@ -84,6 +85,8 @@ async function awaitInitOrThrow(): Promise<void> {
   } catch {
     // timed out — checked below
   }
+  // Boot profile: the first request has now paid for adapter + service init.
+  markBoot("db-ready");
   if (initializationState === "failed" && lastInitError) throw lastInitError;
 }
 
@@ -140,7 +143,9 @@ function isTrustedHost(event: RequestEvent, setupComplete: boolean): boolean {
   if (origin) {
     try {
       if (host === new URL(origin).host) return true;
-    } catch {}
+    } catch (error) {
+      logger.debug("[handle-system-state] suppressed error", error);
+    }
   }
   const trusted = dev ? process.env.HOST_DEV : process.env.HOST_PROD;
   return !trusted || host === trusted;

@@ -227,6 +227,8 @@ Exactly **three** runtime modes exist (see `docs/tests/benchmark-isolation.mdx`)
 
 Benchmark servers always run mode 1 or 2: `NODE_ENV=production`, `TEST_MODE` explicitly cleared, real session-cookie auth, real rate limits/WAF/CSRF. `x-test-secret` grants nothing.
 
+> **L1 flood pre-filter is raised for the harness, not removed.** The synchronous L1 token bucket (production: 200 req/s per IP) exists to drop volumetric DDoS traffic before async work. A local load generator at 4k–30k RPS would otherwise receive HTTP 429 `Flood Protection` — that is exactly how the competitive replica aborted in matrix mode at `create`. The matrix and standalone harness set `RATE_LIMIT_L1_CAPACITY` / `RATE_LIMIT_L1_REFILL_PER_SEC` to `1000000`; the adaptive/Redis limiter (RBAC tier × tenant plan × system pressure) still runs and is what the throttling benchmarks exercise. Production defaults stay at 200.
+
 ### External Services Guard (`src/utils/benchmark-runtime.ts`)
 
 When `BENCHMARK=true`, outbound side-effects are disabled so load tests never fire real external calls:

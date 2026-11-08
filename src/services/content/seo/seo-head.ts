@@ -1,7 +1,9 @@
 /**
  * @file src/services/content/seo/seo-head.ts
  * @description Pure, environment-agnostic helpers that turn the SEO widget's
- * stored per-locale data into renderable document-head metadata.
+ * stored per-locale data into renderable document-head metadata. The locale
+ * and entity helpers live in `seo-head-core.ts`, so a client page that only
+ * needs the preview title never bundles this module's head assembly.
  *
  * ### Features
  * - Locale resolution with a default-locale fallback chain
@@ -17,9 +19,13 @@
  * - JSON-LD is re-parsed, re-stringified and `<` is emitted as `\u003c`, so a
  *   stored schema can never break out of the script element — defense in depth
  *   on top of the widget's save-time sanitizer
- * - The module never imports node-only APIs, so the pure helpers are also
- *   safe to import from client components (live preview title derivation)
+ * - The module never imports node-only APIs; client components that only need
+ *   live-preview title derivation import `seo-head-core.ts` instead
  */
+
+import { decodeStoredHtmlEntities, isSeoLocaleData, pickSeoLocaleData } from "./seo-head-core";
+
+export { decodeStoredHtmlEntities, pickSeoLocaleData, pickSeoPageTitle } from "./seo-head-core";
 
 /**
  * One locale's data inside the SEO widget's stored value.
@@ -154,78 +160,6 @@ export interface BuildSeoHeadOptions {
 
 /** Matches BCP-47-ish language tags (`en`, `de`, `pt-BR`, `zh-Hant`). */
 const LOCALE_TAG = /^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/;
-
-/**
- * True when `value` looks like one locale's SEO data (a flat object with
- * widget field names) rather than a locale-keyed record.
- */
-export function isSeoLocaleData(value: unknown): value is SeoLocaleData {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const record = value as Record<string, unknown>;
-  return (
-    typeof record.title === "string" ||
-    "description" in record ||
-    "robotsMeta" in record ||
-    "canonicalUrl" in record
-  );
-}
-
-/**
- * Picks the SEO data for the requested locale.
- *
- * Fallback chain: exact locale → default locale → `en` → first available
- * locale. A flat (`translated: false`) object is returned as-is.
- */
-export function pickSeoLocaleData(
-  seo: SeoWidgetStoredValue | null | undefined,
-  lang: string,
-  defaultLang: string,
-): SeoLocaleData | undefined {
-  if (!seo) return undefined;
-  if (isSeoLocaleData(seo)) return seo;
-
-  const record = seo as Record<string, SeoLocaleData | undefined>;
-  for (const candidate of [lang, defaultLang, "en"]) {
-    const value = record[candidate];
-    if (value && isSeoLocaleData(value)) return value;
-  }
-  for (const key of Object.keys(record)) {
-    const value = record[key];
-    if (value && isSeoLocaleData(value)) return value;
-  }
-  return undefined;
-}
-
-/**
- * Reverses the widget schema's save-time escaping
- * (`&` → `&amp;`, `<` → `&lt;`, `>` → `&gt;`, `"` → `&quot;`, `'` → `&#039;`).
- *
- * Decoding order matters: `&amp;` is decoded last so a stored literal
- * `&amp;lt;` (user-typed `&lt;`) decodes to `&lt;` and never to `<`.
- */
-export function decodeStoredHtmlEntities(value: string): string {
-  return value
-    .replace(/&#039;/g, "'")
-    .replace(/&quot;/g, '"')
-    .replace(/&gt;/g, ">")
-    .replace(/&lt;/g, "<")
-    .replace(/&amp;/g, "&");
-}
-
-/**
- * Decodes the SEO title (widget-escaped at save) to plain text, so it can be
- * rendered with normal escaping. Returns "" when no SEO title is present.
- * Environment-agnostic on purpose — used by live preview on the client.
- */
-export function pickSeoPageTitle(
-  seo: SeoWidgetStoredValue | null | undefined,
-  lang: string,
-  defaultLang = "en",
-): string {
-  const data = pickSeoLocaleData(seo, lang, defaultLang);
-  const title = data?.title?.trim();
-  return title ? decodeStoredHtmlEntities(title) : "";
-}
 
 /** Builds the locale-specific URL for a site-starter path. */
 function urlForLocale(

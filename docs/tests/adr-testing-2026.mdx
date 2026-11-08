@@ -84,6 +84,8 @@ This ADR locks **how** admin/product routes are tested and structured so UI refa
 login → seed (if needed) → UI journey → assert outcome → cleanup (finally)
 ```
 
+**Media isolation.** The harness owns `tests/e2e/.media` (`E2E_MEDIA_FOLDER`) and points `MEDIA_FOLDER` at it for the server, `globalSetup` and every worker; the integration harness likewise owns `tests/integration/.media`. `global.setup.ts` and the testing API’s reset empty those roots before each run — never the developer’s `mediaFolder`, whose rows live in the dev database and survive the wipe (the old behaviour left broken tiles and an editor stuck on “Failed to load image after 3 attempts”).
+
 | Prefer                                | Avoid                           |
 | ------------------------------------- | ------------------------------- |
 | Create → reload → value still present | Asserting 12 decorative testids |
@@ -179,13 +181,13 @@ positives, so `fillUntil` carries that intent explicitly.)
 
 ## 5. Shared mutation client — **implemented**
 
-| Piece                        | Location                                                | Status |
-| ---------------------------- | ------------------------------------------------------- | ------ |
-| CSRF on mutations            | `fetchApi` → `clientJsonHeaders` (`src/utils/api.ts`)   | ✅     |
-| Domain API clients           | `webhooks-api.ts`, `automations-api.ts`, `trash-api.ts` | ✅     |
-| Pure validation              | `webhooks-utils.ts`, `redirects-utils.ts`, …            | ✅     |
-| Admin gates                  | `+page.server.ts` unit tests                            | ✅     |
-| Access save / plugins / sync | `fetchApi` (no manual CSRF)                             | ✅     |
+| Piece                        | Location                                                      | Status |
+| ---------------------------- | ------------------------------------------------------------- | ------ |
+| CSRF on mutations            | `fetchApi` → `clientJsonHeaders` (`src/utils/http-client.ts`) | ✅     |
+| Domain API clients           | `webhooks-api.ts`, `automations-api.ts`, `trash-api.ts`       | ✅     |
+| Pure validation              | `webhooks-utils.ts`, `redirects-utils.ts`, …                  | ✅     |
+| Admin gates                  | `+page.server.ts` unit tests                                  | ✅     |
+| Access save / plugins / sync | `fetchApi` (no manual CSRF)                                   | ✅     |
 
 Canonical stack (copy for new routes):
 
@@ -228,10 +230,12 @@ Seed/reset under `/api/testing` exist **only** for CI/E2E.
 
 | Piece                  | Path                                                                                                                                                            |
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| CSRF mutation client   | `src/utils/api.ts` + `src/utils/security/client-csrf.ts`                                                                                                        |
+| CSRF mutation client   | `src/utils/http-client.ts` + `src/utils/security/client-csrf.ts`                                                                                                |
 | Testing / bypass gate  | `src/utils/test-bypass.server.ts` (`assertTestingApiAllowed`)                                                                                                   |
 | Testing handler        | `src/routes/api/[...path]/handlers/testing.ts`                                                                                                                  |
 | E2E seeds              | `tests/e2e/helpers/api.ts`                                                                                                                                      |
+| E2E media root         | `tests/e2e/.media` — `E2E_MEDIA_FOLDER`; `global.setup.ts` empties it, never the dev `mediaFolder`                                                              |
+| Integration media root | `tests/integration/.media` — `MEDIA_FOLDER` in `buildIntegrationServerEnv`; the testing reset empties it                                                        |
 | Confirm helper         | `tests/e2e/helpers/confirm-modal.ts`                                                                                                                            |
 | Checkbox helper        | `tests/e2e/helpers/checkbox.ts` — clicks `label[for]` for sr-only inputs                                                                                        |
 | Gate unit tests        | `tests/unit/utils/testing-api-gate.test.ts`                                                                                                                     |
@@ -454,6 +458,21 @@ To ensure that the CMS functions reliably in the browser for end users (rather t
 3. **Client Widget DOM Testing (`tests/unit/components/dom/widget-inputs-interaction.test.ts`)**: Mounts Svelte 5 widget components in the client DOM to test two-way value bindings and validation store synchronization.
 4. **Zero-Error Trap (`tests/e2e/helpers/zero-error-guard.ts`)**: Attaches browser listeners so any unhandled `pageerror`, unhandled rejection, non-allowlisted console error, or same-origin HTTP $\ge 500$ response fails the journey immediately.
 5. **Real-Browser Vitality (`tests/e2e/browser-vitality.spec.ts`)**: Records Navigation Timing (domInteractive), input responsiveness, and SPA heap memory stability in Chromium via `bun run benchmark:browser`.
+
+---
+
+## 13. Executed-test inventory floor & fast-tier route manifest (2026-11-07)
+
+A green suite proves that the tests **which ran** passed. It does not prove that every test which should have run did: a subset run was once reported as the full suite, and a test file renamed out of its directory simply stopped executing. Both look green.
+
+| Gate                        | Command                                      | Contract                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| :-------------------------- | :------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Executed-test inventory** | `bun run test:unit` / `test:unit:components` | `scripts/test/run-unit-suite.ts` writes Vitest's JSON report from the same invocation; `scripts/check/check-test-inventory.ts` floors per-area test counts against `scripts/check/baselines/test-inventory-baseline.json`. A lower total, a vanished area, or an empty report fails. Growth is free. A subset run (positional filter, `--changed`, `--shard`) prints `ratchet skipped` instead of pretending to be full. Re-baseline deliberately with `--update`. |
+| **Route manifest**          | `bun run check` (fast tier)                  | `scripts/check/check-route-manifest.ts` imports `APP_ROUTE_COVERAGE` and reuses `verifyAppRouteCoverage`, so a moved/merged covering test fails in ~200 ms instead of waiting for the ~40 s suite. 29 routes / 68 test-file links.                                                                                                                                                                                                                                 |
+
+Baselines are tracked, not gitignored: `scripts/check/baselines/test-inventory-baseline.json` (`unit` 847 files / 8,058 tests across 38 areas; `components` 53 / 238). `bun run check` does not read the report — the floor belongs to the suite runner, so the fast tier stays independent of test execution.
+
+Pinned by `tests/unit/scripts/test-inventory.test.ts` and `tests/unit/scripts/route-manifest-check.test.ts`.
 
 ---
 

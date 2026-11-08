@@ -20,7 +20,8 @@
 	import Input from '@components/ui/input.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
-	import type { SettingGroup } from '../../routes/(app)/config/system-settings/settings-groups';
+	import type { SettingGroup } from '@src/services/system/settings-groups.meta';
+	import { nowISODateString } from '@utils/date';
 
 	interface Props {
 		group: SettingGroup;
@@ -54,7 +55,7 @@
 				const url = window.URL.createObjectURL(blob);
 				const a = document.createElement('a');
 				a.href = url;
-				a.download = `user-export-${userIdExport}-${new Date().toISOString()}.json`;
+				a.download = `user-export-${userIdExport}-${nowISODateString()}.json`;
 				document.body.appendChild(a);
 				a.click();
 				document.body.removeChild(a);

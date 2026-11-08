@@ -9,6 +9,12 @@
  * - Non-blocking dispatch (fire-and-forget)
  * - Listener registration for automation flows
  * - Integration point for dbAdapter CRUD hooks
+ *
+ * **Deliberately not `@utils/event-bus`.** The shared bus is the SSE /
+ * multi-instance backplane: every emission is also forwarded to its `*`
+ * wildcard, which `/api/content/events` streams to browser clients. Automation
+ * payloads can contain entry data, so they must reach flow executors only.
+ * Merge the two only together with a dedicated non-SSE channel.
  */
 
 import { logger } from "@utils/logger";

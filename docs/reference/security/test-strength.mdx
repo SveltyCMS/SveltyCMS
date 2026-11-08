@@ -6,7 +6,7 @@ order: 57
 icon: "mdi:test-tube"
 author: "SveltyCMS Team"
 created: "2026-11-05"
-updated: "2026-11-05"
+updated: "2026-11-06"
 tags:
   - "security"
   - "testing"
@@ -31,11 +31,13 @@ surface:
    rejected (or explicitly accepted) by the real guards on every PR.
 
 > [!IMPORTANT]
-> **No mutation score has been published for this repository yet.** The floors
-> in `scripts/security/security-mutation-floors.json` are targets chosen from the
-> threat model, not measured baselines. The first `--security-only` run on CI will
-> produce the first report; until then treat every floor as a starting gate, not
-> as evidence of current strength.
+> **The floors are targets, not a published baseline.** They were chosen from the
+> threat model. The seam inventory is current as of 2026-11-06: **31 mutations**
+> (24 security + 7 write-path), up from 19. The new security seams pin permission
+> evaluation, TOTP replay rejection, API fail-closed routing, session-cookie
+> precedence, attribute-policy stripping, NoSQL operator/ReDoS guards, and the
+> sanitizer's zero-copy prototype-key gate. Run `--security-only` to measure them;
+> the nightly job records the score against these floors.
 
 ## Why mutation score instead of coverage
 
@@ -89,8 +91,14 @@ Rules the checker applies:
 ## How to run it
 
 ```sh
-# 1. Mutate the security surface (~12 seams today). Writes .mutation/report.json.
+# 1. Mutate the write-path + security surface (31 seams today). Writes .mutation/report.json.
+bun run test:mutation
+
+# Security-only subset (24 seams), for a focused re-run.
 bun run test:mutation:security
+
+# Explicit seam selection (same dirty-target guard and exit codes).
+bun run test:mutation:security --only=auth-permission-catalog-accept,security-redirect-backslash
 
 # 2. Score the report against the floors (also part of `bun run security:assurance`).
 bun run security:assurance --only=test-strength --require-mutation
@@ -114,11 +122,30 @@ Exit codes:
 | `1`  | At least one area is below its floor.                                            |
 | `2`  | Report missing without `--allow-missing`, or report/floors unreadable/malformed. |
 
-The mutator keeps its original exit contract (`0` all killed, `1` survivor,
-`2` usage error, `3` aborted). Its report is additive: `--no-report` restores the
-previous behaviour exactly, and `--report=<path>` selects another location.
-Write-path runs keep using the same default `.mutation/report.json`; the checker
-scores those files against the `default` floor unless an area matches.
+The mutator keeps its original exit contract (`0` all killed, `1` survivor, `2` usage
+error, `3` aborted). Its report is additive: `--no-report` restores the previous
+behaviour exactly, and `--report=<path>` selects another location. The default run
+writes both corpora to `.mutation/report.json`, so every configured floor area has
+data; `--security-only` writes just the 24 security seams. `--only=<id[,id]>`
+runs an explicit subset without relaxing the per-target dirty check. Files outside
+a configured area are scored against the `default` floor.
+
+### Security seams (24, 2026-11-06)
+
+| Area                  | Seams | Guarantee the mutation removes                                               |
+| :-------------------- | ----: | :--------------------------------------------------------------------------- |
+| Revocation epochs     |     3 | Global, tenant, and user epochs reject sessions issued before revocation.    |
+| Permission evaluation |     2 | Catalog-only ids stay acceptable; the 64-bit mask decides the grant.         |
+| API routing           |     1 | An endpoint absent from the map/trie denies instead of failing open.         |
+| TOTP                  |     3 | Secret format, replay rejection, and fail-closed registry errors.            |
+| Dashboard access      |     1 | Either dashboard permission opens the page for seeded roles.                 |
+| Session cookies       |     1 | Secure connections read `__Host-` before the plain cookie.                   |
+| User-attribute policy |     2 | Non-admin patches are stripped; `permissions` stays an escalation field.     |
+| Redirects             |     2 | `//` and `/\` are both rejected as internal paths.                           |
+| Input sanitizer       |     3 | Script stripping, prototype keys in the rebuild pass and the zero-copy gate. |
+| MongoDB sanitizer     |     2 | `$where` is blocked and the `$regex` ReDoS length cap is enforced.           |
+| Egress guard          |     2 | Protocol-relative URLs and the `fd00::/8` ULA half are rejected.             |
+| Write pipeline        |     2 | `updatedBy` is schema-gated; system creates keep `createdBy: system`.        |
 
 ## Red-team corpus
 
@@ -187,11 +214,15 @@ network calls.
   `bun run check` (CI whitebox `01-policy`). Without a mutation report the
   floor check exits 0 with a notice; the corpus runs in the unit suite and in
   `test:security`.
-- **Nightly and manual runs** (`.github/workflows/security-mutation.yml`)
-  execute `bun run test:mutation:security`, then
-  `bun run security:assurance --require-mutation`, and upload
-  `.mutation/report.json` as an artifact. A surviving mutation fails the job
-  even when the area floor still passes.
+- **Full-tier CI runs** (whitebox `04-unit`) execute `bun run test:mutation`
+  (all 31 seams) followed by
+  `security:assurance --only=test-strength --require-mutation`, so a surviving
+  mutation fails the job even when the area floor still passes. The local
+  pre-push hook runs the same harness over the changed seams.
+- **Scheduled runs** (`.github/workflows/security-assurance.yml`) execute
+  `bun run security:assurance` for the time-based gates (advisory SLA,
+  threat-model review age, external validation). They do not repeat the
+  mutation harness, which the full-tier run already covers.
 
 ## Related reading
 

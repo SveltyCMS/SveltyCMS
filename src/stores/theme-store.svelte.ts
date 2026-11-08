@@ -10,7 +10,8 @@ import type { Theme } from "@src/databases/db-interface";
 import type { UserThemePreferences } from "@utils/theme-merge";
 import { nowISODateString } from "@src/utils/date";
 import { logger } from "@utils/logger";
-import { browser } from "$app/env";
+/** `$app/env` is virtual: non-SvelteKit loaders (db-init, workers, scripts) cannot resolve it. */
+const browser = typeof window !== "undefined" && typeof window.addEventListener === "function";
 
 // --- Theme Preference Type ---
 export type ThemePreference = "system" | "light" | "dark" | "unknown";
@@ -123,7 +124,9 @@ export function initializeDarkMode(initialPreference?: ThemePreference) {
     if (rawLocal === "dark" || rawLocal === "light" || rawLocal === "system") {
       localValue = rawLocal;
     }
-  } catch {}
+  } catch (error) {
+    logger.debug("[theme-store.svelte] suppressed error", error);
+  }
 
   // 2. Determine user's preference (default to 'system' if not stored)
   let preference: ThemePreference = "system";
@@ -162,7 +165,9 @@ export function initializeDarkMode(initialPreference?: ThemePreference) {
     if (localStorage.getItem(THEME_COOKIE_KEY) !== preference) {
       localStorage.setItem(THEME_COOKIE_KEY, preference);
     }
-  } catch {}
+  } catch (error) {
+    logger.debug("[theme-store.svelte] suppressed error", error);
+  }
 
   // 6. Clean up old 'darkMode' cookie if it exists
   if (document.cookie.includes("darkMode=")) {
@@ -210,7 +215,9 @@ function setCookie(preference: ThemePreference) {
   document.cookie = `${THEME_COOKIE_KEY}=${preference}; path=/; max-age=31536000; SameSite=Lax`;
   try {
     localStorage.setItem(THEME_COOKIE_KEY, preference);
-  } catch {}
+  } catch (error) {
+    logger.debug("[theme-store.svelte] suppressed error", error);
+  }
   logger.debug("[Theme] Updated cookie and localStorage to:", preference);
 }
 

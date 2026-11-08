@@ -70,7 +70,7 @@ export class SettingsService {
 
   private async loadPkgVersion(): Promise<string> {
     if (!this.pkgVersionPromise) {
-      this.pkgVersionPromise = import("../../../package.json")
+      this.pkgVersionPromise = import("@root/package.json")
         .then((pkg) => pkg.version || "0.0.0")
         .catch(() => "0.0.0");
     }
@@ -280,8 +280,16 @@ export class SettingsService {
   }
 
   public invalidateCache(tenantId?: string): void {
+    // Mark snapshots stale instead of deleting them. `getPublicSettingSync` is a
+    // synchronous accessor: a deleted entry makes it return an empty cache (every
+    // key `undefined`) until some caller happens to await a reload, which flipped
+    // settings such as SITE_STARTER_ENABLED to their fail-closed fallback right
+    // after the seed wrote `true`. Sync readers now keep the last-known value;
+    // the next `loadSettingsCache` refreshes it from the DB because `loaded` is
+    // false.
     if (tenantId) {
-      this.caches.delete(tenantId);
+      const cached = this.caches.get(tenantId);
+      if (cached) cached.loaded = false;
       logger.debug(`Settings cache manually invalidated for tenant ${tenantId}`);
       if (typeof window === "undefined" && import.meta.env.SSR) {
         loadCacheServiceModule().then(({ cacheService }) => {
@@ -291,7 +299,7 @@ export class SettingsService {
         });
       }
     } else {
-      this.caches.clear();
+      for (const cached of this.caches.values()) cached.loaded = false;
       logger.debug("All settings caches manually invalidated");
       if (typeof window === "undefined" && import.meta.env.SSR) {
         loadCacheServiceModule().then(({ cacheService }) => {
@@ -301,6 +309,23 @@ export class SettingsService {
         });
       }
     }
+  }
+
+  /**
+   * Drop the in-memory snapshots entirely.
+   *
+   * Hard reset for DB wipes (testing reset): unlike `invalidateCache`, sync
+   * readers observe no values afterwards, so stale settings cannot survive the
+   * wipe that removed the rows they came from.
+   */
+  public clearCache(tenantId?: string): void {
+    if (tenantId) {
+      this.caches.delete(tenantId);
+      logger.debug(`Settings cache cleared for tenant ${tenantId}`);
+      return;
+    }
+    this.caches.clear();
+    logger.debug("All settings caches cleared");
   }
 
   public async getPrivateSetting<K extends keyof PrivateEnv>(
@@ -380,6 +405,10 @@ export class SettingsService {
       throw new Error(res.error?.message || `Failed to update private setting: ${key as string}`);
     }
 
+    // Write through: a handler may render a page that reads this key
+    // synchronously before any async reload runs (the seed writes
+    // SITE_STARTER_ENABLED and the next request gates the public site on it).
+    this.getOrCreateCache(effectiveTenantId).private[key] = value;
     this.invalidateCache(effectiveTenantId);
     this.invalidateCache();
   }
@@ -407,6 +436,8 @@ export class SettingsService {
       throw new Error(res.error?.message || `Failed to update public setting: ${key as string}`);
     }
 
+    // Write through — see `setPrivateSetting` for the sync-reader rationale.
+    this.getOrCreateCache(effectiveTenantId).public[key] = value;
     this.invalidateCache(effectiveTenantId);
     this.invalidateCache();
   }
@@ -457,6 +488,7 @@ export const settingsService = new SettingsService();
 // Export convenience functions for backward compatibility
 export const loadSettingsCache = settingsService.loadSettingsCache.bind(settingsService);
 export const invalidateSettingsCache = settingsService.invalidateCache.bind(settingsService);
+export const clearSettingsCache = settingsService.clearCache.bind(settingsService);
 export const getPrivateSetting = settingsService.getPrivateSetting.bind(settingsService);
 export const getPublicSetting = settingsService.getPublicSetting.bind(settingsService);
 export const getUntypedSetting = settingsService.getUntypedSetting.bind(settingsService);

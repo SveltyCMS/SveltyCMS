@@ -23,7 +23,6 @@
  */
 
 import { modifyStream, type EntryData } from "@utils/modify-request";
-import { prepareCollectionFields } from "@src/content/content-write-prep.server";
 import { runAfterOperation } from "@src/content/schema-hooks";
 import {
   applyPublicationToQuery,
@@ -36,15 +35,20 @@ import { CacheCategory } from "@src/databases/cache/types";
 import { logger } from "@utils/logger";
 import { AppError, raise } from "@utils/error-handling";
 import { isAdmin } from "@src/databases/auth/constants";
-import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
-import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
+import type {
+  BaseEntity,
+  CountOptions,
+  DatabaseId,
+  IDBAdapter,
+  QueryFilter,
+  QueryBuilder,
+} from "@src/databases/db-interface";
 import type { contentSystem as serverContentSystem } from "@src/content/index.server";
-import type { CollectionAction, FieldInstance, Schema } from "@src/content/types";
-import { DEFAULT_REVISION_LIMIT, MIN_REVISION_LIMIT } from "@src/content/revision-defaults";
+import type { FieldInstance, Schema, RevisionData } from "@src/content/types";
+import { DEFAULT_REVISION_LIMIT } from "@src/content/revision-defaults";
 import { type LocalApiOptions, type CollectionProxy } from "./types";
-import { copyDataWithFreshRowIds } from "@utils/data-utils";
-import { resolvePopulatedRelations } from "./populate-resolver";
+import { resolvePopulatedRelations, scheduleRelationWarmup } from "./populate-resolver";
 import { PROFILE_WRITE_ENABLED, profileSpan, profileMark } from "@utils/write-profiler";
 import {
   decodePageCursor,
@@ -58,26 +62,25 @@ import {
 import { parseIdLookup } from "@src/databases/core/query-primitives";
 import { nowISODateString } from "@src/utils/date";
 import { clampPageSize, unsupportedFilterOperators } from "@utils/api-params";
-import { redactReadEnvelope, redactRecord } from "@utils/field-access";
+import { redactRecord } from "@utils/field-access";
 import { blockedGuardedNames, stripGuardedFilter, stripGuardedSort } from "@utils/guarded-query";
 import {
   getReadConstraint,
   mergeAccessConstraint,
-  rowMatchesConstraint,
 } from "@src/services/security/access-rule-service";
 import { buildCollectionCacheTags, collectionTableName } from "@src/databases/core/collection-name";
 import { validateRequiredFields } from "@src/widgets/widget-validation";
-import { matchesVersion, normalizeExpectedVersion, versionKey } from "@utils/optimistic-lock";
+import { matchesVersion, normalizeExpectedVersion } from "@utils/optimistic-lock";
 import {
+  coerceFilterValues,
   getAllowedFilterFieldIds,
   getNestedFilterPaths,
   rejectedFilterKeys,
-} from "@utils/collection-query-filters";
+} from "@utils/collection-query-filters.server";
 
 import {
   getDbModuleLazy,
   getHistoryServiceLazy,
-  getPubSubLazy,
   getTokenEngineLazy,
   getWorkflowServiceLazy,
 } from "./collections/lazy-services";
@@ -104,31 +107,65 @@ import {
   decryptReadStream,
   normalizeRelationshipFilter,
   readThroughCache,
+  presentRead,
+  fieldEncryptionContext,
+  readEncryptionContext,
+  NO_ENCRYPTION_CONTEXT,
+  DECRYPT_CLONE_OPTIONS,
+  hydrateRelationDisplays,
+  isHotCollectionId,
+  COLLECTION_QUERY_TTL_MS,
+  COLLECTION_QUERY_STALE_MS,
+  COLLECTION_QUERY_HOT_STALE_MS,
 } from "./collections/read-pipeline";
+import { mapEntryValues } from "@utils/entry-values";
+import { getSearchableFieldNames } from "@utils/collection-query-filters.server";
+import {
+  countStatusFacets,
+  type StatusFacetCounts,
+} from "@src/services/core/collection-filter-engine";
+import { recordListQuery } from "@utils/list-query-metrics";
+import { deepClone } from "@utils/native-utils";
 import {
   applyWidgetPipeline,
   encryptWritePayload,
   prepareWritePayload,
   writeTouchesActiveWidgets,
-  type PrepFieldSchema,
 } from "./collections/write-pipeline";
 import { compileRelationFilters } from "./collections/relation-filter";
+import { ownershipFilter, ownerValue, stripUnownedRows } from "./collections/access-filter";
+export { ownershipFilter, ownerValue, stripUnownedRows };
 import {
-  assertBulkWriteValid,
-  isPublishTransition,
-  missingRequiredForPublish,
-  type BulkEntryUpdate,
-  type BulkRejection,
-} from "./collections/bulk-validation";
-import type { FieldEncryptionContext } from "@utils/security/field-encryption";
+  casVersionCandidates,
+  reconstructRevisionSnapshot,
+  recordRevision,
+  restoreEntryRevision,
+  revisionLimitOf,
+  type RecordRevisionOptions,
+} from "./collections/revisions";
+import { runCollectionAction } from "./collections/actions";
+import { getCollectionExecutionPlan } from "./collections/execution-plan";
 import {
-  invalidateCache,
+  executeBulkCreate,
+  executeBulkDelete,
+  executeBulkUpdate,
+  executeFindByIds,
+  MAX_BULK_BATCH_SIZE,
+} from "./collections/bulk-operations";
+import { missingRequiredForPublish } from "./collections/bulk-validation";
+export { MAX_BULK_BATCH_SIZE };
+import {
   persistWithOutbox,
   schedulePostWrite,
   shouldSkipWriteSideEffects,
   triggerLifecycleHook,
 } from "./collections/post-write";
 import { scheduleDefaultListWarm } from "./collections/list-warm";
+import {
+  afterCommitQueueOf,
+  runAfterCommit,
+  transactionOf,
+} from "./collections/transaction-context";
 
 /** Cached lazy handle to the content engine — one module-registry lookup instead of one per call. */
 let contentModulePromise: Promise<typeof import("@src/content/index.server")> | undefined;
@@ -137,6 +174,20 @@ function loadContentModule(): Promise<typeof import("@src/content/index.server")
 }
 
 type ContentSystem = typeof serverContentSystem;
+
+/** Adapter envelope returned by `crud.findOne` — threaded through the write pipeline. */
+type FindOneEnvelope = Awaited<ReturnType<IDBAdapter["crud"]["findOne"]>>;
+
+/**
+ * Scope a write must satisfy on its target row: `false` when the schema
+ * declares no ownership, `null` when ownership is declared but the caller has
+ * no usable user id (fail closed), the ownership fragment otherwise. `access`
+ * carries the read-access rule fragment, if any.
+ */
+interface WriteOwnershipScope {
+  scope: Record<string, unknown> | false | null;
+  access: Record<string, unknown> | null;
+}
 
 function isThenable<T>(value: T | Promise<T>): value is Promise<T> {
   return !!value && typeof (value as { then?: unknown }).then === "function";
@@ -150,118 +201,6 @@ function readerMaySeeGuardedFields(
   if (system) return true;
   if (!user) return false;
   return user._id === "system" || isAdmin(user);
-}
-
-/**
- * Decrypt, then drop fields the caller may not read. The cache keeps the full
- * row; this runs on the way out. Unguarded schemas and admins return the
- * decrypt result unchanged.
- */
-/**
- * Row-ownership scope for a schema (`ownership: { field }`).
- *
- * Returns `false` when no restriction applies (no ownership declared, or an
- * admin/system caller), `null` when the caller cannot see any row (ownership is
- * declared but the caller has no user id — fail closed), and the extra WHERE
- * fragment otherwise. Merged into the list query before the cache key, so pages
- * and counts reflect exactly the rows the caller may read.
- */
-export function ownershipFilter(
-  schema: Schema,
-  user: unknown,
-  system?: boolean,
-): Record<string, unknown> | null | false {
-  const ownership = (schema as { ownership?: { field?: unknown } }).ownership;
-  const field = ownership && typeof ownership === "object" ? ownership.field : undefined;
-  if (typeof field !== "string" || !field) return false;
-  if (system || isAdmin(user)) return false;
-  const ownerId = (user as { _id?: unknown } | undefined | null)?._id;
-  if (ownerId === undefined || ownerId === null || ownerId === "") return null;
-  return { [field]: ownerId };
-}
-
-function ownerValue(row: unknown, field: string): unknown {
-  if (!row || typeof row !== "object") return undefined;
-  const value = (row as Record<string, unknown>)[field];
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    return (value as { _id?: unknown })._id;
-  }
-  return value;
-}
-
-/**
- * Drop rows the caller does not own from a read envelope.
- *
- * Envelopes already served by an ownership-scoped query pass through untouched
- * (the fast paths return the same reference); a foreign row is removed on a
- * **copied** envelope, so a shared point-read cache entry is never mutated or
- * poisoned.
- */
-export function stripUnownedRows(envelope: unknown, field: string, user: unknown): unknown {
-  if (!envelope || typeof envelope !== "object") return envelope;
-  const record = envelope as { data?: unknown };
-  const ownerId = (user as { _id?: unknown } | undefined | null)?._id;
-  // Coerced once outside the per-row closure — `String(ownerId)` was per row.
-  // A missing/empty owner id must still strip every row on a copied envelope
-  // (never early-return the original), so `owns` keeps its per-row guard.
-  const ownerKey =
-    ownerId === undefined || ownerId === null || ownerId === "" ? null : String(ownerId);
-  const owns = (row: unknown): boolean => {
-    if (ownerKey === null) return false;
-    const value = ownerValue(row, field);
-    return value !== undefined && value !== null && String(value) === ownerKey;
-  };
-
-  const data = record.data;
-  if (Array.isArray(data)) {
-    let firstForeign = -1;
-    for (let i = 0; i < data.length; i++) {
-      if (!owns(data[i])) {
-        firstForeign = i;
-        break;
-      }
-    }
-    if (firstForeign === -1) return envelope;
-    const kept: unknown[] = data.slice(0, firstForeign);
-    for (let i = firstForeign + 1; i < data.length; i++) {
-      if (owns(data[i])) kept.push(data[i]);
-    }
-    return { ...record, data: kept };
-  }
-  if (data === null || data === undefined || owns(data)) return envelope;
-  return { ...record, data: null };
-}
-
-function presentRead(
-  result: unknown,
-  schema: Schema,
-  hot: SchemaHotFlags,
-  encCtx: FieldEncryptionContext,
-  user: LocalApiOptions["user"],
-  system?: boolean,
-): any {
-  const decoded = decryptReadResult(result, hot, encCtx, DECRYPT_CLONE_OPTIONS);
-  const permitted =
-    !hot._hasGuardedFields || readerMaySeeGuardedFields(user, system)
-      ? decoded
-      : redactReadEnvelope(decoded, schema.fields as FieldInstance[], user);
-  // Row ownership: a non-owner never sees the row. The scoped list/count/stream
-  // queries already exclude foreign rows; this guards point reads (and every lane
-  // that reads through a shared cache) by dropping, never mutating, the envelope.
-  const ownership = (schema as { ownership?: { field?: unknown } }).ownership;
-  const ownerField = ownership && typeof ownership === "object" ? ownership.field : undefined;
-  if (typeof ownerField !== "string" || !ownerField || system || isAdmin(user)) return permitted;
-  return stripUnownedRows(permitted, ownerField, user);
-}
-
-function fieldEncryptionContext(
-  schema: Schema,
-  tenantId: DatabaseId | null | undefined,
-): FieldEncryptionContext {
-  return {
-    collectionId: String(schema._id ?? schema.name ?? ""),
-    tenantId: tenantId != null && String(tenantId).length > 0 ? String(tenantId) : "global",
-  };
 }
 
 /**
@@ -279,106 +218,8 @@ function writePhaseT0(options: LocalApiOptions): number {
   return options.__phaseMarks ? performance.now() : 0;
 }
 
-/**
- * Encryption context for the read path.
- *
- * `decryptReadResult` ignores its context entirely unless the schema declares
- * `encrypt: true` fields, so an unencrypted schema — the common case on a hot read
- * lane — should not allocate a context object per call.
- */
-function readEncryptionContext(
-  schema: Schema,
-  tenantId: DatabaseId | null | undefined,
-  hot: { _hasEncryptedFields?: boolean },
-): FieldEncryptionContext {
-  return hot._hasEncryptedFields ? fieldEncryptionContext(schema, tenantId) : NO_ENCRYPTION_CONTEXT;
-}
-
-/** Shared placeholder — never read, because the context is only used when fields encrypt. */
-const NO_ENCRYPTION_CONTEXT: FieldEncryptionContext = Object.freeze({
-  collectionId: "",
-  tenantId: "",
-});
-
-/**
- * Shared `{ clone: true }` options object for `decryptReadResult` — the function
- * only reads `opts.clone` (never mutates opts), so the hot read lanes share one
- * frozen instance instead of allocating one per call.
- */
-const DECRYPT_CLONE_OPTIONS: Readonly<{ clone: true }> = Object.freeze({ clone: true });
-
 /** Searchable field names — hoisted so the per-item filter loop shares one array. */
 const SEARCHABLE_FIELDS = ["title", "content", "description", "name"];
-
-/**
- * Effective, sane revision bound for a schema (`revisionLimit` is author-controlled).
- * The Collection Builder accepts 1–1000, so any positive integer is honoured; an
- * absent/non-finite limit falls back to {@link DEFAULT_REVISION_LIMIT}.
- */
-function revisionLimitOf(schema: Schema): number {
-  const configured = schema.revisionLimit;
-  if (!Number.isFinite(configured) || (configured as number) < MIN_REVISION_LIMIT) {
-    return DEFAULT_REVISION_LIMIT;
-  }
-  return Math.floor(configured as number);
-}
-
-/**
- * Values to try in a compare-and-set filter for one row version.
- *
- * A `Date` binds correctly on Drizzle (`timestamp`) and Mongoose; the raw SDK
- * value (an ISO string) is the fallback for adapters that store strings. Both
- * represent the version the caller loaded, so a retry cannot mask a real change.
- */
-function casVersionCandidates(version: unknown): unknown[] {
-  const candidates: unknown[] = [];
-  const ms = versionKey(version);
-  if (ms !== null) candidates.push(new Date(ms));
-  candidates.push(version);
-  return candidates;
-}
-
-/** Revision-row columns that are storage metadata, never part of the snapshot. */
-const REVISION_META_KEYS = new Set([
-  "_id",
-  "contentId",
-  "version",
-  "commitMessage",
-  "authorId",
-  "tenantId",
-  "createdAt",
-  "updatedAt",
-]);
-
-/**
- * Extract the content snapshot from a revision row.
- *
- * SQL adapters flatten the JSON `data` blob into the row root and drop the blob
- * (`flattenDataColumn`), so the snapshot IS the row minus its metadata. Mongo
- * returns the raw `{ data: {...} }` document. Both shapes are accepted.
- */
-function revisionSnapshot(row: Record<string, unknown>): Record<string, unknown> | null {
-  const blob = row.data;
-  if (blob && typeof blob === "object" && !Array.isArray(blob)) {
-    return { ...(blob as Record<string, unknown>) };
-  }
-  if (typeof blob === "string") {
-    try {
-      const parsed = JSON.parse(blob) as unknown;
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        return { ...(parsed as Record<string, unknown>) };
-      }
-    } catch {
-      /* fall through to the flattened shape */
-    }
-  }
-
-  const snapshot: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(row)) {
-    if (!REVISION_META_KEYS.has(key)) snapshot[key] = value;
-  }
-  return Object.keys(snapshot).length > 0 ? snapshot : null;
-}
 
 /**
  * Reject filter keys and operators the schema/query layer cannot address.
@@ -420,28 +261,6 @@ function assertFilterableFields(schema: Schema, filter: unknown): void {
   }
 }
 
-/** Status/schedule patches have no nested arrays — skip recursive row-id walks. */
-function isShallowPatch(data: Record<string, unknown>): boolean {
-  for (const value of Object.values(data)) {
-    if (value !== null && typeof value === "object") return false;
-  }
-  return true;
-}
-
-function sameShallowPayload(updates: Array<{ data: Record<string, unknown> }>): boolean {
-  if (updates.length <= 1) return true;
-  const first = updates[0].data;
-  const keys = Object.keys(first);
-  for (let i = 1; i < updates.length; i++) {
-    const next = updates[i].data;
-    if (Object.keys(next).length !== keys.length) return false;
-    for (const key of keys) {
-      if (next[key] !== first[key]) return false;
-    }
-  }
-  return true;
-}
-
 /**
  * Shared publish-gate check for create/update: `hot._requiredFields` is the
  * pre-compiled plan from schema-store, so the check is one pass with no
@@ -455,7 +274,7 @@ function assertRequiredFieldsForPublish(hot: SchemaHotFlags, payload: unknown): 
 
   if (missingFields.length > 0) {
     throw new AppError(
-      missingFields.map((f) => `Field '${f}' is required when publishing`).join("; "),
+      missingFields.map((f: string) => `Field '${f}' is required when publishing`).join("; "),
       400,
       "FIELD_VALIDATION_ERROR",
     );
@@ -547,11 +366,41 @@ function scheduleIndexNowPing(
     });
 }
 
+const clientSchemaMemo = new WeakMap<object, Schema>();
+
+function normalizeFilterOperators(f: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(f)) {
+    if (v && typeof v === "object" && !Array.isArray(v)) {
+      const vObj = v as Record<string, unknown>;
+      if ("contains" in vObj && typeof vObj.contains === "string") {
+        out[k] = { $contains: vObj.contains };
+      } else if ("in" in vObj && Array.isArray(vObj.in)) {
+        out[k] = { $in: vObj.in };
+      } else if ("eq" in vObj) {
+        out[k] = { $eq: vObj.eq };
+      } else if ("isNull" in vObj && typeof vObj.isNull === "boolean") {
+        out[k] = vObj.isNull ? { $eq: null } : { $ne: null };
+      } else if ("gte" in vObj || "lte" in vObj) {
+        const range: Record<string, unknown> = {};
+        if ("gte" in vObj) range.$gte = vObj.gte;
+        if ("lte" in vObj) range.$lte = vObj.lte;
+        out[k] = range;
+      } else {
+        out[k] = v;
+      }
+    } else {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
 export class CollectionsNamespace {
   private _proxy: CollectionProxy;
 
   constructor(
-    private _dbAdapter: IDBAdapter,
+    public _dbAdapter: IDBAdapter,
     private _contentSystemOverride?: ContentSystem,
   ) {
     if (!(this._dbAdapter as any).collection) {
@@ -635,42 +484,70 @@ export class CollectionsNamespace {
    * revealed. A missing row returns so the adapter's own update/delete 404
    * stays the single response.
    */
-  private assertEntryOwnership(
+  assertEntryOwnership(
     schema: Schema,
     entryId: string,
     tenantId: DatabaseId | null | undefined,
     user: unknown,
     system?: boolean,
   ): void | Promise<void> {
-    const scope = ownershipFilter(schema, user, system);
-    if (scope === null) throw new AppError("Entry not found", 404, "NOT_FOUND");
-    const access = getReadConstraint(schema.name || String(schema._id), {
-      user: user as { _id?: unknown; role?: unknown } | null | undefined,
-      role: (user as { role?: string } | undefined)?.role,
-      tenantId: tenantId ? String(tenantId) : null,
-    });
-    if (scope === false && !access) return;
-    const field = scope ? Object.keys(scope)[0] : "";
+    const ownership = this.resolveWriteOwnership(schema, tenantId, user, system);
+    if (ownership.scope === null) raise(404, "Entry not found", "NOT_FOUND");
+    if (ownership.scope === false && !ownership.access) return;
     return this._dbAdapter.crud
       .findOne(
         this.getCollectionName(schema._id as string),
-        mergeAccessConstraint({ _id: entryId }, access) as never,
+        mergeAccessConstraint({ _id: entryId }, ownership.access) as never,
         {
           tenantId: tenantId as DatabaseId,
         },
       )
-      .then((existing) => {
-        if (!existing?.success || !existing.data) {
-          // A row hidden by an access rule must look absent, not forbidden.
-          if (access) throw new AppError("Entry not found", 404, "NOT_FOUND");
-          return;
-        }
-        if (!scope) return;
-        const value = field ? ownerValue(existing.data, field) : undefined;
-        if (value === undefined || value === null || String(value) !== String(scope[field])) {
-          throw new AppError("Entry not found", 404, "NOT_FOUND");
-        }
-      });
+      .then((existing) => this.assertOwnedWriteRow(existing, ownership));
+  }
+
+  /**
+   * Resolve the ownership/access scope a write must satisfy before touching the
+   * row. Shared by `assertEntryOwnership` and `update()` so the write pipeline
+   * resolves the scope once and can reuse a single loaded row.
+   */
+  private resolveWriteOwnership(
+    schema: Schema,
+    tenantId: DatabaseId | null | undefined,
+    user: unknown,
+    system?: boolean,
+  ): WriteOwnershipScope {
+    return {
+      scope: ownershipFilter(schema, user, system),
+      access: getReadConstraint(schema.name || String(schema._id), {
+        user: user as { _id?: unknown; role?: unknown } | null | undefined,
+        role: (user as { role?: string } | undefined)?.role,
+        tenantId: tenantId ? String(tenantId) : null,
+      }),
+    };
+  }
+
+  /**
+   * Validate a loaded row against the resolved write scope. A foreign row and a
+   * row hidden by an access rule both answer 404 so existence is not revealed;
+   * a missing row returns so the adapter's own update/delete 404 stays the
+   * single response.
+   */
+  private assertOwnedWriteRow(
+    existing: FindOneEnvelope | null | undefined,
+    ownership: WriteOwnershipScope,
+  ): void {
+    const { scope, access } = ownership;
+    if (!existing?.success || !existing.data) {
+      // A row hidden by an access rule must look absent, not forbidden.
+      if (access) raise(404, "Entry not found", "NOT_FOUND");
+      return;
+    }
+    if (!scope) return;
+    const field = Object.keys(scope)[0] ?? "";
+    const value = field ? ownerValue(existing.data, field) : undefined;
+    if (value === undefined || value === null || String(value) !== String(scope[field])) {
+      raise(404, "Entry not found", "NOT_FOUND");
+    }
   }
 
   /**
@@ -734,7 +611,7 @@ export class CollectionsNamespace {
   /** Warm schemas skip the async getSchema microtask and the ensureWidgets async hop
    * when hot-flags are already stamped (common on every request after first access).
    */
-  private async schemaOf(collectionId: string, tenantId?: DatabaseId | null): Promise<Schema> {
+  async schemaOf(collectionId: string, tenantId?: DatabaseId | null): Promise<Schema> {
     const peeked = peekReadySchema(tenantId, collectionId);
     // Only a flagged schema may skip ensureWidgets: ensureSchemaHotFlags refuses to
     // freeze flags while a named factory is still a pending chunk (it would record
@@ -782,7 +659,9 @@ export class CollectionsNamespace {
         CollectionsNamespace.setRequestCache(cacheKey, cached, undefined, tenantId);
         return cached;
       }
-    } catch {}
+    } catch (error) {
+      logger.debug("[collections-namespace] suppressed error", error);
+    }
 
     const cs = await this._resolveContentSystem();
     const collections = await cs.getCollections(tenantId);
@@ -829,7 +708,9 @@ export class CollectionsNamespace {
         CacheCategory.SYSTEM,
       );
       CollectionsNamespace.setRequestCache(cacheKey, processed, undefined, tenantId);
-    } catch {}
+    } catch (error) {
+      logger.debug("[collections-namespace] suppressed error", error);
+    }
 
     return processed;
   }
@@ -994,24 +875,43 @@ export class CollectionsNamespace {
   }
 
   async find(collectionId: string, options: any = {}) {
+    const t0 = performance.now();
     const {
       tenantId,
       filter = {},
-      limit: requestedLimit = 50,
-      offset = 0,
       bypassCache = false,
+      editEntryId,
+      language,
+      search,
+      sorts,
+      orGroups,
+      swr = false,
+      includeFacets = false,
+      includeCount = false,
     } = options;
-    // Hard ceiling on the SDK funnel both REST and GraphQL reads go through — a
-    // client-supplied limit can never reach `crud.findMany` unbounded.
+
+    const requestedLimit = options.pageSize ?? options.limit ?? 50;
     const limit = clampPageSize(requestedLimit, 50);
+    const offset =
+      options.offset !== undefined ? options.offset : options.page ? (options.page - 1) * limit : 0;
+    const effectivePage = options.page ?? Math.floor(offset / limit) + 1;
     const ttl = options.ttl ? Number(options.ttl) : undefined;
-    const schema = await this.schemaOf(collectionId, tenantId);
-    if (options.validateFilter === true) assertFilterableFields(schema, filter);
+    const schema = options.collection ?? (await this.schemaOf(collectionId, tenantId));
+    const plan = getCollectionExecutionPlan(schema);
+
+    let inputFilter = { ...(filter as Record<string, unknown>) };
+    if (editEntryId) {
+      inputFilter._id = editEntryId;
+    }
+    inputFilter = normalizeFilterOperators(inputFilter);
+
+    if (options.validateFilter === true) {
+      assertFilterableFields(schema, inputFilter);
+      inputFilter = coerceFilterValues(schema, inputFilter);
+    }
     const guarded = blockedGuardedNames(schema, options.user, options.system);
-    const normalizedFilter = stripGuardedFilter(normalizeRelationshipFilter(filter), guarded);
+    const normalizedFilter = stripGuardedFilter(normalizeRelationshipFilter(inputFilter), guarded);
     const ownership = ownershipFilter(schema, options.user, options.system);
-    // Ownership declared but the caller has no user id: fail closed, never fall
-    // back to an unscoped list.
     if (ownership === null) return { success: true, data: [] };
     const accessConstraint = getReadConstraint(schema.name || String(schema._id), {
       user: options.user,
@@ -1019,37 +919,57 @@ export class CollectionsNamespace {
       tenantId: tenantId ? String(tenantId) : null,
     });
     const decodedCursor = decodePageCursor(options.cursor);
-    // A supplied cursor that fails to decode must fail the request, not
-    // silently fall back to an offset page (which would return duplicates).
     if (options.cursor && !decodedCursor) {
       throw new AppError("Invalid keyset cursor", 400);
     }
     if (guarded && decodedCursor?.f && guarded.has(String(decodedCursor.f).split(".")[0])) {
       throw new AppError("Invalid keyset cursor", 400);
     }
-    // Keyset mode: cursor-driven deep pagination, opted into by `keyset: true`
-    // (first page) or by carrying a cursor (continuation pages). Cursor pages
-    // bypass the L1/L2 query cache (every page is a unique key with meta the
-    // cache would drop) and fetch limit+1 so `hasMore` + `nextCursor` come
-    // from the rows actually returned — the REST exposure of W2 (deep-offset
-    // cliff). Without the opt-in, responses stay byte-identical to before.
     const keysetMode = decodedCursor !== null || options.keyset === true;
-    // Relation operators ($some/$none/$every) need target-collection lookups,
-    // which are async. Resolve them to plain $in/$nin before the synchronous
-    // query builder (and the keyset merge) runs.
-    const resolvedFilter = await compileRelationFilters(normalizedFilter, schema, {
-      dbAdapter: this._dbAdapter.crud,
-      getCollectionName: (id) => this.getCollectionName(id),
-      resolveTargetSchema: (id) => this.schemaOf(id, tenantId),
-      tenantId,
-      user: options.user,
-      system: options.system,
-    });
+
+    if (typeof search === "string" && search.trim() && !editEntryId) {
+      const searchStr = search.trim();
+      const searchableFields = getSearchableFieldNames(schema);
+      if (searchableFields.length > 0) {
+        const searchConditions = searchableFields.map((field) => ({
+          [field]: { $contains: searchStr },
+        }));
+        if (normalizedFilter.$or && Array.isArray(normalizedFilter.$or)) {
+          normalizedFilter.$and = [
+            ...(normalizedFilter.$and && Array.isArray(normalizedFilter.$and)
+              ? normalizedFilter.$and
+              : []),
+            { $or: normalizedFilter.$or },
+            { $or: searchConditions },
+          ];
+          delete normalizedFilter.$or;
+        } else {
+          normalizedFilter.$or = searchConditions;
+        }
+      }
+    }
+
+    if (Array.isArray(orGroups) && orGroups.length > 0 && !editEntryId) {
+      if (normalizedFilter.$or && Array.isArray(normalizedFilter.$or)) {
+        normalizedFilter.$or = [...normalizedFilter.$or, ...orGroups];
+      } else {
+        normalizedFilter.$or = orGroups;
+      }
+    }
+
+    const resolvedFilter = plan.hasRelations
+      ? await compileRelationFilters(normalizedFilter, schema, {
+          dbAdapter: this._dbAdapter.crud,
+          getCollectionName: (id) => this.getCollectionName(id),
+          resolveTargetSchema: (id) => this.schemaOf(id, tenantId),
+          tenantId,
+          user: options.user,
+          system: options.system,
+        })
+      : normalizedFilter;
     const baseQuery: any = decodedCursor
       ? mergeKeysetFilter(resolvedFilter as Record<string, unknown>, decodedCursor)
       : resolvedFilter;
-    // Ownership wins over a caller-supplied field of the same name; the access
-    // constraint is merged as `$and` so a caller filter can never widen it.
     const scopedQuery = mergeAccessConstraint(
       ownership ? { ...baseQuery, ...ownership } : baseQuery,
       accessConstraint,
@@ -1063,24 +983,30 @@ export class CollectionsNamespace {
     );
 
     const hot = ensureSchemaHotFlags(schema);
-    // Unencrypted schemas (the common read case) share the frozen placeholder —
-    // `decryptReadResult` never reads the context without `_hasEncryptedFields`.
-    const encCtx = readEncryptionContext(schema, tenantId, hot);
-    assertEncryptedFieldsNotQueried(
-      query,
-      hot,
-      options.sortField || (Array.isArray(options.sort) ? options.sort?.[0]?.[0] : undefined),
-    );
+    const encCtx = plan.hasEncryption
+      ? readEncryptionContext(schema, tenantId, hot)
+      : NO_ENCRYPTION_CONTEXT;
+    if (plan.hasEncryption) {
+      assertEncryptedFieldsNotQueried(
+        query,
+        hot,
+        options.sortField || (Array.isArray(options.sort) ? options.sort?.[0]?.[0] : undefined),
+      );
+    }
 
-    // Id lookup (optional tenant + scalar status from publication clamp):
-    // one findOne on the adapter ultra path, `{ data: T[] }` envelope.
-    if (!decodedCursor && !offset && !options.fields && !options.populate) {
+    if (
+      !decodedCursor &&
+      !offset &&
+      !options.fields &&
+      !options.populate &&
+      !language &&
+      !includeFacets &&
+      !swr &&
+      !search &&
+      !includeCount
+    ) {
       const lookup = parseIdLookup(query);
       if (lookup) {
-        // Negative 404 fast path: a bare `_id` lookup (no status constraint)
-        // maps 1:1 onto the point-read cache key, so a known miss can skip the
-        // adapter entirely. Status-constrained lookups keep suffix semantics
-        // and are left to the cache below.
         const negativeKey =
           lookup.status === undefined
             ? `${tenantId || "global"}:collection:${schema._id}:${lookup.id}`
@@ -1114,7 +1040,7 @@ export class CollectionsNamespace {
           ]);
         }
         if (row) {
-          if (hot._hasActiveWidgets) {
+          if (plan.hasWidgets && hot._hasActiveWidgets) {
             const payload = [row];
             await applyWidgetPipeline(schema, payload, {
               dbAdapter: this._dbAdapter,
@@ -1134,25 +1060,31 @@ export class CollectionsNamespace {
           (schema as any)._collectionMeta = collectionMeta;
           (row as any)._collection = collectionMeta;
         }
-        const envelope = { success: true, data: row ? [row] : [] };
+        const envelope = { success: true, data: row ? [row] : [], entries: row ? [row] : [] };
+        if (plan.isPlain) {
+          return envelope;
+        }
         return presentRead(envelope, schema, hot, encCtx, options.user, options.system);
       }
     }
 
     const requestedSort =
-      options.sort ||
-      (options.sortField
-        ? ([[options.sortField, options.sortDirection || "desc"]] as [string, "asc" | "desc"][])
-        : undefined);
+      sorts && sorts.length > 0
+        ? sorts.map((s: { field: string; direction?: "asc" | "desc" }) => [
+            s.field,
+            s.direction || "desc",
+          ])
+        : options.sort
+          ? typeof options.sort === "object" &&
+            !Array.isArray(options.sort) &&
+            "field" in options.sort
+            ? [[options.sort.field, options.sort.direction || "desc"]]
+            : options.sort
+          : options.sortField
+            ? ([[options.sortField, options.sortDirection || "desc"]] as [string, "asc" | "desc"][])
+            : undefined;
     const sort = stripGuardedSort(requestedSort, guarded);
 
-    // Keyset mode: the cursor is self-describing, so a walk without an explicit
-    // sort continues in the cursor's own field/direction; the `_id` tiebreaker
-    // is appended so the emitted ORDER BY matches the compound (field, _id)
-    // cursor filter — without it, rows sharing the sort value order arbitrarily
-    // and the `(field = v AND _id …)` branch skips or repeats them. The first
-    // keyset page without a sort falls back to the findPage default (updatedAt
-    // desc) so the walk's order is defined once and never drifts.
     const sortForDb = keysetMode
       ? withIdTiebreaker(
           sort ??
@@ -1162,13 +1094,7 @@ export class CollectionsNamespace {
                 : { _id: decodedCursor.d === "asc" ? 1 : -1 }
               : defaultPageSortOption()),
         )
-      : // Deterministic default order (2026-09-28): an unsorted list read must have a
-        // defined row order — without one the engine picks the access path, and the
-        // LIMIT/OFFSET window can differ between two plans of the same query (SDK path
-        // vs the Direct-to-Wire list statement), which also makes OFFSET pagination
-        // non-deterministic. `_id` asc is unique and always indexed; the wire plane
-        // compiles the same ORDER BY, which is what makes byte parity provable.
-        (sort ?? defaultListSortOption());
+      : (sort ?? defaultListSortOption());
 
     const skipRequestCache = bypassCache || options.bypassRequestCache;
     const cacheKey = keysetMode
@@ -1188,133 +1114,416 @@ export class CollectionsNamespace {
           options,
         });
 
-    if (cacheKey) {
-      const cacheHit = await readThroughCache(cacheKey, tenantId, {
-        skipRequestCache,
-        bypassCache,
-      });
-      if (cacheHit.hit) {
-        // Re-register with the collection id so list keys join the keyspace index.
-        CollectionsNamespace.setRequestCache(
-          cacheKey,
-          cacheHit.payload,
-          schema._id as string,
-          tenantId,
-        );
-        return presentRead(cacheHit.payload, schema, hot, encCtx, options.user, options.system);
-      }
-    }
+    const shouldCount =
+      !keysetMode &&
+      (includeCount ||
+        options.page !== undefined ||
+        options.pageSize !== undefined ||
+        includeFacets ||
+        swr);
 
-    const fetchFromDb = () =>
-      this._dbAdapter.crud.findMany(this.getCollectionName(schema._id as string), query, {
-        limit: keysetMode ? limit + 1 : limit,
+    const loadFullData = async () => {
+      const fetchOpts = {
+        limit: keysetMode || shouldCount ? limit + 1 : limit,
         offset: keysetMode ? 0 : offset,
         sort: sortForDb,
         fields: options.fields,
         populate: options.populate,
-      });
+      };
 
-    const result = cacheKey
-      ? await cacheService.coalesceQuery(cacheKey, fetchFromDb)
-      : await fetchFromDb();
-
-    // Keyset continuation: slice the probe row and derive the next cursor from
-    // the last returned row. The cursor's own field/direction are authoritative
-    // when the caller repeats them (self-describing cursor), so a walk never
-    // drifts from the ORDER BY its pages were built with.
-    if (keysetMode && result.success && Array.isArray(result.data)) {
-      const hasMore = result.data.length > limit;
-      if (hasMore) result.data = result.data.slice(0, limit);
-      const cursorSort = resolvePageSort(sortForDb);
-      const last = hasMore ? (result.data[result.data.length - 1] as any) : null;
-      if (hasMore && last && last._id !== undefined && last._id !== null) {
-        const payload: Parameters<typeof encodePageCursor>[0] = {
-          id: String(last._id),
-          d: cursorSort.direction,
-        };
-        if (cursorSort.field !== "_id") {
-          payload.f = cursorSort.field;
-          payload.v = (last[cursorSort.field] as string | number | boolean | null) ?? null;
-        }
-        (result as { meta?: Record<string, unknown> }).meta = {
-          hasMore: true,
-          nextCursor: encodePageCursor(payload),
-        };
-      } else {
-        (result as { meta?: Record<string, unknown> }).meta = { hasMore: false };
-      }
-    }
-
-    if (result.success && result.data) {
-      if (hot._hasActiveWidgets) {
-        await applyWidgetPipeline(schema, result.data as unknown as EntryData[], {
-          dbAdapter: this._dbAdapter,
-          user: options.user || { _id: "system", role: "admin" },
-          type: "GET",
-          tenantId,
-          collectionName: schema.name,
-          skipValidation: options.skipValidation,
-          action: "find",
-        });
-      }
-
-      if (Array.isArray(result.data)) {
-        const collectionMeta = (schema as any)._collectionMeta || {
-          id: schema._id,
-          name: schema.name,
-          label: schema.label,
-        };
-        (schema as any)._collectionMeta = collectionMeta;
-        for (let i = 0; i < result.data.length; i++) {
-          const item = result.data[i] as any;
-          if (item) {
-            item._collection = collectionMeta;
-          }
-        }
-      }
-    }
-
-    if (options.populate && result.success && Array.isArray(result.data)) {
-      await resolvePopulatedRelations(
-        result.data,
-        schema,
-        options.populate,
-        tenantId,
-        this._dbAdapter,
-        this.getCollectionName.bind(this),
-      );
-    }
-
-    if (!bypassCache && cacheKey && result.success && result.data) {
-      try {
-        const cachePayload = result.data;
-        await cacheService.set(
-          cacheKey,
-          cachePayload,
-          ttl || 180,
-          (tenantId || undefined) as string,
-          CacheCategory.CONTENT,
-          // 🚀 List/query caches are collection-wide: any write to the collection
-          // must clear them. Tagged so clearByTags is O(#list-keys), not O(#docs).
-          // Superset (as-passed + physical + bare spellings) so a physical-only
-          // invalidator (Mongo crud → BaseAdapter.invalidateQueryCache) reaches
-          // logical-spelled entries too.
-          buildCollectionCacheTags(schema._id as string),
+      const fetchFromDb = async () => {
+        let r = await this._dbAdapter.crud.findMany(
+          this.getCollectionName(schema._id as string),
+          query,
+          fetchOpts,
         );
+        if (!r.success) {
+          try {
+            await this._dbAdapter.collection?.createModel?.(schema);
+          } catch (healError) {
+            logger.warn(`[CollectionsNamespace] Physical model heal failed for ${schema._id}`, {
+              healError,
+            });
+          }
+          r = await this._dbAdapter.crud.findMany(
+            this.getCollectionName(schema._id as string),
+            query,
+            fetchOpts,
+          );
+        }
+        return r;
+      };
 
-        // Negative Caching: If result is empty and it was a specific ID query
-        if (
-          query._id &&
-          (!result.data || (Array.isArray(result.data) && result.data.length === 0))
-        ) {
-          cacheService.recordMiss(cacheKey, (tenantId || undefined) as string);
+      const countPromise =
+        shouldCount && !editEntryId
+          ? this.count(collectionId, {
+              tenantId,
+              filter: inputFilter,
+              user: options.user,
+              system: options.system,
+              publicationFilter: options.publicationFilter,
+            }).catch(() => ({ success: false, data: undefined }))
+          : Promise.resolve({ success: false, data: undefined });
+
+      const [res, countRes] = await Promise.all([fetchFromDb(), countPromise]);
+
+      let rawRows: unknown[] = [];
+      let hasMore = false;
+      if (res.success && Array.isArray(res.data)) {
+        rawRows = res.data;
+        if (keysetMode || shouldCount) {
+          hasMore = rawRows.length > limit;
+          if (hasMore) rawRows = rawRows.slice(0, limit);
+        }
+      }
+
+      let totalItems: number | undefined;
+      if (shouldCount) {
+        if (editEntryId) {
+          totalItems = rawRows.length > 0 ? 1 : 0;
+        } else if (countRes.success && typeof countRes.data === "number") {
+          totalItems = countRes.data;
+        } else if (effectivePage === 1 && !hasMore && res.success) {
+          totalItems = rawRows.length;
+        } else {
+          totalItems = hasMore
+            ? (effectivePage - 1) * limit + rawRows.length + 1
+            : (effectivePage - 1) * limit + rawRows.length;
+        }
+      }
+
+      let data: unknown[] = rawRows;
+
+      if (keysetMode && res.success && data.length > 0) {
+        const cursorSort = resolvePageSort(sortForDb);
+        const last = hasMore ? (data[data.length - 1] as Record<string, unknown>) : null;
+        if (hasMore && last && last._id !== undefined && last._id !== null) {
+          const payload: Parameters<typeof encodePageCursor>[0] = {
+            id: String(last._id),
+            d: cursorSort.direction,
+          };
+          if (cursorSort.field !== "_id") {
+            payload.f = cursorSort.field;
+            payload.v = (last[cursorSort.field] as string | number | boolean | null) ?? null;
+          }
+          (res as { meta?: Record<string, unknown> }).meta = {
+            hasMore: true,
+            nextCursor: encodePageCursor(payload),
+          };
+        } else {
+          (res as { meta?: Record<string, unknown> }).meta = { hasMore: false };
+        }
+      }
+
+      if (res.success && data.length > 0) {
+        if (hot._hasActiveWidgets) {
+          await applyWidgetPipeline(schema, data as EntryData[], {
+            dbAdapter: this._dbAdapter,
+            user: options.user || { _id: "system", role: "admin" },
+            type: "GET",
+            tenantId,
+            collectionName: schema.name,
+            skipValidation: options.skipValidation,
+            action: "find",
+          });
         }
 
+        if (!language) {
+          const collectionMeta = (schema as { _collectionMeta?: unknown })._collectionMeta || {
+            id: schema._id,
+            name: schema.name,
+            label: schema.label,
+          };
+          (schema as { _collectionMeta?: unknown })._collectionMeta = collectionMeta;
+          data = (data as Array<Record<string, unknown>>).map((item) => {
+            if (item) {
+              return { ...item, _collection: collectionMeta };
+            }
+            return item;
+          });
+        }
+      }
+
+      if (options.populate && res.success && data.length > 0) {
+        await resolvePopulatedRelations(
+          data,
+          schema,
+          options.populate,
+          tenantId,
+          this._dbAdapter,
+          this.getCollectionName.bind(this),
+          {
+            user: options.user,
+            system: options.system,
+            requestedPublicationFilter: effectivePublicationFilter,
+            resolveTargetSchema: (id: string) => this.schemaOf(id, tenantId),
+          },
+        );
+      }
+
+      if (language && !editEntryId && res.success && data.length > 0) {
+        data = (data as Array<Record<string, unknown>>).map((entry) =>
+          mapEntryValues(entry, schema.fields, {
+            language,
+            mode: "list",
+          }),
+        );
+        if (plan.hasRelations) {
+          await hydrateRelationDisplays(data, schema, this._dbAdapter, tenantId);
+        }
+      }
+
+      if (!editEntryId && res.success && data.length > 0) {
+        try {
+          const { pluginRegistry } = await import("@src/plugins");
+          const hooks = await pluginRegistry.getSSRHooks(String(schema._id), tenantId, schema);
+          if (hooks.length > 0) {
+            const pluginContext = {
+              user: options.user,
+              tenantId: tenantId || "default",
+              language: language || "en",
+              dbAdapter: this._dbAdapter,
+              collectionSchema: schema,
+            };
+            const allPluginData = await Promise.all(
+              hooks.map((hook) => hook(pluginContext, data as EntryData[])),
+            );
+            for (const hookData of allPluginData) {
+              for (const entryData of hookData) {
+                const found = (
+                  data as Array<{ _id?: unknown; pluginData?: Record<string, unknown> }>
+                ).find((r) => String(r._id) === String(entryData.entryId));
+                if (found) {
+                  found.pluginData = { ...found.pluginData, ...entryData.data };
+                }
+              }
+            }
+          }
+        } catch (err) {
+          logger.warn("Failed to run plugin SSR hooks", { error: err });
+        }
+      }
+
+      let revisions: RevisionData[] | undefined;
+      if (editEntryId && schema.revision) {
+        try {
+          const { HistoryService } = await import("@src/services/content/history-service");
+          const revisionsResult = await HistoryService.getRevisions({
+            collectionId: String(schema._id),
+            entryId: editEntryId,
+            tenantId: tenantId || "",
+            dbAdapter: this._dbAdapter,
+            limit: 100,
+          });
+          if (revisionsResult.success && "data" in revisionsResult) {
+            revisions = ((revisionsResult.data as { items?: RevisionData[] }).items ||
+              []) as RevisionData[];
+          }
+        } catch (e) {
+          logger.warn("Failed to load revisions", e);
+        }
+      }
+
+      let facets: StatusFacetCounts | undefined;
+      if (includeFacets) {
+        try {
+          facets = await this.getStatusFacets(schema, {
+            tenantId,
+            totalItems,
+          });
+        } catch (err) {
+          logger.debug("[CollectionsNamespace] Status facets failed", { error: err });
+          facets = {};
+        }
+      }
+
+      let clientSchema = clientSchemaMemo.get(schema);
+      if (!clientSchema) {
+        clientSchema = deepClone(schema) as Schema;
+        clientSchemaMemo.set(schema, clientSchema);
+      }
+
+      const envelope: Record<string, unknown> = {
+        ...res,
+        data,
+        entries: data,
+      };
+      if (shouldCount && totalItems !== undefined) {
+        envelope.pagination = {
+          totalItems,
+          pagesCount: Math.ceil(totalItems / limit) || 1,
+          currentPage: effectivePage,
+          pageSize: limit,
+          hasMore,
+        };
+      }
+      if (facets !== undefined) {
+        envelope.facets = facets;
+        envelope.statusFacets = facets;
+      }
+      if (revisions !== undefined) envelope.revisions = revisions;
+      if (language !== undefined) envelope.contentLanguage = language;
+      envelope.collectionSchema = clientSchema;
+
+      return envelope;
+    };
+
+    let result: Record<string, unknown> | null | undefined;
+    let cacheHit = false;
+
+    if (swr && cacheKey && !bypassCache) {
+      const staleTtlMs =
+        options.staleTtl ??
+        (isHotCollectionId(schema._id as string, tenantId)
+          ? COLLECTION_QUERY_HOT_STALE_MS
+          : COLLECTION_QUERY_STALE_MS);
+      const ttlMs =
+        (options.ttl ? Number(options.ttl) * 1000 : undefined) ?? COLLECTION_QUERY_TTL_MS;
+      const tags = buildCollectionCacheTags(schema._id as string);
+
+      result = await cacheService.getOrSetSWR(
+        cacheKey,
+        loadFullData,
+        ttlMs,
+        staleTtlMs,
+        tenantId,
+        CacheCategory.CONTENT,
+        tags,
+      );
+      cacheHit = true;
+      if (result) {
         CollectionsNamespace.setRequestCache(cacheKey, result, schema._id as string, tenantId);
-      } catch {}
+      }
+    } else {
+      if (cacheKey) {
+        const cached = await readThroughCache(cacheKey, tenantId, {
+          skipRequestCache,
+          bypassCache,
+        });
+        if (cached.hit) {
+          CollectionsNamespace.setRequestCache(
+            cacheKey,
+            cached.payload,
+            schema._id as string,
+            tenantId,
+          );
+          recordListQuery({
+            source: "CollectionsNamespace.find",
+            durationMs: Math.round((performance.now() - t0) * 100) / 100,
+            cache: "hit",
+            collectionId: String(schema._id),
+            rowCount: Array.isArray(cached.payload?.data) ? cached.payload.data.length : 0,
+            queryHash: cacheKey,
+          });
+          if (plan.isPlain) {
+            return cached.payload;
+          }
+          return presentRead(cached.payload, schema, hot, encCtx, options.user, options.system);
+        }
+      }
+
+      result = cacheKey
+        ? await cacheService.coalesceQuery(cacheKey, loadFullData)
+        : await loadFullData();
+
+      if (!bypassCache && cacheKey && result?.success && result?.data) {
+        try {
+          await cacheService.set(
+            cacheKey,
+            result,
+            ttl || 180,
+            (tenantId || undefined) as string,
+            CacheCategory.CONTENT,
+            buildCollectionCacheTags(schema._id as string),
+          );
+
+          if (
+            query._id &&
+            (!result.data || (Array.isArray(result.data) && result.data.length === 0))
+          ) {
+            cacheService.recordMiss(cacheKey, (tenantId || undefined) as string);
+          }
+
+          CollectionsNamespace.setRequestCache(cacheKey, result, schema._id as string, tenantId);
+        } catch (error) {
+          logger.debug("[collections-namespace] suppressed error", error);
+        }
+      }
     }
 
+    const durationMs = Math.round((performance.now() - t0) * 100) / 100;
+    recordListQuery({
+      source: "CollectionsNamespace.find",
+      durationMs,
+      cache: cacheHit ? "hit" : bypassCache ? "bypass" : "miss",
+      collectionId: String(schema._id),
+      rowCount: Array.isArray(result?.data) ? result.data.length : 0,
+      queryHash: cacheKey || "",
+    });
+
+    if (plan.isPlain) {
+      return result;
+    }
     return presentRead(result, schema, hot, encCtx, options.user, options.system);
+  }
+
+  /**
+   * Status facet counts for filter chips (P1). Tenant-scoped.
+   *
+   * SWR-cached under `collection:{id}:facets:{tenant}` with the list's tag
+   * contract, so `cacheService.invalidateCollection(id)` also drops the counts.
+   */
+  public async getStatusFacets(
+    collectionIdOrSchema: string | Schema,
+    input: {
+      tenantId?: string | DatabaseId | null;
+      totalItems?: number;
+    } = {},
+  ): Promise<StatusFacetCounts> {
+    if (input.totalItems === 0) {
+      return { publish: 0, draft: 0, unpublish: 0, schedule: 0, archive: 0 };
+    }
+
+    const schema =
+      typeof collectionIdOrSchema === "string"
+        ? await this.schemaOf(collectionIdOrSchema, input.tenantId as DatabaseId | null | undefined)
+        : collectionIdOrSchema;
+    const collectionId = String(schema._id ?? schema.name ?? "unknown");
+    const tenantKey = input.tenantId ? String(input.tenantId) : "global";
+    const cacheKey = `collection:${collectionId}:facets:${tenantKey}`;
+    const tags = ["collection", `collection:${collectionId}`];
+
+    return cacheService.getOrSetSWR<StatusFacetCounts>(
+      cacheKey,
+      async () => {
+        const baseWhere: Record<string, unknown> = {};
+        if (isMultiTenantEnabled() && input.tenantId != null) {
+          baseWhere.tenantId = input.tenantId;
+        }
+
+        return countStatusFacets({
+          queryBuilder: (table) =>
+            this._dbAdapter.queryBuilder(table) as QueryBuilder<Record<string, unknown>>,
+          collectionTableName: collectionTableName(collectionId),
+          baseWhere,
+          tenantId: input.tenantId,
+          crudCount: (table, filter, opts) =>
+            this._dbAdapter.crud.count(
+              table,
+              filter as QueryFilter<BaseEntity>,
+              opts as CountOptions,
+            ) as Promise<{
+              success: boolean;
+              data?: number;
+            }>,
+        });
+      },
+      COLLECTION_QUERY_TTL_MS,
+      COLLECTION_QUERY_STALE_MS,
+      input.tenantId,
+      CacheCategory.COLLECTION,
+      tags,
+    );
   }
 
   async findStreaming(
@@ -1336,7 +1545,11 @@ export class CollectionsNamespace {
     // Shared getSchema path — findStreaming previously bypassed the schema cache
     // via cs.getCollection, causing duplicate resolution per stream.
     const schema = await this.schemaOf(collectionId, tenantId);
-    if (options.validateFilter === true) assertFilterableFields(schema, options.filter);
+    let streamInputFilter = options.filter as Record<string, unknown> | undefined;
+    if (options.validateFilter === true) {
+      assertFilterableFields(schema, options.filter);
+      streamInputFilter = coerceFilterValues(schema, streamInputFilter);
+    }
     const hot = ensureSchemaHotFlags(schema);
     const encCtx = readEncryptionContext(schema, tenantId, hot);
     // 🚀 Avoid the `{ ...options.filter }` spread allocation when filter is empty or
@@ -1344,7 +1557,7 @@ export class CollectionsNamespace {
     // only clones when an operator rewrite is needed (lazy-clone internally).
     const streamGuarded = blockedGuardedNames(schema, user, options.system);
     const normalizedStreamFilter = stripGuardedFilter(
-      normalizeRelationshipFilter(options.filter ?? {}),
+      normalizeRelationshipFilter(streamInputFilter ?? {}),
       streamGuarded,
     );
     const streamSortField = stripGuardedSort(options.sortField, streamGuarded);
@@ -1431,9 +1644,13 @@ export class CollectionsNamespace {
   ) {
     const { tenantId, filter = {} } = options;
     const schema = await this.schemaOf(collectionId, tenantId);
-    if (options.validateFilter === true) assertFilterableFields(schema, filter);
+    let countInputFilter = filter as Record<string, unknown>;
+    if (options.validateFilter === true) {
+      assertFilterableFields(schema, filter);
+      countInputFilter = coerceFilterValues(schema, countInputFilter);
+    }
     const normalizedFilter = stripGuardedFilter(
-      normalizeRelationshipFilter(filter),
+      normalizeRelationshipFilter(countInputFilter),
       blockedGuardedNames(schema, options.user, options.system),
     );
     assertEncryptedFieldsNotQueried(normalizedFilter, ensureSchemaHotFlags(schema));
@@ -1511,7 +1728,7 @@ export class CollectionsNamespace {
   ) {
     const { tenantId, limit, page } = options;
     const { HistoryService } = await getHistoryServiceLazy();
-    return HistoryService.getRevisions({
+    const result = await HistoryService.getRevisions({
       collectionId,
       entryId,
       tenantId: tenantId as string,
@@ -1519,132 +1736,37 @@ export class CollectionsNamespace {
       limit: limit || 100,
       page: page || 1,
     });
+
+    // Delta payloads are a storage encoding, not the public shape. Callers (the
+    // history UI and the undo path) expect a complete snapshot under `data`, so
+    // each delta is expanded against its nearest baseline before it leaves here.
+    const rows = (result as { data?: { items?: unknown[] } }).data?.items;
+    if (result.success && Array.isArray(rows) && rows.length > 0) {
+      const store = this._dbAdapter.content.revisions as unknown as Parameters<
+        typeof reconstructRevisionSnapshot
+      >[0];
+      const scope = tenantId ? { tenantId: tenantId as DatabaseId } : undefined;
+      const expanded = await Promise.all(
+        rows.map(async (item) => {
+          const row = item as Record<string, unknown>;
+          const version = Number(row.version);
+          if (!Number.isInteger(version) || version < 1) return item;
+          const snapshot = await reconstructRevisionSnapshot(
+            store,
+            entryId as DatabaseId,
+            version,
+            scope,
+          );
+          return snapshot ? { ...row, data: snapshot } : item;
+        }),
+      );
+      (result as { data: { items: unknown[] } }).data.items = expanded;
+    }
+    return result;
   }
 
   async bulkCreate(collectionId: string, data: any[], options: LocalApiOptions = {}) {
-    const { user, tenantId, system } = options;
-    if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
-    const schema = await this.schemaOf(collectionId, tenantId);
-    const hot = ensureSchemaHotFlags(schema);
-
-    const effectiveUser = system ? { _id: "system", role: "admin" } : user;
-
-    if (
-      !system &&
-      !isAdmin(user) &&
-      (hot._hasGuardedFields ?? true) &&
-      schema.fields &&
-      schema.fields.length > 0
-    ) {
-      const { assertWriteAllowed } =
-        await import("@src/services/security/field-permission-service");
-      for (const item of data) {
-        if (item && typeof item === "object") {
-          await assertWriteAllowed(
-            schema.fields as FieldInstance[],
-            item as Record<string, unknown>,
-            user,
-            {
-              collectionName: schema.name,
-              tenantId: tenantId ?? undefined,
-            },
-          );
-        }
-      }
-    }
-
-    const now = nowISODateString();
-    const createdBy = effectiveUser?._id;
-
-    const entries: EntryData[] = data.map((item) => {
-      let doc = item;
-      if (doc && typeof doc === "object") {
-        if (hot._hasConstrainedFields) {
-          doc = prepareCollectionFields(doc, schema as PrepFieldSchema, { constraints: true });
-        }
-        return {
-          ...doc,
-          tenantId,
-          createdBy,
-          createdAt: (doc as any).createdAt || now,
-        } as EntryData;
-      }
-      return doc as EntryData;
-    });
-
-    if (hot._hasActiveWidgets) {
-      await applyWidgetPipeline(schema, entries, {
-        dbAdapter: this._dbAdapter,
-        user: effectiveUser,
-        type: "POST",
-        tenantId,
-        collectionName: schema.name,
-        skipValidation: options.skipValidation,
-        action: "bulkCreate",
-        system,
-      });
-    }
-
-    if (hot._hasEncryptedFields) {
-      const encCtx = fieldEncryptionContext(schema, tenantId);
-      for (let i = 0; i < entries.length; i++) {
-        await encryptWritePayload(entries[i], hot, encCtx);
-      }
-    }
-
-    let result;
-    const bulkOptions = { tenantId, ...(options as any) };
-    if (this._dbAdapter.batch && typeof this._dbAdapter.batch.bulkInsert === "function") {
-      result = await this._dbAdapter.batch.bulkInsert(
-        this.getCollectionName(schema._id as string),
-        entries as any[],
-        bulkOptions,
-      );
-    } else if (this._dbAdapter.crud && typeof this._dbAdapter.crud.insertMany === "function") {
-      result = await this._dbAdapter.crud.insertMany(
-        this.getCollectionName(schema._id as string),
-        entries as any[],
-        bulkOptions,
-      );
-    } else {
-      throw new Error("Adapter does not support bulk operations.");
-    }
-
-    if (result.success && !shouldSkipWriteSideEffects(options)) {
-      if (!workflowKnownAbsent(schema._id as string, tenantId as string | undefined)) {
-        try {
-          const workflowService = await getWorkflowServiceLazy();
-          const insertedIds = Array.from({
-            length: (result.data as any[]).length,
-          }) as string[];
-          const resultsData = result.data as any[];
-          for (let i = 0; i < resultsData.length; i++) {
-            insertedIds[i] = resultsData[i]._id as string;
-          }
-          await workflowService.bulkInitializeWorkflow(
-            insertedIds,
-            schema._id as string,
-            tenantId as string,
-          );
-        } catch {}
-      }
-
-      invalidateCache(schema, tenantId);
-      try {
-        const pubSub = await getPubSubLazy();
-        pubSub.publish("entryUpdated", {
-          collection: schema.name || (schema._id as string),
-          id: "bulk",
-          action: "bulkCreate",
-          data: { count: entries.length },
-          timestamp: nowISODateString(),
-          tenantId,
-          user,
-        });
-      } catch {}
-    }
-
-    return result;
+    return executeBulkCreate(this, collectionId, data, options);
   }
 
   async bulkUpdate(
@@ -1652,243 +1774,7 @@ export class CollectionsNamespace {
     updates: Array<{ id: string; data: any }>,
     options: LocalApiOptions = {},
   ) {
-    const { user, tenantId, system } = options;
-    if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
-    const schema = await this.schemaOf(collectionId, tenantId);
-    const hot = ensureSchemaHotFlags(schema);
-
-    // 🛡️ Row ownership + access-rule check across all target IDs (mirrors bulkDelete)
-    const scope = ownershipFilter(schema, user, system);
-    if (scope === null) throw new AppError("Entry not found", 404, "NOT_FOUND");
-    const access = getReadConstraint(schema.name || String(schema._id), {
-      user,
-      role: user?.role,
-      tenantId: tenantId ? String(tenantId) : null,
-    });
-    const ownershipScope = scope === false ? null : scope;
-    if ((ownershipScope || access) && updates.length > 0) {
-      const field = ownershipScope ? Object.keys(ownershipScope)[0] : "";
-      const ownerId = field && ownershipScope ? String(ownershipScope[field]) : "";
-      const targetIds = updates.map((u) => u.id as DatabaseId);
-      const found = await this._dbAdapter.crud.findByIds(
-        this.getCollectionName(schema._id as string),
-        targetIds,
-        { tenantId: tenantId as DatabaseId, limit: targetIds.length },
-      );
-      const rows = found?.success && Array.isArray(found.data) ? found.data : [];
-      const wanted = new Set(updates.map((u) => String(u.id)));
-      let permitted = 0;
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i] as { _id?: unknown };
-        if (!wanted.has(String(row?._id ?? ""))) continue;
-        if (access && !rowMatchesConstraint(row, access)) continue;
-        if (field) {
-          const value = ownerValue(row, field);
-          if (value === undefined || value === null || String(value) !== ownerId) continue;
-        }
-        permitted++;
-      }
-      if (permitted !== wanted.size) throw new AppError("Entry not found", 404, "NOT_FOUND");
-    }
-
-    if (
-      !system &&
-      !isAdmin(user) &&
-      (hot._hasGuardedFields ?? true) &&
-      schema.fields &&
-      schema.fields.length > 0
-    ) {
-      const { assertWriteAllowed } =
-        await import("@src/services/security/field-permission-service");
-      for (const u of updates) {
-        await assertWriteAllowed(
-          schema.fields as FieldInstance[],
-          (u.data ?? {}) as Record<string, unknown>,
-          user,
-          {
-            collectionName: schema.name,
-            entryId: u.id,
-            tenantId: tenantId ?? undefined,
-          },
-        );
-      }
-    }
-
-    // 🛡️ PER-ENTRY VALIDATION (M4): the bulk lane used to write straight through,
-    // so publishing an entry whose required fields are empty succeeded silently
-    // while the list kept showing DRAFT. Every entry now runs the preparation
-    // `update()` runs (sanitize, constraints, widget validators, schema hooks,
-    // field permissions) plus the publish gate decided against the STORED row.
-    // The batch is rejected before the first row is written and the message
-    // names every offending entry.
-    //
-    // Cost: at most one extra `findByIds` for the whole batch (publish only) —
-    // a 20-entry publish stays one lookup + one UPDATE, never 20 statements.
-    const rejections: BulkRejection[] = [];
-    if (updates.length > 0) {
-      await this.collectBulkRejections(
-        schema,
-        hot,
-        updates,
-        { user, system, tenantId, options },
-        rejections,
-      );
-    }
-    assertBulkWriteValid(rejections, updates.length);
-
-    const now = nowISODateString();
-    const encCtx = hot._hasEncryptedFields ? fieldEncryptionContext(schema, tenantId) : undefined;
-    // Resolved once — the previous per-row `(schema.fields ?? []).some(...)` walk
-    // repeated the same schema scan for every row of the batch.
-    const schemaHasUpdatedByField = (schema.fields ?? []).some(
-      (f) => (f as { db_fieldName?: string }).db_fieldName === "updatedBy",
-    );
-
-    const formattedUpdates: Array<{ id: DatabaseId; data: Record<string, unknown> }> = [];
-    for (const u of updates) {
-      const raw = (u.data ?? {}) as Record<string, unknown>;
-      const patched = isShallowPatch(raw)
-        ? { ...raw }
-        : (copyDataWithFreshRowIds(raw) as Record<string, unknown>);
-      // Strip system-controlled ownership / tenant fields from client patch
-      delete patched.tenantId;
-      delete patched.createdBy;
-      delete patched._scheduledBy;
-      // Same schema-gated stamp as the single-update path: an undeclared
-      // `updatedBy` would merge into the JSON `data` blob and rewrite it on
-      // every bulk update (write amplification on all SQL engines).
-      const data = {
-        ...patched,
-        ...(schemaHasUpdatedByField ? { updatedBy: user?._id } : {}),
-        updatedAt: now,
-      };
-      if (encCtx) {
-        const encrypted = encryptWritePayload(data, hot, encCtx);
-        if (isThenable(encrypted)) await encrypted;
-      }
-      formattedUpdates.push({
-        id: u.id as DatabaseId,
-        data,
-      });
-    }
-
-    const table = this.getCollectionName(schema._id as string);
-    let result;
-
-    // Homogeneous payload (bulk publish/draft/archive) → one UPDATE WHERE _id IN (...)
-    // instead of N per-row statements. Tenant is applied by crud.updateMany.
-    if (formattedUpdates.length > 0 && sameShallowPayload(formattedUpdates)) {
-      result = await this._dbAdapter.crud.updateMany(
-        table,
-        { _id: { $in: formattedUpdates.map((u) => u.id) } } as any,
-        formattedUpdates[0].data as any,
-        { tenantId: tenantId as DatabaseId },
-      );
-    } else {
-      result = await this._dbAdapter.batch.bulkUpdate(table, formattedUpdates, {
-        tenantId: tenantId as DatabaseId,
-      });
-    }
-
-    if (result.success && !shouldSkipWriteSideEffects(options)) {
-      invalidateCache(schema, tenantId, {
-        writtenIds: formattedUpdates.map((u) => String(u.id)),
-      });
-    }
-
-    return result;
-  }
-
-  /**
-   * Per-entry gates for `bulkUpdate`, mirroring `update()`: payload preparation
-   * (sanitize, constraints, widget validators, schema hooks, field permissions)
-   * and — for a publish — the required/requiredIf gate evaluated against the
-   * stored row merged with the patch. Rejections are collected, never thrown
-   * from here, so the caller can name every bad entry in one message.
-   *
-   * Two `update()` steps stay out on purpose, both for the same reason (they can
-   * cost one call per row, which would turn a 20-entry publish into 20 round
-   * trips — the N+1 this lane must not acquire):
-   * - the widget `modifyRequest` pipeline (a widget may call out per row); a bulk
-   *   patch carries no widget-populated field to transform in practice
-   * - the per-row workflow publication lookup (`assertPublishAllowed`)
-   */
-  private async collectBulkRejections(
-    schema: Schema,
-    hot: SchemaHotFlags,
-    updates: readonly BulkEntryUpdate[],
-    ctx: {
-      user: any;
-      system?: boolean;
-      tenantId: DatabaseId | null | undefined;
-      options: LocalApiOptions;
-    },
-    out: BulkRejection[],
-  ): Promise<void> {
-    const { user, system, tenantId, options } = ctx;
-    const publishing = updates.some((u) => isPublishTransition(u.data));
-
-    // One lookup carries every target of the batch; only a publish needs the
-    // stored row (the required-field gate is evaluated on the merged document).
-    let existing: Map<string, Record<string, unknown>> | undefined;
-    if (publishing && (hot._hasRequiredFields || hot._hasConditionallyRequiredFields)) {
-      existing = await this.loadBulkGateRows(schema, tenantId, updates);
-    }
-
-    for (let i = 0; i < updates.length; i++) {
-      const row = updates[i];
-      const payload = (row.data ?? {}) as Record<string, unknown>;
-      try {
-        const prepared = prepareWritePayload(payload, schema, hot, {
-          user,
-          system,
-          operation: "update",
-          tenantId,
-          entryId: row.id,
-          skipValidation: options.skipValidation,
-        });
-        if (isThenable(prepared)) await prepared;
-      } catch (err) {
-        out.push({
-          id: row.id,
-          message: err instanceof Error ? err.message : String(err),
-        });
-        continue;
-      }
-
-      if (!publishing) continue;
-      const stored = existing?.get(row.id);
-      const merged = stored ? { ...stored, ...payload } : payload;
-      const missing = missingRequiredForPublish(hot, merged);
-      if (missing.length > 0) {
-        out.push({
-          id: row.id,
-          message: missing.map((f) => `Field '${f}' is required when publishing`).join("; "),
-        });
-      }
-    }
-  }
-
-  /** Stored rows for the publish gate, keyed by id — one query for the batch. */
-  private async loadBulkGateRows(
-    schema: Schema,
-    tenantId: DatabaseId | null | undefined,
-    updates: readonly BulkEntryUpdate[],
-  ): Promise<Map<string, Record<string, unknown>>> {
-    const rows = new Map<string, Record<string, unknown>>();
-    const found = await this._dbAdapter.crud.findByIds(
-      this.getCollectionName(schema._id as string),
-      updates.map((u) => u.id as DatabaseId),
-      { tenantId: tenantId as DatabaseId, limit: updates.length },
-    );
-    if (found?.success && Array.isArray(found.data)) {
-      for (const row of found.data as Array<{ _id?: unknown }>) {
-        if (row && row._id !== undefined) {
-          rows.set(String(row._id), row as Record<string, unknown>);
-        }
-      }
-    }
-    return rows;
+    return executeBulkUpdate(this, collectionId, updates, options);
   }
 
   async bulkDelete(
@@ -1896,70 +1782,7 @@ export class CollectionsNamespace {
     ids: string[],
     options: LocalApiOptions & { permanent?: boolean } = {},
   ) {
-    if (!Array.isArray(ids) || ids.length === 0) {
-      throw new AppError("entryIds[] is required for bulk delete", 400);
-    }
-    const { user, tenantId } = options;
-    if (!user) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
-    const schema = await this.schemaOf(collectionId, tenantId);
-    if (schema?.disableBulkDelete) {
-      throw new AppError(
-        `Bulk delete is disabled for collection "${schema.name || collectionId}"`,
-        403,
-        "BULK_DELETE_DISABLED",
-      );
-    }
-
-    const scope = ownershipFilter(schema, user, options.system);
-    if (scope === null) throw new AppError("Entry not found", 404, "NOT_FOUND");
-    const access = getReadConstraint(schema.name || String(schema._id), {
-      user,
-      role: user?.role,
-      tenantId: tenantId ? String(tenantId) : null,
-    });
-    const ownershipScope = scope === false ? null : scope;
-    if (ownershipScope || access) {
-      const field = ownershipScope ? Object.keys(ownershipScope)[0] : "";
-      const ownerId = field && ownershipScope ? String(ownershipScope[field]) : "";
-      const found = await this._dbAdapter.crud.findByIds(
-        this.getCollectionName(schema._id as string),
-        ids as DatabaseId[],
-        { tenantId: tenantId as DatabaseId, limit: ids.length },
-      );
-      const rows = found?.success && Array.isArray(found.data) ? found.data : [];
-      const wanted = new Set(ids);
-      let permitted = 0;
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i] as { _id?: unknown };
-        if (!wanted.has(String(row?._id ?? ""))) continue;
-        if (access && !rowMatchesConstraint(row, access)) continue;
-        if (field) {
-          const value = ownerValue(row, field);
-          if (value === undefined || value === null || String(value) !== ownerId) continue;
-        }
-        permitted++;
-      }
-      if (permitted !== wanted.size) throw new AppError("Entry not found", 404, "NOT_FOUND");
-    }
-
-    // Single DELETE WHERE _id IN (...) with tenant isolation via mapQuery.
-    // `permanent` is explicit: false (default) soft-deletes into the Trash (`isDeleted`),
-    // true issues a real DELETE. The UI asks for the Trash; purge paths pass true.
-    const result = await this._dbAdapter.crud.deleteMany(
-      this.getCollectionName(schema._id as string),
-      { _id: { $in: ids as DatabaseId[] } } as any,
-      {
-        tenantId: tenantId as DatabaseId,
-        userId: user?._id as DatabaseId,
-        permanent: options.permanent === true,
-      },
-    );
-
-    if (result.success && !shouldSkipWriteSideEffects(options)) {
-      invalidateCache(schema, tenantId, { writtenIds: ids });
-    }
-
-    return result;
+    return executeBulkDelete(this, collectionId, ids, options);
   }
 
   /**
@@ -1967,27 +1790,7 @@ export class CollectionsNamespace {
    * Used by bulk clone so source rows are not processed twice.
    */
   async findByIds(collectionId: string, ids: string[], options: LocalApiOptions = {}) {
-    if (!ids.length) return { success: true, data: [] };
-    const { tenantId } = options;
-    const schema = await this.schemaOf(collectionId, tenantId);
-    const result = await this._dbAdapter.crud.findByIds(
-      this.getCollectionName(schema._id as string),
-      ids as DatabaseId[],
-      { tenantId: tenantId as DatabaseId, limit: ids.length },
-    );
-    // Normalize to the SDK envelope so callers can always read `.data`.
-    const envelope = result?.success
-      ? result
-      : { success: false, data: [], message: (result as any)?.message };
-    const hot = ensureSchemaHotFlags(schema);
-    return presentRead(
-      envelope,
-      schema,
-      hot,
-      readEncryptionContext(schema, tenantId, hot),
-      options.user,
-      options.system,
-    );
+    return executeFindByIds(this, collectionId, ids, options);
   }
 
   async findById(collectionId: string, entryId: string, options: LocalApiOptions = {}) {
@@ -2018,6 +1821,29 @@ export class CollectionsNamespace {
     const cacheKey = `${tenantId || "global"}:collection:${schema._id}:${entryId}${publicationCacheSuffix(effectivePublicationFilter)}`;
     const skipRequestCache = bypassCache || options.bypassRequestCache;
 
+    // Warm the declared relations of a detail row for privileged callers. The
+    // entry editor opens relation pickers separately, so warming here makes the
+    // first open an L1 hit. `scheduleRelationWarmup` is deferred, capped and
+    // no-op for unprivileged callers; it never alters `data`.
+    const warmRelations = (result: { data?: unknown } | null | undefined): void => {
+      if (options.populate && options.populate.length > 0) return;
+      const row = result?.data;
+      if (!row || typeof row !== "object") return;
+      scheduleRelationWarmup(
+        [row],
+        schema,
+        tenantId || undefined,
+        this._dbAdapter,
+        (id) => this.getCollectionName(id),
+        {
+          user: options.user,
+          system: options.system,
+          requestedPublicationFilter: effectivePublicationFilter,
+          resolveTargetSchema: (id: string) => this.schemaOf(id, tenantId),
+        },
+      );
+    };
+
     // The request cache for this key is only ever populated by a caller that did NOT
     // pass `skipCacheService` (see `loadOneById`), so probing it on behalf of such a
     // caller is dead work on the cold point-read path.
@@ -2025,7 +1851,7 @@ export class CollectionsNamespace {
       const cachedEntry = getRequestCache(cacheKey);
       if (cachedEntry !== undefined) {
         const hot = ensureSchemaHotFlags(schema);
-        return presentRead(
+        const result = presentRead(
           cachedEntry,
           schema,
           hot,
@@ -2033,6 +1859,8 @@ export class CollectionsNamespace {
           options.user,
           options.system,
         );
+        warmRelations(result);
+        return result;
       }
     }
 
@@ -2046,7 +1874,7 @@ export class CollectionsNamespace {
       if (syncCached !== undefined && syncCached !== null) {
         CollectionsNamespace.setRequestCache(cacheKey, syncCached, schema._id as string, tenantId);
         const hot = ensureSchemaHotFlags(schema);
-        return presentRead(
+        const result = presentRead(
           syncCached,
           schema,
           hot,
@@ -2054,6 +1882,8 @@ export class CollectionsNamespace {
           options.user,
           options.system,
         );
+        warmRelations(result);
+        return result;
       }
     }
 
@@ -2081,7 +1911,9 @@ export class CollectionsNamespace {
     // Single-id hot path: direct loadOneById (no microtask batch delay). The
     // cache key built above is threaded through so the point-read lane does not
     // rebuild the same string and does not copy the options object.
-    return this.loadOneById(schema, entryId, options, cacheKey);
+    const result = await this.loadOneById(schema, entryId, options, cacheKey);
+    warmRelations(result);
+    return result;
   }
 
   /**
@@ -2090,6 +1922,13 @@ export class CollectionsNamespace {
   private async loadOneById(schema: Schema, entryId: string, options: any, cacheKey?: string) {
     const { tenantId, ttl, bypassCache } = options;
     const collectionName = this.getCollectionName(schema._id as string);
+    // Content rows are written under the canonical `"global"` tenant (SQL) or
+    // `null` (Mongo) when tenancy is off, while the adapter's `tenantId: null`
+    // pins SQL filters to `IS NULL` and Mongo to `tenantId: null` (correct for
+    // auth/settings rows, wrong for content). A missing tenant is the unscoped
+    // read that matches content rows on both families — passing `"global"`
+    // still added a Mongo tenant filter and missed rows stored with `null`.
+    const adapterTenant = (tenantId || undefined) as DatabaseId | undefined;
     const effectivePublicationFilter =
       options.effectivePublicationFilter ||
       resolvePublicationFilter(
@@ -2103,11 +1942,11 @@ export class CollectionsNamespace {
     const result =
       typeof crud.findById === "function"
         ? await crud.findById(collectionName, entryId as DatabaseId, {
-            tenantId: tenantId as DatabaseId,
+            tenantId: adapterTenant,
             skipMeta: true,
           })
         : await crud.findOne(collectionName, { _id: entryId } as any, {
-            tenantId: tenantId as DatabaseId,
+            tenantId: adapterTenant,
             skipMeta: true,
           });
 
@@ -2218,6 +2057,9 @@ export class CollectionsNamespace {
 
   async create(collectionId: string, data: any, options: LocalApiOptions = {}) {
     const { user, tenantId, system } = options;
+    // Adapter handle supplied by a transactional caller (draft promotion).
+    // Absent for every standalone create, leaving the write path unchanged.
+    const transaction = transactionOf(options);
     if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
     const tSchema = writePhaseT0(options);
     const peeked = peekReadySchema(tenantId, collectionId);
@@ -2227,10 +2069,11 @@ export class CollectionsNamespace {
         ? await profileSpan("ns:getSchema", () => this.schemaOf(collectionId, tenantId))
         : await this.schemaOf(collectionId, tenantId);
     let hot = ensureSchemaHotFlags(schema);
+    const plan = getCollectionExecutionPlan(schema);
     // A populated hot flag means every declared lazy widget was already loaded
     // before the flag plan was frozen. Avoid the per-write widget-name array,
     // registry scan, and resolved-Promise hop on warm write paths.
-    if (hot._hasActiveWidgets === undefined) {
+    if (plan.hasWidgets && hot._hasActiveWidgets === undefined) {
       await widgetRegistryService.ensureWidgets(widgetNamesOf(schema));
       hot = ensureSchemaHotFlags(schema);
     }
@@ -2245,7 +2088,7 @@ export class CollectionsNamespace {
       const existing = await this._dbAdapter.crud.findOne(
         this.getCollectionName(schema._id as string),
         { _id: singletonId } as any,
-        { tenantId: tenantId as DatabaseId },
+        { tenantId: tenantId as DatabaseId, ...(transaction ? { transaction } : {}) },
       );
       if (existing?.success && existing.data) {
         throw new AppError(`Singleton '${collectionId}' already exists`, 409, "SINGLETON_EXISTS");
@@ -2271,12 +2114,18 @@ export class CollectionsNamespace {
 
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
 
-    // 🚪 Publication gate: workflows with gatePublication block direct
-    // publishing of brand-new entries (no instance exists yet — the workflow
-    // must approve before publish). System writes bypass the gate.
+    // 🚪 Publication gate:
+    // 1) Workflows with gatePublication block direct publishing of brand-new entries
+    //    (no instance exists yet — the workflow must approve before publish).
+    // 2) Required fields for publish must always be validated when publishing.
+    // System writes bypass both gates.
     const requestedStatus = (data as { status?: string } | null)?.status;
-    if (!system && (requestedStatus === "publish" || requestedStatus === "published")) {
+    const isPublishing =
+      !system && (requestedStatus === "publish" || requestedStatus === "published");
+
+    if (isPublishing) {
       if (
+        plan.hasWorkflows &&
         !isAdmin(effectiveUser) &&
         effectiveUser?.role !== "admin" &&
         !workflowKnownAbsent(schema._id as string, tenantId as string | undefined)
@@ -2303,7 +2152,7 @@ export class CollectionsNamespace {
         );
         if (!valid) {
           throw new AppError(
-            missingFields.map((f) => `Field '${f}' is required when publishing`).join("; "),
+            missingFields.map((f: string) => `Field '${f}' is required when publishing`).join("; "),
             400,
             "FIELD_VALIDATION_ERROR",
           );
@@ -2312,21 +2161,23 @@ export class CollectionsNamespace {
     }
 
     const mBefore = PROFILE_WRITE_ENABLED ? profileMark("ns:beforeSave") : null;
-    let finalData = triggerLifecycleHook(
-      this._dbAdapter,
-      "beforeSave",
-      collectionId,
-      entryData,
-      options,
-      schema,
-    );
+    let finalData = plan.hasHooks
+      ? triggerLifecycleHook(
+          this._dbAdapter,
+          "beforeSave",
+          collectionId,
+          entryData,
+          options,
+          schema,
+        )
+      : entryData;
     if (isThenable(finalData)) finalData = await finalData;
     mBefore?.();
 
     const m2 = PROFILE_WRITE_ENABLED ? profileMark("ns:widgets") : null;
     // Widget pipeline only when this payload actually hits a modifyRequest widget.
     // DateTime is inlined in prepareWritePayload — skip the async round-trip.
-    if (hot._hasActiveWidgets && writeTouchesActiveWidgets(hot, finalData)) {
+    if (plan.hasWidgets && hot._hasActiveWidgets && writeTouchesActiveWidgets(hot, finalData)) {
       const payload = [finalData];
       await applyWidgetPipeline(schema, payload, {
         dbAdapter: this._dbAdapter,
@@ -2345,14 +2196,16 @@ export class CollectionsNamespace {
     markWritePhase(options, "prep", tPrep);
 
     const collectionName = this.getCollectionName(schema._id as string);
-    const encCtx = hot._hasEncryptedFields
+    const encCtx = plan.hasEncryption
       ? fieldEncryptionContext(schema, tenantId)
       : NO_ENCRYPTION_CONTEXT;
     const tEnc = writePhaseT0(options);
     const mEnc = PROFILE_WRITE_ENABLED ? profileMark("ns:encrypt") : null;
     // `encryptWritePayload` is a synchronous identity — no Promise, no context
     // read — for schemas without `encrypt: true` fields.
-    const encryptedCreate = encryptWritePayload(finalData, hot, encCtx);
+    const encryptedCreate = plan.hasEncryption
+      ? encryptWritePayload(finalData, hot, encCtx)
+      : finalData;
     finalData = isThenable(encryptedCreate) ? await encryptedCreate : encryptedCreate;
     mEnc?.();
     markWritePhase(options, "encrypt", tEnc);
@@ -2371,39 +2224,47 @@ export class CollectionsNamespace {
       effectiveUser,
       (res) => String(res.data?._id ?? ""),
       (res) => res.data,
-      { skipSideEffects: options.skipSideEffects, skipReturning: options.skipReturning },
+      {
+        skipSideEffects: options.skipSideEffects,
+        skipReturning: options.skipReturning,
+        ...(transaction ? { transaction, afterCommit: afterCommitQueueOf(options) } : {}),
+      },
     );
     m3?.();
     markWritePhase(options, "dbwrite", tDb);
 
     const tPost = writePhaseT0(options);
-    const decryptedCreate = options.skipReturning
-      ? result
-      : decryptReadResult(result, hot, encCtx, DECRYPT_CLONE_OPTIONS);
+    const decryptedCreate =
+      options.skipReturning || !plan.hasEncryption
+        ? result
+        : decryptReadResult(result, hot, encCtx, DECRYPT_CLONE_OPTIONS);
     if (result && result.success && result.data) {
       const createdId = result.data!._id as string;
       // Resolved once — the three side-effect schedules below shared the same
       // `decryptedCreate?.data ?? result.data` expression.
       const postWriteDoc = decryptedCreate?.data ?? result.data;
-      // ⚡ Response-path: never await side effects — concurrent create RPS depends on this
-      schedulePostWrite(
-        this._dbAdapter,
-        "create",
-        schema,
-        collectionId,
-        tenantId,
-        createdId,
-        postWriteDoc,
-        effectiveUser,
-        options,
-      );
-      scheduleAfterOperation(schema, hot, postWriteDoc, "create", effectiveUser, tenantId);
-      if (!shouldSkipWriteSideEffects(options) && !options.skipReturning) {
-        scheduleIndexNowPing(collectionId, postWriteDoc, tenantId);
-        scheduleDefaultListWarm(schema._id as string, tenantId, effectiveUser, (warmOpts) =>
-          this.find(collectionId, { tenantId: warmOpts.tenantId, user: warmOpts.user }),
+      // ⚡ Response-path: never await side effects — concurrent create RPS depends on this.
+      // Inside a transaction they are queued and replayed only after COMMIT.
+      runAfterCommit(options, () => {
+        schedulePostWrite(
+          this._dbAdapter,
+          "create",
+          schema,
+          collectionId,
+          tenantId,
+          createdId,
+          postWriteDoc,
+          effectiveUser,
+          options,
         );
-      }
+        scheduleAfterOperation(schema, hot, postWriteDoc, "create", effectiveUser, tenantId);
+        if (!shouldSkipWriteSideEffects(options) && !options.skipReturning) {
+          scheduleIndexNowPing(collectionId, postWriteDoc, tenantId);
+          scheduleDefaultListWarm(schema._id as string, tenantId, effectiveUser, (warmOpts) =>
+            this.find(collectionId, { tenantId: warmOpts.tenantId, user: warmOpts.user }),
+          );
+        }
+      });
     }
     markWritePhase(options, "postwrite", tPost);
 
@@ -2412,6 +2273,9 @@ export class CollectionsNamespace {
 
   async update(collectionId: string, entryId: string, data: any, options: LocalApiOptions = {}) {
     const { user, tenantId, system } = options;
+    // Adapter handle supplied by a transactional caller (draft promotion).
+    // Absent for every standalone update, leaving the write path unchanged.
+    const transaction = transactionOf(options);
     if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
     const tSchema = writePhaseT0(options);
     const peekedUpdate = peekReadySchema(tenantId, collectionId);
@@ -2421,17 +2285,45 @@ export class CollectionsNamespace {
         ? await profileSpan("ns:getSchema", () => this.schemaOf(collectionId, tenantId))
         : await this.schemaOf(collectionId, tenantId);
     let hot = ensureSchemaHotFlags(schema);
+    const plan = getCollectionExecutionPlan(schema);
     // See create(): only schemas whose flag plan could not be frozen yet need
     // a lazy-factory check. This preserves widget processing on a cold schema
     // while keeping established PATCHes entirely synchronous before validation.
-    if (hot._hasActiveWidgets === undefined) {
+    if (plan.hasWidgets && hot._hasActiveWidgets === undefined) {
       await widgetRegistryService.ensureWidgets(widgetNamesOf(schema));
       hot = ensureSchemaHotFlags(schema);
     }
     markWritePhase(options, "schema", tSchema);
-    if (!system) {
-      const ownP = this.assertEntryOwnership(schema, entryId, tenantId, user, system);
-      if (ownP) await ownP;
+
+    // Resolve the write scope once and thread the loaded row through the whole
+    // pre-write pipeline. Ownership, the optimistic-lock comparison, required
+    // field validation and the revision snapshot all need the same document; a
+    // single read serves them instead of up to three sequential `findOne`s.
+    const expectedVersion = normalizeExpectedVersion(options.expectedVersion);
+    const tableName = this.getCollectionName(schema._id as string);
+    const ownership = system ? null : this.resolveWriteOwnership(schema, tenantId, user, system);
+    if (ownership?.scope === null) raise(404, "Entry not found", "NOT_FOUND");
+    const ownershipNeedsRow =
+      ownership !== null && (ownership.scope !== false || ownership.access !== null);
+    let preloadedExisting: FindOneEnvelope | null = null;
+    const loadExistingRow = async (): Promise<FindOneEnvelope> => {
+      if (preloadedExisting) return preloadedExisting;
+      preloadedExisting = await this._dbAdapter.crud.findOne(
+        tableName,
+        mergeAccessConstraint({ _id: entryId }, ownership?.access) as never,
+        {
+          tenantId: tenantId as DatabaseId,
+          // A cached row can be older than the write that just landed
+          // (`schedulePostWrite` invalidates asynchronously), which would make a
+          // stale `If-Match` look current. The lock check must read the row.
+          ...(expectedVersion !== null ? { bypassCache: true } : {}),
+          ...(transaction ? { transaction } : {}),
+        },
+      );
+      return preloadedExisting;
+    };
+    if (ownershipNeedsRow && ownership) {
+      this.assertOwnedWriteRow(await loadExistingRow(), ownership);
     }
 
     const tPrep = writePhaseT0(options);
@@ -2449,29 +2341,17 @@ export class CollectionsNamespace {
 
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
 
-    let preloadedExisting: Awaited<ReturnType<IDBAdapter["crud"]["findOne"]>> | null = null;
-
     // 🔒 OPTIMISTIC LOCKING: the caller tells us which version it loaded.
     // `casRowVersion` is the value the UPDATE must still match — the comparison
     // happens inside the write (compare-and-set), this pre-check only fails
     // fast so a stale edit never reaches validation/hooks.
-    const expectedVersion = normalizeExpectedVersion(options.expectedVersion);
     let casRowVersion: unknown = null;
     if (expectedVersion !== null) {
-      const tableName = this.getCollectionName(schema._id as string);
-      if (!preloadedExisting) {
-        preloadedExisting = await this._dbAdapter.crud.findOne(tableName, { _id: entryId } as any, {
-          tenantId: tenantId as DatabaseId,
-          // A cached row can be older than the write that just landed
-          // (`schedulePostWrite` invalidates asynchronously), which would make a
-          // stale `If-Match` look current. The lock check must read the row.
-          bypassCache: true,
-        });
-      }
-      if (!preloadedExisting.success || !preloadedExisting.data) {
+      const existing = await loadExistingRow();
+      if (!existing.success || !existing.data) {
         raise(404, `Entry ${entryId} was not found.`, "NOT_FOUND");
       }
-      const currentRow = preloadedExisting.data as unknown as Record<string, unknown>;
+      const currentRow = existing.data as unknown as Record<string, unknown>;
       const currentVersion = currentRow.updatedAt ?? null;
       if (!matchesVersion(currentVersion, expectedVersion)) {
         raise(
@@ -2495,7 +2375,7 @@ export class CollectionsNamespace {
     // direct API PATCH without `status` could blank a required field and leave a
     // published entry invalid (the client hid the field, the server did not).
     if (!system && (explicitPublish || touchesRequiredFields(hot, updateData))) {
-      if (explicitPublish) {
+      if (explicitPublish && plan.hasWorkflows) {
         if (
           !isAdmin(effectiveUser) &&
           effectiveUser?.role !== "admin" &&
@@ -2512,14 +2392,10 @@ export class CollectionsNamespace {
       }
 
       if (schema.fields && schema.fields.length > 0) {
-        preloadedExisting = await this._dbAdapter.crud.findOne(
-          this.getCollectionName(schema._id as string),
-          { _id: entryId } as any,
-          { tenantId: tenantId as DatabaseId },
-        );
+        const existing = await loadExistingRow();
         const existingData =
-          preloadedExisting.success && preloadedExisting.data
-            ? (preloadedExisting.data as unknown as Record<string, unknown>)
+          existing.success && existing.data
+            ? (existing.data as unknown as Record<string, unknown>)
             : undefined;
         const merged = {
           ...existingData,
@@ -2543,7 +2419,9 @@ export class CollectionsNamespace {
             );
             if (!valid) {
               throw new AppError(
-                missingFields.map((f) => `Field '${f}' is required when publishing`).join("; "),
+                missingFields
+                  .map((f: string) => `Field '${f}' is required when publishing`)
+                  .join("; "),
                 400,
                 "FIELD_VALIDATION_ERROR",
               );
@@ -2554,19 +2432,21 @@ export class CollectionsNamespace {
     }
 
     const mBeforeU = PROFILE_WRITE_ENABLED ? profileMark("ns:beforeSave") : null;
-    let finalData = triggerLifecycleHook(
-      this._dbAdapter,
-      "beforeSave",
-      collectionId,
-      updateData,
-      options,
-      schema,
-    );
+    let finalData = plan.hasHooks
+      ? triggerLifecycleHook(
+          this._dbAdapter,
+          "beforeSave",
+          collectionId,
+          updateData,
+          options,
+          schema,
+        )
+      : updateData;
     if (isThenable(finalData)) finalData = await finalData;
     mBeforeU?.();
 
     const m2u = PROFILE_WRITE_ENABLED ? profileMark("ns:widgets") : null;
-    if (hot._hasActiveWidgets && writeTouchesActiveWidgets(hot, finalData)) {
+    if (plan.hasWidgets && hot._hasActiveWidgets && writeTouchesActiveWidgets(hot, finalData)) {
       const payload = [finalData];
       await applyWidgetPipeline(schema, payload, {
         dbAdapter: this._dbAdapter,
@@ -2594,13 +2474,7 @@ export class CollectionsNamespace {
       revisionEnabled && PROFILE_WRITE_ENABLED ? profileMark("ns:revision-snapshot") : null;
     if (revisionEnabled) {
       try {
-        const prev =
-          preloadedExisting ??
-          (await this._dbAdapter.crud.findOne(
-            this.getCollectionName(schema._id as string),
-            { _id: entryId } as any,
-            { tenantId: tenantId as DatabaseId },
-          ));
+        const prev = await loadExistingRow();
         if (prev.success && prev.data) {
           previousSnapshot = prev.data;
         }
@@ -2611,14 +2485,16 @@ export class CollectionsNamespace {
     mRev?.();
     markWritePhase(options, "snapshot", tSnap);
 
-    const encCtx = hot._hasEncryptedFields
+    const encCtx = plan.hasEncryption
       ? fieldEncryptionContext(schema, tenantId)
       : NO_ENCRYPTION_CONTEXT;
     const tEnc = writePhaseT0(options);
     const mEncU = PROFILE_WRITE_ENABLED ? profileMark("ns:encrypt") : null;
     // `encryptWritePayload` is a synchronous identity — no Promise, no context
     // read — for schemas without `encrypt: true` fields.
-    const encryptedUpdate = encryptWritePayload(finalData, hot, encCtx);
+    const encryptedUpdate = plan.hasEncryption
+      ? encryptWritePayload(finalData, hot, encCtx)
+      : finalData;
     finalData = isThenable(encryptedUpdate) ? await encryptedUpdate : encryptedUpdate;
     mEncU?.();
     markWritePhase(options, "encrypt", tEnc);
@@ -2653,7 +2529,6 @@ export class CollectionsNamespace {
         // so the raw token matched zero rows on those engines even when nothing
         // had changed. Try the Date first, then the raw value, and only then call
         // it a conflict — both attempts use the version the caller loaded.
-        const tableName = this.getCollectionName(schema._id as string);
         const casCandidates = casVersionCandidates(casRowVersion);
         let cas = await this._dbAdapter.crud.updateMany(
           tableName,
@@ -2717,50 +2592,65 @@ export class CollectionsNamespace {
       effectiveUser,
       () => entryId,
       (res) => res.data,
-      { skipSideEffects: options.skipSideEffects, skipReturning: options.skipReturning },
+      {
+        skipSideEffects: options.skipSideEffects,
+        skipReturning: options.skipReturning,
+        ...(transaction ? { transaction, afterCommit: afterCommitQueueOf(options) } : {}),
+      },
     );
     m3u?.();
     markWritePhase(options, "dbwrite", tDb);
 
     const tPost = writePhaseT0(options);
-    const decryptedUpdate = options.skipReturning
-      ? result
-      : decryptReadResult(result, hot, encCtx, DECRYPT_CLONE_OPTIONS);
+    const decryptedUpdate =
+      options.skipReturning || !plan.hasEncryption
+        ? result
+        : decryptReadResult(result, hot, encCtx, DECRYPT_CLONE_OPTIONS);
     if (result && result.success && result.data) {
       // 🛡️ REVISION TRACKING: persist the pre-write snapshot before the request
       // returns. The write itself is already durable, but a fire-and-forget call
       // could be dropped by teardown and lose the revision entirely.
+      // Inside a promotion transaction the snapshot joins that transaction and a
+      // failure aborts it (`strict`), so a committed live write always has its
+      // revision.
       if (revisionEnabled && previousSnapshot) {
+        const revisionOptions: RecordRevisionOptions | undefined = transaction
+          ? { transaction, strict: true }
+          : undefined;
         await this.recordRevision(
           entryId,
           previousSnapshot,
           effectiveUser,
           tenantId,
           revisionLimitOf(schema),
+          revisionOptions,
         );
       }
       // Resolved once — the three side-effect schedules below shared the same
       // `decryptedUpdate?.data ?? result.data` expression.
       const postWriteDoc = decryptedUpdate?.data ?? result.data;
-      // ⚡ Response-path: never await side effects — concurrent update RPS depends on this
-      schedulePostWrite(
-        this._dbAdapter,
-        "update",
-        schema,
-        collectionId,
-        tenantId,
-        entryId,
-        postWriteDoc,
-        effectiveUser,
-        options,
-      );
-      scheduleAfterOperation(schema, hot, postWriteDoc, "update", effectiveUser, tenantId);
-      if (!shouldSkipWriteSideEffects(options) && !options.skipReturning) {
-        scheduleIndexNowPing(collectionId, postWriteDoc, tenantId);
-        scheduleDefaultListWarm(schema._id as string, tenantId, effectiveUser, (warmOpts) =>
-          this.find(collectionId, { tenantId: warmOpts.tenantId, user: warmOpts.user }),
+      // ⚡ Response-path: never await side effects — concurrent update RPS depends on this.
+      // Inside a transaction they are queued and replayed only after COMMIT.
+      runAfterCommit(options, () => {
+        schedulePostWrite(
+          this._dbAdapter,
+          "update",
+          schema,
+          collectionId,
+          tenantId,
+          entryId,
+          postWriteDoc,
+          effectiveUser,
+          options,
         );
-      }
+        scheduleAfterOperation(schema, hot, postWriteDoc, "update", effectiveUser, tenantId);
+        if (!shouldSkipWriteSideEffects(options) && !options.skipReturning) {
+          scheduleIndexNowPing(collectionId, postWriteDoc, tenantId);
+          scheduleDefaultListWarm(schema._id as string, tenantId, effectiveUser, (warmOpts) =>
+            this.find(collectionId, { tenantId: warmOpts.tenantId, user: warmOpts.user }),
+          );
+        }
+      });
     }
     markWritePhase(options, "postwrite", tPost);
 
@@ -2786,122 +2676,28 @@ export class CollectionsNamespace {
     version: number,
     options: LocalApiOptions = {},
   ) {
-    const { user, tenantId, system } = options;
-    if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
-    if (!Number.isInteger(version) || version < 1) {
-      raise(400, "A positive revision version is required.", "BAD_REQUEST");
-    }
-
-    const schema = await this.schemaOf(collectionId, tenantId);
-    if (schema.revision !== true) {
-      raise(400, `Collection '${collectionId}' does not track revisions.`, "REVISIONS_DISABLED");
-    }
-    if (!system) {
-      const own = this.assertEntryOwnership(schema, entryId, tenantId, user, system);
-      if (own) await own;
-    }
-
-    const revision = await this._dbAdapter.content.revisions.get(entryId as DatabaseId, version, {
-      tenantId: tenantId as DatabaseId,
-    });
-    if (!revision.success) {
-      throw new AppError(
-        revision.message || "Failed to read the revision.",
-        500,
-        "REVISION_READ_FAILED",
-      );
-    }
-    if (!revision.data) {
-      raise(404, `Revision ${version} of entry ${entryId} was not found.`, "NOT_FOUND");
-    }
-
-    const row = revision.data as unknown as Record<string, unknown>;
-    const snapshot = revisionSnapshot(row);
-    if (!snapshot) {
-      raise(422, `Revision ${version} does not contain a restorable snapshot.`, "INVALID_REVISION");
-    }
-
-    // Replay content only. Identity/timestamps are owned by the row, and keeping the
-    // current `status` means a restore can never silently republish (or unpublish) an
-    // entry as a side effect — publishing stays an explicit act.
-    const restoreData: Record<string, unknown> = { ...snapshot };
-    for (const key of [
-      "_id",
-      "createdAt",
-      "updatedAt",
-      "tenantId",
-      "isDeleted",
-      "deletedAt",
-      "_scheduled",
-      "status",
-    ]) {
-      delete restoreData[key];
-    }
-
-    return this.update(collectionId, entryId, restoreData, options);
+    return restoreEntryRevision(this, collectionId, entryId, version, options);
   }
 
-  /**
-   * Persist a revision snapshot for a revision-enabled collection update.
-   * Awaited after the primary write so request teardown cannot drop it;
-   * failures are logged and do not fail the content write. The version is
-   * derived from the latest existing revision (+1).
-   *
-   * Growth is bounded by `revisionLimit` (default 100): once the new version
-   * reaches twice the limit, older snapshots are pruned back to the limit. That
-   * keeps the table under `2 × limit` rows while paying the history read only
-   * once per `limit` writes instead of on every write.
-   */
   private async recordRevision(
     entryId: string,
     previousData: any,
     user: any,
     tenantId: DatabaseId | null | undefined,
     revisionLimit: number = DEFAULT_REVISION_LIMIT,
+    options?: RecordRevisionOptions,
   ): Promise<void> {
-    try {
-      const history = await this._dbAdapter.content.revisions.getHistory(entryId as DatabaseId, {
-        page: 1,
-        pageSize: 1,
-      });
-      const items = history.success ? history.data.items : [];
-      // `total` is the authoritative row count; the newest row's `version` can be
-      // unreadable on an adapter that does not echo it, and deriving the next
-      // version from 0 then re-writes version 1 forever (the history never reaches
-      // the prune threshold — observed on MongoDB). Fall back to `total + 1`.
-      const total = history.success ? Number(history.data.total) || 0 : 0;
-      const newestVersion = items.length > 0 ? Number(items[0].version) || 0 : 0;
-      const nextVersion = newestVersion > 0 ? newestVersion + 1 : total + 1;
-
-      await this._dbAdapter.content.revisions.create({
-        contentId: entryId as DatabaseId,
-        authorId: (user?._id || "system") as DatabaseId,
-        data: previousData,
-        version: nextVersion,
-        tenantId: tenantId ?? undefined,
-      });
-
-      // Bound the history at 2× the limit (by version or by row count, whichever
-      // says the ceiling is reached); keeps the newest `revisionLimit` snapshots.
-      if (nextVersion >= revisionLimit * 2 || total + 1 > revisionLimit * 2) {
-        await this._dbAdapter.content.revisions.cleanup(entryId as DatabaseId, revisionLimit);
-      }
-    } catch (err) {
-      logger.debug(
-        `[Revisions] Failed to record revision for ${entryId}: ${(err as Error)?.message ?? err}`,
-      );
-    }
+    return recordRevision(
+      this._dbAdapter,
+      entryId,
+      previousData,
+      user,
+      tenantId,
+      revisionLimit,
+      options,
+    );
   }
 
-  /**
-   * Run a declared schema action (`schema.actions[name]`) on one entry.
-   *
-   * The action's own `permission` is the authorization check (admins bypass via
-   * `isAdmin`) — the dispatcher deliberately does not also require
-   * `collections:write`. `patch` and the object returned by `run` merge into one
-   * update; `increment` goes through the adapter's atomic increment. An action
-   * without a `permission` is admin-only (fail closed).
-   */
   async runAction(
     collectionId: string,
     action: string,
@@ -2909,84 +2705,7 @@ export class CollectionsNamespace {
     input: unknown,
     options: { user?: any; tenantId?: DatabaseId | null; roles?: unknown } = {},
   ): Promise<{ success: boolean; data?: unknown }> {
-    const { user, tenantId, roles } = options;
-    if (!user) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
-    if (typeof action !== "string" || !action) {
-      throw new AppError("Action name is required", 400, "ACTION_REQUIRED");
-    }
-    if (typeof entryId !== "string" || !entryId) {
-      throw new AppError("Action entry id is required", 400, "ACTION_ENTRY_REQUIRED");
-    }
-
-    const schema = await this.schemaOf(collectionId, tenantId);
-    const actions = (schema as { actions?: Record<string, CollectionAction> }).actions;
-    const definition: CollectionAction | undefined =
-      actions && typeof actions === "object" ? actions[action] : undefined;
-    if (!definition || typeof definition !== "object") {
-      throw new AppError(
-        `Action '${action}' is not defined on '${collectionId}'`,
-        404,
-        "ACTION_NOT_FOUND",
-      );
-    }
-
-    if (!isAdmin(user)) {
-      const allowed = Boolean(
-        definition.permission &&
-        hasPermissionWithRoles(
-          user,
-          definition.permission,
-          Array.isArray(roles) ? (roles as Parameters<typeof hasPermissionWithRoles>[2]) : [],
-        ),
-      );
-      if (!allowed) {
-        throw new AppError(
-          `Forbidden: missing permission for action '${action}'`,
-          403,
-          "ACTION_FORBIDDEN",
-        );
-      }
-    }
-
-    let patch: Record<string, unknown> =
-      definition.patch && typeof definition.patch === "object" && !Array.isArray(definition.patch)
-        ? { ...definition.patch }
-        : {};
-
-    if (typeof definition.run === "function") {
-      const produced = await definition.run({
-        collectionId,
-        entryId,
-        input,
-        user,
-        tenantId: tenantId ?? null,
-        schema,
-      });
-      if (produced && typeof produced === "object" && !Array.isArray(produced)) {
-        patch = { ...patch, ...(produced as Record<string, unknown>) };
-      }
-    }
-
-    const result: { success: boolean; data?: unknown } =
-      Object.keys(patch).length > 0
-        ? await this.update(collectionId, entryId, patch, { user, tenantId })
-        : await this.findById(collectionId, entryId, { tenantId });
-
-    if (definition.increment && typeof definition.increment === "object") {
-      const field = definition.increment.field;
-      if (typeof field === "string" && field) {
-        const incrementResult = await this._dbAdapter.crud.atomicIncrement?.(
-          this.getCollectionName(schema._id as string),
-          entryId as DatabaseId,
-          field,
-          typeof definition.increment.amount === "number" ? definition.increment.amount : 1,
-          { tenantId: tenantId as DatabaseId },
-        );
-        if (incrementResult) return incrementResult;
-      }
-    }
-
-    return result;
+    return runCollectionAction(this, collectionId, action, entryId, input, options);
   }
 
   async delete(

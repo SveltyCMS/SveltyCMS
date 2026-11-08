@@ -24,10 +24,33 @@ import {
 } from "@src/services/intelligence/behavioral-learner";
 
 export class CacheWarmingService {
+  private _rewarmTimer: ReturnType<typeof setInterval> | null = null;
+  private _telemetryTimer: ReturnType<typeof setTimeout> | null = null;
+  private _isWarming = false;
+  private _disposed = false;
+
+  /**
+   * Stop the periodic re-warm and the deferred telemetry warm. Called on Vite
+   * HMR disposal and process exit; without it, a timer can fire after the dev
+   * module runner has closed and log a spurious "Failed to warm cache".
+   */
+  dispose(): void {
+    this._disposed = true;
+    if (this._rewarmTimer) {
+      clearInterval(this._rewarmTimer);
+      this._rewarmTimer = null;
+    }
+    if (this._telemetryTimer) {
+      clearTimeout(this._telemetryTimer);
+      this._telemetryTimer = null;
+    }
+  }
+
   /**
    * Strategically warms critical paths on startup or re-initialization.
    */
-  async warmCriticalPaths(db: any) {
+  async warmCriticalPaths(db: any): Promise<boolean> {
+    if (this._disposed) return false;
     logger.info("🔥 Starting Cache Warming: Critical Paths");
     const start = performance.now();
 
@@ -118,15 +141,31 @@ export class CacheWarmingService {
 
       // 4. Predictive Telemetry Warming (v1.2 "Agency OS" Feature)
       // ⚡ NON-BLOCKING: Run in background after a short delay to allow system to settle
-      setTimeout(() => {
+      this._telemetryTimer = setTimeout(() => {
+        this._telemetryTimer = null;
+        if (this._disposed) return;
         this.warmFromTelemetry(db).catch((err) =>
           logger.trace("Predictive warming background error:", err),
         );
-      }, 2000).unref();
+      }, 2000);
+      this._telemetryTimer.unref?.();
 
       logger.info(`✨ Cache Warming Complete in ${(performance.now() - start).toFixed(2)}ms`);
+      return true;
     } catch (err) {
-      logger.error("Failed to warm cache", err);
+      // Vite closes its module runner during HMR reloads and dev-server shutdown.
+      // A warm that was awaiting a dynamic import then rejects with this message;
+      // it is expected teardown noise, not a cache failure.
+      if (err instanceof Error && err.message.includes("Vite module runner has been closed")) {
+        logger.debug("[CacheWarming] Skipped: dev module runner closed during reload/shutdown");
+        // The timer belongs to the old module graph. Stop it now instead of
+        // retrying every 4 minutes against a closed runner; the next HMR
+        // evaluation installs a fresh singleton.
+        this.dispose();
+      } else {
+        logger.error("Failed to warm cache", err);
+      }
+      return false;
     }
   }
 
@@ -346,9 +385,6 @@ export class CacheWarmingService {
     );
   }
 
-  private _rewarmTimer: ReturnType<typeof setInterval> | null = null;
-  private _isWarming = false;
-
   /**
    * Compatibility wrapper for initialization hook.
    * Also schedules a periodic 4-minute L1 re-warm so the cacheService L1
@@ -356,6 +392,7 @@ export class CacheWarmingService {
    * 5 min — running slightly earlier prevents the empty-L1 miss cycle).
    */
   async initialize(db: any) {
+    this._disposed = false;
     const result = await this.warmCriticalPaths(db);
 
     // 🚀 PERIODIC RE-WARM: keep L1 hot for quiet servers.
@@ -363,7 +400,7 @@ export class CacheWarmingService {
     const REWARM_INTERVAL_MS = 4 * 60 * 1000; // 4 minutes
     if (this._rewarmTimer) clearInterval(this._rewarmTimer);
     this._rewarmTimer = setInterval(() => {
-      if (this._isWarming) return;
+      if (this._disposed || this._isWarming) return;
       this._isWarming = true;
       this.warmCriticalPaths(db)
         .catch((err) => logger.trace("[CacheWarming] Periodic re-warm failed (non-fatal):", err))
@@ -379,12 +416,40 @@ export class CacheWarmingService {
   }
 
   stop(): void {
-    if (this._rewarmTimer) {
-      clearInterval(this._rewarmTimer);
-      this._rewarmTimer = null;
-    }
+    this.dispose();
   }
 }
 
+/**
+ * HMR handoff: Vite re-evaluates this module without necessarily disposing the
+ * graph that imported it (DB init holds the service). The previous instance's
+ * 4-minute interval would then outlive the module runner and log a spurious
+ * "Failed to warm cache". Keep the singleton on a caller-provided store so the
+ * new evaluation can reach — and dispose — its predecessor before installing.
+ * Exported for the HMR regression test; production uses `globalThis`.
+ */
+export function installCacheWarmingSingleton(
+  store: { __sveltyCacheWarmingService?: CacheWarmingService },
+  create: () => CacheWarmingService = () => new CacheWarmingService(),
+): CacheWarmingService {
+  store.__sveltyCacheWarmingService?.dispose();
+  const instance = create();
+  store.__sveltyCacheWarmingService = instance;
+  return instance;
+}
+
+const globalStore = globalThis as typeof globalThis & {
+  __sveltyCacheWarmingService?: CacheWarmingService;
+};
+
 // Instance export expected by db-init
-export const cacheWarmingService = new CacheWarmingService();
+export const cacheWarmingService = installCacheWarmingSingleton(globalStore);
+
+// Teardown hooks: clear timers before Vite closes the module runner (HMR) or the
+// process exits, so a late warm can never log "Failed to warm cache".
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => cacheWarmingService.dispose());
+}
+if (typeof process !== "undefined" && typeof process.once === "function") {
+  process.once("exit", () => cacheWarmingService.dispose());
+}

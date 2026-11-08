@@ -76,6 +76,7 @@ Features:
 	});
 
 	import { resolveAdminComponent } from '@src/components/system/admin-component-registry';
+	import Self from './input-switch.svelte';
 
 	const WidgetComponent = $derived(resolveAdminComponent(props.widget));
 	const widgetName = $derived(typeof props.widget === 'string' ? props.widget : '');
@@ -107,6 +108,7 @@ Features:
 		if (isGroup) {
 			// SettingGroup is recursive: without `fields` it renders an empty fieldset.
 			extra.label = label;
+			extra.itemComponent = Self;
 			if (schemaProps.fields !== undefined) extra.fields = schemaProps.fields;
 			if (props.labelClass !== undefined) extra.labelClass = props.labelClass;
 			return extra;

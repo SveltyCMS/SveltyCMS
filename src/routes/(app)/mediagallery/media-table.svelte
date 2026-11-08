@@ -15,8 +15,8 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { logger } from '@utils/logger';
+	import { createSmartTable } from '@components/ui/smart-table/create-smart-table.svelte';
 	import {
-		createSmartTable,
 		pinCellClass,
 		SMART_TABLE,
 		SMART_TABLE_ROW_HOVER,
@@ -24,14 +24,15 @@
 		SMART_TABLE_TD,
 		SMART_TABLE_TH,
 		SMART_TABLE_THEAD
-	} from '@components/ui/smart-table';
+	} from '@components/ui/smart-table/chrome';
 	import Button from '@components/ui/button.svelte';
 	import AdminCard from '@components/admin-card.svelte';
 	import SmartTableShell from '@components/ui/smart-table/smart-table-shell.svelte';
 	import ColumnResizeHandle from '@components/ui/smart-table/column-resize-handle.svelte';
 	import MediaTableRowMenu from './media-table-row-menu.svelte';
-	import { mediaDisplayUrl } from '@utils/media/media-utils';
+	import { mediaDisplayUrl, mediaPreviewCandidates } from '@utils/media/media-utils';
 	import type { MediaBase, MediaImage } from '@utils/media/media-models';
+	import { normalizeProcessingStatus } from '@utils/media/media-values';
 	import { draggable } from '@thisux/sveltednd';
 	import {
 		MEDIA_DRAG_CONTAINER,
@@ -46,11 +47,13 @@
 		mediagallery_assets_loaded_count,
 		mediagallery_drag_to_folder_breadcrumb,
 		mediagallery_name,
+		mediagallery_picker_empty_filtered,
+		mediagallery_picker_reset_filters,
 		mediagallery_size,
 		mediagallery_type_placeholder,
 		trash_th_actions
 	} from '@src/paraglide/messages';
-	import { SvelteSet } from 'svelte/reactivity';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import Checkbox from '@components/ui/checkbox.svelte';
 
 	interface Props {
@@ -70,8 +73,13 @@
 		onLoadMore?: () => void;
 		ondeleteImage?: (file: MediaBase | MediaImage) => void;
 		onEditImage?: (file: MediaImage) => void;
+		/** Opens the quick focal-point modal (images only). */
+		onSetFocalPoint?: (file: MediaImage) => void;
 		onUpdateImage?: (file: MediaImage) => void;
 		onOpenFileDetails?: (file: MediaBase | MediaImage) => void;
+		/** True when a search/filter is narrowing the folder — drives the filtered-empty state. */
+		hasActiveFilters?: boolean;
+		onClearFilters?: () => void;
 	}
 
 	let {
@@ -86,11 +94,17 @@
 		onLoadMore = () => {},
 		ondeleteImage = () => {},
 		onEditImage = () => {},
+		onSetFocalPoint = () => {},
 		onUpdateImage = () => {},
-		onOpenFileDetails = () => {}
+		onOpenFileDetails = () => {},
+		hasActiveFilters = false,
+		onClearFilters = () => {}
 	}: Props = $props();
 
-	let failedImages = $state(new SvelteSet<string>());
+	const previewAttempts = new SvelteMap<string, number>();
+	/** Rows whose entire preview ladder failed — file icon + "File missing" badge. */
+	const missingImages = new SvelteSet<string>();
+	let lastSelectedId = $state<string | null>(null);
 	let showTagModal = $state(false);
 	let taggingFile = $state<MediaImage | null>(null);
 
@@ -99,7 +113,9 @@
 		try {
 			return createSmartTable({
 				mode: 'client',
-				pageSize: 10,
+				// 25 rows ≈ the grid's continuous feel; 10 made the table feel like a
+				// separate, much smaller view of the same folder.
+				pageSize: 25,
 				layoutKey: 'media-gallery-table',
 				getRowId: (row) => {
 					const r = row as unknown as MediaBase | MediaImage;
@@ -116,7 +132,7 @@
 				pinned: { start: [], center: [], end: [], ordered: [] },
 				density: 'normal' as const,
 				sort: { sortedBy: '', isSorted: 0 },
-				pagination: { currentPage: 1, pageSize: 10, totalItems: 0, pagesCount: 1 },
+				pagination: { currentPage: 1, pageSize: 25, totalItems: 0, pagesCount: 1 },
 				selectedIds: new Set<string>(),
 				selectedCount: 0,
 				hasSelections: false,
@@ -224,10 +240,63 @@
 		}
 	}
 
-	function handleRowClick(file: MediaBase | MediaImage) {
+	function fileIdOf(file: MediaBase | MediaImage): string {
+		return file._id?.toString() || file.filename;
+	}
+
+	/**
+	 * Per-row preview state key. The candidate ladder is part of the key so a
+	 * newly generated thumbnail restarts the ladder instead of inheriting a
+	 * stale failure.
+	 */
+	function previewKeyOf(fileId: string, candidates: string[]): string {
+		return `${fileId}\u0000${candidates.join('\u0001')}`;
+	}
+
+	/** Walk the rendition ladder on `<img>` errors; mark the row missing when it is exhausted. */
+	function handlePreviewError(candidates: string[], previewKey: string, attemptedIndex: number) {
+		const index = previewAttempts.get(previewKey) ?? 0;
+		// The mobile list and the desktop table render the same row; a stale error
+		// from the other `<img>` must not advance the ladder twice.
+		if (attemptedIndex !== index) return;
+		if (index < candidates.length - 1) {
+			previewAttempts.set(previewKey, index + 1);
+			return;
+		}
+		missingImages.add(previewKey);
+	}
+
+	/** Shift-click selects the whole range on the current table page. */
+	function selectWithRange(file: MediaBase | MediaImage, shiftKey: boolean) {
+		const fileId = fileIdOf(file);
+		if (shiftKey && lastSelectedId) {
+			const ids = paginatedFiles.map(fileIdOf);
+			const from = ids.indexOf(lastSelectedId);
+			const to = ids.indexOf(fileId);
+			if (from !== -1 && to !== -1) {
+				const [start, end] = from < to ? [from, to] : [to, from];
+				for (let i = start; i <= end; i++) selectedFiles.add(ids[i]);
+				return;
+			}
+		}
+		toggleSelection(file);
+		lastSelectedId = fileId;
+	}
+
+	function processingStatusOf(file: MediaBase | MediaImage): 'processing' | 'ready' | 'failed' {
+		return (
+			normalizeProcessingStatus(
+				(file.metadata as Record<string, unknown> | undefined)?.processingStatus
+			) ?? 'ready'
+		);
+	}
+
+	function handleRowClick(file: MediaBase | MediaImage, event?: MouseEvent) {
 		if (!isSelectionMode) {
 			onOpenFileDetails(file);
+			return;
 		}
+		selectWithRange(file, event?.shiftKey ?? false);
 	}
 
 	function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
@@ -235,6 +304,9 @@
 			e.preventDefault();
 			if (!isSelectionMode) {
 				onOpenFileDetails(file);
+			} else {
+				toggleSelection(file);
+				lastSelectedId = fileIdOf(file);
 			}
 		}
 	}
@@ -248,12 +320,14 @@
 	}
 </script>
 
-<AdminCard class="my-2 flex h-full min-h-0 w-full flex-col sm:my-3" data-testid="media-table">
+<AdminCard class="flex min-h-0 w-full flex-1 flex-col" data-testid="media-table">
 	<SmartTableShell
 		empty={filteredFiles.length === 0}
-		emptyTitle="No media found"
-		emptyDescription="Try adjusting your search or filter."
-		emptyIcon="mdi:image-search-outline"
+		emptyTitle={hasActiveFilters ? mediagallery_picker_empty_filtered() : 'No media yet'}
+		emptyDescription={hasActiveFilters
+			? 'Try a different search or filter.'
+			: 'Upload files from the page header to get started.'}
+		emptyIcon={hasActiveFilters ? 'mdi:filter-off-outline' : 'mdi:image-plus-outline'}
 		{currentPage}
 		{rowsPerPage}
 		{pagesCount}
@@ -262,6 +336,14 @@
 		{onUpdateRowsPerPage}
 		scrollClass="media-table-scroll"
 	>
+		{#snippet emptyAction()}
+			{#if hasActiveFilters}
+				<Button variant="primary" onclick={onClearFilters}>
+					<iconify-icon icon="mdi:filter-remove-outline" width="16"></iconify-icon>
+					{mediagallery_picker_reset_filters()}
+				</Button>
+			{/if}
+		{/snippet}
 		<!-- Mobile: compact list rows (no table — fits viewport without scroll) -->
 		<div class="flex flex-col md:hidden" role="table" aria-label={common_media_files()}>
 			<div
@@ -303,6 +385,16 @@
 
 			{#each paginatedFiles as file (file._id || file.filename)}
 				{@const fileId = file._id?.toString() || file.filename}
+				{@const processing = processingStatusOf(file)}
+				{@const inUse = publishedMediaIds.has(fileId)}
+				{@const isImage = file.type === 'image'}
+				{@const candidateUrls = mediaPreviewCandidates(file, 'thumbnail', {
+					includeOriginal: isImage
+				})}
+				{@const previewKey = previewKeyOf(fileId, candidateUrls)}
+				{@const previewIndex = previewAttempts.get(previewKey) ?? 0}
+				{@const previewFailed =
+					missingImages.has(previewKey) || (isImage && candidateUrls.length === 0)}
 
 				<div
 					class="flex cursor-grab items-center gap-3 border-b border-s-2 border-s-transparent border-surface-500/30 px-2 py-3 active:cursor-grabbing dark:border-surface-500/40
@@ -327,7 +419,7 @@
 					}}
 					ondragstart={suppressNativeDragGhost}
 					title={mediagallery_drag_to_folder_breadcrumb()}
-					onclick={() => handleRowClick(file)}
+					onclick={(e) => handleRowClick(file, e)}
 					onkeydown={(e) => handleKeyDown(e, file)}
 				>
 					<div
@@ -343,7 +435,10 @@
 						<Checkbox
 							class="w-auto"
 							checked={selectedFiles.has(fileId)}
-							onchange={() => toggleSelection(file)}
+							onchange={() => {
+								lastSelectedId = fileId;
+								toggleSelection(file);
+							}}
 							label="Select {file.filename}"
 							hideLabel
 							size="sm"
@@ -354,18 +449,20 @@
 						<div
 							class="media-thumb-checkerboard flex h-10 w-10 items-center justify-center overflow-hidden rounded"
 						>
-							{#if file.type === 'image' && !failedImages.has(fileId)}
+							{#if candidateUrls.length > 0 && !previewFailed}
 								<img
-									src={mediaDisplayUrl(file, 'thumbnail')}
+									src={candidateUrls[previewIndex] ?? ''}
 									alt=""
-									class="pointer-events-none h-full w-full object-cover"
+									class="pointer-events-none h-full w-full {isImage
+										? 'object-cover'
+										: 'object-contain bg-white'}"
 									loading="lazy"
 									decoding="async"
 									draggable="false"
 									crossorigin="anonymous"
-									onerror={() => failedImages.add(fileId)}
+									onerror={() => handlePreviewError(candidateUrls, previewKey, previewIndex)}
 								/>
-							{:else if file.type === 'image'}
+							{:else if isImage}
 								<iconify-icon
 									icon="mdi:image-off-outline"
 									width="18"
@@ -385,6 +482,33 @@
 						<div class="truncate text-sm font-medium leading-snug" dir="auto" title={file.filename}>
 							{file.filename}
 						</div>
+						{#if processing !== 'ready' || inUse || previewFailed}
+							<div class="mt-0.5 flex flex-wrap items-center gap-1">
+								{#if previewFailed}
+									<span
+										class="rounded-full border border-error-500/30 bg-error-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-error-500 dark:border-error-500/40 dark:bg-error-900/20 dark:text-error-400"
+										title="File missing — open the file details to replace it">File missing</span
+									>
+								{/if}
+								{#if processing === 'processing'}
+									<span
+										class="rounded-full bg-warning-500 px-1.5 py-0.5 text-[10px] font-semibold text-surface-950"
+										>Processing</span
+									>
+								{:else if processing === 'failed'}
+									<span
+										class="rounded-full bg-error-500 px-1.5 py-0.5 text-[10px] font-semibold text-white"
+										>Failed</span
+									>
+								{/if}
+								{#if inUse}
+									<span
+										class="rounded-full bg-tertiary-500 px-1.5 py-0.5 text-[10px] font-semibold text-white dark:bg-primary-500"
+										>In use</span
+									>
+								{/if}
+							</div>
+						{/if}
 						<div
 							class="mt-0.5 truncate font-mono text-[10px] text-(--admin-text-muted)"
 							title={(file as MediaImage).path}
@@ -407,6 +531,7 @@
 							{file}
 							onDetails={() => onOpenFileDetails(file)}
 							onEdit={() => onEditImage(file as MediaImage)}
+							onFocal={() => onSetFocalPoint(file as MediaImage)}
 							onTags={() => openTagEditor(file as MediaImage)}
 							onDelete={() => ondeleteImage(file)}
 						/>
@@ -525,14 +650,24 @@
 				</tr>
 			</thead>
 
-			<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
+			<tbody>
 				{#each paginatedFiles as file (file._id || file.filename)}
 					{@const fileId = file._id?.toString() || file.filename}
+					{@const processing = processingStatusOf(file)}
+					{@const inUse = publishedMediaIds.has(fileId)}
+					{@const isImage = file.type === 'image'}
+					{@const candidateUrls = mediaPreviewCandidates(file, 'thumbnail', {
+						includeOriginal: isImage
+					})}
+					{@const previewKey = previewKeyOf(fileId, candidateUrls)}
+					{@const previewIndex = previewAttempts.get(previewKey) ?? 0}
+					{@const previewFailed =
+						missingImages.has(previewKey) || (isImage && candidateUrls.length === 0)}
 
 					<tr
-						class="group cursor-grab align-middle active:cursor-grabbing
+						class="group cursor-grab border-b border-surface-500/30 align-middle last:border-0 active:cursor-grabbing dark:border-surface-500/40
 								{selectedFiles.has(fileId) ? SMART_TABLE_ROW_SELECTED : SMART_TABLE_ROW_HOVER}"
-						onclick={() => handleRowClick(file)}
+						onclick={(e) => handleRowClick(file, e)}
 						onkeydown={(e) => handleKeyDown(e, file)}
 						tabindex="0"
 						aria-selected={selectedFiles.has(fileId)}
@@ -565,7 +700,10 @@
 								<Checkbox
 									class="w-auto"
 									checked={selectedFiles.has(fileId)}
-									onchange={() => toggleSelection(file)}
+									onchange={() => {
+										lastSelectedId = fileId;
+										toggleSelection(file);
+									}}
 									label="Select {file.filename}"
 									hideLabel
 									size="sm"
@@ -576,18 +714,20 @@
 							<div
 								class="media-thumb-checkerboard flex h-10 w-11 items-center justify-center overflow-hidden rounded sm:h-11 sm:w-12"
 							>
-								{#if file.type === 'image' && !failedImages.has(fileId)}
+								{#if candidateUrls.length > 0 && !previewFailed}
 									<img
-										src={mediaDisplayUrl(file, 'thumbnail')}
+										src={candidateUrls[previewIndex] ?? ''}
 										alt=""
-										class="pointer-events-none h-full w-full object-cover"
+										class="pointer-events-none h-full w-full {isImage
+											? 'object-cover'
+											: 'object-contain bg-white'}"
 										loading="lazy"
 										decoding="async"
 										draggable="false"
 										crossorigin="anonymous"
-										onerror={() => failedImages.add(fileId)}
+										onerror={() => handlePreviewError(candidateUrls, previewKey, previewIndex)}
 									/>
-								{:else if file.type === 'image'}
+								{:else if isImage}
 									<iconify-icon
 										icon="mdi:image-off-outline"
 										width="20"
@@ -606,6 +746,33 @@
 							<div class="truncate text-sm font-medium" dir="auto" title={file.filename}>
 								{file.filename}
 							</div>
+							{#if processing !== 'ready' || inUse || previewFailed}
+								<div class="mt-0.5 flex flex-wrap items-center gap-1">
+									{#if previewFailed}
+										<span
+											class="rounded-full border border-error-500/30 bg-error-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-error-500 dark:border-error-500/40 dark:bg-error-900/20 dark:text-error-400"
+											title="File missing — open the file details to replace it">File missing</span
+										>
+									{/if}
+									{#if processing === 'processing'}
+										<span
+											class="rounded-full bg-warning-500 px-1.5 py-0.5 text-[10px] font-semibold text-surface-950"
+											>Processing</span
+										>
+									{:else if processing === 'failed'}
+										<span
+											class="rounded-full bg-error-500 px-1.5 py-0.5 text-[10px] font-semibold text-white"
+											>Failed</span
+										>
+									{/if}
+									{#if inUse}
+										<span
+											class="rounded-full bg-tertiary-500 px-1.5 py-0.5 text-[10px] font-semibold text-white dark:bg-primary-500"
+											>In use</span
+										>
+									{/if}
+								</div>
+							{/if}
 							<div
 								class="media-table-path hidden font-mono text-[10px] text-(--admin-text-muted) sm:block dark:text-(--admin-text-muted)"
 								title={(file as MediaImage).path}
@@ -634,6 +801,7 @@
 								{file}
 								onDetails={() => onOpenFileDetails(file)}
 								onEdit={() => onEditImage(file as MediaImage)}
+								onFocal={() => onSetFocalPoint(file as MediaImage)}
 								onTags={() => openTagEditor(file as MediaImage)}
 								onDelete={() => ondeleteImage(file)}
 							/>

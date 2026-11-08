@@ -224,7 +224,7 @@ export const recaptchaPlugin = definePlugin({
 
 ### 2. How it mounts
 
-- **Registration is isomorphic** — `src/plugins/index.ts` registers `page` parts into `pluginPageRegistry` on client and server (same pattern as slots).
+- **Registration is isomorphic** — `src/plugins/index.ts` registers `page` parts into `pluginPageRegistry` on client and server (same pattern as slots). The **client** imports `src/plugins/client.ts`, a static catalog of only the plugins that declare `ui` or `parts`; the server barrel still eagerly globs every plugin for boot, and server-only plugins (`cookie-consent`, `sitemap`, migrations/hooks) stay out of the browser graph. A plugin that adds UI/parts must be added to the client catalog — enforced by `tests/unit/plugins/plugin-client-catalog.test.ts`.
 - **Route** — a single catch-all `src/routes/(app)/plugin/[...path]/` resolves the page by path.
 - **Server load** (`+page.server.ts`) — enforces `requiredCapabilities` (**403 fail-closed**; admins bypass via fast-path, roles must carry every required capability), runs the page's optional `load` hook, and returns `{ pageId, title, props }`.
 - **Client** (`+page.svelte`) — looks up the lazy component by `pageId` and renders it inside `<AdminPageShell>` with the server props.
@@ -340,7 +340,7 @@ export const virtualSlots = [
 
 ### 2. Optional SvelteKit Site Starter
 
-SveltyCMS ships a **free, recommended** SvelteKit public frontend at `routes/(site)` with **Svedit** inline page design. **Website Starter** is the default setup preset; `SITE_STARTER_ENABLED` (default `true`) toggles public routes at `/`.
+SveltyCMS ships a **free, recommended** SvelteKit public frontend at `routes/(site)` with **Svedit** inline page design. **Website Starter** is an **opt-in** setup preset; `SITE_STARTER_ENABLED` (default `false`, the preset sets it to `true`) toggles public routes at `/`.
 
 - **Free**: Public routes, `pages` collection, native UI components
 - **Not required**: Disable for pure headless; use Astro/Next/Vue with the same APIs

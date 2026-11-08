@@ -93,6 +93,7 @@ test.describe("Layout stability", () => {
     const inlineAside = page.locator("aside.max-h-dvh").first();
     await expect(page.getByRole("main")).toBeVisible();
 
+    // wait-allow: deliberate OBSERVE_MS layout-shift measurement window
     await page.waitForTimeout(OBSERVE_MS);
     const report = await readLayoutShift(page);
 

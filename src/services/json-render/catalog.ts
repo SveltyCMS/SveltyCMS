@@ -56,7 +56,7 @@ export interface ComponentRenderProps {
 /**
  * Valibot schema for validating AI-generated layout specs.
  */
-export const UIElementSchema = object({
+const UIElementSchema = object({
   type: string(),
   props: optional(record(string(), unknown())),
   children: optional(array(string())),
@@ -67,7 +67,7 @@ export const UIElementSchema = object({
   options: optional(record(string(), unknown())),
 });
 
-export const SpecSchema = object({
+const SpecSchema = object({
   root: string(),
   elements: record(string(), UIElementSchema),
 });
@@ -81,7 +81,7 @@ export function validateSpec(input: unknown): Spec | null {
 }
 
 // The unified catalog containing all AI-generatable components.
-export const sveltyCatalog = {
+const sveltyCatalog = {
   data: {
     components: {} as Record<string, unknown>,
     actions: {} as Record<string, unknown>,

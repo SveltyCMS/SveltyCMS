@@ -25,7 +25,7 @@ import {
   googleAuth,
 } from "@src/databases/auth/google-auth";
 import { auth, dbInitPromise } from "@src/databases/db";
-import { readSessionCookie } from "@src/databases/auth/constants";
+import { readSessionCookie } from "@utils/security/session-cookie";
 import { resolveUserPostAuthLanding } from "@utils/auth/post-auth-landing.server";
 import { isRedirect, type Actions, fail, redirect } from "@sveltejs/kit";
 import { RateLimiter } from "@src/hooks/handle-rate-limit";
@@ -44,7 +44,7 @@ import { sendMail } from "@utils/email.server";
 import { safeRedirect } from "@src/utils/security/safe-redirect";
 
 import { getSystemState } from "@src/stores/system/state.svelte.ts";
-import pkg from "../../../package.json";
+import pkg from "@root/package.json";
 
 // Auth actions delegate to auth.remote.ts
 import {
@@ -54,6 +54,7 @@ import {
   resetPW as resetPWFn,
   prefetch as prefetchFn,
 } from "./auth.remote";
+import { nowISODateString } from "@utils/date";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -84,7 +85,9 @@ function getUserLanguage(): string {
   try {
     const langFromStore = (globalThis as any).__app?.systemLanguage;
     if (langFromStore) return langFromStore;
-  } catch {}
+  } catch (error) {
+    logger.debug("[+page.server] suppressed error", error);
+  }
   return "en";
 }
 
@@ -418,7 +421,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
               existingUser._id as any,
               {
                 lastAuthMethod: "google",
-                lastActiveAt: new Date().toISOString() as any,
+                lastActiveAt: nowISODateString() as any,
               },
               withSystemScope("bootstrap"),
             )

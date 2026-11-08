@@ -6,6 +6,7 @@
 
 import { describe, it, expect } from "vitest";
 import {
+  buildScannerJson,
   isExcludedPath,
   scanSvelteContent,
   summarizeViolations,
@@ -466,5 +467,49 @@ describe("slop-scanner — advisory inventory is not a finding", () => {
     expect(summary.warnings).toHaveLength(0);
     expect(summary.infos).toHaveLength(0);
     expect(summary.inventory).toHaveLength(2);
+  });
+});
+
+describe("slop-scanner — machine-readable output (--json)", () => {
+  const violation = (
+    category: string,
+    severity: Violation["severity"],
+    file = "src/example.ts",
+  ): Violation => ({ file, line: 1, category, message: category, severity });
+
+  it("counts severities, categories and inventory separately", () => {
+    const report = buildScannerJson({
+      findings: [
+        violation("security", "error"),
+        violation("a11y", "warning"),
+        violation("a11y", "warning"),
+        violation("unused-export", "info"),
+      ],
+      inventory: [violation("export-surface", "info"), violation("duplicate-export-name", "info")],
+      filesScanned: 42,
+      isStrict: true,
+      autofixedFiles: 1,
+    });
+
+    expect(report.ok).toBe(false);
+    expect(report.counts).toEqual({ errors: 1, warnings: 2, infos: 1, inventory: 2 });
+    expect(report.categories).toEqual({ a11y: 2, security: 1, "unused-export": 1 });
+    expect(report.inventoryCategories).toEqual({ "duplicate-export-name": 1, "export-surface": 1 });
+    expect(report.filesScanned).toBe(42);
+    expect(report.autofixedFiles).toBe(1);
+    expect(report.violations).toHaveLength(4);
+  });
+
+  it("is ok only when there are no errors and no warnings", () => {
+    const infoOnly = buildScannerJson({
+      findings: [violation("unused-export", "info")],
+      inventory: [],
+      filesScanned: 1,
+      isStrict: false,
+      autofixedFiles: 0,
+    });
+
+    expect(infoOnly.ok).toBe(true);
+    expect(infoOnly.counts.errors + infoOnly.counts.warnings).toBe(0);
   });
 });

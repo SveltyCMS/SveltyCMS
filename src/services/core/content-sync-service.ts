@@ -29,6 +29,7 @@ import { jobQueue } from "@src/services/background/jobs/job-queue-service";
 import { createChecksum } from "@utils/security/checksum";
 import { generateUUID } from "@utils/native-utils";
 import { logger } from "@utils/logger";
+import { nowISODateString } from "@utils/date";
 
 /** Cached lazy handle to the event bus — one module-registry lookup instead of one per call. */
 let eventBusModulePromise:
@@ -256,7 +257,7 @@ export class ContentSyncService {
   /** Creates a new sync channel (disabled by default). */
   public async createChannel(options: CreateChannelOptions): Promise<ContentSyncChannel> {
     const adapter = this.getAdapter();
-    const now = new Date().toISOString();
+    const now = nowISODateString();
 
     const channel: ContentSyncChannel = {
       channelId: `sync_${generateUUID().replace(/-/g, "").slice(0, 16)}`,
@@ -290,7 +291,7 @@ export class ContentSyncService {
     const existing = await this.getChannel(channelId);
     if (!existing) throw new Error(`Channel not found: ${channelId}`);
 
-    const now = new Date().toISOString();
+    const now = nowISODateString();
     const merged = { ...existing, ...updates, updatedAt: now };
 
     // Ensure nested objects are merged correctly
@@ -409,7 +410,7 @@ export class ContentSyncService {
       conflictStrategy: channel.conflictStrategy,
       requiresConfirmation,
       warnings,
-      createdAt: new Date().toISOString(),
+      createdAt: nowISODateString(),
     };
   }
 
@@ -797,7 +798,7 @@ export class ContentSyncService {
       await adapter.crud.update(
         CHANNELS_COLLECTION,
         channelId as any,
-        { lastSyncAt: new Date().toISOString() } as any,
+        { lastSyncAt: nowISODateString() } as any,
       );
     } catch (err) {
       logger.warn(`[ContentSync] Could not update lastSyncAt for channel ${channelId}:`, err);

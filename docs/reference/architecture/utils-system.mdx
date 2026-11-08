@@ -42,12 +42,12 @@ src/utils/                          (counts verified 2026-11-05)
 
 ### Data & Strings
 
-| File            | Key exports                                                                                                         |
-| --------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `string.ts`     | `cn`, `parse`, `getEditDistance`, `getTextDirection`, `escapeRegex`, `hex2arrayBuffer`, `arrayBuffer2hex`, `sha256` |
-| `file.ts`       | `formatBytes`, `obj2formdata`, `ReadableExpireIn`, `sanitize`, `removeExtension`                                    |
-| `data-utils.ts` | `deepCopy`, `uniqueItems`, `copyDataWithFreshRowIds`                                                                |
-| `diff-utils.ts` | `computeFieldDiff`, `DiffEntry`                                                                                     |
+| File            | Key exports                                                                |
+| --------------- | -------------------------------------------------------------------------- |
+| `string.ts`     | `pluralize`, `englishPlural`, `getTextDirection`, `getEditDistance`, `str` |
+| `file.ts`       | `formatBytes`                                                              |
+| `data-utils.ts` | `deepCopy`, `uniqueItems`, `copyDataWithFreshRowIds`                       |
+| `diff-utils.ts` | `computeFieldDiff`, `DiffEntry`                                            |
 
 > `object-utils.ts` and `array-utils.ts` no longer exist; their helpers live in `data-utils.ts`.
 
@@ -96,7 +96,7 @@ src/utils/                          (counts verified 2026-11-05)
 | File                         | Key exports                                                                         | API endpoint                                |
 | ---------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------- |
 | `media-storage.server.ts`    | `createVersion`, `compareMediaVersions`, `getVersionStats`, `saveFile`, `getFile`   | Storage + Version                           |
-| `advanced-search.ts`         | `advancedSearch`, `getSuggestions`, `SearchCriteria`                                | Search API                                  |
+| `advanced-search.ts`         | `advancedSearch`, `SearchResult`, `SearchCriteria`                                  | Search API                                  |
 | `streaming-upload.ts`        | `parseMultipartStream`                                                              | Stream upload                               |
 | `media-processing.server.ts` | `hashFileContent`, `MediaProcessingService`                                         | Processing                                  |
 | `slim-sniffer.server.ts`     | `sniffMimeType`, `resolveMimeType`, `assertMimeAgreement`, `resolveRemoteAssetMime` | Binary MIME detection + write/serve resolve |

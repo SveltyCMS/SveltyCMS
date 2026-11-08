@@ -7,7 +7,6 @@ import { getDb } from "@src/databases/db";
 import { StatusTypes } from "@src/content/types";
 import { nowISODateString } from "@utils/date";
 import { logger } from "@utils/logger";
-import { webhookService } from "../webhook-service";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 import type { DatabaseId } from "@src/databases/db-interface";
@@ -181,6 +180,7 @@ export const scheduledPublishHandler: JobHandler = async (_payload, _job) => {
         await db.content.nodes.update(node.path, updateData as any, {
           tenantId: node.tenantId as any,
         });
+        const { webhookService } = await import("../webhook-service");
         webhookService.trigger(
           "entry:publish",
           {

@@ -2,8 +2,8 @@
  * @file src/utils/boolean-filter.ts
  * @description Browser-safe AND/OR filter-group types, URL codec, and compile helpers.
  *
- * Used by the Advanced Filter modal, `parseCollectionListQuery`, and the
- * collection-filter-engine. Never imports DB adapters.
+ * Used by `parseCollectionListQuery` (`collection-query-filters.server.ts`)
+ * and the collection-filter-engine. Never imports DB adapters.
  *
  * ### Features:
  * - compact `filterLogic` URL encoding (size-capped)
@@ -11,7 +11,7 @@
  * - OR groups compile to portable equality / in-list / null clauses
  */
 
-import type { CollectionFilterMap } from "./collection-query-filters";
+import type { CollectionFilterMap } from "./collection-query-filter-meta";
 
 export type BooleanFilterOperator =
   | "equals"

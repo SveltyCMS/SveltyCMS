@@ -7,7 +7,7 @@
 	import type { FieldInstance } from '@src/content/types';
 	import type { Role } from '@src/databases/auth/types';
 	import { generateUUID } from '@utils/native-utils';
-	import { fetchApi } from '@utils/api';
+	import { fetchApi } from '@utils/http-client';
 	import { collections, setCollection, setTargetWidget } from '@src/stores/collection-store.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { getWidgetFunction, widgets } from '@src/stores/widget-store.svelte.ts';
@@ -71,8 +71,11 @@
 	import Button from '@src/components/ui/button.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import FloatingInput from '@components/ui/floating-input.svelte';
-	import { generateCollectionTypeScript } from '../../../collection-code-generator';
-	import { inferWidgetFromFieldName, type InferredWidgetResult } from '../../../smart-inference';
+	import { generateCollectionTypeScript } from '@src/routes/(app)/config/collectionbuilder/collection-code-generator';
+	import {
+		inferWidgetFromFieldName,
+		type InferredWidgetResult
+	} from '@src/routes/(app)/config/collectionbuilder/smart-inference';
 	import { draggable, droppable, dndState } from '@thisux/sveltednd';
 	import type { DragDropState } from '@thisux/sveltednd';
 

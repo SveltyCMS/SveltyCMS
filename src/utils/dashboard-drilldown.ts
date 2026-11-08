@@ -9,7 +9,7 @@
  * - safe encoding via URLSearchParams; empty / "Other" buckets add no filter
  */
 
-import { FILTER_URL_PREFIX } from "@utils/collection-query-filters";
+import { FILTER_URL_PREFIX } from "@utils/collection-query-filter-meta";
 
 export interface DrilldownOptions {
   language: string;

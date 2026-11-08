@@ -10,6 +10,7 @@
  * | Stage                        | Expected                                    |
  * | ---------------------------- | ------------------------------------------- |
  * | first load                   | 100 rows fetched, `has-more` true, total > 100 |
+ * | server search                | an asset on page 2 appears without fetching it |
  * | grid sentinel scrolled       | `?page=2` fetched, more rows loaded         |
  * | table "Load more" until gone | every asset loaded, `has-more` false        |
  * | table last page              | the asset beyond the first 100 is reachable |
@@ -61,11 +62,24 @@ test.describe("Media gallery — server pagination", () => {
       const total = Number(await status.getAttribute("data-total"));
       expect(total, "the loader must preserve the adapter total").toBeGreaterThanOrEqual(SEEDED);
 
-      // Client-side search only sees fetched rows, so the oldest asset is absent here.
-      await page.getByRole("searchbox", { name: /search media assets/i }).fill(prefix);
+      // Server-side search reaches the whole folder, not the fetched slice: the
+      // oldest row lives on page 2, and searching its exact name finds it while
+      // `data-page` is still 1. A prefix search would match all 101 fixtures and
+      // still paginate at 100, so the unique filename is the honest probe.
+      const searchBox = page.getByRole("searchbox", { name: /search media assets/i });
+      await searchBox.fill(oldest);
       await expect(
         page.getByTestId("media-item").filter({ hasText: oldest }).filter({ visible: true }),
-      ).toHaveCount(0);
+      ).toHaveCount(1, { timeout: 30_000 });
+      await expect(status).toHaveAttribute("data-page", "1");
+      await expect(status).toHaveAttribute("data-total", "1");
+
+      // Clear the query so the pagination assertions below start from the full
+      // folder view again (page 1, one full server slice).
+      await searchBox.fill("");
+      await expect(status).toHaveAttribute("data-page", "1", { timeout: 30_000 });
+      await expect(status).toHaveAttribute("data-loaded", String(PAGE_SIZE), { timeout: 30_000 });
+      await expect(status).toHaveAttribute("data-has-more", "true");
 
       // Grid sentinel = local batching exhausted → fetch the next server page.
       // Each retry scrolls again: the first pass only grows the local batch, the

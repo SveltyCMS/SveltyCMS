@@ -212,7 +212,7 @@ export function calculateMigrationHealth(
       level: "info",
       category: "performance",
       title: "Large import detected",
-      description: `${entries.length.toLocaleString()} entries — consider CLI.`,
+      description: `${entries.length.toLocaleString("en-US")} entries — consider CLI.`,
       action: "Use CLI for large imports",
       impact: "low",
     });
@@ -299,7 +299,7 @@ function generateHealthSummary(
   entryCount: number,
   mappingCount: number,
 ): string {
-  const base = `${entryCount.toLocaleString()} entries, ${mappingCount} field mappings. `;
+  const base = `${entryCount.toLocaleString("en-US")} entries, ${mappingCount} field mappings. `;
   switch (status) {
     case "excellent":
       return base + "Your migration is well-configured and ready to import.";

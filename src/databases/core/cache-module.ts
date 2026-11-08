@@ -22,7 +22,7 @@ import type {
   QueryFilter,
 } from "../db-interface";
 import { buildCollectionCacheTags } from "./collection-name";
-import { hashQueryPayload } from "@src/utils/collection-query-filters";
+import { hashQueryPayload } from "@utils/collection-query-filter-meta";
 import { CacheCategory } from "../cache/types";
 
 /** Cached lazy handle to the cache service — one module-registry lookup instead of one per call. */

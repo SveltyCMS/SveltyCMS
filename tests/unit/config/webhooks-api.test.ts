@@ -5,7 +5,6 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
-  unwrapWebhookList,
   listWebhooks,
   createWebhook,
   deleteWebhook,
@@ -13,17 +12,6 @@ import {
   testWebhookDelivery,
 } from "../../../src/routes/(app)/config/webhooks/webhooks-api";
 import { stubDocumentCookie, unstubAllGlobals } from "../helpers/stub-global";
-
-describe("unwrapWebhookList", () => {
-  it("returns empty on failure", () => {
-    expect(unwrapWebhookList({ success: false, message: "no" })).toEqual([]);
-  });
-
-  it("unwraps data array", () => {
-    const list = [{ id: "1", name: "A", url: "https://x", events: [], active: true }];
-    expect(unwrapWebhookList({ success: true, data: list } as any)).toEqual(list);
-  });
-});
 
 describe("webhooks-api + fetchApi CSRF", () => {
   let fetchMock: ReturnType<typeof vi.fn>;

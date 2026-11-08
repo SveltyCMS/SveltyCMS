@@ -242,10 +242,28 @@ export function invalidateScanCache(targetDir?: string): void {
 }
 
 /**
+ * Debug log throttle for transient loader deferrals (dev runner restarting).
+ * One line per path per minute beats seven warnings per second, and keeping the
+ * compiled artifact intact stops the delete → touch source → recompile loop.
+ */
+const TRANSIENT_DEFERRAL_LOG_INTERVAL_MS = 60_000;
+const _transientDeferralLoggedAt = new Map<string, number>();
+
+function noteTransientDeferral(fullPath: string): void {
+  const now = Date.now();
+  const last = _transientDeferralLoggedAt.get(fullPath);
+  if (last !== undefined && now - last < TRANSIENT_DEFERRAL_LOG_INTERVAL_MS) return;
+  _transientDeferralLoggedAt.set(fullPath, now);
+  logger.debug("[Scanner] Deferring compiled schema — dev module runner restarting", {
+    path: fullPath,
+  });
+}
+
+/**
  * Scans the .compiledCollections directory for compiled schema files.
  */
 export async function scanCompiledCollections(targetDir?: string): Promise<Schema[]> {
-  const collectionsDir = targetDir || path.resolve(process.cwd(), ".compiledCollections");
+  const collectionsDir = targetDir || getCompiledCollectionsPath();
 
   let promise = _scanPromises.get(collectionsDir);
   if (promise) return promise;
@@ -264,7 +282,9 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
       const benchmarkRuntime = await loadBenchmarkRuntimeModule();
       skipBenchmarks = !benchmarkRuntime.isBenchmarkRuntime();
       isBenchmarkArtifact = benchmarkRuntime.isBenchmarkArtifact;
-    } catch {} // module unavailable (stripped/embedded build) — scan everything
+    } catch (error) {
+      logger.debug("[engine.server] suppressed error", error);
+    } // module unavailable (stripped/embedded build) — scan everything
 
     async function walk(dir: string) {
       try {
@@ -293,8 +313,16 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
               return;
             }
             if (skipBenchmarks && isBenchmarkArtifact(entry.name)) return;
-            const stats = await stat(fullPath);
-            fileList.push({ fullPath, mtime: stats.mtimeMs });
+            try {
+              const stats = await stat(fullPath);
+              fileList.push({ fullPath, mtime: stats.mtimeMs });
+            } catch (err) {
+              // The compiler rewrites pages.js between readdir and stat. A single
+              // vanished entry must not abort the walk (it did: "Walk failed"
+              // ENOENT storms during HMR), so only rethrow real IO failures.
+              if ((err as NodeJS.ErrnoException)?.code === "ENOENT") return;
+              throw err;
+            }
           }),
         );
       } catch (_err) {
@@ -334,6 +362,7 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
           if (cached && cached.mtime === file.mtime) {
             _schemaCache.set(file.fullPath, cached.schema);
             _mtimeTree.set(file.fullPath, file.mtime);
+            _transientDeferralLoggedAt.delete(file.fullPath);
             return;
           }
 
@@ -348,6 +377,14 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
           const schema = moduleData?.schema;
 
           if (!schema) {
+            // Transient: the dev module runner was mid-restart. The artifact is
+            // valid — deleting it and touching the source caused a recompile
+            // loop (7 warnings/s) until the runner came back.
+            if (moduleData?.transient) {
+              noteTransientDeferral(file.fullPath);
+              return;
+            }
+
             // Compiled file is broken — delete it and touch source to trigger recompilation
             logger.warn("[Scanner] Broken compiled schema, triggering recompilation", {
               path: file.fullPath,
@@ -356,9 +393,8 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
             _mtimeTree.delete(file.fullPath);
             await unlink(file.fullPath).catch(() => {});
             // Touch the source .ts file to trigger Vite HMR recompilation
-            const tsPath = file.fullPath
-              .replace(".compiledCollections", "config/collections")
-              .replace(/\.js$/, ".ts");
+            const relBrokenJs = path.relative(collectionsDir, file.fullPath);
+            const tsPath = path.join(getCollectionsPath(), relBrokenJs.replace(/\.js$/, ".ts"));
             try {
               const now = new Date();
               await utimes(tsPath, now, now);
@@ -380,9 +416,8 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
             _schemaCache.delete(file.fullPath);
             _mtimeTree.delete(file.fullPath);
             await unlink(file.fullPath).catch(() => {});
-            const tsPath = file.fullPath
-              .replace(".compiledCollections", "config/collections")
-              .replace(/\.js$/, ".ts");
+            const relInvalidJs = path.relative(collectionsDir, file.fullPath);
+            const tsPath = path.join(getCollectionsPath(), relInvalidJs.replace(/\.js$/, ".ts"));
             try {
               const now = new Date();
               await utimes(tsPath, now, now);
@@ -401,6 +436,7 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
             _schemaCache.set(file.fullPath, schema);
           }
           _mtimeTree.set(file.fullPath, file.mtime);
+          _transientDeferralLoggedAt.delete(file.fullPath);
         }),
       );
 
@@ -563,7 +599,9 @@ async function bootstrapCollectionFilesFromDb(
     const sb = await loadBenchmarkSandboxModule();
     isLocalBenchmarkSandbox = sb.isLocalBenchmarkSandbox;
     assertLiveDataWriteAllowed = sb.assertLiveDataWriteAllowed;
-  } catch {}
+  } catch (error) {
+    logger.debug("[engine.server] suppressed error", error);
+  }
 
   if (isLocalBenchmarkSandbox()) {
     return;
@@ -584,7 +622,9 @@ async function bootstrapCollectionFilesFromDb(
     const benchmarkRuntime = await loadBenchmarkRuntimeModule();
     skipBenchmarks = !benchmarkRuntime.isBenchmarkRuntime();
     isBenchmarkArtifact = benchmarkRuntime.isBenchmarkArtifact;
-  } catch {} // module unavailable (stripped build) — bootstrap everything
+  } catch (error) {
+    logger.debug("[engine.server] suppressed error", error);
+  } // module unavailable (stripped build) — bootstrap everything
 
   for (const schema of dbSchemas) {
     const slug = String((schema as any).slug || schema._id || schema.name || "")
@@ -618,7 +658,9 @@ async function bootstrapCollectionFilesFromDb(
     try {
       await fs.access(filePath);
       continue;
-    } catch {}
+    } catch (error) {
+      logger.debug("[engine.server] suppressed error", error);
+    }
 
     const content = `/**
  * @file ${isTestCollection ? "config/test-collections/" : "config/collections/"}${fileName}
@@ -688,7 +730,9 @@ export const contentService = {
     const [dbResult, categoryNodes, manifestOrder, manifestStructure] = await Promise.all([
       dbAdapter.content.nodes.getStructure("flat", {
         tenantId: tenantId as any,
-        ...withSystemScope("bootstrap"),
+        // A caller-scoped read must not bypass the tenant predicate; only a
+        // genuinely global request (tenantId null/empty) uses system scope.
+        ...(tenantId ? {} : withSystemScope("bootstrap")),
       }),
       generateCategoryNodesFromPaths(schemas, tenantId),
       getCollectionOrder(tenantId ?? null),
@@ -734,7 +778,9 @@ export const contentService = {
     try {
       const { prewarmCollectionSchemas } = await loadSchemaStoreModule();
       prewarmCollectionSchemas(schemas, dbAdapter, tenantId);
-    } catch {}
+    } catch (error) {
+      logger.debug("[engine.server] suppressed error", error);
+    }
 
     // 4. Invalidate navigation L1/L2 + broadcast
     await notifyContentUpdate(tenantId);
@@ -1029,7 +1075,7 @@ export const contentService = {
     }
 
     // Always enrich before cache checks — ensures path is set regardless of hit/miss
-    const collectionsDir = path.resolve(process.cwd(), ".compiledCollections");
+    const collectionsDir = getCompiledCollectionsPath(tenantId);
     enrichSchemaWithMetadata(schema, fullPath, collectionsDir);
 
     const hash = generateSchemaHash(schema);
@@ -1165,7 +1211,9 @@ export const contentService = {
     if (!db) return [];
     const res = await db.content.nodes.getStructure(format as any, {
       tenantId: tenantId as any,
-      ...withSystemScope("bootstrap"),
+      // Only a global read (no tenant) may bypass the tenant predicate; a
+      // tenant-scoped caller must never receive other tenants' structures.
+      ...(tenantId ? {} : withSystemScope("bootstrap")),
       // Fresh read: callers use this right after structure writes (saves,
       // GUI reorders) — a stale cached empty list would render an empty
       // builder board even though the DB row exists.
@@ -1237,7 +1285,10 @@ export const contentService = {
           // requested path really survived the delete.
           const remaining = await dbAdapter.content.nodes.getStructure("flat", {
             tenantId: tenantId as any,
-            ...withSystemScope("bootstrap"),
+            // Only a genuinely global request (no tenant) may bypass the tenant
+            // predicate: with a live tenantId, `withSystemScope` empties the
+            // clause and this re-read would see every tenant's nodes.
+            ...(tenantId ? {} : withSystemScope("bootstrap")),
             bypassCache: true,
           });
           const remainingPaths = new Set(
@@ -1399,7 +1450,7 @@ let _pendingFullReload = false;
 
 /** Initializes the file system watcher for the compiled collections directory. */
 export function startContentWatcher() {
-  const targetDir = path.resolve(process.cwd(), ".compiledCollections");
+  const targetDir = getCompiledCollectionsPath();
 
   // Idempotent: one watcher per process. Re-calls (per-tenant init, HMR re-entry)
   // must not stack duplicate listeners or leak the previous FSWatcher handle.

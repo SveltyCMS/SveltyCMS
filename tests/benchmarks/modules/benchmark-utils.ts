@@ -7,6 +7,8 @@
 import { performance } from "node:perf_hooks";
 import fs from "node:fs";
 import path from "node:path";
+import os from "node:os";
+import { execSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { pushTableToMdx, appendSummaryToMdx } from "./benchmark-reporting";
 import { resolveServerMode, isModeContaminated, reportModeRefusal } from "./benchmark-history";
@@ -1298,7 +1300,7 @@ export async function seedBenchmarkState(): Promise<void> {
 
   // 1. Default roles (idempotent — mirrors /api/testing action=seed)
   try {
-    const { seedRoles } = await import("@src/routes/setup/seed");
+    const { seedRoles } = await import("@src/services/setup/seed");
     await seedRoles(db as any, tenantId);
   } catch (err: any) {
     logger.warn(`[BenchSeed] Role seeding failed (non-fatal): ${err.message}`);
@@ -1763,6 +1765,8 @@ export async function setupBenchmarkServer() {
       DISABLE_OUTBOX: process.env.DISABLE_OUTBOX || "true",
       RATE_LIMIT_MAX_REQUESTS: process.env.RATE_LIMIT_MAX_REQUESTS || "1000000",
       SECURITY_RATE_LIMIT_SCALE: process.env.SECURITY_RATE_LIMIT_SCALE || "100",
+      RATE_LIMIT_L1_CAPACITY: process.env.RATE_LIMIT_L1_CAPACITY || "1000000",
+      RATE_LIMIT_L1_REFILL_PER_SEC: process.env.RATE_LIMIT_L1_REFILL_PER_SEC || "1000000",
       // 🚀 POSTGRES DURABILITY & FAST LANE: for high-throughput benchmark runs,
       // allow PostgreSQL to run with synchronous_commit=off (matching SQLite's
       // PRAGMA synchronous=NORMAL) and enable the raw socket write lane.
@@ -1905,6 +1909,38 @@ export async function setupBenchmarkServer() {
   return { baseUrl: process.env.API_BASE_URL, stop };
 }
 
+let _cachedHardwareInfo: {
+  cpuModel: string;
+  cores: number;
+  ramMB: number;
+  powerPlan?: string;
+} | null = null;
+
+function getHardwareInfo(): {
+  cpuModel: string;
+  cores: number;
+  ramMB: number;
+  powerPlan?: string;
+} {
+  if (_cachedHardwareInfo) return _cachedHardwareInfo;
+  const cpus = os.cpus() || [];
+  const cpuModel = cpus[0]?.model?.trim() || "unknown";
+  const cores = cpus.length;
+  const ramMB = Math.round(os.totalmem() / (1024 * 1024));
+  let powerPlan: string | undefined = process.env.POWER_PLAN;
+  if (!powerPlan && process.platform === "win32") {
+    try {
+      const out = execSync("powercfg /getactivescheme", { encoding: "utf8", timeout: 1500 });
+      const m = out.match(/\(([^)]+)\)/);
+      if (m) powerPlan = m[1].trim();
+    } catch {
+      // Power scheme inspection is best-effort
+    }
+  }
+  _cachedHardwareInfo = { cpuModel, cores, ramMB, ...(powerPlan ? { powerPlan } : {}) };
+  return _cachedHardwareInfo;
+}
+
 export async function exportResult(r: any) {
   const dbType = getDbType();
 
@@ -1933,6 +1969,7 @@ export async function exportResult(r: any) {
   // Build structured entry — spans + event-loop telemetry become trendable
   // ledger fields (PROFILE_WRITE=1 runs attach gql:/write- path span deltas).
   const spans = takeProfileSpans();
+  const hw = getHardwareInfo();
   const entry = {
     runMode,
     // Mode parity stamp — trend comparisons filter on this (never compare modes).
@@ -1941,6 +1978,11 @@ export async function exportResult(r: any) {
     testFile: testFile || "unknown",
     metric: r.name,
     layer: r.layer || undefined,
+    cpuModel: hw.cpuModel,
+    cores: hw.cores,
+    ramMB: hw.ramMB,
+    ...(hw.powerPlan ? { powerPlan: hw.powerPlan } : {}),
+    ...(r.dbRowCount !== undefined ? { dbRowCount: r.dbRowCount } : {}),
     avgMs: r.avgMs ?? 0,
     // Real percentiles from the raw sample array (computeStatistics reads the
     // untrimmed sample for these) — the local variance report classifies tail
