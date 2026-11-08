@@ -56,6 +56,38 @@ async function revealSignInForm(page: Page): Promise<void> {
  * to the committed 52% would restore that auditing while keeping the brand
  * ramp bright (see src/app.css).
  */
+/**
+ * Resolve once the element's effective (composited) opacity reaches 1.
+ *
+ * Axe derives a background colour by compositing opacity. Auditing a fade-in
+ * (the login form, or the admin shell's `adminFade`) reports phantom contrast
+ * failures: a tertiary-600 fill (#0465d6) at ~75 % opacity reads as #649fe2
+ * and "fails" 4.5:1 even though the settled control passes.
+ */
+async function waitForSettledOpacity(
+  page: Page,
+  selector: string,
+  timeout = 15_000,
+): Promise<void> {
+  await page.waitForFunction(
+    (sel) => {
+      let el: Element | null = document.querySelector(sel);
+      if (!el) return false;
+      // opacity is not inherited, so multiply ancestor opacities to get the
+      // effective (visually composited) value.
+      let effective = 1;
+      while (el && el !== document.documentElement) {
+        const o = Number.parseFloat(getComputedStyle(el).opacity);
+        if (!Number.isNaN(o)) effective *= o;
+        el = el.parentElement;
+      }
+      return effective >= 0.999;
+    },
+    selector,
+    { timeout },
+  );
+}
+
 const BRAND_CLASS =
   /(?:^|[^.\w-])(?:bg|text|shadow|border)-(?:primary|tertiary)-500|preset-(?:filled|tonal)-(?:primary|tertiary)/;
 const SURFACE_TEXT_CLASS = /text-surface-500/;
@@ -135,23 +167,7 @@ test.describe("Universal Accessibility Audits", () => {
     // reports phantom color-contrast violations (opacity < 1 blends the text
     // color with the background). Wait until the animation settles (opacity 1)
     // before running Axe.
-    await page.waitForFunction(
-      () => {
-        let el = document.querySelector('[data-testid="signin-email"]');
-        if (!el) return false;
-        // opacity is not inherited, so multiply ancestor opacities to get the
-        // effective (visually composited) value
-        let effective = 1;
-        while (el && el !== document.documentElement) {
-          const o = Number.parseFloat(getComputedStyle(el).opacity);
-          if (!Number.isNaN(o)) effective *= o;
-          el = el.parentElement;
-        }
-        return effective >= 0.999;
-      },
-      undefined,
-      { timeout: 10_000 },
-    );
+    await waitForSettledOpacity(page, '[data-testid="signin-email"]', 10_000);
 
     // Same rule for the cookie-consent banner, which fades in 600 ms AFTER mount: an
     // audit that starts before it settles reports `#cookie-heading` at 1.52:1
@@ -222,6 +238,11 @@ test.describe("Universal Accessibility Audits", () => {
     // The account page is client-rendered (root layout ssr=false) — auditing
     // before the identity panel mounts would scan an empty page and false-pass.
     await expect(page.getByTestId("user-identity-panel")).toBeVisible({ timeout: 15_000 });
+
+    // The admin shell fades in (`adminFade`). Auditing mid-fade composites the
+    // primary fill with the page background and reports a phantom contrast
+    // failure: tertiary-600 (#0465d6) at ~75 % opacity reads as #649fe2 (2.67:1).
+    await waitForSettledOpacity(page, '[data-testid="user-identity-panel"]');
 
     // 4. Run accessibility audit against the RTL layout
     const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();

@@ -32,12 +32,11 @@ test.describe("Site Starter", () => {
       body.success,
       `seed-website-starter unsuccessful: ${JSON.stringify(body).slice(0, 300)}`,
     ).toBe(true);
-    // The Live Preview tab depends on the editable-website plugin — the seed
-    // enables it; fail hard if it did not (no deterministic tab otherwise).
-    expect(
-      body.pluginEnabled,
-      `seed-website-starter must enable the editable-website plugin: ${JSON.stringify(body).slice(0, 300)}`,
-    ).toBe(true);
+    // `pluginEnabled` is not asserted: the seed reads it from the process-wide
+    // plugin registry, whose settings service can be bound to another worker's
+    // DB under the parallel E2E harness, so the flag is not a reliable
+    // idempotency signal. The Live Preview tab in the next test is the hard
+    // outcome assertion: without the editable-website plugin it does not render.
   });
 
   test("guest sees seeded homepage at /", async ({ browser }) => {
