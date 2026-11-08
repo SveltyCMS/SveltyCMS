@@ -246,7 +246,7 @@ tags:
   - [x] Reconcile documented-but-unmounted components (`TokenPicker` mounted once in `(app)/+layout.svelte` with `TokenRegistry` entry-field registration; `two-factor-setup-modal` documented as superseded by `modal-two-factor-auth`).
   - [x] Prune deprecated zero-caller symbols: `MigrationEngine.executeMigration`, `buildRawTenantFilter`, `resolveSameSourceJoinTarget`, `UpsertOperation`.
   - [x] Prune orphaned scripts (2026-10-18): `analyze-base-metrics.ts`, `check-deprecated.ts`, `generate-comprehensive-comparison.ts`, `provision-e2e.ts`, `record-cold-warm-benchmarks.ts`, plus the one-shot locale codemods (`add-page-title-suffix-key.mjs`, `fix-embedded-expression-messages.mjs`, `verify-locale-parity.mjs`) and the duplicate `create-app.ts` (the published bin is `create-app.js`).
-  - Validate inline code paths: resolve 107 stale inline `` `src/…` `` references in docs and add verification to `tests/lint-docs.ts`.
+  - Validate inline code paths: resolve 107 stale inline `` `src/…` `` references in docs and add verification to `tests/lint/docs.ts`.
   - [x] Wire up server-side cookie consent logging in `src/plugins/cookie-consent/api.server.ts`.
 - **State Migration**:
   - [x] Migrated legacy stores (`systemState`, `overallState`) in `src/stores/system/state.svelte.ts` to Svelte 5 runes (`$state()`, `$derived()`), fully eradicating `svelte/store` with internal native `#listeners` subscription support.

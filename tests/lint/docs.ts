@@ -1,5 +1,5 @@
 /**
- * @file tests/lint-docs.ts
+ * @file tests/lint/docs.ts
  * @description Semantic + Compliance Linter for SveltyCMS Documentation
  *
  * Supercharged Smart Mode & Autofixer (2026):

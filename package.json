@@ -119,7 +119,7 @@
     "lint:testids": "bun run scripts/lint/lint-duplicate-testids.ts",
     "lint:leaks": "bun run scripts/lint/scan-anonymous-leaks.ts",
     "lint:tenant": "bun run scripts/lint/lint-tenant-api.ts",
-    "lint:docs": "bun tests/lint-docs.ts",
+    "lint:docs": "bun tests/lint/docs.ts",
     "lint:benchmark-mdx": "bun run scripts/lint/lint-benchmark-mdx.ts",
     "test": "bun run test:unit",
     "test:unit": "svelte-kit sync && bun run scripts/test/run-unit-suite.ts",

@@ -52,13 +52,20 @@ const HOOK_UTILS_FILE = join(ROOT, "src/utils/hook-utils.ts");
 // Source parsing (TypeScript compiler API)
 // ─────────────────────────────────────────────────────────────────────────────
 
+const sourceCache = new Map<string, ts.SourceFile>();
+
 function sourceOf(text: string, fileName = "guard-fixture.ts"): ts.SourceFile {
   return ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
 }
 
 function readSource(file: string): ts.SourceFile {
-  // readFileSync throws on a missing/unreadable file — the guard must not pass on that.
-  return sourceOf(readFileSync(file, "utf8"), file);
+  let cached = sourceCache.get(file);
+  if (!cached) {
+    // readFileSync throws on a missing/unreadable file — the guard must not pass on that.
+    cached = sourceOf(readFileSync(file, "utf8"), file);
+    sourceCache.set(file, cached);
+  }
+  return cached;
 }
 
 function findFunction(source: ts.SourceFile, name: string): ts.FunctionDeclaration | null {
