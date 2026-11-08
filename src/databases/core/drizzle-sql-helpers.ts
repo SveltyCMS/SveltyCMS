@@ -926,6 +926,14 @@ export function resolveSystemTableName(collection: string): string {
   return res;
 }
 
+function hasAnyProperty(obj: unknown): boolean {
+  if (!obj || typeof obj !== "object") return false;
+  for (const _ in obj) {
+    if (obj) return true;
+  }
+  return false;
+}
+
 export function getColumnHelper(
   table: any,
   name: string,
@@ -940,7 +948,7 @@ export function getColumnHelper(
   if (!cols) {
     try {
       const resolvedCols = getTableColumns(table);
-      if (resolvedCols && Object.keys(resolvedCols).length > 0) {
+      if (resolvedCols && hasAnyProperty(resolvedCols)) {
         cols = resolvedCols as any;
         tableColumnsCache.set(table, cols!);
       }
@@ -1446,7 +1454,7 @@ export function getPhysicalSelection(
   if (cached && !excludeData) return cached;
   if (cached && excludeData) {
     const withoutData: any = {};
-    for (const k of Object.keys(cached)) {
+    for (const k in cached) {
       if (k !== "data") withoutData[k] = cached[k];
     }
     return withoutData;
@@ -1464,7 +1472,7 @@ export function getPhysicalSelection(
   // like slug/collection/locale/publishedAt were never selected either).
   try {
     const columns = getTableColumns(table);
-    if (columns && Object.keys(columns).length > 0) {
+    if (columns && hasAnyProperty(columns)) {
       const selection = excludeData ? omitData(columns) : columns;
       tableSelectionCache.set(table, columns);
       return selection;
@@ -1514,7 +1522,7 @@ export function getPhysicalSelection(
 
 function omitData(selection: any): any {
   const out: any = {};
-  for (const k of Object.keys(selection)) {
+  for (const k in selection) {
     if (k !== "data") out[k] = selection[k];
   }
   return out;
