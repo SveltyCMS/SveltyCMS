@@ -23,7 +23,14 @@
 # manifest already carries. Nothing a human types but `git push`.
 # =============================================================================
 set -u
-[ "${CI:-false}" = "true" ] && exit 0
+# Skip inside a real CI run only. `CI=true` alone is NOT enough: a local shell
+# that exported it (documented shortcut for bypassing this gate) made the hooks
+# exit 0 instantly, so a commit whose threat-model/unit/E2E gates were red landed
+# on a branch and CI failed minutes later. GitHub Actions always sets
+# GITHUB_ACTIONS=true, so requiring both keeps CI fast and the local gate closed.
+if [ "${CI:-false}" = "true" ] && [ "${GITHUB_ACTIONS:-false}" = "true" ]; then
+  exit 0
+fi
 # The release step below performs its own push; skip this hook for that push so
 # it cannot recurse.
 [ "${NESTED_RELEASE_PUSH:-}" = "1" ] && exit 0
@@ -308,10 +315,16 @@ if [ "${SKIP_E2E_SMOKE:-false}" != "true" ]; then
     esac
   done
   E2E_TARGETS="${UNIQUE_TARGETS# }"
+  # Headed Chromium needs an X server. CI runs the smoke gate under xvfb, so the
+  # local gate has to do the same instead of failing with "Missing X server or $DISPLAY".
+  E2E_PREFIX=""
+  if [ -z "${DISPLAY:-}" ] && command -v xvfb-run >/dev/null 2>&1; then
+    E2E_PREFIX="xvfb-run -a"
+  fi
   if gate_cached "e2e@${DIFF_SCOPE}"; then
     info "E2E browser gate already passed for this tree + diff base — skipping"
     OK=$((OK + 2))
-  elif run "🌐  E2E Browser Gate (Chromium)" pm_run scripts/runs/run-e2e.ts --no-build $E2E_TARGETS; then
+  elif run "🌐  E2E Browser Gate (Chromium)" ${E2E_PREFIX} "$PM_BIN" run scripts/runs/run-e2e.ts --no-build $E2E_TARGETS; then
     OK=$((OK + 1))
     record_gate "e2e@${DIFF_SCOPE}"
     # Any retried-pass locally is a warning sign: CI scores it against a budget.

@@ -14,7 +14,7 @@
         "src/databases/auth/permission-catalog.ts"
       ],
       "model": "docs/security/threat-models/api-dispatch.mdx",
-      "reviewed_at": "2026-11-08",
+      "reviewed_at": "2026-11-09",
       "fingerprint": "86a3e40272bd0d0189db28adb5e73f6070532ff171db2c901f17f3f05053dd64"
     },
     {
@@ -37,8 +37,8 @@
         "src/routes/api/[...path]/handlers/scim.ts"
       ],
       "model": "docs/security/threat-models/auth-session.mdx",
-      "reviewed_at": "2026-11-08",
-      "fingerprint": "053249de00b05de9f9bc7f00e46a2eab0ff9c815aab14bcd8d0a673ea676ff67"
+      "reviewed_at": "2026-11-09",
+      "fingerprint": "8d7ed2b0e44cd93ee5ff16c8aee649bd72cedb96907678ea99b737ef57f6e596"
     },
     {
       "id": "content-write",
@@ -57,7 +57,7 @@
         "src/hooks/handle-collection-write-lane.ts"
       ],
       "model": "docs/security/threat-models/content-write.mdx",
-      "reviewed_at": "2026-11-08",
+      "reviewed_at": "2026-11-09",
       "fingerprint": "c68d3b7ef8186c8068566d191494ea517d37bbe7f2afdc577e1a4bd912e03be1"
     },
     {
@@ -74,7 +74,7 @@
         "src/routes/api/[...path]/handlers/media-transcode.ts"
       ],
       "model": "docs/security/threat-models/media-files.mdx",
-      "reviewed_at": "2026-11-08",
+      "reviewed_at": "2026-11-09",
       "fingerprint": "4ae6c7ec20a8f2c322b598f861bccd1efa674feb8c251d3ce46190ece14e44a6"
     },
     {
@@ -90,7 +90,7 @@
         "src/utils/page-guards.server.ts"
       ],
       "model": "docs/security/threat-models/admin-pages.mdx",
-      "reviewed_at": "2026-11-08",
+      "reviewed_at": "2026-11-09",
       "fingerprint": "da916fc16e19830ad991f5224f076025c9706be87b54768aeb4d6bbb79a5d485"
     },
     {
@@ -131,8 +131,8 @@
         "src/utils/test-bypass.server.ts"
       ],
       "model": "docs/security/threat-models/system-ops.mdx",
-      "reviewed_at": "2026-11-08",
-      "fingerprint": "3001ddd005b2ac4e4eeb1de848daf159e2d44136f7162a7b2052a0d2dfba2f79"
+      "reviewed_at": "2026-11-09",
+      "fingerprint": "2a73ee9ea3132583d4240e4fc9d2652f063abd97e4746ad7f6b751dfde4d7738"
     }
   ]
 }
