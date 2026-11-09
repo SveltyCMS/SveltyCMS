@@ -256,15 +256,13 @@ export function isApiLike(pathname: string): boolean {
 
 export { isAdmin } from "@src/databases/auth/constants";
 
-let cachedTrustedProxies: Set<string> | "all" | null = null;
-
 function isProxyTrusted(ip: string): boolean {
-  if (cachedTrustedProxies === null) {
-    const list = getTrustedProxies();
-    cachedTrustedProxies = list === "all" ? "all" : new Set(list);
-  }
-  if (cachedTrustedProxies === "all") return true;
-  return cachedTrustedProxies.has(ip);
+  // getTrustedProxies() caches the parsed allowlist against the config stamp
+  // (config-state), so a changed TRUSTED_PROXIES setting takes effect without
+  // a restart. The previous module-level Set here was never invalidated.
+  const list = getTrustedProxies();
+  if (list === "all") return true;
+  return list.includes(ip);
 }
 
 /**

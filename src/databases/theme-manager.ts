@@ -17,6 +17,17 @@ import type { DatabaseId } from "../content/types";
 import { buildDefaultAdminThemeConfig } from "@src/themes/builtin-defaults";
 import type { IDBAdapter, Theme } from "./db-interface";
 
+/** Tenant scope used for the shared/global theme cache entry. */
+const GLOBAL_TENANT = "global";
+/** Process-local theme cache TTL (ms) — mirrors the 300s cacheService TTL. */
+const THEME_CACHE_TTL_MS = 300_000;
+
+/** One lazy handle for the cache service — avoids repeated dynamic imports. */
+let cacheServiceModulePromise: Promise<typeof import("./cache/cache-service")> | undefined;
+function loadCacheServiceModule(): Promise<typeof import("./cache/cache-service")> {
+  return (cacheServiceModulePromise ??= import("./cache/cache-service"));
+}
+
 /**
  * Fallback theme for when database is not available
  * This should match the theme that gets seeded during setup
@@ -40,10 +51,28 @@ export const DEFAULT_THEME: Theme = {
 export class ThemeManager {
   private static instance: ThemeManager;
   private readonly themeCache: Map<string, Theme> = new Map(); // Single cache for all themes
+  private readonly themeCacheExpiresAt: Map<string, number> = new Map();
   private db: IDBAdapter | null = null;
   private initialized = false;
 
   private constructor() {}
+
+  /** Reads a theme from the process-local cache, honoring its TTL. */
+  private getCachedTheme(cacheKey: string): Theme | undefined {
+    const expiresAt = this.themeCacheExpiresAt.get(cacheKey);
+    if (expiresAt !== undefined && expiresAt <= Date.now()) {
+      this.themeCache.delete(cacheKey);
+      this.themeCacheExpiresAt.delete(cacheKey);
+      return undefined;
+    }
+    return this.themeCache.get(cacheKey);
+  }
+
+  /** Writes a theme to the process-local cache with a TTL. */
+  private setCachedTheme(cacheKey: string, theme: Theme): void {
+    this.themeCache.set(cacheKey, theme);
+    this.themeCacheExpiresAt.set(cacheKey, Date.now() + THEME_CACHE_TTL_MS);
+  }
 
   public static getInstance(): ThemeManager {
     if (!ThemeManager.instance) {
@@ -65,6 +94,7 @@ export class ThemeManager {
     try {
       this.db = db;
       this.themeCache.clear();
+      this.themeCacheExpiresAt.clear();
 
       // Load and cache the default theme
       await this.loadAndCacheDefaultTheme();
@@ -90,6 +120,7 @@ export class ThemeManager {
     if (!this.initialized || this.db !== activeDb) {
       this.db = activeDb;
       this.themeCache.clear();
+      this.themeCacheExpiresAt.clear();
       await this.loadAndCacheDefaultTheme();
       this.initialized = true;
     }
@@ -111,10 +142,10 @@ export class ThemeManager {
         if (process.env.TEST_MODE !== "true") {
           logger.warn("No themes found in database. Using DEFAULT_THEME fallback.");
         }
-        this.themeCache.set("global", DEFAULT_THEME);
+        this.setCachedTheme(GLOBAL_TENANT, DEFAULT_THEME);
         try {
-          const { cacheService } = await import("./cache/cache-service");
-          await cacheService.set("theme:global", DEFAULT_THEME, 300, "global");
+          const { cacheService } = await loadCacheServiceModule();
+          await cacheService.set(`theme:${GLOBAL_TENANT}`, DEFAULT_THEME, 300, GLOBAL_TENANT);
         } catch (error) {
           logger.debug("[theme-manager] suppressed error", error);
         }
@@ -126,10 +157,10 @@ export class ThemeManager {
         allThemes.find((t) => t.isActive) || allThemes.find((t) => t.isDefault) || allThemes[0];
 
       // Cache it as the global default
-      this.themeCache.set("global", defaultTheme);
+      this.setCachedTheme(GLOBAL_TENANT, defaultTheme);
       try {
-        const { cacheService } = await import("./cache/cache-service");
-        await cacheService.set("theme:global", defaultTheme, 300, "global");
+        const { cacheService } = await loadCacheServiceModule();
+        await cacheService.set(`theme:${GLOBAL_TENANT}`, defaultTheme, 300, GLOBAL_TENANT);
       } catch (error) {
         logger.debug("[theme-manager] suppressed error", error);
       }
@@ -137,10 +168,10 @@ export class ThemeManager {
     } catch (err) {
       logger.error("Failed to load themes from database:", err);
       // Fallback to DEFAULT_THEME on error
-      this.themeCache.set("global", DEFAULT_THEME);
+      this.setCachedTheme(GLOBAL_TENANT, DEFAULT_THEME);
       try {
-        const { cacheService } = await import("./cache/cache-service");
-        await cacheService.set("theme:global", DEFAULT_THEME, 300, "global");
+        const { cacheService } = await loadCacheServiceModule();
+        await cacheService.set(`theme:${GLOBAL_TENANT}`, DEFAULT_THEME, 300, GLOBAL_TENANT);
       } catch (error) {
         logger.debug("[theme-manager] suppressed error", error);
       }
@@ -150,34 +181,45 @@ export class ThemeManager {
   public async getTheme(tenantId?: string | null): Promise<Theme> {
     await this.ensureReady();
 
-    const cacheKey = tenantId || "global";
+    const cacheKey = tenantId || GLOBAL_TENANT;
 
-    // Return from cache if available
-    if (this.themeCache.has(cacheKey)) {
-      return this.themeCache.get(cacheKey)!;
+    // Return from cache if available (includes the tenant→global mapping cached
+    // below, so a tenant without its own theme no longer re-resolves per request).
+    const cachedTheme = this.getCachedTheme(cacheKey);
+    if (cachedTheme) {
+      return cachedTheme;
     }
 
-    // Try cacheService L1/L2
+    // Try cacheService L1/L2. The global theme is stored under tenant "global" —
+    // matching the write side — not under the "default" tenant.
     try {
-      const { cacheService } = await import("./cache/cache-service");
-      const cached = await cacheService.get<Theme>(`theme:${cacheKey}`, tenantId);
+      const { cacheService } = await loadCacheServiceModule();
+      const scopeTenantId = tenantId || GLOBAL_TENANT;
+      const cached = await cacheService.get<Theme>(`theme:${cacheKey}`, scopeTenantId);
       if (cached) {
-        this.themeCache.set(cacheKey, cached);
+        this.setCachedTheme(cacheKey, cached);
         return cached;
       }
     } catch (error) {
       logger.debug("[theme-manager] suppressed error", error);
     }
 
-    // For tenant-specific themes, fetch from database
-    // For now, fall back to global theme since tenant-specific themes
-    // require additional schema implementation
+    // For tenant-specific themes, fall back to the global theme since
+    // tenant-specific themes require additional schema implementation.
     if (tenantId) {
       logger.debug(`No tenant-specific theme for ${tenantId}, using global theme`);
       const globalTheme = await this.getTheme(null);
       if (globalTheme) {
+        this.setCachedTheme(cacheKey, globalTheme);
         return globalTheme;
       }
+    }
+
+    // Global theme expired from both the local map and L1/L2: reload from DB.
+    if (cacheKey === GLOBAL_TENANT) {
+      await this.loadAndCacheDefaultTheme();
+      const reloaded = this.getCachedTheme(GLOBAL_TENANT);
+      if (reloaded) return reloaded;
     }
 
     // Final fallback - should rarely reach here
@@ -200,19 +242,21 @@ export class ThemeManager {
         throw new Error(setDefaultResult.error?.message || "Failed to set theme as default");
       }
 
-      // Update cache
-      const cacheKey = tenantId || "global";
-      this.themeCache.set(cacheKey, theme);
+      // Update cache. The global theme is written and invalidated under tenant
+      // "global" so the write/read/invalidation scope all agree.
+      const cacheKey = tenantId || GLOBAL_TENANT;
+      const scopeTenantId = tenantId || GLOBAL_TENANT;
+      this.setCachedTheme(cacheKey, theme);
       try {
-        const { cacheService } = await import("./cache/cache-service");
-        await cacheService.set(`theme:${cacheKey}`, theme, 300, tenantId);
-        await cacheService.publishInvalidation(`theme:${cacheKey}`, tenantId);
+        const { cacheService } = await loadCacheServiceModule();
+        await cacheService.set(`theme:${cacheKey}`, theme, 300, scopeTenantId);
+        await cacheService.publishInvalidation(`theme:${cacheKey}`, scopeTenantId);
       } catch (error) {
         logger.debug("[theme-manager] suppressed error", error);
       }
 
       logger.info(`Theme updated to: ${theme.name}`, {
-        tenantId: tenantId || "global",
+        tenantId: tenantId || GLOBAL_TENANT,
       });
     } catch (err: any) {
       const message = `Error in ThemeManager.setTheme: ${err.message}`;
@@ -228,8 +272,9 @@ export class ThemeManager {
     await this.ensureReady();
 
     this.themeCache.clear();
+    this.themeCacheExpiresAt.clear();
     try {
-      const { cacheService } = await import("./cache/cache-service");
+      const { cacheService } = await loadCacheServiceModule();
       await cacheService.clearByPattern("theme:*");
     } catch (error) {
       logger.debug("[theme-manager] suppressed error", error);

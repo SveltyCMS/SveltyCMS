@@ -43,6 +43,18 @@ async function getCacheService(): Promise<any> {
   return _cacheServiceCache;
 }
 
+/**
+ * Collapse the four `optionsOrTenantId` unwraps into one helper: a string/null
+ * passes through, a query-options bag yields its `tenantId`.
+ */
+function unwrapTenantId(
+  optionsOrTenantId?: string | null | BaseQueryOptions,
+): string | null | undefined {
+  return typeof optionsOrTenantId === "object" && optionsOrTenantId !== null
+    ? optionsOrTenantId.tenantId
+    : optionsOrTenantId;
+}
+
 export class CacheModule {
   constructor(protected _core: ISqlAdapter) {}
 
@@ -86,14 +98,14 @@ export class CacheModule {
     collection: string,
     optionsOrTenantId?: string | null | BaseQueryOptions,
   ): Promise<DatabaseResult<void>> {
-    const tenantId =
-      typeof optionsOrTenantId === "object" && optionsOrTenantId !== null
-        ? optionsOrTenantId.tenantId
-        : optionsOrTenantId;
+    const tenantId = unwrapTenantId(optionsOrTenantId);
     const cacheService = await getCacheService();
+    const tenant = tenantId ?? undefined;
     // Schema id + normalised physical name — see buildCollectionCacheTags.
-    await cacheService.clearByTags(buildCollectionCacheTags(collection), tenantId ?? undefined);
-    await this.incrementVersion(tenantId);
+    await Promise.all([
+      cacheService.clearByTags(buildCollectionCacheTags(collection), tenant),
+      this.incrementVersion(tenant),
+    ]);
     return { success: true, data: undefined };
   }
 
@@ -101,23 +113,20 @@ export class CacheModule {
     category: string,
     optionsOrTenantId?: string | null | BaseQueryOptions,
   ): Promise<DatabaseResult<void>> {
-    const tenantId =
-      typeof optionsOrTenantId === "object" && optionsOrTenantId !== null
-        ? optionsOrTenantId.tenantId
-        : optionsOrTenantId;
+    const tenantId = unwrapTenantId(optionsOrTenantId);
     const cacheService = await getCacheService();
-    await cacheService.clearByTags([`category:${category}`], tenantId ?? undefined);
-    await this.incrementVersion(tenantId);
+    const tenant = tenantId ?? undefined;
+    await Promise.all([
+      cacheService.clearByTags([`category:${category}`], tenant),
+      this.incrementVersion(tenant),
+    ]);
     return { success: true, data: undefined };
   }
 
   async getVersion(
     optionsOrTenantId?: string | null | BaseQueryOptions,
   ): Promise<DatabaseResult<number>> {
-    const tenantId =
-      typeof optionsOrTenantId === "object" && optionsOrTenantId !== null
-        ? optionsOrTenantId.tenantId
-        : optionsOrTenantId;
+    const tenantId = unwrapTenantId(optionsOrTenantId);
     const cacheService = await getCacheService();
     const version = await cacheService.get(`system:content_version`, tenantId ?? undefined);
     return { success: true, data: (version as number) ?? 0 };
@@ -130,10 +139,7 @@ export class CacheModule {
   async incrementVersion(
     optionsOrTenantId?: string | null | BaseQueryOptions,
   ): Promise<DatabaseResult<number>> {
-    const tenantId =
-      typeof optionsOrTenantId === "object" && optionsOrTenantId !== null
-        ? optionsOrTenantId.tenantId
-        : optionsOrTenantId;
+    const tenantId = unwrapTenantId(optionsOrTenantId);
     const cacheService = await getCacheService();
     const key = `system:content_version`;
     const tenant = tenantId ?? undefined;
@@ -185,67 +191,75 @@ const inFlightCounts = new Map<string, Promise<DatabaseResult<number>>>();
 /**
  * Wrap an ICrudAdapter so count() is L1/L2 cached per tenant+filter+mode.
  * Other methods (including findPage) pass through bound to the inner adapter.
+ *
+ * Bound methods are memoized per property (a Proxy `get` no longer allocates a
+ * fresh `.bind()` on every `crud.*` access) and `count` is a single stable
+ * closure instead of being recreated on every property read.
  */
 export function createCountCachedCrud(inner: ICrudAdapter): ICrudAdapter {
+  const boundMethods = new Map<PropertyKey, unknown>();
+
+  const count = async <T extends BaseEntity>(
+    collection: string,
+    query?: QueryFilter<T>,
+    options?: CountOptions,
+  ): Promise<DatabaseResult<number>> => {
+    if (options?.bypassCache) {
+      return inner.count(collection, query, options);
+    }
+
+    const key = buildCountCacheKey(collection, query, options);
+    const tenantId = options?.tenantId ?? null;
+
+    const cacheSvc = await getCacheService();
+    // One L1/L2 lookup: `get()` checks L1 synchronously before falling through
+    // to L2. The previous `getSync()` + `get()` pair hit L1 twice on a miss.
+    const cached = await cacheSvc.get(key, tenantId, CacheCategory.CONTENT);
+    // get() returns undefined on miss, null on negative cache — only numbers are hits
+    if (typeof cached === "number" && Number.isFinite(cached)) {
+      return { success: true, data: cached };
+    }
+
+    // Single-flight deduplication: coalesce identical in-flight COUNT queries
+    const inFlightKey = `${tenantId || "default"}:${key}`;
+    const existing = inFlightCounts.get(inFlightKey);
+    if (existing) return existing;
+
+    const execute = (async () => {
+      try {
+        const result = await inner.count(collection, query, options);
+        if (result.success && typeof result.data === "number") {
+          await cacheSvc.set(
+            key,
+            result.data,
+            COUNT_CACHE_TTL_SECONDS,
+            tenantId,
+            CacheCategory.CONTENT,
+            buildCountCacheTags(collection),
+          );
+        }
+        return result;
+      } finally {
+        inFlightCounts.delete(inFlightKey);
+      }
+    })();
+
+    inFlightCounts.set(inFlightKey, execute);
+    return execute;
+  };
+
   return new Proxy(inner, {
     get(target, prop, receiver) {
-      if (prop === "count") {
-        return async <T extends BaseEntity>(
-          collection: string,
-          query?: QueryFilter<T>,
-          options?: CountOptions,
-        ): Promise<DatabaseResult<number>> => {
-          if (options?.bypassCache) {
-            return target.count(collection, query, options);
-          }
+      if (prop === "count") return count;
 
-          const key = buildCountCacheKey(collection, query, options);
-          const tenantId = options?.tenantId ?? null;
-
-          const cacheSvc = await getCacheService();
-          const syncCached = cacheSvc.getSync?.(key, tenantId);
-          if (typeof syncCached === "number" && Number.isFinite(syncCached)) {
-            return { success: true, data: syncCached };
-          }
-
-          const cached = await cacheSvc.get(key, tenantId, CacheCategory.CONTENT);
-          // get() returns undefined on miss, null on negative cache — only numbers are hits
-          if (typeof cached === "number" && Number.isFinite(cached)) {
-            return { success: true, data: cached };
-          }
-
-          // Single-flight deduplication: coalesce identical in-flight COUNT queries
-          const inFlightKey = `${tenantId || "default"}:${key}`;
-          const existing = inFlightCounts.get(inFlightKey);
-          if (existing) return existing;
-
-          const execute = (async () => {
-            try {
-              const result = await target.count(collection, query, options);
-              if (result.success && typeof result.data === "number") {
-                await cacheSvc.set(
-                  key,
-                  result.data,
-                  COUNT_CACHE_TTL_SECONDS,
-                  tenantId,
-                  CacheCategory.CONTENT,
-                  buildCountCacheTags(collection),
-                );
-              }
-              return result;
-            } finally {
-              inFlightCounts.delete(inFlightKey);
-            }
-          })();
-
-          inFlightCounts.set(inFlightKey, execute);
-          return execute;
-        };
-      }
+      const memoized = boundMethods.get(prop);
+      if (memoized !== undefined) return memoized;
 
       const value = Reflect.get(target, prop, receiver);
       if (typeof value === "function") {
-        return value.bind(target);
+        const bound = value.bind(target);
+        boundMethods.set(prop, bound);
+        return bound;
       }
       return value;
     },

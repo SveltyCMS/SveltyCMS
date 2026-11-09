@@ -439,29 +439,24 @@ export abstract class BaseAdapter {
       // "default", matching normalizeTenantId and the post-write path.
       const tid = tenantId || "default";
 
-      if (options?.tags && options.tags.length > 0) {
-        // 🚀 Surgical: Clear only specific tags
-        await cacheService.clearByTags(options.tags, tid);
-      } else {
-        // Collection-wide list/query + count caches by tag (O(#matched)) — never a
-        // pattern scan over all cached documents. Per-id caches are tagged
-        // doc:{collection}:{id} and only cleared for the ids actually written.
-        // `buildCollectionCacheTags` clears the as-passed, physical AND bare
-        // spellings (superset): callers here may hold only the physical name
-        // (Mongo crud/media pass `collection_*`), which the lossy normaliser
-        // cannot map back to the logical spelling.
-        await cacheService.clearByTags(buildCollectionCacheTags(collection), tid);
-      }
-
+      // Merge collection tags + per-id doc tags into ONE clearByTags call: the
+      // 15ms write batcher is drained once and only one invalidation is published.
+      const tags =
+        options?.tags && options.tags.length > 0
+          ? [...options.tags]
+          : [...buildCollectionCacheTags(collection)];
       if (options?.ids && options.ids.length > 0) {
-        const idTags = options.ids.map((id) => `doc:${collection}:${id}`);
-        await cacheService.clearByTags(idTags, tid);
+        tags.push(...options.ids.map((id) => `doc:${collection}:${id}`));
       }
 
-      await cacheService.set("system:content_version", Date.now(), 0, tid);
-      logger.debug(
-        `[BaseAdapter] Invalidated cache for ${collection} (Tags: ${options?.tags?.length || 0})`,
-      );
+      if (tags.length > 0) {
+        // 🚀 Surgical: clear only the tags this write actually touched (O(#matched)).
+        await cacheService.clearByTags(tags, tid);
+      }
+
+      // Atomic monotonic version bump (INCRBY on L2, cooperative L1 otherwise).
+      await cacheService.increment("system:content_version", 1, tid);
+      logger.debug(`[BaseAdapter] Invalidated cache for ${collection} (Tags: ${tags.length})`);
     } catch (err) {
       logger.error(`[BaseAdapter] Failed to invalidate query cache: ${err}`);
     }
