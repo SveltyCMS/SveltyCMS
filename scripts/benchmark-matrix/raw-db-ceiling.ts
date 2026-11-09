@@ -65,6 +65,14 @@ const MEASURE_MS = 2500;
 const TENANT = "global";
 const STATUS = "active";
 const BATCH_SIZE = 100; // insertMany batch
+/** Amortize performance.now() in the synchronous measurement loop (see runFixedDuration). */
+const OPS_PER_TIME_CHECK = 32;
+/**
+ * Rows per multi-row INSERT while seeding (SQLite / PostgreSQL / MariaDB).
+ * 500 × 7 = 3500 bind params — under MariaDB/PostgreSQL's 65535 limit and under
+ * modern SQLite's 32766 (`SQLITE_MAX_VARIABLE_NUMBER`, bundled in Node 24 / Bun).
+ */
+const SEED_CHUNK = 500;
 
 /** Realistic entry payload (~300 B JSON) — mirrors typical CMS entries. */
 const PAYLOAD = JSON.stringify({
@@ -263,32 +271,62 @@ async function runFixedDuration(
   workerCount: number,
   op: (workerId: number) => void | Promise<void>,
 ): Promise<{ ops: number; durationMs: number }> {
-  const invoke = async (w: number) => {
-    const r = op(w);
-    if (r && typeof (r as any).then === "function") await r;
-  };
+  // Probe once so the hot loop can stay tight for synchronous engines. The
+  // probe executes the op for real (worker 0); reseed-before-write keeps this
+  // harmless for the write benchmarks.
+  const probe = op(0);
+  const isAsync = typeof (probe as { then?: unknown } | undefined)?.then === "function";
+  if (isAsync) await probe;
 
-  // Warmup phase (results discarded)
+  // ── Warmup (results discarded) ──
   const warmupEnd = performance.now() + WARMUP_MS;
-  await Promise.all(
-    Array.from({ length: workerCount }, async (_, w) => {
-      while (performance.now() < warmupEnd) await invoke(w);
-    }),
-  );
+  if (isAsync) {
+    await Promise.all(
+      Array.from({ length: workerCount }, async (_, w) => {
+        while (performance.now() < warmupEnd) await op(w);
+      }),
+    );
+  } else {
+    // No await in the loop: on a single JS thread this is the true
+    // single-threaded ceiling (1c ≈ 8c — expected, not a regression).
+    for (let w = 0; w < workerCount; w++) {
+      while (performance.now() < warmupEnd) op(w);
+    }
+  }
 
-  // Measure phase
+  // ── Measure ──
   const start = performance.now();
   const deadline = start + MEASURE_MS;
   const counts = Array.from({ length: workerCount }, () => 0);
 
-  await Promise.all(
-    Array.from({ length: workerCount }, async (_, w) => {
+  if (isAsync) {
+    // The driver call dominates, so a per-op clock read is free and avoids the
+    // OPS_PER_TIME_CHECK overshoot on slow ops.
+    await Promise.all(
+      Array.from({ length: workerCount }, async (_, w) => {
+        let n = 0;
+        while (performance.now() < deadline) {
+          await op(w);
+          n++;
+        }
+        counts[w] = n;
+      }),
+    );
+  } else {
+    // Amortize the clock read every OPS_PER_TIME_CHECK ops so measurement
+    // overhead does not cap the measured ceiling. RPS = ops / real duration,
+    // so the ≤ OPS_PER_TIME_CHECK overshoot is unbiased.
+    for (let w = 0; w < workerCount; w++) {
+      let n = 0;
       while (performance.now() < deadline) {
-        await invoke(w);
-        counts[w]++;
+        for (let i = 0; i < OPS_PER_TIME_CHECK; i++) {
+          op(w);
+          n++;
+        }
       }
-    }),
-  );
+      counts[w] = n;
+    }
+  }
 
   const durationMs = performance.now() - start;
   const ops = counts.reduce((a, b) => a + b, 0);
@@ -338,6 +376,10 @@ class SqliteEngine implements Engine {
   private dbPath = path.join(os.tmpdir(), `raw-ceiling-${process.pid}.sqlite`);
   private conns: any[] = [];
   private seedRows = 0;
+  /** Precomputed seed row ids — no `seed-${…}` allocation in the hot loop. */
+  private seedIds: string[] = [];
+  /** Precomputed non-existent ids — keeps the negative-read probe allocation-free. */
+  private missingIds: string[] = [];
   private stmts: {
     find: any[];
     miss: any[];
@@ -361,17 +403,39 @@ class SqliteEngine implements Engine {
   private async reseed(): Promise<void> {
     const main = this.conns[this.conns.length - 1];
     main.exec("DELETE FROM content_bench");
-    main.exec("BEGIN");
-    const ins = main.prepare(
-      `INSERT INTO content_bench (_id, tenantId, data, status, isDeleted, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, 0, ?, ?)`,
-    );
     const now = Date.now();
-    for (let i = 0; i < this.seedRows; i++) {
-      ins.run(`seed-${i}`, TENANT, PAYLOAD, STATUS, now, now);
+    const N = this.seedRows;
+    // Rebuild the id lists only when the scale changes.
+    if (this.seedIds.length !== N) {
+      this.seedIds = Array.from({ length: N }, (_, i) => `seed-${i}`);
+    }
+    if (this.missingIds.length === 0) {
+      this.missingIds = Array.from({ length: 4096 }, (_, i) => `missing-${i}`);
+    }
+    main.exec("BEGIN");
+    // Multi-row INSERT batches cut JS↔native round-trips dramatically vs single-row.
+    for (let start = 0; start < N; start += SEED_CHUNK) {
+      const n = Math.min(SEED_CHUNK, N - start);
+      const placeholders = Array(n).fill("(?, ?, ?, ?, 0, ?, ?)").join(",");
+      // Pre-size the bind array (no push growth on the 100k-row seed path).
+      const args: unknown[] = Array.from({ length: n * 6 });
+      let p = 0;
+      for (let i = 0; i < n; i++) {
+        args[p++] = this.seedIds[start + i];
+        args[p++] = TENANT;
+        args[p++] = PAYLOAD;
+        args[p++] = STATUS;
+        args[p++] = now;
+        args[p++] = now;
+      }
+      main
+        .prepare(
+          `INSERT INTO content_bench (_id, tenantId, data, status, isDeleted, createdAt, updatedAt)
+           VALUES ${placeholders}`,
+        )
+        .run(...args);
     }
     main.exec("COMMIT");
-    ins.finalize();
   }
 
   async setup(seedRows: number): Promise<void> {
@@ -474,30 +538,41 @@ class SqliteEngine implements Engine {
     const samples: OpSample[] = [];
     const now = Date.now();
     const N = this.seedRows;
+    const ids = this.seedIds;
+    const missing = this.missingIds;
+    const missingCount = missing.length || 1;
+    // Local refs so the hot loop does not re-resolve array members.
+    const finds = this.stmts.find;
+    const lists = this.stmts.list;
+    const listsNoSort = this.stmts.listNoSort;
+    const ins = this.stmts.insert;
+    const upd = this.stmts.update;
+    const del = this.stmts.deleteStmt;
+    const insMany = this.stmts.insertMany;
 
     // ── Single-entry reads ──
     samples.push(
       ...(await benchOp("findById", CONCURRENCIES, (w) => {
-        this.stmts.find[w % 8].get(`seed-${Math.floor(nextRand(w) * N)}`, TENANT);
+        finds[w & 7].get(ids[(nextRand(w) * N) | 0], TENANT);
       })),
     );
 
     samples.push(
       ...(await benchOp("findMissing", CONCURRENCIES, (w) => {
-        this.stmts.miss[w % 8].get(`missing-${w}-${counter(w)}`, TENANT);
+        finds[w & 7].get(missing[(nextRand(w) * missingCount) | 0], TENANT);
       })),
     );
 
     // ── Many-entry reads ──
     samples.push(
       ...(await benchOp("listPlain", CONCURRENCIES, (w) => {
-        this.stmts.list[w % 8].all(TENANT, STATUS);
+        lists[w & 7].all(TENANT, STATUS);
       })),
     );
 
     samples.push(
       ...(await benchOp("findMany50", CONCURRENCIES, (w) => {
-        this.stmts.listNoSort[w % 8].all(TENANT, STATUS);
+        listsNoSort[w & 7].all(TENANT, STATUS);
       })),
     );
 
@@ -506,19 +581,19 @@ class SqliteEngine implements Engine {
       [
         "insert",
         (w: number) => {
-          this.stmts.insert.run(`new-${w}-${counter(w)}`, TENANT, PAYLOAD, STATUS, now, now);
+          ins.run(`new-${w}-${counter(w)}`, TENANT, PAYLOAD, STATUS, now, now);
         },
       ],
       [
         "update",
         (w: number) => {
-          this.stmts.update.run(PAYLOAD, now, `seed-${Math.floor(nextRand(w) * N)}`, TENANT);
+          upd.run(PAYLOAD, now, ids[(nextRand(w) * N) | 0], TENANT);
         },
       ],
       [
         "delete",
         (w: number) => {
-          this.stmts.deleteStmt.run(`seed-${Math.floor(nextRand(w) * N)}`, TENANT);
+          del.run(ids[(nextRand(w) * N) | 0], TENANT);
         },
       ],
     ];
@@ -532,11 +607,18 @@ class SqliteEngine implements Engine {
     samples.push(
       ...(await benchOp("insertMany100", CONCURRENCIES, (w) => {
         const base = counter(w) * BATCH_SIZE;
-        const args: any[] = [];
+        // Pre-size the bind array (no push reallocations in the hot path).
+        const args: unknown[] = Array.from({ length: BATCH_SIZE * 6 });
+        let p = 0;
         for (let i = 0; i < BATCH_SIZE; i++) {
-          args.push(`bulk-${w}-${base + i}`, TENANT, PAYLOAD, STATUS, now, now);
+          args[p++] = `bulk-${w}-${base + i}`;
+          args[p++] = TENANT;
+          args[p++] = PAYLOAD;
+          args[p++] = STATUS;
+          args[p++] = now;
+          args[p++] = now;
         }
-        this.stmts.insertMany.run(...args);
+        insMany.run(...args);
       })),
     );
 
@@ -546,16 +628,17 @@ class SqliteEngine implements Engine {
   rawOp(op: "findById" | "update" | "listPlain" | "insert", w: number): unknown {
     const now = Date.now();
     const N = this.seedRows;
+    const ids = this.seedIds;
     if (op === "findById") {
-      return this.stmts.find[w % 8].get(`seed-${Math.floor(nextRand(w) * N)}`, TENANT);
+      return this.stmts.find[w & 7].get(ids[(nextRand(w) * N) | 0], TENANT);
     }
     if (op === "update") {
-      return this.stmts.update.run(PAYLOAD, now, `seed-${Math.floor(nextRand(w) * N)}`, TENANT);
+      return this.stmts.update.run(PAYLOAD, now, ids[(nextRand(w) * N) | 0], TENANT);
     }
     if (op === "insert") {
       return this.stmts.insert.run(`http-${w}-${counter(w)}`, TENANT, PAYLOAD, STATUS, now, now);
     }
-    return this.stmts.list[w % 8].all(TENANT, STATUS);
+    return this.stmts.list[w & 7].all(TENANT, STATUS);
   }
 
   async teardown(): Promise<void> {
@@ -593,27 +676,42 @@ class PostgresEngine implements Engine {
   private updateStmt: any;
   private deleteStmt: any;
   private now = Date.now();
+  /** Precomputed seed row ids — no `seed-${…}` allocation in the hot loop. */
+  private seedIds: string[] = [];
+  /** Prebuilt fixed-size multi-row INSERT (never rebuilt in the hot path). */
+  private insertManySql = "";
 
   private async reseed(): Promise<void> {
     await this.sql`TRUNCATE content_bench`;
-    const CHUNK = 500; // 500 rows × 7 params = 3500 < 65535
-    for (let start = 0; start < this.seedRows; start += CHUNK) {
-      const currentBatch = Math.min(CHUNK, this.seedRows - start);
-      // Pre-allocate the batch (avoid Array.from's mapper closure + intermediate
-      // GC churn on the 100k-row seed path).
-      const rows: unknown[][] = Array.from({ length: currentBatch });
+    const N = this.seedRows;
+    if (this.seedIds.length !== N) {
+      this.seedIds = Array.from({ length: N }, (_, i) => `seed-${i}`);
+    }
+    // SEED_CHUNK × 7 params stays well under the 65535 bind limit.
+    for (let start = 0; start < N; start += SEED_CHUNK) {
+      const currentBatch = Math.min(SEED_CHUNK, N - start);
+      // Pre-size the flat bind array (no push growth / intermediate row matrix).
+      const flat: unknown[] = Array.from({ length: currentBatch * 7 });
+      let p = 0;
       for (let i = 0; i < currentBatch; i++) {
-        rows[i] = [`seed-${start + i}`, TENANT, PAYLOAD, STATUS, 0, this.now, this.now];
+        flat[p++] = this.seedIds[start + i];
+        flat[p++] = TENANT;
+        flat[p++] = PAYLOAD;
+        flat[p++] = STATUS;
+        flat[p++] = 0;
+        flat[p++] = this.now;
+        flat[p++] = this.now;
       }
-      const valuesSql = rows
-        .map(
-          (_, i) =>
-            `($${i * 7 + 1}, $${i * 7 + 2}, $${i * 7 + 3}, $${i * 7 + 4}, $${i * 7 + 5}, $${i * 7 + 6}, $${i * 7 + 7})`,
-        )
-        .join(",");
+      // Build the VALUES clause only for the actual batch size (last chunk may be smaller).
+      let valuesSql = "";
+      for (let i = 0; i < currentBatch; i++) {
+        if (i) valuesSql += ",";
+        const base = i * 7 + 1;
+        valuesSql += `($${base},$${base + 1},$${base + 2},$${base + 3},$${base + 4},$${base + 5},$${base + 6})`;
+      }
       await this.sql.unsafe(
         `INSERT INTO content_bench (_id, "tenantId", data, status, "isDeleted", "createdAt", "updatedAt") VALUES ${valuesSql}`,
-        rows.flat(),
+        flat,
       );
     }
   }
@@ -671,24 +769,31 @@ class PostgresEngine implements Engine {
     this.insertStmt = (id: string, tenant: string, data: string, status: string) =>
       this.sql`INSERT INTO content_bench (_id, "tenantId", data, status, "isDeleted", "createdAt", "updatedAt")
       VALUES (${id}, ${tenant}, ${data}, ${status}, 0, ${this.now}, ${this.now})`;
-    this.insertManyStmt = (id: string, tenant: string, data: string, status: string) =>
-      this.sql.unsafe(
-        `INSERT INTO content_bench (_id, "tenantId", data, status, "isDeleted", "createdAt", "updatedAt")
-         VALUES ${Array.from(
-           { length: BATCH_SIZE },
-           (_, i) =>
-             `($${i * 7 + 1}, $${i * 7 + 2}, $${i * 7 + 3}, $${i * 7 + 4}, $${i * 7 + 5}, $${i * 7 + 6}, $${i * 7 + 7})`,
-         ).join(",")}`,
-        Array.from({ length: BATCH_SIZE }, (_, i) => [
-          `${id}-${i}`,
-          tenant,
-          data,
-          status,
-          0,
-          this.now,
-          this.now,
-        ]).flat(),
-      );
+    // Prebuild the fixed-size VALUES clause once — never rebuild the SQL string
+    // (or allocate an intermediate row matrix) in the hot path.
+    {
+      let valuesSql = "";
+      for (let i = 0; i < BATCH_SIZE; i++) {
+        if (i) valuesSql += ",";
+        const base = i * 7 + 1;
+        valuesSql += `($${base},$${base + 1},$${base + 2},$${base + 3},$${base + 4},$${base + 5},$${base + 6})`;
+      }
+      this.insertManySql = `INSERT INTO content_bench (_id, "tenantId", data, status, "isDeleted", "createdAt", "updatedAt") VALUES ${valuesSql}`;
+    }
+    this.insertManyStmt = (id: string, tenant: string, data: string, status: string) => {
+      const flat: unknown[] = Array.from({ length: BATCH_SIZE * 7 });
+      let p = 0;
+      for (let i = 0; i < BATCH_SIZE; i++) {
+        flat[p++] = `${id}-${i}`;
+        flat[p++] = tenant;
+        flat[p++] = data;
+        flat[p++] = status;
+        flat[p++] = 0;
+        flat[p++] = this.now;
+        flat[p++] = this.now;
+      }
+      return this.sql.unsafe(this.insertManySql, flat);
+    };
     this.updateStmt = (data: string, updatedAt: number, id: string, tenant: string) =>
       this.sql`UPDATE content_bench SET data = ${data}, "updatedAt" = ${updatedAt}
       WHERE _id = ${id} AND "tenantId" = ${tenant}`;
@@ -699,10 +804,11 @@ class PostgresEngine implements Engine {
   async bench(): Promise<OpSample[]> {
     const samples: OpSample[] = [];
     const N = this.seedRows;
+    const ids = this.seedIds;
 
     samples.push(
       ...(await benchOp("findById", CONCURRENCIES, (w) =>
-        this.findStmt(`seed-${Math.floor(nextRand(w) * N)}`, TENANT),
+        this.findStmt(ids[(nextRand(w) * N) | 0], TENANT),
       )),
     );
 
@@ -731,13 +837,13 @@ class PostgresEngine implements Engine {
       [
         "update",
         async (w: number) => {
-          await this.updateStmt(PAYLOAD, this.now, `seed-${Math.floor(nextRand(w) * N)}`, TENANT);
+          await this.updateStmt(PAYLOAD, this.now, ids[(nextRand(w) * N) | 0], TENANT);
         },
       ],
       [
         "delete",
         async (w: number) => {
-          await this.deleteStmt(`seed-${Math.floor(nextRand(w) * N)}`, TENANT);
+          await this.deleteStmt(ids[(nextRand(w) * N) | 0], TENANT);
         },
       ],
     ];
@@ -759,11 +865,12 @@ class PostgresEngine implements Engine {
 
   rawOp(op: "findById" | "update" | "listPlain" | "insert", w: number): unknown {
     const N = this.seedRows;
+    const ids = this.seedIds;
     if (op === "findById") {
-      return this.findStmt(`seed-${Math.floor(nextRand(w) * N)}`, TENANT);
+      return this.findStmt(ids[(nextRand(w) * N) | 0], TENANT);
     }
     if (op === "update") {
-      return this.updateStmt(PAYLOAD, this.now, `seed-${Math.floor(nextRand(w) * N)}`, TENANT);
+      return this.updateStmt(PAYLOAD, this.now, ids[(nextRand(w) * N) | 0], TENANT);
     }
     if (op === "insert") {
       return this.insertStmt(`http-${w}-${counter(w)}`, TENANT, PAYLOAD, STATUS);
@@ -792,19 +899,23 @@ class MariaDbEngine implements Engine {
   private update: any;
   private deleteStmt: any;
   private now = Date.now();
+  /** Precomputed seed row ids — no `seed-${…}` allocation in the hot loop. */
+  private seedIds: string[] = [];
 
   private async reseed(): Promise<void> {
     await this.pool.query(`TRUNCATE TABLE content_bench`);
-    const CHUNK = 500;
-    for (let start = 0; start < this.seedRows; start += CHUNK) {
-      const n = Math.min(CHUNK, this.seedRows - start);
+    const N = this.seedRows;
+    if (this.seedIds.length !== N) {
+      this.seedIds = Array.from({ length: N }, (_, i) => `seed-${i}`);
+    }
+    for (let start = 0; start < N; start += SEED_CHUNK) {
+      const n = Math.min(SEED_CHUNK, N - start);
       const placeholders = Array(n).fill("(?, ?, ?, ?, 0, ?, ?)").join(",");
-      // Pre-allocate the flat values array (avoid push re-allocations) for the
-      // 100k-row seed path.
+      // Pre-allocate the flat values array (avoid push re-allocations).
       const values: unknown[] = Array.from({ length: n * 6 });
       let ptr = 0;
       for (let i = 0; i < n; i++) {
-        values[ptr++] = `seed-${start + i}`;
+        values[ptr++] = this.seedIds[start + i];
         values[ptr++] = TENANT;
         values[ptr++] = PAYLOAD;
         values[ptr++] = STATUS;
@@ -926,10 +1037,11 @@ class MariaDbEngine implements Engine {
   async bench(): Promise<OpSample[]> {
     const samples: OpSample[] = [];
     const N = this.seedRows;
+    const ids = this.seedIds;
 
     samples.push(
       ...(await benchOp("findById", CONCURRENCIES, async (w) => {
-        const [rows] = await this.find.execute([`seed-${Math.floor(nextRand(w) * N)}`, TENANT]);
+        const [rows] = await this.find.execute([ids[(nextRand(w) * N) | 0], TENANT]);
         return rows;
       })),
     );
@@ -973,18 +1085,13 @@ class MariaDbEngine implements Engine {
       [
         "update",
         async (w: number) => {
-          await this.update.execute([
-            PAYLOAD,
-            this.now,
-            `seed-${Math.floor(nextRand(w) * N)}`,
-            TENANT,
-          ]);
+          await this.update.execute([PAYLOAD, this.now, ids[(nextRand(w) * N) | 0], TENANT]);
         },
       ],
       [
         "delete",
         async (w: number) => {
-          await this.deleteStmt.execute([`seed-${Math.floor(nextRand(w) * N)}`, TENANT]);
+          await this.deleteStmt.execute([ids[(nextRand(w) * N) | 0], TENANT]);
         },
       ],
     ];
@@ -998,9 +1105,16 @@ class MariaDbEngine implements Engine {
     samples.push(
       ...(await benchOp("insertMany100", CONCURRENCIES, async (w) => {
         const base = counter(w) * BATCH_SIZE;
-        const args: any[] = [];
+        // Pre-size the bind array (no push reallocations in the hot path).
+        const args: unknown[] = Array.from({ length: BATCH_SIZE * 6 });
+        let p = 0;
         for (let i = 0; i < BATCH_SIZE; i++) {
-          args.push(`bulk-${w}-${base + i}`, TENANT, PAYLOAD, STATUS, this.now, this.now);
+          args[p++] = `bulk-${w}-${base + i}`;
+          args[p++] = TENANT;
+          args[p++] = PAYLOAD;
+          args[p++] = STATUS;
+          args[p++] = this.now;
+          args[p++] = this.now;
         }
         await this.insertMany.execute(args);
       })),
@@ -1011,17 +1125,13 @@ class MariaDbEngine implements Engine {
 
   async rawOp(op: "findById" | "update" | "listPlain" | "insert", w: number): Promise<unknown> {
     const N = this.seedRows;
+    const ids = this.seedIds;
     if (op === "findById") {
-      const [rows] = await this.find.execute([`seed-${Math.floor(nextRand(w) * N)}`, TENANT]);
+      const [rows] = await this.find.execute([ids[(nextRand(w) * N) | 0], TENANT]);
       return rows;
     }
     if (op === "update") {
-      return this.update.execute([
-        PAYLOAD,
-        this.now,
-        `seed-${Math.floor(nextRand(w) * N)}`,
-        TENANT,
-      ]);
+      return this.update.execute([PAYLOAD, this.now, ids[(nextRand(w) * N) | 0], TENANT]);
     }
     if (op === "insert") {
       return this.insert.execute([
@@ -1052,20 +1162,31 @@ class MongoEngine implements Engine {
   private col: any;
   private seedRows = 0;
   private now = Date.now();
+  /** Precomputed seed row ids — no `seed-${…}` allocation in the hot loop. */
+  private seedIds: string[] = [];
 
   private async reseed(): Promise<void> {
     await this.col.deleteMany({}).catch(() => {});
+    const N = this.seedRows;
+    if (this.seedIds.length !== N) {
+      this.seedIds = Array.from({ length: N }, (_, i) => `seed-${i}`);
+    }
     const CHUNK = 10_000;
-    for (let start = 0; start < this.seedRows; start += CHUNK) {
-      const docs = Array.from({ length: Math.min(CHUNK, this.seedRows - start) }, (_, i) => ({
-        _id: `seed-${start + i}`,
-        tenantId: TENANT,
-        data: PAYLOAD,
-        status: STATUS,
-        isDeleted: 0,
-        createdAt: this.now,
-        updatedAt: this.now,
-      }));
+    for (let start = 0; start < N; start += CHUNK) {
+      const n = Math.min(CHUNK, N - start);
+      // Pre-size the doc array (no Array.from mapper closure).
+      const docs: unknown[] = Array.from({ length: n });
+      for (let i = 0; i < n; i++) {
+        docs[i] = {
+          _id: this.seedIds[start + i],
+          tenantId: TENANT,
+          data: PAYLOAD,
+          status: STATUS,
+          isDeleted: 0,
+          createdAt: this.now,
+          updatedAt: this.now,
+        };
+      }
       await this.col.insertMany(docs, { ordered: false });
     }
   }
@@ -1103,6 +1224,7 @@ class MongoEngine implements Engine {
   async bench(): Promise<OpSample[]> {
     const samples: OpSample[] = [];
     const N = this.seedRows;
+    const ids = this.seedIds;
     const projection = {
       _id: 1,
       tenantId: 1,
@@ -1115,10 +1237,7 @@ class MongoEngine implements Engine {
 
     samples.push(
       ...(await benchOp("findById", CONCURRENCIES, (w) =>
-        this.col.findOne(
-          { _id: `seed-${Math.floor(nextRand(w) * N)}`, tenantId: TENANT },
-          { projection },
-        ),
+        this.col.findOne({ _id: ids[(nextRand(w) * N) | 0], tenantId: TENANT }, { projection }),
       )),
     );
 
@@ -1164,7 +1283,7 @@ class MongoEngine implements Engine {
         "update",
         async (w: number) => {
           await this.col.updateOne(
-            { _id: `seed-${Math.floor(nextRand(w) * N)}`, tenantId: TENANT },
+            { _id: ids[(nextRand(w) * N) | 0], tenantId: TENANT },
             { $set: { data: PAYLOAD, updatedAt: this.now } },
           );
         },
@@ -1172,10 +1291,7 @@ class MongoEngine implements Engine {
       [
         "delete",
         async (w: number) => {
-          await this.col.deleteOne({
-            _id: `seed-${Math.floor(nextRand(w) * N)}`,
-            tenantId: TENANT,
-          });
+          await this.col.deleteOne({ _id: ids[(nextRand(w) * N) | 0], tenantId: TENANT });
         },
       ],
     ];
@@ -1189,15 +1305,19 @@ class MongoEngine implements Engine {
     samples.push(
       ...(await benchOp("insertMany100", CONCURRENCIES, (w) => {
         const base = counter(w) * BATCH_SIZE;
-        const docs = Array.from({ length: BATCH_SIZE }, (_, i) => ({
-          _id: `bulk-${w}-${base + i}`,
-          tenantId: TENANT,
-          data: PAYLOAD,
-          status: STATUS,
-          isDeleted: 0,
-          createdAt: this.now,
-          updatedAt: this.now,
-        }));
+        // Pre-size the doc array (no Array.from mapper closure).
+        const docs: unknown[] = Array.from({ length: BATCH_SIZE });
+        for (let i = 0; i < BATCH_SIZE; i++) {
+          docs[i] = {
+            _id: `bulk-${w}-${base + i}`,
+            tenantId: TENANT,
+            data: PAYLOAD,
+            status: STATUS,
+            isDeleted: 0,
+            createdAt: this.now,
+            updatedAt: this.now,
+          };
+        }
         return this.col.insertMany(docs, { ordered: false });
       })),
     );
@@ -1207,6 +1327,7 @@ class MongoEngine implements Engine {
 
   rawOp(op: "findById" | "update" | "listPlain" | "insert", w: number): unknown {
     const N = this.seedRows;
+    const ids = this.seedIds;
     const projection = {
       _id: 1,
       tenantId: 1,
@@ -1218,13 +1339,13 @@ class MongoEngine implements Engine {
     };
     if (op === "findById") {
       return this.col.findOne(
-        { _id: `seed-${Math.floor(nextRand(w) * N)}`, tenantId: TENANT },
+        { _id: ids[(nextRand(w) * N) | 0], tenantId: TENANT },
         { projection },
       );
     }
     if (op === "update") {
       return this.col.updateOne(
-        { _id: `seed-${Math.floor(nextRand(w) * N)}`, tenantId: TENANT },
+        { _id: ids[(nextRand(w) * N) | 0], tenantId: TENANT },
         { $set: { data: PAYLOAD, updatedAt: this.now } },
       );
     }
