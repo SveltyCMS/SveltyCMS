@@ -123,13 +123,11 @@ describe("collections post-write invalidation", () => {
   });
 
   /**
-   * An entry update embeds its fields in every cached list body, so it stays
-   * structural: clearing only `doc:`/`count:` served the edited row's old title
-   * from the list cache for the whole TTL. Point invalidation is reserved for
-   * callers whose write cannot change a list body (single-id bulk paths, pinned
-   * by the "surgically clears ONLY the written doc" test).
+   * A write always clears the list/GraphQL tags: a cached list body embeds the
+   * written row, and any field may be one the list sorts or filters on. Only the
+   * point tier is narrowed to the written ids.
    */
-  it("keeps a single-record update structural so cached lists cannot serve the old row", async () => {
+  it("clears the list tags for a single-record update and narrows the point tier", async () => {
     schedulePostWrite(
       {} as never,
       "update",
@@ -147,6 +145,11 @@ describe("collections post-write invalidation", () => {
     expect(tags).toContain("collection:Posts");
     expect(tags).toContain("doc:Posts:entry-upd");
     expect(cacheService.bumpCollectionEpoch).toHaveBeenCalledWith("Posts", "tenant-a");
+    // Lists/GraphQL are evicted; the point tier is narrowed to the written id so
+    // sibling findById turbo hits stay warm.
+    expect(invalidateLocal).toHaveBeenCalledWith("Posts", "tenant-a", {
+      entryIds: ["entry-upd"],
+    });
   });
 
   it("clears collection + count tags, never schema/content_structure", async () => {
@@ -167,7 +170,7 @@ describe("collections post-write invalidation", () => {
     expect(cacheService.bumpCollectionEpoch).toHaveBeenCalledWith("Posts", "tenant-a");
   });
 
-  it("surgically clears ONLY the written doc per-id tag and count tag", async () => {
+  it("never clears another document's per-id cache while evicting list bodies", async () => {
     const invalidateCalls: Array<{ entryIds?: string[] }> = [];
     invalidateLocal.mockImplementation(
       (_c: string, _t: string, opts?: { entryIds?: Iterable<string> }) => {
@@ -182,13 +185,15 @@ describe("collections post-write invalidation", () => {
     // Exactly one doc tag — writes never clear other documents' per-id caches.
     expect(tags.filter((t) => t.startsWith("doc:")).length).toBe(1);
     expect(tags).toContain("count:Posts");
-    expect(tags).not.toContain("res:Posts");
-    expect(tags).not.toContain("collection:Posts");
-    expect(tags).not.toContain("res:graphql");
-    // L1 surgical entry invalidation passes the written ids so sibling findById turbo hits stay warm.
+    // List + GraphQL bodies always go: they embed the row that was just written.
+    expect(tags).toContain("res:Posts");
+    expect(tags).toContain("collection:Posts");
+    expect(tags).toContain("res:graphql");
+    // L1: lists/GraphQL evicted, point tier narrowed to the written id.
     expect(invalidateCalls.at(-1)?.entryIds).toEqual(["abc-123"]);
-    // No collection epoch bump: list bodies stay valid for a point write.
-    expect(cacheService.bumpCollectionEpoch).not.toHaveBeenCalled();
+    // The collection generation moves so no in-flight L2 refill resurrects a
+    // superseded list body. Point reads are epoch-exempt, so siblings stay warm.
+    expect(cacheService.bumpCollectionEpoch).toHaveBeenCalledWith("Posts", "tenant-a");
   });
 
   it("clears every written doc tag for a coalesced bulk write", async () => {

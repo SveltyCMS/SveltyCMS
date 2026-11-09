@@ -89,7 +89,6 @@ function queuePubSubEntryUpdated(event: PendingPubSubEvent): void {
  */
 let _pendingInvalidationTasks = new Set<string>();
 let _pendingInvalidationDirty = new Set<string>();
-let _pendingStructuralInvalidations = new Set<string>();
 /**
  * Per-request-key set of the SPECIFIC document ids written during a coalesced
  * tick. Lets the flush clear only the touched docs (`doc:<coll>:<id>`) instead
@@ -113,6 +112,11 @@ const releaseIdSet = (ids: Set<string>): void => {
  * Microtasks drain before the next macrotask, so no reader can observe a
  * stale entry between the write and the debounced clear — zero consistency
  * cost.
+ *
+ * Every write is STRUCTURAL: a list or GraphQL body embeds the written row, and
+ * any field may be one that such a body sorts, filters or projects on, so
+ * keeping either warm would serve a stale body for the whole TTL. The written
+ * ids only narrow the point tier, so sibling `findById` turbo hits stay warm.
  */
 export function invalidateCache(
   schema: Schema,
@@ -121,20 +125,14 @@ export function invalidateCache(
     skipRequestCacheClear?: boolean;
     writtenId?: string;
     writtenIds?: readonly string[];
-    isPointWrite?: boolean;
   },
 ): void {
-  const isPoint =
-    opts?.isPointWrite !== undefined
-      ? opts.isPointWrite
-      : Boolean(opts?.writtenId && (!opts.writtenIds || opts.writtenIds.length <= 1));
   queueInvalidation(
     schema,
     tenantId,
     opts?.skipRequestCacheClear === true,
     opts?.writtenId,
     opts?.writtenIds,
-    isPoint,
   );
 }
 
@@ -149,23 +147,17 @@ function queueInvalidation(
   skipRequestCacheClear: boolean,
   writtenId: string | undefined,
   writtenIds: readonly string[] | undefined,
-  isPointWrite?: boolean,
 ): void {
   if (!skipRequestCacheClear) {
     evictRequestCache(schema._id as string, tenantId as string);
   }
-  const isPoint = isPointWrite ?? Boolean(writtenId && (!writtenIds || writtenIds.length <= 1));
-  if (schema._id && !isPoint) {
+  if (schema._id) {
     cacheService.bumpCollectionEpoch(schema._id as string, tenantId as string | null | undefined);
   }
 
   const tenantKey = (tenantId as string) || "default";
   const schemaId = schema._id as string | undefined;
   const requestKey = `${tenantKey}:${schemaId ?? "*"}`;
-
-  if (!isPoint) {
-    _pendingStructuralInvalidations.add(requestKey);
-  }
 
   if (schemaId && (writtenId || writtenIds?.length)) {
     let ids = _pendingInvalidationIds.get(requestKey);
@@ -184,42 +176,34 @@ function queueInvalidation(
   _pendingInvalidationTasks.add(requestKey);
 
   queueMicrotask(async () => {
-    const isStructural = _pendingStructuralInvalidations.has(requestKey);
-    _pendingStructuralInvalidations.delete(requestKey);
     const ids = _pendingInvalidationIds.get(requestKey);
     _pendingInvalidationIds.delete(requestKey);
     try {
       const rc = await getResponseCacheLazy();
       if (schemaId) {
-        const isPoint = !isStructural && ids !== undefined && ids.size > 0;
-        const tagsToClear: string[] = [];
-        if (isPoint && ids) {
+        const tagsToClear: string[] = [
+          `collection:${schemaId}`,
+          `count:${schemaId}`,
+          "res:graphql",
+          `res:${schemaId}`,
+        ];
+        const physicalSchemaId = collectionTableName(schemaId);
+        if (physicalSchemaId !== schemaId) {
+          tagsToClear.push(`collection:${physicalSchemaId}`, `count:${physicalSchemaId}`);
+        }
+        if (ids) {
+          // Only the written documents' per-id tags: a single-row PATCH must not
+          // un-cache every sibling `findById` body.
           for (const id of ids) tagsToClear.push(`doc:${schemaId}:${id}`);
-          tagsToClear.push(`count:${schemaId}`);
-          const physicalSchemaId = collectionTableName(schemaId);
-          if (physicalSchemaId !== schemaId) {
-            tagsToClear.push(`count:${physicalSchemaId}`);
-          }
-        } else {
-          tagsToClear.push(
-            `collection:${schemaId}`,
-            `count:${schemaId}`,
-            "res:graphql",
-            `res:${schemaId}`,
-          );
-          const physicalSchemaId = collectionTableName(schemaId);
-          if (physicalSchemaId !== schemaId) {
-            tagsToClear.push(`collection:${physicalSchemaId}`, `count:${physicalSchemaId}`);
-          }
-          if (ids) {
-            for (const id of ids) tagsToClear.push(`doc:${schemaId}:${id}`);
-          }
         }
         void cacheService.clearByTags(tagsToClear, tenantKey).catch(() => {});
+        // Lists/GraphQL are always evicted (a cached body embeds the written row);
+        // the point tier is narrowed to the ids actually written so sibling
+        // findById turbo hits survive a single-row PATCH (mixed workload).
         rc.invalidateLocal(
           schemaId,
           tenantKey,
-          isPoint && ids ? { entryIds: Array.from(ids) } : undefined,
+          ids && ids.size > 0 ? { entryIds: Array.from(ids) } : undefined,
         );
       } else {
         void rc.invalidateAll(tenantKey).catch(() => {});
@@ -233,25 +217,16 @@ function queueInvalidation(
         _pendingInvalidationDirty.delete(requestKey);
         // Writes that landed while this flush was in flight live in a fresh id
         // set (the flushed one was detached above). Replay them with their own
-        // intent instead of forcing a structural clear: a point burst that was
-        // replayed structurally lost its `doc:` tags (a structural clear carries
-        // neither `doc:` nor `res:all`), which left the HTTP body of the last
-        // point write stale for the full TTL.
+        // ids: a replay that dropped the id list would clear neither the `doc:`
+        // tags nor narrow the point tier, leaving the last write's HTTP body
+        // stale for the full TTL.
         const replayIds = _pendingInvalidationIds.get(requestKey);
-        const replayStructural = _pendingStructuralInvalidations.has(requestKey);
         const replayIdList = replayIds ? Array.from(replayIds) : undefined;
         if (replayIds) {
           _pendingInvalidationIds.delete(requestKey);
           releaseIdSet(replayIds);
         }
-        queueInvalidation(
-          schema,
-          tenantId,
-          true,
-          undefined,
-          replayIdList,
-          !replayStructural && replayIdList !== undefined && replayIdList.length > 0,
-        );
+        queueInvalidation(schema, tenantId, true, undefined, replayIdList);
       }
     }
   });
@@ -286,14 +261,12 @@ export function schedulePostWrite(
   // L2 invalidation starts IMMEDIATELY (debounced + coalesced) — never behind
   // workflow/pubsub work, so save-then-read can't race a stale cached list.
   //
-  // Every action stays structural, including a single-id update: a cached list
-  // body embeds the written row, and a point write leaves the `collection:` /
-  // `res:` tags intact, so the edited row kept its old title for the whole list
-  // TTL (measured on the E2E stack — 172b68b75, restored by 5836daa78). Point
-  // semantics remain available to callers whose write cannot change a list body
-  // (the single-id bulk lanes call `invalidateCache({ writtenId })`), and the
-  // coalesced replay below preserves them for a mid-flush burst.
-  queueInvalidation(schema, tenantId, true, id, undefined, false);
+  // Every action is structural, including a single-id update: a cached list
+  // body embeds the written row, and any field may be one that list sorts or
+  // filters on, so `collection:` / `res:` / `res:graphql` tags are always
+  // cleared. The written id only narrows the point tier (sibling `findById`
+  // turbo hits stay warm).
+  queueInvalidation(schema, tenantId, true, id, undefined);
 
   if ((action === "create" || action === "update") && !options.skipReturning) {
     recordWriteAccess(tid || "global", schemaId, id);

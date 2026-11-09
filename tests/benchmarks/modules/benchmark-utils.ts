@@ -1275,6 +1275,58 @@ export async function seedThroughputDocs(
 }
 
 /**
+ * Clear one benchmark collection before a dataset-scaling run.
+ *
+ * The competitive replica seeds `SEED_COUNT` rows per invocation and the create
+ * lane adds more. Without a purge the table grows by ~1.5k rows per run, and the
+ * only workload that reads uncached lists after writes (`mixed`) silently
+ * measures a different dataset every time — list sorts get slower as the table
+ * grows even though the standalone list lanes stay turbo-cached. Call this
+ * before the HTTP seed burst so a run always starts from its advertised size.
+ *
+ * PostgreSQL resets with `TRUNCATE`, not `DELETE`. A DELETE marks tuples dead but
+ * leaves every index page allocated, and VACUUM cannot give index space back
+ * (only `REINDEX`/`VACUUM FULL`/`TRUNCATE` can). Measured on the accumulated
+ * local table: 3.2k live rows, 2.4 MB heap, **4.6 GB of indexes** (13 btrees +
+ * one GIN), i.e. the write lanes were maintaining indexes built for ~18M dead
+ * entries — a benchmark measuring index bloat rather than the product. TRUNCATE
+ * returned the same table to 108 kB in 5 ms. It is also ~20x faster than the
+ * adapter DELETE, so dataset reset stops dominating harness wall time.
+ */
+export async function purgeBenchmarkCollection(
+  collectionId = "BenchmarkStable",
+  tenantId: string = "global",
+): Promise<void> {
+  const { getDb, getDbInitPromise } = await import("@src/databases/db");
+  await getDbInitPromise(false, "CORE").catch(() => {});
+  const db = getDb();
+  if (!db) return;
+  try {
+    if (String((db as any).type) === "postgresql") {
+      const { collectionTableName } = await import("@src/databases/core/collection-name");
+      const table = collectionTableName(collectionId).replace(/"/g, '""');
+      const truncated = await Promise.resolve((db as any).raw?.execute(`TRUNCATE "${table}"`))
+        .then(() => true)
+        .catch(() => false);
+      if (truncated) {
+        await (db as any).raw.execute(`ANALYZE "${table}"`).catch(() => {});
+        return;
+      }
+      // Table not provisioned yet (first run) or TRUNCATE was refused; the
+      // adapter DELETE below is the portable fallback and reports its own error.
+      logger.debug(`[BenchSeed] TRUNCATE unavailable for ${table}, falling back to DELETE`);
+    }
+    await (db as any).crud.deleteMany(
+      collectionId,
+      {},
+      { tenantId, permanent: true, confirmWipe: true },
+    );
+  } catch (err: any) {
+    logger.warn(`[BenchSeed] purge ${collectionId} failed: ${err.message}`);
+  }
+}
+
+/**
  * In-process state seeding against the SAME database the benchmark server
  * will use: default roles, admin user (real password hash via LocalCMS auth),
  * benchmark collections + entries. Mirrors the legacy /api/testing seed
@@ -1551,11 +1603,18 @@ export async function seedBenchmarkState(): Promise<void> {
   // without these rows the server's store stays EMPTY: GraphQL allCollections
   // returns [], content exports 500 "Collection not found", and every
   // schema-driven benchmark measured hollow queries.
+  //
+  // Key on `_id`: `executeSqlUpsert` only takes its single-round-trip path when
+  // the query carries the primary key. A path-keyed upsert always fell back to
+  // not-found and then collided on `_id`, so an existing row kept its OLD
+  // `collectionDef` (e.g. a schema without `views`), and the server booted with
+  // stale materialization — writes then parked the field in `data` while the
+  // benchmark sorted a NULL physical column.
   for (const schema of collectionSchemas) {
     try {
       await (db as any).crud.upsert(
         "content_nodes",
-        { path: `/collection/${schema.name}`, tenantId } as any,
+        { _id: schema._id, tenantId } as any,
         {
           _id: schema._id,
           path: `/collection/${schema.name}`,

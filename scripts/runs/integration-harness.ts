@@ -259,6 +259,12 @@ export function buildIntegrationServerEnv(
     JWT_SECRET_KEY: secrets.jwt,
     ENCRYPTION_KEY: secrets.encryption,
     TEST_API_SECRET: secrets.testApiSecret,
+    // Transport-attribution marker for `tests/integration/api/lane-transport-identity.test.ts`:
+    // `responseToLaneResult()` stamps `x-fast-lane-served: 1` only when these bytes
+    // came out of the raw lane. Without it the identity gate cannot tell a served
+    // lane from one that threw and was re-served through the bridge (both produce
+    // identical bytes). Test-only header; never enabled in production defaults.
+    BENCH_VERIFY_RAW: process.env.BENCH_VERIFY_RAW ?? "1",
     PREVIEW_SECRET: process.env.PREVIEW_SECRET || "Integration-Preview-Secret-2026",
     PASSWORD_MIN_LENGTH: "8",
     ADMIN_PASSWORD: secrets.adminPassword,

@@ -350,6 +350,63 @@ function hitHeaderTemplate(
 }
 
 /**
+ * Minimal `Headers` implementation over a plain record for the fast-lane path.
+ *
+ * The raw transport bypasses `Response`, so the read lane builds a duck-typed
+ * response object instead. That object is later consumed by
+ * `responseToLaneResult()`, which merges the LIVE headers over the snapshot —
+ * i.e. it calls `forEach`. A facade exposing only `get`/`set` made that merge
+ * throw (`forEach is not a function`), and the registry swallowed the error and
+ * served the request through the bridged pipeline: the read lane silently
+ * degraded on every warm turbo hit. Implement the surface consumers actually
+ * use, with WHATWG semantics (lower-cased names, per-name value join).
+ */
+export function createFastHeaders(record: Record<string, string | string[]>): Headers {
+  const value = (name: string): string => {
+    const v = record[name.toLowerCase()];
+    return Array.isArray(v) ? v.join(", ") : (v ?? "");
+  };
+  const facade = {
+    get: (name: string) => {
+      const v = record[name.toLowerCase()];
+      return v === undefined ? null : Array.isArray(v) ? v.join(", ") : v;
+    },
+    set(name: string, v: string) {
+      record[name.toLowerCase()] = String(v);
+    },
+    append(name: string, v: string) {
+      const key = name.toLowerCase();
+      const current = record[key];
+      if (current === undefined) record[key] = v;
+      else if (Array.isArray(current)) current.push(v);
+      else record[key] = [current, v];
+    },
+    has(name: string) {
+      return record[name.toLowerCase()] !== undefined;
+    },
+    delete(name: string) {
+      delete record[name.toLowerCase()];
+    },
+    forEach(callback: (v: string, k: string) => void) {
+      for (const key of Object.keys(record)) callback(value(key), key);
+    },
+    *entries(): IterableIterator<[string, string]> {
+      for (const key of Object.keys(record)) yield [key, value(key)];
+    },
+    *keys(): IterableIterator<string> {
+      yield* Object.keys(record);
+    },
+    *values(): IterableIterator<string> {
+      for (const key of Object.keys(record)) yield value(key);
+    },
+    [Symbol.iterator](): IterableIterator<[string, string]> {
+      return facade.entries();
+    },
+  };
+  return facade as unknown as Headers;
+}
+
+/**
  * Serve a turbo L1 tuple (HIT / 304 / pre-compressed). Shared by handleTurboGet
  * and the collection point-read miss lane so HIT bytes stay identical.
  *
@@ -369,15 +426,7 @@ export function serveTurboCacheEntry(
 
   if (isFastLane) {
     const fastRecord: Record<string, string | string[]> = { ...tpl.record };
-    const fastHeadersFacade = {
-      set(k: string, v: string) {
-        fastRecord[k.toLowerCase()] = v;
-      },
-      get(k: string): string | null {
-        const val = fastRecord[k.toLowerCase()];
-        return typeof val === "string" ? val : null;
-      },
-    };
+    const fastHeadersFacade = createFastHeaders(fastRecord);
 
     if (resEntry.etag) {
       fastRecord["etag"] = resEntry.etag;

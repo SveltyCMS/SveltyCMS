@@ -130,6 +130,7 @@ Optimizations live in **shared core**, not one dialect:
 | **Phase 2 (2026-09): 64-Bit Bitmask Security Engine** (`databases/auth/permission-bitmask.ts`) | Auth / RBAC Layer (all engines) | Maps all canonical endpoint permissions (43 bits, bits 0-42) to a fixed `BigInt` bitset. Session `permMask` is computed at `createSession` time, stored as a hex string, and deserialized as `locals.permMask: bigint` by `handleAuthentication`. `_checkEndpointPermission` evaluates `(mask & bit) !== 0n` — a single CPU register AND with **zero heap allocations** vs. the previous O(r×p) role-loop. Dynamic/plugin permissions use bits 43-62; bit 63 is a write-only presence indicator for `field:*` grants (no authorization path reads it — FLAC enforcement is string-based). Cross-worker invalidation via `SharedArrayBuffer` + `Atomics.compareExchange` version counter. |
 | **Phase 3 (2026-10): QueryBuilder Prepared Compilation & Covering List Indexes** (`sql-query-builder.ts`, `postgresql/adapter-core.ts`) | SQLite, PostgreSQL, MariaDB | Compiles physical column equality (`.where()`), physical `ORDER BY`, and pagination into cached driver-prepared statements, bypassing dynamic Drizzle AST rebuilds on every call. On PostgreSQL, lists sorted by physical columns (e.g. `createdAt DESC`) asynchronously schedule a covering index `(tenantId, column, _id)` or `(column, _id)` off the pool without stealing worker connections or triggering close-handler reconnects. Measured on PostgreSQL (2,000 rows): admin default list drops from **4.88 ms to 0.85 ms (5.7× faster)**, achieving full parity with raw `findMany`. |
 | **Phase 4 (2026-10): True Statement Coalescing & Adaptive Burst-Hold Window** (`statement-coalescer.ts`, `postgresql/adapter-core.ts`) | PostgreSQL (SQL multi-row `UNNEST` arrays) | Coalesces concurrent single-row writes for the same collection into single multi-row `INSERT` and `UPDATE ... FROM UNNEST(...)` statements over PostgreSQL arrays. Per-op fault isolation replays failed batches individually. **INSERT coalescing** (default ON via `SVELTY_WRITE_COALESCING`): **+12–18% create throughput** (2,216 → 2,624 RPS) with improved p95. **UPDATE coalescing with Lever 2 adaptive burst-hold window** (opt-in `SVELTY_WRITE_COALESCE_UPDATE=1`, `SVELTY_COALESCE_UPDATE_WINDOW_MS=1`): **+11–15% update throughput gain** (update/create ratio 1.17–1.18 vs 1.02–1.07 baseline) on the 100k-doc harness by growing batches to 8–16 rows to amortize VALUES joins, while lone writes still flush on the tick (0ms artificial hold). **Profile-dependent** — two paired A/Bs on the 10k-doc matrix replica (2026-10-09) measured −41–54 % on the update lanes, so the lever stays opt-in and must not be defaulted at the matrix profile. |
+| **Phase 5 (2026-11): Published-list partial indexes** (`postgresql/adapter-core.ts`, `postgresql-wire-stream.ts`) | PostgreSQL | A publication-clamped wire list compiles `"status" IN ('publish','published')`. The `(tenantId, status, <sort>, _id)` composite cannot preserve sort order across two status values, so the planner falls back to the single-column sort index + **Incremental Sort** — and without a tenant equality the composite is unusable entirely. `findListWireStream` now schedules a lazy `CREATE INDEX CONCURRENTLY` partial index carrying the exact clamp predicate and the requested order (`("<col>" DESC, "_id" DESC)` or `("tenantId", "<col>" DESC, "_id" DESC)`, `WHERE status IN ('publish','published') AND "isDeleted" = false`), off-pool like the other covering indexes. Measured on the 5.8M-row competitive benchmark table (legacy rows with tied/NULL sort values): **4.30 s → 0.17 ms** per uncached list. The read lane also now reads the requested status from `filter={"status":"published"}`, not only the `status=` query param — the wire body was previously admitted with the filter but executed unfiltered for a privileged caller. |
 
 | LocalCMS and HTTP turbo sit **above** this layer — same gains on every adapter:
 
@@ -150,6 +151,31 @@ Optimizations live in **shared core**, not one dialect:
 > this pollution, not a regression. Fixes: benchmark harness sets `DB_HOST` explicitly; the
 > SQLite adapter now **fails closed** in test/benchmark mode when no `DB_NAME` is derivable
 > (never silently uses `sveltycms.db`); `config/database/` remains the only live-data folder.
+>
+> **Competitive replica dataset reset (2026-11):** `competitive-workload-replica.test.ts` now
+> purges `BenchmarkStable` before its seed burst. The test seeded `BENCH_DOCS` rows per run and
+> the create lane added more, so repeated local runs grew one table to **5.8M rows**; the
+> standalone list lanes stayed turbo-cached, while `mixed` — the only lane that reads uncached
+> lists after writes — silently measured a bigger dataset every week. It also discovered a stale
+> `content_nodes` row: the seed upserted by `path` (a different case) instead of `_id`, so the
+> server booted with an old `collectionDef` (no `views`), parked the sort field in `data`, and
+> ordered a NULL physical column. The seed now keys on `_id`, and `purgeBenchmarkCollection()`
+> keeps the advertised size equal to the measured size.
+>
+> **Reset with `TRUNCATE`, not `DELETE` (2026-11):** `purgeBenchmarkCollection()` now resets the
+> PostgreSQL benchmark table with `TRUNCATE`. A `DELETE` marks tuples dead but leaves every index
+> page allocated, and `VACUUM` cannot return index space — only `REINDEX`/`VACUUM FULL`/`TRUNCATE`
+> can. Measured on the accumulated local table: **3.2k live rows, 2.4 MB heap, 4.6 GB of indexes**
+> (13 btrees + one GIN). Every write lane was therefore maintaining index trees built for ~18M dead
+> entries — the harness was measuring index bloat, not the product. `TRUNCATE` + `ANALYZE` returned
+> the same table to 108 kB in 5 ms (and is ~20x faster than the adapter `DELETE`). Any deployment
+> that performs a large delete should follow it with `REINDEX CONCURRENTLY` for the same reason.
+>
+> **Provisioned-index drift (2026-11):** `createModel` now **drops** `<table>_data_gin` when the
+> collection declares `jsonIndex: false`, instead of only skipping the `CREATE`. The index survives
+> an opt-out otherwise (the benchmark collection's stale GIN was 305 MB with `idx_scan = 0`), and
+> every write keeps paying its maintenance for a query form nothing emits. Same convergence rule as
+> the composite-index and twin-index drops already in that function.
 
 ```text
 HTTP turbo / LocalCMS → ICrudAdapter.findOne|insert|update

@@ -460,7 +460,13 @@ export function collectionResponseCacheTags(
 }
 
 export interface InvalidateLocalOpts {
-  /** When set, drop only these document turbo keys; lists/GraphQL are always evicted. */
+  /**
+   * The documents actually written. Lists and GraphQL bodies are ALWAYS evicted
+   * (a List body embeds the written row, and any PATCH may touch a field its
+   * sort or filter reads); `entryIds` only narrows the point tier so sibling
+   * `findById` turbo hits survive a single-row write. Omit it to drop the whole
+   * collection point tier (bulk/unknown write).
+   */
   entryIds?: Iterable<string>;
 }
 
@@ -1191,9 +1197,15 @@ class ResponseCacheService {
 
   /**
    * Synchronous in-memory purge of cached response tuples for a collection.
-   * With `entryIds`, only those document turbo keys are dropped; list + GraphQL
-   * bodies of the collection are always evicted (read-after-write consistency).
-   * Sibling findById turbo hits stay warm (soak / mixed-write path).
+   *
+   * Every write evicts the collection's list and GraphQL bodies: a cached list
+   * embeds the written row, and any PATCH can change a field the list sorts or
+   * filters on (the caller cannot know which queries a field participates in).
+   * Keeping lists warm for a "point" write is therefore only safe until someone
+   * sorts by the field being written — the one cache state this service must
+   * never serve. `entryIds` narrows the POINT tier only: the written documents
+   * are dropped while sibling `findById` turbo hits stay warm. Without
+   * `entryIds` the whole collection point tier is dropped (bulk/unknown write).
    */
   public invalidateLocal(
     collectionName: string,
@@ -1202,8 +1214,12 @@ class ResponseCacheService {
   ): void {
     const tenant = tenantId || "default";
 
-    // 🎯 Surgical point-write fast path: when specific entryIds are mutated (e.g. PATCH /:id),
-    // drop only those document turbo keys so sibling findById, lists, and GraphQL stay warm.
+    this.evictListSet(this.listIndex, `${tenant}\0${collectionName}`, tenantId);
+    this.evictListSet(this.graphqlIndex, tenant, tenantId);
+    if (this.graphqlL2Tenants.has(tenant)) {
+      cacheService.bumpCollectionEpoch(GRAPHQL_CACHE_SCOPE, tenantId);
+    }
+
     if (opts?.entryIds) {
       for (const id of opts.entryIds) {
         this.dropIndexSet(this.entryIndex, `${tenant}\0${collectionName}\0${id}`);
@@ -1211,11 +1227,6 @@ class ResponseCacheService {
       return;
     }
 
-    this.evictListSet(this.listIndex, `${tenant}\0${collectionName}`, tenantId);
-    this.evictListSet(this.graphqlIndex, tenant, tenantId);
-    if (this.graphqlL2Tenants.has(tenant)) {
-      cacheService.bumpCollectionEpoch(GRAPHQL_CACHE_SCOPE, tenantId);
-    }
     const colKey = `${tenant}\0${collectionName}`;
     const entryKeys = this.collectionEntriesIndex.get(colKey);
     if (entryKeys) {

@@ -9,7 +9,7 @@
  * - Deterministic NAMEDATALEN=63 index name hashing and truncation
  */
 
-import { normalizePgTimestampText } from "../core/relational-utils";
+import { assertSafeSqlIdentifier, normalizePgTimestampText } from "../core/relational-utils";
 
 /**
  * Keep date/timestamp as ISO text. postgres.js default-parses timestamptz to
@@ -80,4 +80,46 @@ export function pgSafeIndexName(name: string): string {
   }
   const suffix = `_${hash.toString(16).padStart(8, "0")}`;
   return `${name.slice(0, 63 - suffix.length)}${suffix}`;
+}
+
+/** Input for the lazy published-list covering index. */
+export interface PublishedListIndexSpec {
+  tableName: string;
+  column: string;
+  direction: "asc" | "desc";
+  /** A tenant equality exists in the compiled query, so the index leads with `tenantId`. */
+  withTenant: boolean;
+  /** The table carries `isDeleted`; the wire query adds `= false`, so the predicate can too. */
+  hasDeleted: boolean;
+}
+
+/**
+ * DDL for the publication-clamped list index.
+ *
+ * The wire list compiles `status IN ('publish','published')`; a btree leading
+ * with `status` cannot preserve sort order across two values, so a partial index
+ * carries that exact predicate and the requested order instead. `IF NOT EXISTS`
+ * keeps the lazy scheduler idempotent across processes and restarts.
+ */
+export function buildPublishedListIndexDdl(spec: PublishedListIndexSpec): {
+  indexName: string;
+  safeTable: string;
+  ddl: string;
+} {
+  const safeTable = assertSafeSqlIdentifier(spec.tableName, "table");
+  const safeCol = assertSafeSqlIdentifier(spec.column, "column");
+  const dir = spec.direction === "desc" ? "DESC" : "ASC";
+  const indexName = assertSafeSqlIdentifier(
+    pgSafeIndexName(`${spec.tableName}_${spec.column}_${spec.withTenant ? "t" : "o"}_pub_list_id`),
+    "index",
+  );
+  const cols = spec.withTenant
+    ? `("tenantId", "${safeCol}" ${dir}, "_id" ${dir})`
+    : `("${safeCol}" ${dir}, "_id" ${dir})`;
+  const predicate = `"status" IN ('publish', 'published')${spec.hasDeleted ? ' AND "isDeleted" = false' : ""}`;
+  return {
+    indexName,
+    safeTable,
+    ddl: `CREATE INDEX CONCURRENTLY IF NOT EXISTS "${indexName}" ON "${safeTable}" ${cols} WHERE ${predicate}`,
+  };
 }

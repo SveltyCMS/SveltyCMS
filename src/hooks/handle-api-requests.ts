@@ -570,9 +570,10 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
             mutatedEntry !== "batch" &&
             mutatedEntry !== "bulk" &&
             mutatedEntry !== "increment";
-          if (!isPointWrite) {
-            cacheService.bumpCollectionEpoch(mutatedCollection, tenantIdString);
-          }
+          // The generation fence gates LIST/GraphQL bodies only (point entries are
+          // epoch-exempt), so every write moves it: otherwise a list body evicted
+          // from L1 but still in shared L2 could be refilled after a point write.
+          cacheService.bumpCollectionEpoch(mutatedCollection, tenantIdString);
           responseCache.invalidateLocal(
             mutatedCollection,
             tenantIdString,

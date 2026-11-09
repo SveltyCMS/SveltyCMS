@@ -70,6 +70,7 @@ import { PG_STATEMENT_WARMUP_ENV } from "./statement-warmup";
 
 import {
   PG_TEXT_DATE_TYPES,
+  buildPublishedListIndexDdl,
   pgConnectionParameters,
   pgIdleTimeout,
   pgSafeIndexName,
@@ -547,14 +548,31 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   ): Promise<RawListWireStreamResult> {
     const txnSql = this.getTxnSql(options);
     if (options?.transaction && !txnSql) return { kind: "declined" };
+    const tableName = getTableName(table);
+    // A publication-clamped list sorted by a physical column cannot use the
+    // `(tenantId, status, <col>, _id)` composite: `status IN ('publish',
+    // 'published')` breaks the index order, so the planner falls back to
+    // `views_idx` + Incremental Sort and scans every published row. Schedule a
+    // partial index whose predicate IS the clamp, ordered by the requested sort.
+    // Without a tenant equality `(tenantId, ...)` is unusable, so the index omits
+    // that prefix exactly like the compiled query does.
+    if (
+      !options?.transaction &&
+      options?.requirePublished === true &&
+      options.sortField &&
+      this.getColumn(table, options.sortField)
+    ) {
+      const tenantClause = buildRawTenantClause(options, "postgres", { paramIndex: 1 });
+      this.schedulePublishedListIndex(
+        tableName,
+        options.sortField,
+        options.sortDirection === "asc" ? "asc" : "desc",
+        tenantClause.params.length > 0,
+        !!this.getColumn(table, "isDeleted"),
+      );
+    }
     const exec = txnSql ?? this.sql!;
-    return this._wireStreamEngine.findListWireStream(
-      this,
-      exec,
-      table,
-      getTableName(table),
-      options,
-    );
+    return this._wireStreamEngine.findListWireStream(this, exec, table, tableName, options);
   }
 
   /**
@@ -1001,6 +1019,54 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       ? `("tenantId", "${safeCol}" ${dir}, "_id" ${dir})`
       : `("${safeCol}" ${dir}, "_id" ${dir})`;
     const ddl = `CREATE INDEX CONCURRENTLY IF NOT EXISTS "${indexName}" ON "${safeTable}" ${cols}`;
+    this.runIndexDdl(ddl, safeTable, `list index for ${tableName}.${plan.column}`);
+  }
+
+  /**
+   * Lazily provision the published-list covering index the Wire Plane needs.
+   *
+   * The wire list query clamps `status IN ('publish', 'published')`, which a
+   * `(tenantId, status, <sort>, _id)` btree cannot serve in sort order (two
+   * status values interleave). A partial index carrying the SAME predicate and
+   * the requested order lets PostgreSQL stop after the first `LIMIT` rows
+   * instead of scanning every published row into an Incremental Sort
+   * (measured on 5.8M rows: 4.3 s → 0.17 ms). One attempt per
+   * (table, column, direction, tenant prefix); bounded so a hostile sort
+   * parameter cannot mint unbounded DDL.
+   */
+  private schedulePublishedListIndex(
+    tableName: string,
+    column: string,
+    direction: "asc" | "desc",
+    withTenant: boolean,
+    hasDeleted: boolean,
+  ): void {
+    if (process.env.SVELTY_LAZY_SORT_INDEXES === "0") return;
+    if (!PostgresAdapterCore.SORT_EXPR_FIELD_RE.test(column)) return;
+    if (column === "_id" || column === "status") return;
+    const key = `${tableName}\0${column}\0${direction}\0${withTenant ? 1 : 0}\0${hasDeleted ? 1 : 0}`;
+    if (this._publishedListIndexKeys.has(key)) return;
+    if (this._publishedListIndexKeys.size >= PostgresAdapterCore.MAX_PUBLISHED_LIST_INDEXES) return;
+    this._publishedListIndexKeys.add(key);
+
+    const safeTable = assertSafeSqlIdentifier(tableName, "table");
+    const safeCol = assertSafeSqlIdentifier(column, "column");
+    const { ddl } = buildPublishedListIndexDdl({
+      tableName,
+      column,
+      direction,
+      withTenant,
+      hasDeleted,
+    });
+    this.runIndexDdl(ddl, safeTable, `published list index for ${tableName}.${safeCol}`);
+  }
+
+  /**
+   * Run a `CREATE INDEX CONCURRENTLY` off the serving pool (dedicated 1-conn
+   * client, `statement_timeout = 0`) so the list that discovered the sort never
+   * waits on the build and the pool keeps every worker connection.
+   */
+  private runIndexDdl(ddl: string, safeTable: string, label: string): void {
     void (async () => {
       let client: ReturnType<typeof postgres> | null = null;
       try {
@@ -1022,7 +1088,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         await exec.unsafe(`ANALYZE "${safeTable}"`).catch(() => {});
       } catch (err) {
         logger.debug(
-          `[Postgres] list index failed for ${tableName}.${plan.column}: ${err instanceof Error ? err.message : String(err)}`,
+          `[Postgres] ${label} failed: ${err instanceof Error ? err.message : String(err)}`,
         );
       } finally {
         if (client) await client.end().catch(() => {});
@@ -1125,7 +1191,10 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
    */
   private static readonly SORT_EXPR_FIELD_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
   private static readonly MAX_DYNAMIC_SORT_INDEXES = 64;
+  private static readonly MAX_PUBLISHED_LIST_INDEXES = 64;
   private _dynamicSortIndexes = new Map<string, "requested" | "done">();
+  /** Published-list partial indexes already requested (DDL is never retried per request). */
+  private _publishedListIndexKeys = new Set<string>();
 
   protected override onDynamicSort(collection: string, tableName: string, field: string): void {
     if (process.env.SVELTY_LAZY_SORT_INDEXES === "0") return;

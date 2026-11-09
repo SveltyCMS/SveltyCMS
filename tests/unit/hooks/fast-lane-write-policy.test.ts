@@ -127,6 +127,32 @@ describe("fast-lane write policy", () => {
     expect(new TextDecoder().decode(out.body as Uint8Array)).toContain('"title":"x"');
   });
 
+  it("serves headers mutated after the Response was built (security/split)", async () => {
+    process.env.SVELTY_FAST_LANE_WRITE = "1";
+    mocks.tryCollectionWriteLane.mockImplementation(async () => {
+      const snapshot = { "content-type": "application/json" };
+      const res = new Response('{"success":true}', { status: 200, headers: snapshot });
+      // `buildJsonResponse` captures this object before the lane stamps extra
+      // headers onto the live Response. The raw transport must serve the live
+      // headers or it diverges from the bridged path.
+      (res as unknown as { __fastHeaders: Record<string, string> }).__fastHeaders = snapshot;
+      (res as unknown as { __fastBody: string }).__fastBody = '{"success":true}';
+      res.headers.set("x-svelty-lane", "API_WRITE");
+      res.headers.set("x-srv-split", "security=0.02;dbwrite=0.20");
+      return res;
+    });
+    const dispatch = await loadDispatcher();
+
+    const out = (await dispatch(writeInput().input)) as {
+      status: number;
+      headers: Record<string, string>;
+      body: string | Uint8Array;
+    };
+    expect(out.status).toBe(200);
+    expect(out.headers["x-svelty-lane"]).toBe("API_WRITE");
+    expect(out.headers["x-srv-split"]).toBe("security=0.02;dbwrite=0.20");
+  });
+
   it("fails closed on the client address exactly like adapter-node", async () => {
     process.env.SVELTY_FAST_LANE_WRITE = "1";
     let captured: { getClientAddress: () => string } | null = null;

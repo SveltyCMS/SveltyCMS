@@ -252,6 +252,40 @@ describe("collection read lane single-flight", () => {
     contentStore.clear();
   });
 
+  it("applies a filter status=published on the wire path for a privileged caller", async () => {
+    contentStore.setCollections("global", [
+      {
+        _id: "BenchmarkStable",
+        name: "BenchmarkStable",
+        label: "BenchmarkStable",
+        fields: [{ label: "Title", db_fieldName: "title" }],
+      } as never,
+    ]);
+    findListWireStreamMock.mockResolvedValue({
+      success: true,
+      data: { wireBody: "[]", etag: '"list-0-50-0"' },
+    });
+
+    const resolve = vi.fn(async () => new Response("pipeline"));
+    const filter = encodeURIComponent('{"status":"published"}');
+    const event = createMockEvent(`/api/collections/BenchmarkStable?limit=50&filter=${filter}`, {
+      method: "GET",
+      sessionCookie: sessionId,
+      user,
+    });
+
+    await tryCollectionReadLane({ event, resolve });
+
+    // Admission accepts the filter, so execution MUST clamp too. Reading only
+    // the `status=` query param resolved to "all" for an admin and served an
+    // unfiltered wire body (drafts included).
+    expect(findListWireStreamMock).toHaveBeenCalledWith(
+      "BenchmarkStable",
+      expect.objectContaining({ requirePublished: true }),
+    );
+    contentStore.clear();
+  });
+
   it("labels a point-read rebuild as MISS, admits on the repeat, then serves TURBO-HIT", async () => {
     findByIdMock.mockResolvedValue({ success: true, data: { _id: "abc", title: "point" } });
     const resolve = vi.fn(async () => new Response("pipeline"));

@@ -312,18 +312,26 @@ export async function provisionPostgresTable(
         /* safe */
       }
 
-      if ((schemaData as { jsonIndex?: boolean } | undefined)?.jsonIndex !== false) {
-        try {
-          const ginIndex = assertSafeSqlIdentifier(
-            pgSafeIndexName(`${physicalName}_data_gin`),
-            "index",
-          );
+      // 🔁 DRIFT: the GIN is provisioned once and never revisited, so a collection
+      // that later sets `jsonIndex: false` kept a dead index forever — every write
+      // still pays its maintenance and the footprint doubles, for a query form
+      // nothing emits any more. Converge on the declared schema instead (same
+      // pattern as the composite-index drops above). Only an explicit `false`
+      // drops, so `undefined` (the default) still provisions.
+      try {
+        const ginIndex = assertSafeSqlIdentifier(
+          pgSafeIndexName(`${physicalName}_data_gin`),
+          "index",
+        );
+        if ((schemaData as { jsonIndex?: boolean } | undefined)?.jsonIndex === false) {
+          await ctx.raw.execute(`DROP INDEX IF EXISTS "${ginIndex}"`);
+        } else {
           await ctx.raw.execute(
             `CREATE INDEX IF NOT EXISTS "${ginIndex}" ON "${physicalName}" USING gin ("data" jsonb_path_ops)`,
           );
-        } catch {
-          /* safe */
         }
+      } catch {
+        /* safe */
       }
 
       if (ctx.sql) {

@@ -301,7 +301,7 @@ describe("Unified Response Cache Security & GraphQL Parity", () => {
     expect(list.tags).toContain("res:posts");
   });
 
-  test("surgical invalidateLocal keeps sibling findById turbo hits", () => {
+  test("entryIds narrows the point tier while evicting lists and GraphQL", () => {
     const tenant = "surgical-iso";
     const keyList = buildUserResponseCacheKey("/api/collections/posts", "?limit=10", "user-1");
     const keyGql = buildGraphQLResponseCacheKey("query { posts { id } }", {}, "all", "user-1");
@@ -320,16 +320,42 @@ describe("Unified Response Cache Security & GraphQL Parity", () => {
 
     responseCache.invalidateLocal("posts", tenant, { entryIds: ["id-a"] });
 
+    // The written doc is dropped; the sibling point read survives.
     expect(responseCache.get(pointA, tenant)).toBeNull();
     expect(responseCache.get(pointB, tenant)?.body).toBe('{"id":"b"}');
-    // Surgical point invalidation drops the written entry while keeping sibling entries,
-    // list bodies, and GraphQL cache warm for high-throughput mixed workloads.
-    expect(responseCache.get(keyList, tenant)?.body).toBe('{"items":[]}');
-    expect(responseCache.get(keyGql, tenant)?.body).toBe('{"data":[]}');
+    // A list body embeds the written row and any field may be one the list sorts
+    // or filters on, so lists/GraphQL are evicted for EVERY write — `entryIds`
+    // only narrows the point tier.
+    expect(responseCache.get(keyList, tenant)).toBeNull();
+    expect(responseCache.get(keyGql, tenant)).toBeNull();
 
+    // The next read repopulates from source (no stale refill off an L2 copy).
     responseCache.set(keyList, { body: '{"items":[1]}', etag: '"l2"' }, 60_000, tenant);
     expect(responseCache.get(keyList, tenant)?.stale).toBe(false);
     expect(responseCache.get(keyList, tenant)?.body).toBe('{"items":[1]}');
+  });
+
+  test("a write without entryIds drops the whole collection point tier", () => {
+    const tenant = "whole-point-tier";
+    const keyList = buildUserResponseCacheKey("/api/collections/posts", "?limit=10", "user-1");
+    const keyGql = buildGraphQLResponseCacheKey("query { posts { id } }", {}, "all", "user-1");
+    const pointA = buildUserResponseCacheKey("/api/collections/posts/id-a", "", "user-1");
+    const pointB = buildUserResponseCacheKey("/api/collections/posts/id-b", "", "user-1");
+
+    for (let i = 0; i < 2; i++) {
+      responseCache.set(pointA, { body: '{"id":"a"}', etag: '"a"' }, 60_000, tenant);
+      responseCache.set(pointB, { body: '{"id":"b"}', etag: '"b"' }, 60_000, tenant);
+    }
+    responseCache.set(keyList, { body: '{"items":[]}', etag: '"l"' }, 60_000, tenant);
+    responseCache.set(keyGql, { body: '{"data":[]}', etag: '"g"' }, 60_000, tenant);
+
+    // Bulk/unknown write: no id list, so no point key can be vouched for.
+    responseCache.invalidateLocal("posts", tenant);
+
+    expect(responseCache.get(pointA, tenant)).toBeNull();
+    expect(responseCache.get(pointB, tenant)).toBeNull();
+    expect(responseCache.get(keyList, tenant)).toBeNull();
+    expect(responseCache.get(keyGql, tenant)).toBeNull();
   });
 
   test("full collection invalidateLocal evicts list bodies of that collection only", () => {

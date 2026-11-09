@@ -1,15 +1,16 @@
 /**
  * @file tests/unit/sdk/collections-post-write-coalescing.test.ts
- * @description Coalesced point-write invalidation must not be replayed as a
- * structural clear. When a second point write lands while a flush is awaiting
- * the response cache, the replayed pass has to keep the new write's `doc:` tag
- * and its surgical L1 invalidation. A structural replay clears neither `doc:`
- * nor `res:all`, so the last point write's HTTP body stayed stale for the full
+ * @description Coalesced write invalidation must never lose the ids that landed
+ * mid-flush. When a second write arrives while a flush is awaiting the response
+ * cache, the replayed pass has to carry the new write's `doc:` tag and narrow its
+ * L1 point drop to that id. A replay without the id list clears neither `doc:`
+ * nor the point tier, so the last write's HTTP body stayed stale for the full
  * TTL.
  *
  * Features tested:
- * - a mid-flush point write is replayed as a point write with `doc:<coll>:<id>`
- * - the replay never escalates to collection-wide list tags or an epoch bump
+ * - a mid-flush write is replayed with its `doc:<coll>:<id>` tag
+ * - the replay keeps the collection-wide list/GraphQL clear (every write is
+ *   structural) and narrows the point tier to the replayed ids
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -52,7 +53,7 @@ vi.mock("@src/services/sdk/namespaces/collections/lazy-services", () => ({
   getWorkflowServiceLazy: vi.fn(),
 }));
 
-describe("collections post-write coalesced point writes", () => {
+describe("collections post-write coalesced writes", () => {
   const schema = { _id: "Posts", name: "Posts" } as Schema;
   const tenantId = "tenant-a" as DatabaseId;
 
@@ -65,7 +66,7 @@ describe("collections post-write coalesced point writes", () => {
     state.releaseGate = null;
   });
 
-  it("replays a point write that arrives mid-flush with its doc tag intact", async () => {
+  it("replays a write that arrives mid-flush with its doc tag intact", async () => {
     state.gate = new Promise<void>((resolve) => {
       state.releaseGate = resolve;
     });
@@ -84,16 +85,19 @@ describe("collections post-write coalesced point writes", () => {
       .mocked(cacheService.clearByTags)
       .mock.calls.map((call) => [...(call[0] as string[])]);
     expect(clears[0]).toContain("doc:Posts:a");
-    // The replayed point write keeps its own document tag.
+    // The replayed write keeps its own document tag.
     expect(clears[1]).toContain("doc:Posts:b");
 
-    // A point burst must not escalate to a collection-wide list clear.
-    const allTags = clears.flat();
-    expect(allTags).not.toContain("collection:Posts");
-    expect(allTags).not.toContain("res:Posts");
-    expect(allTags).not.toContain("res:graphql");
-    expect(cacheService.bumpCollectionEpoch).not.toHaveBeenCalled();
-    // …and keeps the surgical L1 invalidation for the replayed id.
-    expect(state.invalidateLocal.mock.calls.at(-1)?.[2]).toEqual({ entryIds: ["b"] });
+    // Every pass clears the collection-wide list/GraphQL tags: a cached body
+    // embeds the row that was just written.
+    for (const tags of clears) {
+      expect(tags).toContain("collection:Posts");
+      expect(tags).toContain("res:Posts");
+      expect(tags).toContain("res:graphql");
+    }
+    // …and narrows the L1 point drop to the ids of that pass.
+    const pointDrops = state.invalidateLocal.mock.calls.map((call) => call[2]);
+    expect(pointDrops).toContainEqual({ entryIds: ["a"] });
+    expect(pointDrops).toContainEqual({ entryIds: ["b"] });
   });
 });
