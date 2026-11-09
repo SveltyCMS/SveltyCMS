@@ -22,6 +22,9 @@ const DEFAULT_MAX_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
 const DEFAULT_MAX_REDIRECTS = 5;
 const PINNED_DNS_TTL_MS = 15_000;
 
+/** Shared decoder — `decode()` without `{ stream: true }` is stateless, so one instance is safe. */
+const UTF8_DECODER = new TextDecoder("utf-8", { fatal: false });
+
 interface DnsPinEntry {
   address: string;
   family: number;
@@ -372,6 +375,16 @@ export async function validateEgressUrl(url: string, options: EgressOptions = {}
   }
 
   // DNS resolution to prevent SSRF via malicious domains (e.g., safe.com → 127.0.0.1)
+  // Fast path: a fresh pin already carries the validated address, so skip the
+  // lookup — but re-check the pinned IP, because `allowPrivate` may have changed.
+  const pinned = getPinnedDnsResolution(hostname);
+  if (pinned) {
+    if (isBlockedIP(pinned.address, allowPrivate)) {
+      throw new EgressError(`Pinned address is blocked (${pinned.address}): ${hostname}`);
+    }
+    return parsed;
+  }
+
   let safeAddress: string | null = null;
   let safeFamily = 4;
   try {
@@ -521,8 +534,9 @@ export async function safeFetch(
       totalBuffer.set(chunk, offset);
       offset += chunk.length;
     }
-    // Text decode for string consumers; bodyBytes remains authoritative for binary media
-    const safeText = new TextDecoder("utf-8", { fatal: false }).decode(totalBuffer);
+    // Text decode is lazy: binary-only consumers (media downloads that read
+    // `bodyBytes`) never pay the UTF-8 decode cost.
+    let decodedBody: string | undefined;
 
     const headers: Record<string, string> = {};
     response.headers.forEach((v, k) => (headers[k] = v));
@@ -530,7 +544,10 @@ export async function safeFetch(
     return {
       success: response.ok,
       status: response.status,
-      body: safeText,
+      get body(): string {
+        if (decodedBody === undefined) decodedBody = UTF8_DECODER.decode(totalBuffer);
+        return decodedBody;
+      },
       bodyBytes: totalBuffer,
       headers,
     };

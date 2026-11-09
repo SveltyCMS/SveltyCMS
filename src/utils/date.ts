@@ -19,19 +19,11 @@
  */
 
 import type { ISODateString } from "../content/types";
-import { getLocale } from "@src/paraglide/runtime";
 import { formatDateTime, formatNumber } from "./format-date";
 
-/**
- * Safely resolves the active UI locale from Paraglide without throwing in test/worker contexts.
- */
-export function getActiveUiLocale(): string {
-  try {
-    return getLocale() || "en";
-  } catch {
-    return "en";
-  }
-}
+// Canonical, locale-aware relative formatting lives in format-date.ts so SSR and
+// hydration resolve the same locale. Re-exported here for existing callers.
+export { formatRelativeDate, getActiveUiLocale } from "./format-date";
 
 // --- ISO Date Utilities (Merged from date-utils.ts) ---
 
@@ -260,8 +252,7 @@ export function formatDateString(
   }
 }
 
-// 🛡️ Intl relative time formatter cache
-const relativeTimeFormatCache = new Map<string, Intl.RelativeTimeFormat>();
+// 🛡️ Intl relative time formatter is owned by `format-date.ts` (single cache).
 
 export const DEFAULT_DISPLAY_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
   year: "numeric",
@@ -282,36 +273,6 @@ export function formatDisplayDate(
   options: Intl.DateTimeFormatOptions = DEFAULT_DISPLAY_DATE_OPTIONS,
 ): string {
   return formatDateTime(dateInput, options, locale);
-}
-
-/**
- * Relative date formatting (e.g. "2 hours ago").
- * Defaults to the active UI language from Paraglide (`getLocale()`) if not specified.
- */
-export function formatRelativeDate(dateInput: Date | number | string, locale?: string): string {
-  const effectiveLocale = locale || getActiveUiLocale();
-  try {
-    const date = new Date(
-      typeof dateInput === "number" ? (dateInput > 1e12 ? dateInput : dateInput * 1000) : dateInput,
-    );
-    if (Number.isNaN(date.getTime())) return "Invalid Date";
-
-    let formatter = relativeTimeFormatCache.get(effectiveLocale);
-    if (!formatter) {
-      formatter = new Intl.RelativeTimeFormat(effectiveLocale, { numeric: "auto" });
-      relativeTimeFormatCache.set(effectiveLocale, formatter);
-    }
-    const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
-
-    if (seconds < 60) return formatter.format(-seconds, "second");
-    if (seconds < 3600) return formatter.format(-Math.floor(seconds / 60), "minute");
-    if (seconds < 86_400) return formatter.format(-Math.floor(seconds / 3600), "hour");
-    if (seconds < 2_592_000) return formatter.format(-Math.floor(seconds / 86_400), "day");
-    if (seconds < 31_536_000) return formatter.format(-Math.floor(seconds / 2_592_000), "month");
-    return formatter.format(-Math.floor(seconds / 31_536_000), "year");
-  } catch {
-    return "Invalid Date";
-  }
 }
 
 /**

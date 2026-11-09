@@ -80,8 +80,11 @@ export function advancedSearch(files: MediaItem[], criteria: SearchCriteria): Se
 
     if (searchTags?.length) {
       const fileTags = (file.metadata?.tags as string[] | undefined) ?? [];
-      const lowerFileTags = fileTags.map((ft) => ft.toLowerCase());
-      ok &&= searchTags.every((t) => lowerFileTags.includes(t));
+      // Fold file tags once into a Set, then O(1) membership per criterion
+      // (was `Array.includes` → O(files × tags²)).
+      const lowerFileTags = new Set<string>();
+      for (let t = 0; t < fileTags.length; t++) lowerFileTags.add(fileTags[t].toLowerCase());
+      ok &&= searchTags.every((t) => lowerFileTags.has(t));
       if (ok) fileMatched.push(`Tags: ${criteria.tags!.join(", ")}`);
     }
 

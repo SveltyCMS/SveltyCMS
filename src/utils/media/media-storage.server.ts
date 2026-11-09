@@ -19,6 +19,7 @@ import { writeFile, readFile, unlink, mkdtemp, rm } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 import { logger } from "@utils/logger";
 import { getPublicSettingSync } from "@src/services/core/settings-service";
+import { getConfigStamp } from "@src/databases/config-state";
 import { getStorageAdapter, getConfig } from "./storage-adapters";
 import { getMimeType } from "./media-utils";
 import type { DerivativeFormat, ResizedImage } from "./media-models";
@@ -87,16 +88,66 @@ const MAX_TEMP_BUFFER_SIZE = 500 * 1024 * 1024;
 
 // Image sizes
 const DEFAULT_SIZES = { sm: 600, md: 900, lg: 1200 } as const;
-export const SIZES: Readonly<Record<string, number>> = Object.freeze({
-  ...DEFAULT_SIZES,
-  ...(getPublicSettingSync("IMAGE_SIZES") as Record<string, number> | undefined),
-  original: 0,
-  thumbnail: 200,
+const IMAGE_SIZES_TTL_MS = 60_000;
+let cachedImageSizes: {
+  stamp: number;
+  at: number;
+  value: Readonly<Record<string, number>>;
+} | null = null;
+
+/**
+ * Resolve the configured size ladder lazily — the previous module-scope
+ * snapshot ran at import (before settings load) and never refreshed. Cached
+ * against the config stamp plus a TTL so operator changes are picked up.
+ */
+function resolveImageSizes(): Readonly<Record<string, number>> {
+  const stamp = getConfigStamp();
+  const now = Date.now();
+  if (
+    cachedImageSizes &&
+    cachedImageSizes.stamp === stamp &&
+    now - cachedImageSizes.at < IMAGE_SIZES_TTL_MS
+  ) {
+    return cachedImageSizes.value;
+  }
+
+  const value: Readonly<Record<string, number>> = Object.freeze({
+    ...DEFAULT_SIZES,
+    ...(getPublicSettingSync("IMAGE_SIZES") as Record<string, number> | undefined),
+    original: 0,
+    thumbnail: 200,
+  });
+  cachedImageSizes = { stamp, at: now, value };
+  return value;
+}
+
+/**
+ * Live view of the configured size ladder. Kept for callers that read `SIZES`
+ * directly; prefer `getImageSizes()`.
+ */
+export const SIZES: Readonly<Record<string, number>> = new Proxy({} as Record<string, number>, {
+  get(_target, property) {
+    return resolveImageSizes()[property as string];
+  },
+  has(_target, property) {
+    return (property as string) in resolveImageSizes();
+  },
+  ownKeys() {
+    return Reflect.ownKeys(resolveImageSizes());
+  },
+  getOwnPropertyDescriptor(_target, property) {
+    const descriptor = Object.getOwnPropertyDescriptor(resolveImageSizes(), property);
+    return descriptor ? { ...descriptor, configurable: true } : undefined;
+  },
+  set(_target, property) {
+    // Preserve the old frozen-object contract: the live view is read-only.
+    throw new TypeError(`SIZES is read-only (attempted to set ${String(property)})`);
+  },
 });
 
 /** Get configured image sizes (returns a frozen, read-only copy). */
-export function getImageSizes(): Readonly<typeof SIZES> {
-  return SIZES;
+export function getImageSizes(): Readonly<Record<string, number>> {
+  return resolveImageSizes();
 }
 
 /** Save buffer or stream to storage using adapter */
@@ -243,7 +294,7 @@ export async function saveResized(
   // keeps the operator's ladder untouched — dropping every step on a metadata miss would
   // silently produce no derivatives at all.
   const sourceWidth = meta.width ?? 0;
-  const variants = Object.entries(SIZES).filter(
+  const variants = Object.entries(getImageSizes()).filter(
     ([, w]) => w > 0 && (sourceWidth === 0 || w <= sourceWidth),
   );
 

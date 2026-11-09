@@ -14,6 +14,7 @@
  */
 
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
+import { getPrivateEnv } from "@src/databases/config-state";
 import { logger } from "./logger.ts";
 import { AppError } from "./error-handling.ts";
 
@@ -36,9 +37,13 @@ export function isMultiTenantEnabled(): boolean {
   }
 
   try {
+    const mtSetting = getPrivateSettingSync("MULTI_TENANT");
+    // MULTI_TENANT is an infrastructure key: the sync settings cache may not be
+    // warmed on API-only cold boots, so fall back to the bootstrap private env.
+    const mt = mtSetting ?? getPrivateEnv()?.MULTI_TENANT;
     const demo = getPrivateSettingSync("DEMO");
     _multiTenantCached =
-      getPrivateSettingSync("MULTI_TENANT") === true || demo === true || String(demo) === "true";
+      mt === true || String(mt) === "true" || demo === true || String(demo) === "true";
   } catch {
     _multiTenantCached = false;
   }

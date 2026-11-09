@@ -226,9 +226,11 @@ describe("saveResized — format resolution", () => {
 });
 
 describe("SIZES — configuration contract", () => {
-  it("is a frozen object with an 'original' sentinel of 0", () => {
-    expect(Object.isFrozen(SIZES)).toBe(true);
+  it("exposes an 'original' sentinel of 0 and is read-only", () => {
     expect(SIZES.original).toBe(0);
+    expect(() => {
+      (SIZES as Record<string, number>).thumbnail = 1;
+    }).toThrow();
   });
 
   it("keeps a 200px thumbnail and positive, kebab-cased resizeable steps", () => {

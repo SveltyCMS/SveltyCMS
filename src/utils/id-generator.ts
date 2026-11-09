@@ -56,6 +56,33 @@ export function initIdGenerator(): void {
   }
 }
 
+/** Matches any character that is not valid in an HTML id (replaced with "-"). */
+const INVALID_ID_CHARS_REGEX = /[^a-zA-Z0-9_-]/g;
+/** A leading digit or dash is not a valid CSS identifier start. */
+const INVALID_ID_START_REGEX = /^[0-9-]/;
+
+/**
+ * True when `prefix` is already a valid HTML/CSS id prefix: non-empty, starts
+ * with a letter/underscore, and contains only `[a-zA-Z0-9_-]`. Lets the common
+ * render path skip `trim()` + `replace()` + the leading-char regex.
+ */
+function isSafeIdPrefix(prefix: string): boolean {
+  if (prefix.length === 0) return false;
+  const first = prefix.charCodeAt(0);
+  if ((first >= 48 && first <= 57) || first === 45) return false; // digit or '-'
+  for (let i = 0; i < prefix.length; i++) {
+    const c = prefix.charCodeAt(i);
+    const ok =
+      (c >= 48 && c <= 57) || // 0-9
+      (c >= 65 && c <= 90) || // A-Z
+      (c >= 97 && c <= 122) || // a-z
+      c === 95 || // _
+      c === 45; // -
+    if (!ok) return false;
+  }
+  return true;
+}
+
 /**
  * Generates a deterministic, hydration-safe unique HTML ID.
  *
@@ -63,10 +90,16 @@ export function initIdGenerator(): void {
  * @returns A deterministic unique ID string (e.g., 'select-0', 'select-1').
  */
 export function generateId(prefix = "id"): string {
-  // 1. Sanitize HTML ID (must not contain spaces, must start with a letter)
-  let safePrefix = prefix.trim().replace(/[^a-zA-Z0-9_-]/g, "-") || "id";
-  if (/^[0-9-]/.test(safePrefix)) {
-    safePrefix = `el-${safePrefix}`;
+  // 1. Sanitize HTML ID (must not contain spaces, must start with a letter).
+  //    The fast path avoids `trim`/`replace` for the common already-safe prefix.
+  let safePrefix: string;
+  if (isSafeIdPrefix(prefix)) {
+    safePrefix = prefix;
+  } else {
+    safePrefix = prefix.trim().replace(INVALID_ID_CHARS_REGEX, "-") || "id";
+    if (INVALID_ID_START_REGEX.test(safePrefix)) {
+      safePrefix = `el-${safePrefix}`;
+    }
   }
 
   let mapToUse: Map<string, number> = _global.__ID_GLOBAL_MAP;

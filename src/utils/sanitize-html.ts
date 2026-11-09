@@ -34,19 +34,30 @@ export function decodeHtmlEntities(input: string): string {
 
 /**
  * Strips ALL HTML tags, returning plain text.
- * 🚀 Performance: State-based character traversal — O(N), immune to malformed HTML.
+ * 🚀 Performance: scans `<`/`>` boundaries and appends whole text runs
+ * (`slice`) instead of one character at a time — O(N) with far fewer string
+ * concatenations, and still immune to malformed HTML.
  */
 export function stripHtml(html: string): string {
   if (!html) return "";
-  if (!html.includes("<")) return html;
 
-  let output = "";
-  let inTag = false;
+  const firstOpen = html.indexOf("<");
+  if (firstOpen === -1) return html;
 
-  for (let i = 0; i < html.length; i++) {
-    if (html[i] === "<") inTag = true;
-    else if (html[i] === ">") inTag = false;
-    else if (!inTag) output += html[i];
+  let output = html.slice(0, firstOpen);
+  let i = firstOpen;
+  const len = html.length;
+
+  while (i < len) {
+    // `i` points at '<'; drop through the matching '>' (or the rest if unclosed).
+    const close = html.indexOf(">", i + 1);
+    if (close === -1) break;
+
+    const textStart = close + 1;
+    const nextOpen = html.indexOf("<", textStart);
+    const textEnd = nextOpen === -1 ? len : nextOpen;
+    output += html.slice(textStart, textEnd);
+    i = textEnd;
   }
 
   return output;

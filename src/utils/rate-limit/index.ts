@@ -62,6 +62,13 @@ export function loadRedisPingMs(): number {
   return num(process.env.RATE_LIMIT_REDIS_PING_MS, 30_000);
 }
 
+/**
+ * Env-derived base config, evaluated once at module load. `rateLimit()` reuses
+ * this object so the per-request hot path never re-reads `process.env`. The
+ * factory above stays exported for overrides and tests.
+ */
+export const DEFAULT_BASE_RATE_LIMIT_CONFIG: BaseRateLimitConfig = loadBaseRateLimitConfig();
+
 export type RateLimitScope = "redis" | "memory";
 
 export interface RateLimitDecision {
@@ -145,7 +152,7 @@ function buildBucketKey(namespace: string, ctx: AdaptiveContext, profile: string
  * Führt den Rate-Limit-Check aus: adaptive Kapazität → Redis → In-Memory-Fallback.
  */
 export async function rateLimit(options: RateLimitOptions): Promise<RateLimitDecision> {
-  const base = options.base ?? loadBaseRateLimitConfig();
+  const base = options.base ?? DEFAULT_BASE_RATE_LIMIT_CONFIG;
   const context = options.context ?? {};
   const namespace = options.namespace ?? "api";
   // Ein Timestamp pro Request (statt mehrerer Date.now()-Aufrufe) und der Tier

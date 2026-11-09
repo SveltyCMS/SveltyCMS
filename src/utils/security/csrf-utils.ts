@@ -3,7 +3,7 @@
  * @src\widgets\core\rich-text\components\image-description.svelte CSRF protection utilities implementing double-submit cookie pattern
  */
 
-import { generateSecureToken } from "@utils/native-utils";
+import { generateSecureToken, timingSafeStringEqual } from "@utils/native-utils";
 import type { Cookies } from "@sveltejs/kit";
 
 export const CSRF_TOKEN_COOKIE_NAME = "csrf_token";
@@ -92,17 +92,13 @@ export function validateCsrfToken(
   const cookieName = isSecure ? CSRF_COOKIE_NAME_SECURE : CSRF_COOKIE_NAME_INSECURE;
   const cookieToken = cookies.get(cookieName);
 
-  if (!cookieToken || !tokenToValidate || cookieToken.length !== tokenToValidate.length) {
+  if (!cookieToken || !tokenToValidate) {
     return false;
   }
 
-  // Constant-time comparison to prevent timing attacks
-  let result = 0;
-  for (let i = 0; i < cookieToken.length; i++) {
-    result |= cookieToken.charCodeAt(i) ^ tokenToValidate.charCodeAt(i);
-  }
-
-  const isValid = result === 0;
+  // Constant-time comparison (length padding included) — never short-circuit on
+  // a length mismatch, which would leak the expected token length.
+  const isValid = timingSafeStringEqual(cookieToken, tokenToValidate);
 
   // Rotate token on successful validation — single-use CSRF pattern
   if (isValid) {
