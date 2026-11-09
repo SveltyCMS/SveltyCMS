@@ -54,6 +54,8 @@ export function setPrivateEnv(env: AppPrivateConfig | null) {
   configStamp++;
   dbConfigCache = null;
   connectionStringCache = null;
+  dbPoolerConfigCache = null;
+  trustedProxiesCache = null;
 }
 
 /**
@@ -336,7 +338,9 @@ async function enforceTestSafety(config: any) {
         }
       } catch (err) {
         if (err instanceof AppError) throw err;
-        /* ignore read errors */
+        // Non-fatal: only the live-vs-test comparison is skipped; the isolated
+        // test DB_NAME check above still gates the run.
+        logger.debug("enforceTestSafety: live config read skipped (non-fatal)", err);
       }
     }
   }
@@ -364,6 +368,8 @@ export function getPrivateEnv(): AppPrivateConfig | null {
 // Micro-caches for derived configs
 let dbConfigCache: any = null;
 let connectionStringCache: string | null = null;
+let dbPoolerConfigCache: DbPoolerConfig | null = null;
+let trustedProxiesCache: { stamp: number; value: string[] | "all" } | null = null;
 
 export function getDatabaseConfig() {
   if (dbConfigCache) return dbConfigCache;
@@ -404,15 +410,26 @@ export function getDatabaseConfig() {
  * All fields optional. When DB_POOLER_URL is set, adapters should prefer it for connections.
  * DB_POOLER_MODE and PREPARE are hints for transaction pooling compatibility (esp. Postgres).
  */
-export function getDbPoolerConfig() {
+type DbPoolerConfig = {
+  type: string;
+  url: string;
+  mode: string;
+  prepare: boolean | undefined;
+  enabled: boolean;
+};
+
+export function getDbPoolerConfig(): DbPoolerConfig {
+  if (dbPoolerConfigCache) return dbPoolerConfigCache;
+
   const env = getPrivateEnv();
-  return {
+  dbPoolerConfigCache = {
     type: env?.DB_POOLER_TYPE || "",
     url: env?.DB_POOLER_URL || "",
     mode: env?.DB_POOLER_MODE || "transaction",
     prepare: env?.DB_POOLER_PREPARE, // undefined = let adapter decide (true for direct, false for pgbouncer tx)
     enabled: !!(env?.DB_POOLER_TYPE || env?.DB_POOLER_URL),
   };
+  return dbPoolerConfigCache;
 }
 
 /**
@@ -420,18 +437,29 @@ export function getDbPoolerConfig() {
  * Supports string "1.2.3.4,10.0.0.0/8" or array. "all" or "*" for dev.
  */
 export function getTrustedProxies(): string[] | "all" {
+  // Cache the parsed allowlist against the config generation so a changed
+  // TRUSTED_PROXIES setting takes effect without a restart (the previous
+  // cache lived in hook-utils and was never invalidated).
+  const stamp = getConfigStamp();
+  if (trustedProxiesCache && trustedProxiesCache.stamp === stamp) {
+    return trustedProxiesCache.value;
+  }
+
   const env = getPrivateEnv();
   const raw = env?.TRUSTED_PROXIES;
-  if (!raw) return [];
-  if (raw === "all" || raw === "*") return "all";
-  if (typeof raw === "string") {
-    return raw
+  let value: string[] | "all";
+  if (!raw) value = [];
+  else if (raw === "all" || raw === "*") value = "all";
+  else if (typeof raw === "string") {
+    value = raw
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
-  }
-  if (Array.isArray(raw)) return raw.filter(Boolean);
-  return [];
+  } else if (Array.isArray(raw)) value = raw.filter(Boolean);
+  else value = [];
+
+  trustedProxiesCache = { stamp, value };
+  return value;
 }
 
 /**
@@ -611,6 +639,8 @@ export function clearPrivateConfigCache(keepPrivateEnv = false) {
   }
   dbConfigCache = null;
   connectionStringCache = null;
+  dbPoolerConfigCache = null;
+  trustedProxiesCache = null;
 }
 
 if (import.meta.hot) {

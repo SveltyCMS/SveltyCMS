@@ -134,16 +134,18 @@ describe("ResponseCache L1 byte budget", () => {
     expect(afterExpiry.listBytes).toBe(afterExpirySet.listBytes - ENTRY_BYTES);
     expect(afterExpiry.listBytes).toBe(afterExpiry.recountListBytes);
 
-    // 2. Surgical per-doc invalidation (dropIndexSet on the point tier).
+    // 2. Per-doc invalidation: the written doc is dropped, every list body is
+    //    evicted (a cached list embeds the written row), siblings stay warm.
+    const listBeforePoint = responseCache.getL1ByteStats().listBytes;
     const pointBefore = responseCache.getL1ByteStats().pointBytes;
     responseCache.invalidateLocal("posts", "global", { entryIds: ["doc-1"] });
     const pointAfter = responseCache.getL1ByteStats();
     expect(pointAfter.pointEntries).toBe(0);
     expect(pointAfter.pointBytes).toBe(pointBefore - ENTRY_BYTES);
     expect(pointAfter.pointBytes).toBe(pointAfter.recountPointBytes);
-    // Surgical point-write preserves collection list bodies (lists stay warm).
+    expect(pointAfter.listBytes).toBe(listBeforePoint - ENTRY_BYTES);
     expect(pointAfter.listBytes).toBe(pointAfter.recountListBytes);
-    expect(responseCache.get(LIST_KEY, "global")?.body).toBeDefined();
+    expect(responseCache.get(LIST_KEY, "global")).toBeNull();
 
     // 3. Key invalidation.
     responseCache.set(LIST_KEY, entry("e2"), 300_000, "global", { skipSharedL1: true });

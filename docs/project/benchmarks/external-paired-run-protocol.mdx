@@ -82,14 +82,18 @@ A session that does not meet all three is recorded as **not confirmed** — not 
 
 The in-repo replica `tests/benchmarks/competitive-workload-replica.test.ts` mirrors the harness protocol: the same workload set and mixed cycle, sequential plus 8-worker concurrent phases, harness iteration counts, and a median of N rounds. This is how the adapter-node rows in §1 were produced, and how a future run stays reproducible without the external harness.
 
-| Env                                     | Meaning                                                                              | Default  |
-| :-------------------------------------- | :----------------------------------------------------------------------------------- | :------- |
-| `BENCH_DOCS`                            | Seeded dataset size (`10000` = headline-row regime; `100000` = published-row regime) | 500      |
-| `BENCH_CONCURRENCY`                     | Concurrent workers                                                                   | 8        |
-| `BENCH_ROUNDS`                          | Fixed round count (overrides the adaptive rounds)                                    | adaptive |
-| `BENCH_MIN_ROUNDS` / `BENCH_MAX_ROUNDS` | Adaptive-round bounds                                                                | 3 / 7    |
-| `BENCH_COV_STOP`                        | Coefficient-of-variation stop threshold                                              | 4        |
-| `BENCH_VERIFY_RAW`                      | Byte-identity gate between the lane and the bridged fallback                         | off      |
+> **Dataset size decides whether `mixed` means anything.** The SDK orders every unsorted list by `updatedAt desc, _id desc`, and each write evicts the GraphQL body, so `mixed` re-reads that order after every create/update. Without the tenant-less `(updatedAt DESC, _id DESC)` index (see [PostgreSQL implementation](../../reference/database/postgresql-implementation.mdx)) that plan is a seq scan + top-N sort whose cost grows with the table: sub-millisecond at the 500–2,000-row default, **~30–60 ms at 100k rows**. A small local run therefore cannot reproduce the external harness's `mixed` result. Use `BENCH_DOCS=100000` (seed takes ~3 s at ~30k docs/s) and `BENCH_MIX_BREAKDOWN=1` to see the per-op attribution; the run prints a warning when the dataset is below 10k.
+
+| Env                                     | Meaning                                                                                           | Default      |
+| :-------------------------------------- | :------------------------------------------------------------------------------------------------ | :----------- |
+| `BENCH_DOCS`                            | Seeded dataset size (`10000` = headline-row regime; `100000` = published-row regime)              | 500          |
+| `BENCH_CONCURRENCY`                     | Concurrent workers                                                                                | 8            |
+| `BENCH_ROUNDS`                          | Fixed round count (overrides the adaptive rounds)                                                 | adaptive     |
+| `BENCH_MIN_ROUNDS` / `BENCH_MAX_ROUNDS` | Adaptive-round bounds                                                                             | 3 / 7        |
+| `BENCH_COV_STOP`                        | Coefficient-of-variation stop threshold                                                           | 4            |
+| `BENCH_VERIFY_RAW`                      | Byte-identity gate between the lane and the bridged fallback                                      | off          |
+| `BENCH_ACCEPT_ENCODING`                 | Override the client `Accept-Encoding`; `identity` isolates server work from client gzip/br decode | Node default |
+| `BENCH_MIX_BREAKDOWN`                   | Print per-operation client timings for the mixed cycle                                            | off          |
 
 **Production mode is mandatory** (mode parity): `SVELTY_BENCHMARK_SERVER_MODE=production`, `NODE_ENV=production`, `BENCHMARK=true`, no `TEST_MODE` — the measured server runs with real sessions, rate limits, WAF and audits, and only production-mode rows are comparable ([Benchmarks index](./index.mdx)).
 

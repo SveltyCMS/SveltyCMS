@@ -10,7 +10,7 @@
  * - Signature covers filePath + tenantId + expiration to prevent replay across tenants
  * - TenantId pipe-delimiter injection sanitization
  * - Constant-time rejection for invalid hex signatures
- * - Secret memoized at module scope (loaded once)
+ * - Secret resolved lazily (after settings load) and cached against the config stamp
  *
  * ### Features:
  * - generateSignedMediaUrl - create time-limited signed URLs
@@ -20,24 +20,47 @@
 
 import crypto from "node:crypto";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
+import { getConfigStamp } from "@src/databases/config-state";
 import { logger } from "@utils/logger";
 
 const DEFAULT_TTL_MS = 3600000; // 1 hour
+const SECRET_CACHE_TTL_MS = 60_000;
 
 // Hex regex for 64-char HMAC-SHA256 hex string (case-insensitive)
 const HEX_RE = /^[0-9a-f]{64}$/i;
 
+let cachedSecret: { value: string | null; stamp: number; at: number } | null = null;
+let warnedMissingSecret = false;
+
 /**
- * Memoized secret — loaded once at module scope to avoid repeated setting lookups.
+ * Lazily resolve the signing secret after settings have loaded.
+ *
+ * The previous module-scope snapshot ran at import (before settings load) and
+ * never refreshed, so a secret configured later left signed URLs permanently
+ * disabled. Cached against the config stamp plus a TTL.
  */
-const SECRET: string | null = (() => {
-  const s = getPrivateSettingSync("MEDIA_SIGNED_URL_SECRET") as string | undefined;
-  if (!s) {
-    logger.warn("MEDIA_SIGNED_URL_SECRET not configured. Signed URLs unavailable.");
-    return null;
+function getSignedUrlSecret(): string | null {
+  const stamp = getConfigStamp();
+  const now = Date.now();
+  if (cachedSecret && cachedSecret.stamp === stamp && now - cachedSecret.at < SECRET_CACHE_TTL_MS) {
+    return cachedSecret.value;
   }
-  return s || null;
-})();
+
+  let secret: string | null = null;
+  try {
+    secret = (getPrivateSettingSync("MEDIA_SIGNED_URL_SECRET") as string | undefined) || null;
+  } catch {
+    secret = null;
+  }
+
+  if (!secret && !warnedMissingSecret) {
+    warnedMissingSecret = true;
+    logger.warn("MEDIA_SIGNED_URL_SECRET not configured. Signed URLs unavailable.");
+  }
+
+  cachedSecret = { value: secret, stamp, at: now };
+  return secret;
+}
 
 /**
  * Validates the file path to prevent path traversal and absolute path attacks.
@@ -66,7 +89,8 @@ export function generateSignedMediaUrl(
   tenantId?: string | null,
   ttlMs: number = DEFAULT_TTL_MS,
 ): string {
-  if (!SECRET) return ""; // 🛡️ FAIL-CLOSED
+  const secret = getSignedUrlSecret();
+  if (!secret) return ""; // 🛡️ FAIL-CLOSED
 
   const safePath = validateFilePath(filePath);
   if (!safePath) {
@@ -81,7 +105,7 @@ export function generateSignedMediaUrl(
   // Pipe-delimited payload; file paths and tenantId are sanitized against pipe injection
   const payload = `${safePath}|${safeTenant}|${expiration}`;
 
-  const signature = crypto.createHmac("sha256", SECRET).update(payload).digest("hex"); // Full 64-char hex
+  const signature = crypto.createHmac("sha256", secret).update(payload).digest("hex"); // Full 64-char hex
 
   const encodedPath = safePath.startsWith("/") ? safePath : `/${safePath}`;
   return `/files${encodedPath}?sig=${signature}&exp=${expiration}`;
@@ -102,7 +126,8 @@ export function validateSignedMediaUrl(
   tenantId?: string | null,
 ): { valid: boolean; reason?: string } {
   try {
-    if (!SECRET) {
+    const secret = getSignedUrlSecret();
+    if (!secret) {
       return { valid: false, reason: "SIGNED_URL_SECRET_MISSING" };
     }
 
@@ -128,7 +153,7 @@ export function validateSignedMediaUrl(
     // Buffer.from("invalid", "hex") throws TypeError, creating a timing oracle
     if (!HEX_RE.test(sig)) {
       // Burn constant time to avoid leaking invalid-hex early exit
-      crypto.createHmac("sha256", SECRET).update("_reject").digest("hex");
+      crypto.createHmac("sha256", secret).update("_reject").digest("hex");
       return { valid: false, reason: "SIGNATURE_MISMATCH" };
     }
     const providedBuf = Buffer.from(sig, "hex");
@@ -138,7 +163,7 @@ export function validateSignedMediaUrl(
 
     // Recompute expected signature
     const payload = `${safePath}|${safeTenant}|${exp}`;
-    const expectedSig = crypto.createHmac("sha256", SECRET).update(payload).digest("hex");
+    const expectedSig = crypto.createHmac("sha256", secret).update(payload).digest("hex");
     const expectedBuf = Buffer.from(expectedSig, "hex");
 
     // 🛡️ TIMING-SAFE comparison

@@ -8,6 +8,7 @@ import fs from "node:fs/promises";
 import { createWriteStream } from "node:fs";
 import { Readable } from "node:stream";
 import { getPublicSettingSync } from "@src/services/core/settings-service";
+import { getConfigStamp } from "@src/databases/config-state";
 import { error } from "@sveltejs/kit";
 import { isAppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
@@ -165,12 +166,27 @@ export function resolveConfiguredMediaFolder(): string {
   return getPublicSettingSync("MEDIA_FOLDER") ?? "mediaFolder";
 }
 
+/**
+ * Derived storage config cache. `getStorageAdapter()` runs per served file, so
+ * re-reading ~10 settings each time is pure overhead. Keyed on the config
+ * generation (invalidates on config reload) plus a short TTL so runtime setting
+ * changes (`MEDIA_STORAGE_TYPE`, bucket, endpoint) take effect promptly.
+ */
+let cachedConfig: { stamp: number; at: number; value: CloudStorageConfig } | null = null;
+const CONFIG_CACHE_TTL_MS = 2000;
+
 export function getConfig(): CloudStorageConfig {
+  const stamp = getConfigStamp();
+  const now = Date.now();
+  if (cachedConfig && cachedConfig.stamp === stamp && now - cachedConfig.at < CONFIG_CACHE_TTL_MS) {
+    return cachedConfig.value;
+  }
+
   const storageType = (getPublicSettingSync("MEDIA_STORAGE_TYPE") || "local") as StorageType;
   const mediaFolder = resolveConfiguredMediaFolder() || "";
   const normalizedFolder = mediaFolder.replace(/^\.\//, "").replace(/^\/+/, "").replace(/\/+$/, "");
 
-  return {
+  const config: CloudStorageConfig = {
     storageType,
     bucketName: getPublicSettingSync("MEDIA_BUCKET_NAME") as string | undefined,
     mediaFolder: normalizedFolder,
@@ -182,6 +198,9 @@ export function getConfig(): CloudStorageConfig {
     secretAccessKey: getPublicSettingSync("MEDIA_SECRET_ACCESS_KEY") as string | undefined,
     cloudinaryCloudName: getPublicSettingSync("CLOUDINARY_CLOUD_NAME") as string | undefined,
   };
+
+  cachedConfig = { stamp, at: now, value: config };
+  return config;
 }
 
 function resolveMediaRoot(): string {

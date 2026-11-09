@@ -12,15 +12,13 @@
  * Replaces @floating-ui/dom with an internal implementation.
  *
  * ### Features:
- * - CSS Anchor Positioning detection and application
- * - JS fallback with offset, flip (fallback placements), shift (viewport clamping), and arrow
+ * - JS positioning with offset, flip (fallback placements), shift (viewport clamping), and arrow
  * - Auto-update on window scroll/resize + ResizeObserver on both elements
  * - WCAG 3.0: exposed triggerAria and contentAria for popovers/dialogs/tooltips
  * - Full Svelte 5 runes: $state, $derived, $effect
  */
 
 import { untrack } from "svelte";
-import { generateUUID } from "@utils/native-utils";
 
 type Placement =
   | "top"
@@ -48,8 +46,6 @@ interface FloatingOptions {
   /** Arrow box size in px (Tooltip's diamond is 14, Popover's is 12). */
   arrowSize?: number;
 }
-
-const SUPPORTS_ANCHOR = false;
 
 const OPPOSITE_SIDE: Record<string, string> = {
   top: "bottom",
@@ -218,8 +214,6 @@ export function useFloating(options: FloatingOptions) {
   let staticSide = $state<string>("top");
   let positionCalculated = $state(false);
 
-  const anchorName = `--f-${generateUUID().slice(0, 8)}`;
-
   $effect(() => {
     const ref = options.reference();
     const float = options.floating();
@@ -233,46 +227,6 @@ export function useFloating(options: FloatingOptions) {
     if (!enabled || !ref || !float) {
       positionCalculated = false;
       return;
-    }
-
-    // --- CSS Anchor Positioning path ---
-    if (SUPPORTS_ANCHOR) {
-      ref.style.anchorName = anchorName;
-      float.style.positionAnchor = anchorName;
-      (float.style as any).positionArea = placement.replace("-", " ");
-      (float.style as any).positionTryOptions = "flip-block, flip-inline";
-      float.style.inset = "auto";
-      float.style.margin = `${offset}px`;
-      float.style.left = "auto";
-      float.style.top = "auto";
-      finalPlacement = placement;
-      positionCalculated = true;
-
-      if (options.showArrow?.() && options.arrow) {
-        const arr = options.arrow();
-        if (arr) {
-          const [side] = placement.split("-");
-          staticSide = OPPOSITE_SIDE[side] ?? "top";
-          arr.style.position = "absolute";
-          arr.style.left = `anchor(${anchorName} 50%)`;
-          arr.style.top = `anchor(${anchorName} 50%)`;
-          arr.style.transform = "rotate(45deg) translate(-50%, -50%)";
-          arrowX = null;
-          arrowY = null;
-        }
-      }
-
-      return () => {
-        ref.style.anchorName = "";
-        float.style.positionAnchor = "";
-        (float.style as any).positionArea = "";
-        (float.style as any).positionTryOptions = "";
-        float.style.inset = "";
-        float.style.margin = "";
-        float.style.left = "";
-        float.style.top = "";
-        positionCalculated = false;
-      };
     }
 
     // --- JavaScript fallback path ---
@@ -347,9 +301,7 @@ export function useFloating(options: FloatingOptions) {
   /** Inline position style — GPU-accelerated via translate3d */
   const positionStyle = $derived(
     options.enabled()
-      ? SUPPORTS_ANCHOR
-        ? ""
-        : `position: fixed; top: 0; left: 0; transform: translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0);`
+      ? `position: fixed; top: 0; left: 0; transform: translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0);`
       : "display: none;",
   );
 

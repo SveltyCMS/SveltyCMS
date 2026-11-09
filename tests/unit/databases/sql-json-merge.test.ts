@@ -16,7 +16,7 @@ import {
   canMergeJsonPatchInOneStatement,
   jsonMergeWrapperExpression,
   mergeJsonPatchShallow,
-} from "@src/databases/sql/json-merge";
+} from "@src/databases/core/sql-json-patch";
 
 describe("jsonMergeWrapperExpression", () => {
   it("wraps the column in the exact jsonb shallow-merge operator", () => {

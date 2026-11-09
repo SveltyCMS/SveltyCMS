@@ -65,6 +65,7 @@ export function resolveLocale(explicitLocale?: string): string {
 // 🛡️ Format caches — avoids repeated instantiation on high-frequency rendering loops
 const dateTimeFormatCache = new Map<string, Intl.DateTimeFormat>();
 const numberFormatCache = new Map<string, Intl.NumberFormat>();
+const relativeTimeFormatCache = new Map<string, Intl.RelativeTimeFormat>();
 const optionsKeyCache = new WeakMap<object, string>();
 
 function getOptionsKey(options: object): string {
@@ -280,4 +281,48 @@ export function formatNumber(
   } catch {
     return String(num);
   }
+}
+
+/**
+ * Format a date as relative time ("2 hours ago").
+ *
+ * The single implementation for the app: resolves the locale through
+ * `resolveLocale()` (page data → Paraglide → "en") so SSR and hydration agree,
+ * and reuses memoized `Intl.RelativeTimeFormat` instances.
+ */
+export function formatRelativeDate(
+  dateInput: Date | number | string | null | undefined,
+  explicitLocale?: string,
+): string {
+  const date = parseDateInput(dateInput);
+  if (!date) return "Invalid Date";
+
+  const locale = resolveLocale(explicitLocale);
+  let formatter = relativeTimeFormatCache.get(locale);
+  if (!formatter) {
+    formatter = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+    relativeTimeFormatCache.set(locale, formatter);
+  }
+
+  try {
+    const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+    if (seconds < 60) return formatter.format(-seconds, "second");
+    if (seconds < 3600) return formatter.format(-Math.floor(seconds / 60), "minute");
+    if (seconds < 86_400) return formatter.format(-Math.floor(seconds / 3600), "hour");
+    if (seconds < 2_592_000) return formatter.format(-Math.floor(seconds / 86_400), "day");
+    if (seconds < 31_536_000) return formatter.format(-Math.floor(seconds / 2_592_000), "month");
+    return formatter.format(-Math.floor(seconds / 31_536_000), "year");
+  } catch {
+    return "Invalid Date";
+  }
+}
+
+/**
+ * Active UI locale (page data → Paraglide → "en").
+ *
+ * Alias of `resolveLocale()` for the previous `date.ts` export, so both locale
+ * resolvers now read the same source.
+ */
+export function getActiveUiLocale(): string {
+  return resolveLocale();
 }

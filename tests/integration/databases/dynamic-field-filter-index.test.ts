@@ -328,6 +328,55 @@ describePg("Dynamic-field filter plan — postgresql", () => {
   });
 });
 
+/**
+ * `jsonIndex: false` must CONVERGE, not just skip provisioning.
+ *
+ * The GIN is created once and never revisited, so a collection that opts out
+ * after it was provisioned kept the index forever: every write still paid GIN
+ * maintenance and the footprint kept the index nothing queries. Measured on the
+ * benchmark collection (3.2k live rows, 2.4 MB heap, 4.6 GB of indexes) after a
+ * week of schema churn — the same drift class the composite-index drops above
+ * already close.
+ */
+describePg("Provisioned-index drift — postgresql", () => {
+  const DRIFT_COLLECTION = `dynfilter_drift_${ENGINE}`;
+  const driftGin = () =>
+    db.raw.execute(
+      `SELECT indexname FROM pg_indexes WHERE tablename = $1 AND indexname LIKE '%_data_gin'`,
+      [physicalName(DRIFT_COLLECTION)],
+    );
+
+  afterAll(async () => {
+    await db.crud
+      .deleteMany(
+        DRIFT_COLLECTION,
+        {},
+        withSystemScope("testing", { permanent: true, confirmWipe: true }),
+      )
+      .catch(() => {});
+  });
+
+  it("drops the containment GIN when the schema opts out after provisioning", async () => {
+    const schema = {
+      _id: DRIFT_COLLECTION,
+      name: DRIFT_COLLECTION,
+      fields: [
+        { db_fieldName: "title", widget: { Name: "Input" } },
+        { db_fieldName: "tenantId", widget: { Name: "Input" } },
+      ],
+    };
+
+    // `force` is the adapter-level signature: the module-level createModel drops
+    // the flag, and the provisioned-tables fast path would otherwise make the
+    // second call a no-op (which is exactly how the drift went unnoticed).
+    await db.createModel(schema as any);
+    expect(await driftGin(), "default schema must provision the GIN").toHaveLength(1);
+
+    await db.createModel({ ...schema, jsonIndex: false } as any, true);
+    expect(await driftGin(), "jsonIndex:false must drop the stale GIN").toHaveLength(0);
+  });
+});
+
 /** MongoDB keeps no SQL index catalog — its indexes come from the schema, not createModel. */
 const describeSql = ENGINE === "mongodb" ? describe.skip : describe;
 if (ENGINE === "mongodb") {

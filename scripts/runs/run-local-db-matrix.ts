@@ -214,38 +214,51 @@ async function main(): Promise<void> {
 
     console.log(`\n🧪 Executing ${options.tests.length} contract suite(s) for ${target.label}...`);
     const start = Date.now();
-    const run = spawnSync(
-      "bun",
-      [
-        "run",
-        "scripts/runs/run-integration.ts",
-        ...(options.build ? [] : ["--no-build"]),
-        ...options.tests,
-      ],
-      {
-        cwd: ROOT,
-        stdio: "inherit",
-        env: {
-          ...process.env,
-          DB_TYPE: target.name,
-          DB_HOST: target.host,
-          DB_NAME: "sveltycms_test",
-          TEST_MODE: "true",
-          TEST_API_SECRET: process.env.TEST_API_SECRET || DEFAULT_INTEGRATION_TEST_API_SECRET,
-          JWT_SECRET_KEY: process.env.JWT_SECRET_KEY || DEFAULT_INTEGRATION_JWT,
-          ENCRYPTION_KEY: process.env.ENCRYPTION_KEY || DEFAULT_INTEGRATION_ENCRYPTION,
-          ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || DEFAULT_INTEGRATION_ADMIN_PASSWORD,
-        },
-      },
-    );
+    // One child process per suite. Running every suite inside a single process poisons
+    // Bun's module registry after the first client-side import, and the following suite
+    // aborts with "Export named 'getContext' not found in svelte/src/index-server.js".
+    // Reproduced on the untouched base commit, so this is the runner, not a suite.
+    const env = {
+      ...process.env,
+      DB_TYPE: target.name,
+      DB_HOST: target.host,
+      DB_NAME: "sveltycms_test",
+      TEST_MODE: "true",
+      TEST_API_SECRET: process.env.TEST_API_SECRET || DEFAULT_INTEGRATION_TEST_API_SECRET,
+      JWT_SECRET_KEY: process.env.JWT_SECRET_KEY || DEFAULT_INTEGRATION_JWT,
+      ENCRYPTION_KEY: process.env.ENCRYPTION_KEY || DEFAULT_INTEGRATION_ENCRYPTION,
+      ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || DEFAULT_INTEGRATION_ADMIN_PASSWORD,
+    };
+
+    const failedSuites: string[] = [];
+    for (const suite of options.tests) {
+      const suiteStart = Date.now();
+      const run = spawnSync(
+        "bun",
+        ["run", "scripts/runs/run-integration.ts", ...(options.build ? [] : ["--no-build"]), suite],
+        { cwd: ROOT, stdio: "inherit", env },
+      );
+      const suiteMs = Date.now() - suiteStart;
+      if (run.status !== 0) {
+        failedSuites.push(suite);
+        console.error(`   ❌ ${suite} (${suiteMs}ms)`);
+      } else {
+        console.log(`   ✅ ${suite} (${suiteMs}ms)`);
+      }
+    }
 
     const durationMs = Date.now() - start;
-    if (run.status === 0) {
+    if (failedSuites.length === 0) {
       console.log(`✅ ${target.label} passed in ${durationMs}ms`);
       results.push({ target, status: "PASS", durationMs });
     } else {
       console.error(`❌ ${target.label} failed in ${durationMs}ms`);
-      results.push({ target, status: "FAIL", reason: "Test assertions failed", durationMs });
+      results.push({
+        target,
+        status: "FAIL",
+        reason: `Test assertions failed: ${failedSuites.join(", ")}`,
+        durationMs,
+      });
     }
   }
 

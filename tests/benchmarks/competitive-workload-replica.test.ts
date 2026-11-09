@@ -9,6 +9,9 @@
  * - listLarge limit 100, harness workload order (writes before GraphQL)
  * - CSRF cookie + Origin + X-CSRF-Token (production auth)
  * - Low-overhead stream draining (`res.arrayBuffer()`) and pre-encoded URL paths
+ * - Deterministic dataset size: purges the collection before the seed burst, so
+ *   a run measures exactly its advertised `BENCH_DOCS` (not a week of leftovers)
+ * - Opt-in mixed-cycle per-op attribution (`BENCH_MIX_BREAKDOWN=1`)
  * - Full try...finally process lifecycle guard
  * - Opt-in concurrency sweep (`SWEEP_CONCURRENCY=1,4,16,32`) for the read lanes
  */
@@ -24,6 +27,7 @@ import {
   printSummaryTable,
   getDbType,
   benchmarkAuthHeaders,
+  purgeBenchmarkCollection,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
@@ -56,6 +60,10 @@ const COV_STOP = Number(process.env.BENCH_COV_STOP) || 4;
 const ROUND_LIMIT = FIXED_ROUNDS > 0 ? FIXED_ROUNDS : MAX_ROUNDS;
 // Opt-in steady-state soak (write-neutral daily mix) — BENCH_SOAK_SECONDS=60.
 const SOAK_SECONDS = Number(process.env.BENCH_SOAK_SECONDS) || 0;
+// Opt-in mixed-cycle attribution: per-operation client timings (avg/p95/share).
+// The server phase table labels samples by the op each handler runs, so mixed
+// cost is otherwise indistinguishable from the standalone lanes it reuses.
+const MIX_BREAKDOWN = process.env.BENCH_MIX_BREAKDOWN === "1";
 const DEEP_WARMUP = Number(process.env.BENCH_DEEP_WARMUP || 250);
 const DEEP_WARMUP_WRITES = Number(process.env.BENCH_DEEP_WARMUP_WRITES || 150);
 const SEED_COUNT = Number(process.env.BENCH_DOCS) || 500;
@@ -131,6 +139,36 @@ function recordSplitSample(label: string, res: Response): void {
       }
     }
   }
+}
+
+function printMixedBreakdown(samples: Record<string, number[]>): void {
+  const entries = Object.entries(samples).filter(([, vals]) => vals.length > 0);
+  if (entries.length === 0) return;
+
+  const pct = (sorted: number[], p: number) => {
+    const idx = (p / 100) * (sorted.length - 1);
+    const lo = Math.floor(idx);
+    const hi = Math.ceil(idx);
+    return lo === hi ? sorted[lo] : sorted[lo] * (1 - (idx - lo)) + sorted[hi] * (idx - lo);
+  };
+  const rows = entries.map(([op, vals]) => {
+    const sorted = [...vals].sort((a, b) => a - b);
+    const sum = vals.reduce((a, b) => a + b, 0);
+    return { op, n: vals.length, sum, avg: sum / vals.length, p95: pct(sorted, 95) };
+  });
+  const total = rows.reduce((a, r) => a + r.sum, 0) || 1;
+  rows.sort((a, b) => b.sum - a.sum);
+
+  console.log("\n=== MIXED CYCLE — CLIENT-SIDE OP ATTRIBUTION ===");
+  console.log(
+    `${"op".padEnd(16)} ${"samples".padStart(8)} ${"avg".padStart(9)} ${"p95".padStart(9)} ${"share".padStart(7)}`,
+  );
+  for (const r of rows) {
+    console.log(
+      `${r.op.padEnd(16)} ${String(r.n).padStart(8)} ${(r.avg.toFixed(2) + "ms").padStart(9)} ${(r.p95.toFixed(2) + "ms").padStart(9)} ${((r.sum / total) * 100).toFixed(0).padStart(6)}%`,
+    );
+  }
+  console.log("");
 }
 
 function printPhaseBreakdownTable(buckets: Record<string, PhaseBucket>): void {
@@ -229,6 +267,12 @@ test("Competitive 11-Workload Replica Benchmark", async () => {
       "content-type": "application/json",
       "x-test-security": "true",
       connection: "keep-alive",
+      // A/B knob: Node's fetch sends `accept-encoding: gzip, deflate, br` by
+      // default. `BENCH_ACCEPT_ENCODING=identity` isolates the server's
+      // compression cost from the DB/JSON path.
+      ...(process.env.BENCH_ACCEPT_ENCODING
+        ? { "accept-encoding": process.env.BENCH_ACCEPT_ENCODING }
+        : {}),
     };
 
     const dbType = getDbType();
@@ -250,6 +294,14 @@ test("Competitive 11-Workload Replica Benchmark", async () => {
     // findMissing exercises the full DB B-tree index miss (matching workloads.mjs).
     const MISSING_ID = "ffffffff-ffff-7fff-bfff-ffffffffffff";
     const missingUrl = `${baseUrl}/api/collections/BenchmarkStable/${MISSING_ID}`;
+
+    // ── DETERMINISTIC DATASET SIZE ──────────────────────────────────────
+    // Every invocation seeds SEED_COUNT rows and the create lane adds more.
+    // Without a purge the table grows by ~1.5k rows per run (measured: 5.8M
+    // rows after a week of local runs), and `mixed` — the only lane that reads
+    // uncached lists after writes — measures a different dataset every time.
+    // Reset first so the advertised size is the measured size.
+    await purgeBenchmarkCollection("BenchmarkStable");
 
     // ── HIGH-THROUGHPUT PRE-SEEDING ──────────────────────────────────────
     // Timed and exported as its own row: dataset setup is a large share of
@@ -274,6 +326,26 @@ test("Competitive 11-Workload Replica Benchmark", async () => {
 
     const stableId = createdIds[0] || "20000000-0000-7000-8000-000000000001";
     const idCount = createdIds.length || 1;
+    // 🔎 FILTER/CONTRACT GUARD: the list URL filters `status=published`, and the
+    // wire plane admits that filter. The lane used to read the clamp only from
+    // the `status=` query param, so a privileged caller got an UNFILTERED wire
+    // body (drafts included) while the request said published. Assert the
+    // contract once, before the timed lanes, so the bug cannot come back.
+    {
+      const probeRes = await fetch(listLargeUrl, { headers });
+      if (!probeRes.ok) throw new Error(`Filter probe HTTP ${probeRes.status}`);
+      const probeBody = (await probeRes.json()) as { data?: Array<{ status?: string }> };
+      const leaked = (probeBody.data ?? []).filter(
+        (row) => row.status !== "published" && row.status !== "publish",
+      );
+      if (leaked.length > 0) {
+        throw new Error(
+          `List filter status=published leaked ${leaked.length} non-published row(s): ${JSON.stringify(
+            leaked.slice(0, 3),
+          )}`,
+        );
+      }
+    }
     // Pool excluding createdIds[0] (stableId) so update never invalidates or
     // contends with findById on the hot row (matching workloads.mjs:144-150).
     const updatePoolLen = Math.max(1, idCount - 1);
@@ -445,8 +517,17 @@ test("Competitive 11-Workload Replica Benchmark", async () => {
       update,
     };
 
+    /** Per-op mixed-cycle timings, only populated when `BENCH_MIX_BREAKDOWN=1`. */
+    const mixSamples: Record<string, number[]> = {};
+
     const mixed = async () => {
       const op = MIX_CYCLE[cursor++ % MIX_CYCLE.length];
+      if (MIX_BREAKDOWN) {
+        const t0 = performance.now();
+        await handlers[op]();
+        (mixSamples[op] ??= []).push(performance.now() - t0);
+        return;
+      }
       await handlers[op]();
     };
     handlers.mixed = mixed;
@@ -724,6 +805,24 @@ test("Competitive 11-Workload Replica Benchmark", async () => {
     }
 
     // ── REPORTING & EXPORT ───────────────────────────────────────────────
+    if (MIX_BREAKDOWN) {
+      printMixedBreakdown(mixSamples);
+    }
+
+    // 🏔️ SCALE BLIND SPOT: the default list order (`updatedAt desc, _id desc`)
+    // is served by an index only on its tenant-less form once that index exists;
+    // without it the plan is a seq scan + top-N sort whose cost grows with the
+    // table. At 2k docs that is sub-millisecond and invisible, while at 100k it
+    // is ~30–60ms — and `mixed` is the only lane that reads lists/GraphQL after
+    // a write, so it is where the cost lands. The external 100k-doc harness
+    // caught this; a small local run cannot.
+    if (SEED_COUNT < 10_000) {
+      logger.info(
+        `ℹ Scale note: BENCH_DOCS=${SEED_COUNT} (< 10000) — default-order sort cost is sub-ms here. ` +
+          `Use BENCH_DOCS=100000 to exercise the (updatedAt DESC, _id DESC) covering index in mixed.`,
+      );
+    }
+
     printTruthTable({
       title: `COMPETITIVE HARNESS REPLICA (${dbType.toUpperCase()} — ${createdIds.length} Docs, COLD vs WARM)`,
       subtitle: `Cold vs Warm Steady-State (${CONCURRENCY}c)`,

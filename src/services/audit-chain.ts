@@ -8,7 +8,7 @@
  * Features:
  * - SHA-256 cryptographic chaining (CSPRNG-compliant via globalThis.crypto.subtle)
  * - Genesis hash constant for first entry anchoring
- * - In-memory last-hash caching to avoid DB lookups on every write
+ * - Tenant-keyed in-memory last-hash cache to avoid DB lookups on every write
  * - Full chain verification with tamper detection
  * - Multi-tenant aware (optional tenantId scoping)
  */
@@ -59,7 +59,13 @@ async function sha256(data: string): Promise<string> {
 
 export class AuditChainService {
   private readonly collectionName = "auditLogs";
-  private lastHashCache: string | null = null;
+  /** Last chained hash per tenant — a single shared slot would link one tenant's
+   *  entry to another tenant's predecessor. `__global__` keys untenanted writes. */
+  private readonly lastHashCache = new Map<string, string>();
+
+  private static cacheKey(tenantId?: string | null): string {
+    return tenantId || "__global__";
+  }
 
   /**
    * Creates a new audit log entry with cryptographic chain hashes.
@@ -89,8 +95,8 @@ export class AuditChainService {
       chainHash,
     };
 
-    // Update in-memory cache
-    this.lastHashCache = chainHash;
+    // Update in-memory cache (tenant-scoped)
+    this.lastHashCache.set(AuditChainService.cacheKey(entry.tenantId), chainHash);
 
     return chainedEntry;
   }
@@ -100,9 +106,11 @@ export class AuditChainService {
    * Uses in-memory caching to avoid DB lookups on every write.
    */
   private async getLastHash(tenantId?: string): Promise<string> {
+    const cacheKey = AuditChainService.cacheKey(tenantId);
     // Return cached value if available and tenant matches
-    if (this.lastHashCache !== null) {
-      return this.lastHashCache;
+    const cached = this.lastHashCache.get(cacheKey);
+    if (cached !== undefined) {
+      return cached;
     }
 
     try {
@@ -124,7 +132,7 @@ export class AuditChainService {
       if (result.success && result.data && result.data.length > 0) {
         const lastEntry = result.data[0] as unknown as ChainedAuditEntry;
         const hash = lastEntry.chainHash ?? lastEntry.previousHash ?? GENESIS_HASH;
-        this.lastHashCache = hash;
+        this.lastHashCache.set(cacheKey, hash);
         return hash;
       }
     } catch (err) {
@@ -258,9 +266,14 @@ export class AuditChainService {
 
   /**
    * Invalidates the in-memory hash cache (e.g., after a DB restore or manual change).
+   * Pass a tenant to drop only that tenant's entry.
    */
-  invalidateCache(): void {
-    this.lastHashCache = null;
+  invalidateCache(tenantId?: string | null): void {
+    if (tenantId === undefined) {
+      this.lastHashCache.clear();
+      return;
+    }
+    this.lastHashCache.delete(AuditChainService.cacheKey(tenantId));
   }
 
   /**

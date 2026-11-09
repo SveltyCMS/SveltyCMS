@@ -8,7 +8,6 @@
  * Features:
  * - Adaptive polling (1s when jobs pending, 30s when idle)
  * - System state store registration for health monitoring
- * - Audit log entries for executed jobs
  * - DB-ready gating via dbInitPromise
  * - Worker Thread Pooling compatible (single-threaded for now)
  * - Graceful start/stop with cleanup
@@ -19,7 +18,6 @@ import { getDb } from "@src/databases/db";
 import { forTenant } from "@src/databases/tenant-adapter";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { StatusTypes } from "@src/content/types";
-import { auditChainService } from "@src/services/audit-chain";
 import { system } from "@src/stores/system/state.svelte.ts";
 import { nowISODateString } from "@utils/date";
 import { logger } from "@utils/logger";
@@ -157,8 +155,31 @@ async function pollAndProcess(): Promise<void> {
   }
 
   try {
-    const result = await db.system.jobs.getNextReady(10, withSystemScope("scheduler"));
-    if (!result.success || !result.data || result.data.length === 0) {
+    // Scheduler owns ONLY status-transition jobs. Push the type filter into the
+    // query instead of fetching any 10 ready rows and discarding the rest: the
+    // old getNextReady(10) + filter let ≥10 other-task rows starve the scheduler
+    // and wasted every skipped row. `list` supports taskType; SQL sorts by
+    // nextRunAt (past dates first), Mongo applies the readiness filter, and the
+    // client-side due-check below covers SQL's lack of a nextRunAt predicate.
+    const listOptions = {
+      status: "pending",
+      taskType: STATUS_TRANSITION_TASK,
+      limit: 10,
+      sortField: "nextRunAt",
+      sortDirection: "asc" as const,
+      filter: { nextRunAt: { $lte: nowISODateString() } },
+      ...withSystemScope("scheduler"),
+    };
+    const result = await db.system.jobs.list(listOptions);
+    const now = Date.now();
+    const jobs =
+      result.success && Array.isArray(result.data)
+        ? result.data.filter((job) => {
+            const dueAt = new Date(job.nextRunAt).getTime();
+            return Number.isFinite(dueAt) && dueAt <= now;
+          })
+        : [];
+    if (jobs.length === 0) {
       // No jobs — transition to idle interval
       consecutiveEmptyPolls++;
       if (consecutiveEmptyPolls >= 3) {
@@ -171,15 +192,9 @@ async function pollAndProcess(): Promise<void> {
     consecutiveEmptyPolls = 0;
     currentInterval = FAST_POLL_MS;
 
-    const jobs = result.data;
     logger.debug(`[Scheduler] Processing ${jobs.length} ready job(s)`);
 
-    // The scheduler owns ONLY status-transition jobs. Everything else is handled
-    // by the JobQueue handlers (process-media, webhook-delivery, …). Filtering here
-    // (instead of letting executeScheduledJob fail them) stops the two consumers
-    // from killing each other's jobs with "Unknown task type" / "No handler".
-    const ownedJobs = jobs.filter((j) => j.taskType === "status-transition");
-    for (const job of ownedJobs) {
+    for (const job of jobs) {
       await executeScheduledJob(job, db);
     }
   } catch (err: any) {
@@ -238,9 +253,6 @@ async function executeScheduledJob(job: Job, db: any): Promise<void> {
       progress: 100,
     });
 
-    // Create audit log entry
-    await createAuditLog(job, "completed");
-
     logger.info(
       `[Scheduler] Job ${job._id} (${taskType}) completed in ${Date.now() - startedAt}ms`,
     );
@@ -256,10 +268,6 @@ async function executeScheduledJob(job: Job, db: any): Promise<void> {
       lastError: errorMsg,
       nextRunAt: isPermanent ? job.nextRunAt : new Date(Date.now() + 2 ** newAttempts * 1000), // Exponential backoff
     });
-
-    if (isPermanent) {
-      await createAuditLog(job, "failed", errorMsg);
-    }
   }
 }
 
@@ -339,38 +347,12 @@ async function executeStatusTransition(payload: Record<string, unknown>, job: Jo
 }
 
 /**
- * Creates a crypto-chained audit log entry for job execution.
+ * Executes a status transition on content based on job payload.
+ * Supported transitions:
+ *   - draft → publish
+ *   - publish → unpublish
+ *   - any → delete
  */
-async function createAuditLog(
-  job: Job,
-  outcome: "completed" | "failed",
-  error?: string,
-): Promise<void> {
-  try {
-    await auditChainService.createLog({
-      action: `scheduler:job:${outcome}`,
-      actorId: "system:scheduler",
-      actorRole: "system",
-      tenantId: (job.tenantId as string) || null,
-      timestamp: nowISODateString(),
-      details: {
-        jobId: job._id as string,
-        taskType: job.taskType,
-        payload: job.payload,
-        attempts: job.attempts,
-        error: error || undefined,
-      },
-    });
-
-    if (process.env.NODE_ENV !== "production") {
-      logger.debug(`[Scheduler] Audit log created for job ${job._id} (${outcome})`);
-    }
-  } catch (err) {
-    // Non-fatal: don't fail the job if audit logging fails
-    logger.warn(`[Scheduler] Failed to create audit log for job ${job._id}:`, err);
-  }
-}
-
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     stopScheduler();

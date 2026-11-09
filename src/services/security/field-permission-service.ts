@@ -32,7 +32,8 @@ import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { logger } from "@utils/logger";
 import { enforceFieldAccess } from "@utils/field-access";
 import { fieldDeclaresGuardDeep } from "@utils/field-guard";
-import type { FieldInstance } from "@src/content/types";
+import { lazyModule } from "@utils/lazy-module";
+import type { DatabaseId, FieldInstance } from "@src/content/types";
 import type { User } from "@src/databases/auth/types";
 
 /** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
@@ -40,6 +41,9 @@ let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
 function loadDbModule(): Promise<typeof import("@src/databases/db")> {
   return (dbModulePromise ??= import("@src/databases/db"));
 }
+
+/** Cached lazy handle to the content registry — one module-registry lookup instead of one per miss. */
+const loadContentRegistryModule = lazyModule(() => import("@src/stores/content-registry.svelte"));
 
 /** Shape of the FIELD_PERMISSIONS setting. */
 export type FieldPermissionConfig = Record<string, Record<string, string[]>>;
@@ -220,13 +224,30 @@ export function applyFieldPermissionsToBody(
  */
 export function getCollectionFromPath(pathname: string): string | null {
   if (!pathname || !pathname.startsWith("/api/")) return null;
-  const parts = pathname.split("/").filter(Boolean); // ["api", ...]
-  // /api/local/collections/{name}
-  if (parts[1] === "local") return parts[3] ?? null;
-  // /api/collections/{name}
-  if (parts[1] === "collections") return parts[2] ?? null;
-  // /api/content/{name}
-  if (parts[1] === "content") return parts[2] ?? null;
+  // Zero-allocation segment scan (no split/filter): walk the API path in place
+  // and return the collection segment as soon as its position is known.
+  const end = pathname.length;
+  let pos = 5; // after "/api/"
+  let first: string | null = null;
+  for (let index = 1; index <= 3; index++) {
+    while (pos < end && pathname.charCodeAt(pos) === 47 /* "/" */) pos++;
+    if (pos >= end) return null;
+    const slash = pathname.indexOf("/", pos);
+    const segEnd = slash < 0 ? end : slash;
+    const segment = pathname.slice(pos, segEnd);
+
+    if (index === 1) {
+      first = segment;
+    } else if (index === 2) {
+      // /api/collections/{name} and /api/content/{name}
+      if (first === "collections" || first === "content") return segment;
+    } else if (first === "local") {
+      // /api/local/{namespace}/{collection} keeps the legacy parts[3] shape.
+      return segment;
+    }
+
+    pos = segEnd;
+  }
   return null;
 }
 
@@ -276,7 +297,7 @@ export async function getCollectionFields(
 
   try {
     try {
-      const { contentStore } = await import("@src/stores/content-registry.svelte");
+      const { contentStore } = await loadContentRegistryModule();
       const inMemory = contentStore.getCollection(collection, tenantId);
       if (inMemory?.fields && inMemory.fields.length > 0) {
         const fields = inMemory.fields as FieldInstance[];
@@ -292,12 +313,10 @@ export async function getCollectionFields(
     }
 
     const { dbAdapter } = await loadDbModule();
-    const res = await dbAdapter.collection.listSchemas(tenantId as any);
-    let fields: FieldInstance[] | null = null;
-    if (res?.success && res.data) {
-      const schema = res.data.find((c) => c.name === collection);
-      fields = (schema?.fields as FieldInstance[]) || null;
-    }
+    // Resolve the single collection by name instead of fetching every schema
+    // (listSchemas + find) on a cache miss.
+    const res = await dbAdapter.collection.getSchema(collection, tenantId as DatabaseId | null);
+    const fields = res?.success && res.data?.fields ? (res.data.fields as FieldInstance[]) : null;
     if (fields && fields.length > 0) {
       // Bound the map — evict the oldest entry when over budget.
       if (fieldSchemaCache.size >= FIELD_SCHEMA_CACHE_MAX) {

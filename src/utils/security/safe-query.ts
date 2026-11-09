@@ -11,12 +11,14 @@
  * - Soft-delete boundary is applied by default for Mongo-style filters.
  *
  * ### Performance
- * - MULTI_TENANT flag is cached (5s TTL). Single-tenant / benchmark paths are near-zero cost.
+ * - MULTI_TENANT flag is read through the single 5s cache in
+ *   `tenant-isolation.server` (one cache, one invalidation) — no duplicate I/O.
+ * - Single-tenant / benchmark paths are near-zero cost.
  * - bypassSafeQuery skips all checks and allocations (ultra-fast path).
  */
 
-import { getPrivateEnv } from "@src/databases/config-state";
 import { hasTenantBypass, type SystemTenantScope } from "@src/databases/system-tenant-scope";
+import { isMultiTenantEnabled, resetMultiTenantCache } from "@utils/tenant-isolation.server";
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 
@@ -38,40 +40,22 @@ export interface TenantScopedOptions {
 
 const PII_KEYS = new Set(["email", "security", "username", "name", "phone", "token", "secret"]);
 
-let cachedIsMultiTenant: boolean | null = null;
-let cachedAt = 0;
-const CACHE_TTL_MS = 5_000;
-
 /**
- * Reset MULTI_TENANT cache (unit tests / config reloads).
+ * Reset MULTI_TENANT cache (unit tests / config reloads). Delegates to the shared
+ * cache so callers cannot drift from `tenant-isolation.server`'s view.
  */
 export function resetSafeQueryCache(): void {
-  cachedIsMultiTenant = null;
-  cachedAt = 0;
+  resetMultiTenantCache();
 }
 
 /**
  * Sync, cached MULTI_TENANT detection. Hot-path safe (no await).
- * Demo mode implies tenant isolation (one seeded tenant per visitor).
+ * Delegates to `isMultiTenantEnabled()` — the single cached source of truth
+ * shared with the auth, rate-limit and security hooks. Demo mode implies tenant
+ * isolation there (one seeded tenant per visitor).
  */
 export function isMultiTenantMode(): boolean {
-  const now = Date.now();
-  if (cachedIsMultiTenant !== null && now - cachedAt < CACHE_TTL_MS) {
-    return cachedIsMultiTenant;
-  }
-  try {
-    const privateEnv = getPrivateEnv() as {
-      MULTI_TENANT?: boolean | string;
-      DEMO?: boolean | string;
-    } | null;
-    const multiTenant = privateEnv?.MULTI_TENANT === true || privateEnv?.MULTI_TENANT === "true";
-    const demo = privateEnv?.DEMO === true || privateEnv?.DEMO === "true";
-    cachedIsMultiTenant = multiTenant || demo;
-  } catch {
-    cachedIsMultiTenant = false;
-  }
-  cachedAt = now;
-  return cachedIsMultiTenant;
+  return isMultiTenantEnabled();
 }
 
 /**

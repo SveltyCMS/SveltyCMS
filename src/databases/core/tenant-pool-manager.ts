@@ -1,5 +1,5 @@
 /**
- * @file src/databases/sql/tenant-pool-manager.ts
+ * @file src/databases/core/tenant-pool-manager.ts
  * @description
  * Shared bookkeeping for per-tenant dedicated connection pools. PostgreSQL and
  * MariaDB each keep an identical tenant-pool map plus (on PostgreSQL) in-flight
@@ -177,13 +177,9 @@ export class TenantPoolManager<TPool> {
 
   /** Closes and removes the dedicated pool for one tenant, if any. */
   public async close(tenantId: string): Promise<boolean> {
-    const pool = this._pools.get(tenantId);
+    const pool = this.delete(tenantId);
     if (!pool) return false;
     await this.closePool(pool, tenantId);
-    this._pools.delete(tenantId);
-    this._inflight.delete(tenantId);
-    this._lastUsed.delete(tenantId);
-    this._dedicatedDsn.delete(tenantId);
     return true;
   }
 
@@ -193,6 +189,7 @@ export class TenantPoolManager<TPool> {
     const entries = Array.from(this._pools.entries());
     this._pools.clear();
     this._inflight.clear();
+    this._lastUsed.clear();
     this._dedicatedDsn.clear();
     this._currentTenantId = null;
 

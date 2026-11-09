@@ -99,6 +99,30 @@ function contentTenant(tenantId: unknown): DatabaseId | undefined {
   return ((tenantId as string | null | undefined) || undefined) as DatabaseId | undefined;
 }
 
+/**
+ * The publication state the caller actually asked for.
+ *
+ * The wire admission predicate lets a list carry `filter={"status":"published"}`
+ * (the compiled projection can honour it), but the clamp used to read only the
+ * `status=` query param. For a privileged caller that resolved to "all", so an
+ * admitted filtered list was served from an UNFILTERED wire query — drafts
+ * included — and no publication predicate existed for the planner to index.
+ * Read the same status from the parsed filter so admission and execution agree.
+ */
+function requestedPublication(
+  event: RequestEvent,
+  filter?: Record<string, unknown>,
+): string | null {
+  const fromQuery = event.url.searchParams.get("status");
+  const fromFilter = filter?.status;
+  const raw = fromQuery || (typeof fromFilter === "string" ? fromFilter : null);
+  if (!raw) return null;
+  // The admission predicate accepts both published spellings; the policy's
+  // canonical input is "published". Without this, an admin filtering
+  // `{"status":"publish"}` resolved to "all" and got an unfiltered wire body.
+  return raw === "publish" ? "published" : raw;
+}
+
 interface CoalescedCollectionRead {
   body: string;
   etag: string;
@@ -926,10 +950,7 @@ async function rebuildWarmCollectionRead(
           // previous `{ user: locals.user }` literal was a per-request allocation.
           requirePublished: !locals.user
             ? true
-            : resolvePublicationFilter(
-                locals,
-                event.url.search ? event.url.searchParams.get("status") : null,
-              ) !== "all",
+            : resolvePublicationFilter(locals, requestedPublication(event)) !== "all",
         },
       );
       if (wireRes?.success && wireRes.data) {
@@ -997,10 +1018,8 @@ async function rebuildWarmCollectionRead(
         offset: listParams.offset,
         requirePublished: !locals.user
           ? true
-          : resolvePublicationFilter(
-              locals,
-              event.url.search ? event.url.searchParams.get("status") : null,
-            ) !== "all",
+          : resolvePublicationFilter(locals, requestedPublication(event, listParams.filter)) !==
+            "all",
         sortField: listParams.sortField,
         sortDirection: listParams.sortDirection,
         fields: listParams.fields,

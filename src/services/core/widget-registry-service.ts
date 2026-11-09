@@ -1,5 +1,5 @@
 /**
- * @file src/services/widget-registry-service.ts
+ * @file src/services/core/widget-registry-service.ts
  * @description High-performance, benchmark-friendly widget registry.
  */
 
@@ -20,6 +20,11 @@ class WidgetRegistryService {
   private isInitialized = false;
   private initializationPromise: Promise<void> | null = null;
   private initStartTime = 0;
+  /** Bumped when the widget source set changes (clearCache), invalidating the pre-scan latch. */
+  private preScanVersion = 0;
+  /** Version for which `loadWidgetFactories` + `_registerPreScannedWidgets` last completed. */
+  private preScanAppliedVersion = -1;
+  private preScanPromise: Promise<void> | null = null;
 
   private constructor() {
     this._registerPreScannedWidgets();
@@ -93,13 +98,49 @@ class WidgetRegistryService {
     }
   }
 
+  /**
+   * Lazily evaluate every factory chunk and register the pre-scanned modules
+   * once per registry version. Without the latch `getAllWidgets()` re-ran the
+   * whole scanner and rebuilt every factory wrapper (`Object.assign` + a trace
+   * string) on each call.
+   */
+  private async _ensurePreScannedWidgets(): Promise<void> {
+    if (this.preScanAppliedVersion === this.preScanVersion) return;
+    if (!this.preScanPromise) {
+      const version = this.preScanVersion;
+      this.preScanPromise = (async () => {
+        try {
+          if (typeof scanner.loadWidgetFactories === "function") {
+            await scanner.loadWidgetFactories();
+          }
+        } catch {
+          // Scanner mock has no loader map; pre-registered factories still apply.
+        }
+        // A clearCache() during the load bumps the version — let the next pass
+        // register against the new source set instead of recording this one.
+        if (version === this.preScanVersion) {
+          this._registerPreScannedWidgets();
+          this.preScanAppliedVersion = version;
+        }
+      })().finally(() => {
+        this.preScanPromise = null;
+      });
+    }
+    await this.preScanPromise;
+    if (this.preScanAppliedVersion !== this.preScanVersion) {
+      await this._ensurePreScannedWidgets();
+    }
+  }
+
   private _registerWidget(path: string, module: WidgetModule, type: WidgetType) {
     try {
       const processed = this._processWidgetModule(path, module, type);
       if (processed) {
         // Register under factory Name only (single convention)
         this.widgets.set(processed.name, processed.widgetFn);
-        logger.trace(`[Widget] Registered ${type}: ${processed.name}`);
+        if (logger.isLevel("trace")) {
+          logger.trace(`[Widget] Registered ${type}: ${processed.name}`);
+        }
       }
     } catch (err) {
       logger.warn(`Failed to register widget from ${path}`, err);
@@ -163,6 +204,14 @@ class WidgetRegistryService {
         .readdir(marketplaceDir, { withFileTypes: true })
         .catch(() => [] as any[]);
 
+      // One pass over the registry instead of re-scanning it for every folder
+      // (the previous shape was O(folders × widgets)).
+      const registeredFolders = new Set<string>();
+      for (const widget of this.widgets.values()) {
+        const folder = (widget as { __folder?: string }).__folder;
+        if (folder) registeredFolders.add(folder);
+      }
+
       for (const entry of entries) {
         if (!entry.isDirectory()) continue;
 
@@ -177,14 +226,12 @@ class WidgetRegistryService {
         const indexPath = path.join(marketplaceDir, entry.name, "index.ts");
         try {
           // Skip if already registered via Vite glob (same package)
-          const already = [...this.widgets.values()].some(
-            (w) => (w as { __folder?: string }).__folder === entry.name,
-          );
-          if (already) continue;
+          if (registeredFolders.has(entry.name)) continue;
 
           const mod = (await import(/* @vite-ignore */ indexPath)) as WidgetModule;
           if (mod.default && typeof mod.default === "function") {
             this._registerWidget(indexPath, mod, "marketplace");
+            registeredFolders.add(entry.name);
           }
         } catch (err) {
           logger.debug(`Marketplace widget skipped: ${entry.name}`, err);
@@ -259,18 +306,13 @@ class WidgetRegistryService {
   }
 
   public async getAllWidgets(): Promise<Map<string, WidgetFactory>> {
-    try {
-      if (typeof scanner.loadWidgetFactories === "function") {
-        await scanner.loadWidgetFactories();
-      }
-    } catch {
-      // Scanner mock has no loader map; pre-registered factories still apply.
-    }
-    this._registerPreScannedWidgets();
+    await this._ensurePreScannedWidgets();
     if (!this.isInitialized) {
       await this.initialize();
     }
-    return new Map(this.widgets); // defensive copy
+    // Live view: callers only read/iterate (admin catalog, builder tools) and
+    // must never mutate. A defensive `new Map(...)` per call was pure waste.
+    return this.widgets;
   }
 
   public getWidgetSync(name: string): WidgetFactory | undefined {
@@ -280,6 +322,9 @@ class WidgetRegistryService {
   public clearCache() {
     this.widgets.clear();
     this.isInitialized = false;
+    // Force the next `getAllWidgets()` to re-evaluate + re-register the sources.
+    this.preScanVersion++;
+    this.preScanAppliedVersion = -1;
   }
 }
 

@@ -54,6 +54,7 @@ export const scheduledPublishHandler: JobHandler = async (_payload, _job) => {
   // none of the scheduled items reference any relations.
   const NODE_ID_REGEX = /^[0-9a-fA-F]{24}$/;
   const relationIdsByNode = new Map<(typeof nodesToPublish)[number], Set<string>>();
+  const allRelationIds = new Set<string>();
   let hasAnyRelations = false;
 
   for (const node of nodesToPublish) {
@@ -74,13 +75,17 @@ export const scheduledPublishHandler: JobHandler = async (_payload, _job) => {
 
     if (relationIds.size > 0) {
       hasAnyRelations = true;
+      for (const relationId of relationIds) allRelationIds.add(relationId);
     }
     relationIdsByNode.set(node, relationIds);
   }
 
   const nodeStatusById = new Map<string, string>();
-  if (hasAnyRelations) {
+  if (hasAnyRelations && allRelationIds.size > 0) {
+    // Resolve only the referenced ids rather than reading every node, which used
+    // to load the whole structure table just to look up a handful of statuses.
     const allNodesResult = await db.content.nodes.getStructure("flat", {
+      filter: { _id: { $in: [...allRelationIds] } },
       ...systemOpts,
     });
     if (allNodesResult.success && allNodesResult.data) {

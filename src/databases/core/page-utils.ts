@@ -151,6 +151,46 @@ export function defaultListSortOption(): [string, "desc"][] {
 }
 
 /**
+ * True when a list read uses the deterministic default order
+ * (`updatedAt desc`, optionally followed by `_id desc`).
+ *
+ * This is the one sort shape whose covering index cannot be derived from a
+ * field's `indexed` flag, and the only one applied by the SDK rather than
+ * requested by the caller. Adapters use it to provision the tenant-less
+ * `(updatedAt DESC, _id DESC)` index: the tenant-prefixed twin only serves this
+ * order when the compiled query carries a tenant equality, which single-tenant
+ * deployments never emit. Measured on 215k rows: seq scan + top-N sort 60.8ms
+ * vs index scan 0.022ms.
+ */
+export function isDefaultListSort(sort: unknown): boolean {
+  const entries: Array<[string, "asc" | "desc"]> = [];
+  const push = (field: unknown, direction: unknown): void => {
+    if (typeof field !== "string" || !field) return;
+    const asc = direction === "asc" || direction === 1 || String(direction).toLowerCase() === "asc";
+    entries.push([field, asc ? "asc" : "desc"]);
+  };
+
+  if (Array.isArray(sort)) {
+    for (const item of sort) {
+      if (Array.isArray(item) && item.length >= 2) push(item[0], item[1]);
+      else if (item && typeof item === "object") {
+        for (const [field, direction] of Object.entries(item)) push(field, direction);
+      }
+    }
+  } else if (sort && typeof sort === "object") {
+    for (const [field, direction] of Object.entries(sort)) push(field, direction);
+  } else if (typeof sort === "string") {
+    if (sort.startsWith("-")) push(sort.slice(1), "desc");
+    else push(sort, "asc");
+  }
+
+  const first = entries[0];
+  if (!first || first[0] !== "updatedAt" || first[1] !== "desc") return false;
+  const second = entries[1];
+  return second === undefined || (second[0] === "_id" && second[1] === "desc");
+}
+
+/**
  * Appends the deterministic `_id` tiebreaker to a sort spec so keyset
  * pagination stays seek-stable.
  *

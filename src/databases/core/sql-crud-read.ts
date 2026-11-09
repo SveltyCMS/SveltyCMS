@@ -26,8 +26,7 @@ import {
   convertArrayDatesToISO,
   convertDatesToISO,
 } from "./relational-utils";
-import { applyLookupStatus, parseIdLookup } from "./query-primitives";
-import { isSoftDeletedRow } from "../sql/read-predicates";
+import { applyLookupStatus, isSoftDeletedRow, parseIdLookup } from "./query-primitives";
 import { shouldUseEstimateCount } from "./page-utils";
 import {
   SqlQueryBuilder,
@@ -99,6 +98,14 @@ export interface SqlCrudReadContext {
     tableName: string,
     options: unknown,
   ): SQL[];
+  /**
+   * List-read hook: receives the effective options once per `findMany`.
+   * Adapters use it to provision a covering index for a PHYSICAL sort —
+   * `buildDynamicOrderBy` only calls `onDynamicSort` for JSON fields, so the
+   * SDK's default `updatedAt desc, _id desc` order never requested one.
+   * Default: no-op.
+   */
+  onFindMany?(collection: string, options: unknown): void;
   applyOrderBy(builder: unknown, table: unknown, options: unknown): unknown;
   getDrizzleInstance(options?: unknown): DrizzleReadHandle;
   executeDynamicSql(db: unknown, query: SQL, options?: unknown): Promise<unknown[]>;
@@ -278,6 +285,7 @@ export async function executeSqlFindOne<T extends BaseEntity>(
 
     const table = ctx.getTable(collection);
     if (!table) throw new Error(`Collection table not found: ${collection}`);
+    ctx.onFindMany?.(collection, options);
     if (!ctx.registeredSchemas.has(collection)) {
       ctx.ensureTableSchemaRegistered(table, collection);
       ctx.registeredSchemas.add(collection);
@@ -462,6 +470,7 @@ export async function executeSqlFindMany<T extends BaseEntity>(
 
     const table = ctx.getTable(collection);
     if (!table) throw new Error(`Collection table not found: ${collection}`);
+    ctx.onFindMany?.(collection, options);
     if (!ctx.registeredSchemas.has(collection)) {
       ctx.ensureTableSchemaRegistered(table, collection);
       ctx.registeredSchemas.add(collection);

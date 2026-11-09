@@ -61,12 +61,16 @@ describe("crud-tenant-guard", () => {
 
   describe("fail-closed under MULTI_TENANT", () => {
     it("throws on find when tenantId is missing", async () => {
-      await expect(guard.find("posts", {})).rejects.toThrow(/Security Violation|tenant/i);
+      // The guard now throws synchronously (no async wrapper layer); wrap in an
+      // async IIFE so the sync throw is still observable as a rejection.
+      await expect((async () => guard.find("posts", {}))()).rejects.toThrow(
+        /Security Violation|tenant/i,
+      );
       expect(mockInner.find).not.toHaveBeenCalled();
     });
 
     it("throws on insert when tenantId is missing", async () => {
-      await expect(guard.insert("posts", { title: "Hello" })).rejects.toThrow(
+      await expect((async () => guard.insert("posts", { title: "Hello" }))()).rejects.toThrow(
         /Security Violation|tenant/i,
       );
       expect(mockInner.insert).not.toHaveBeenCalled();

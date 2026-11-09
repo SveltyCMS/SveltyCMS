@@ -11,7 +11,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { isSoftDeletedRow, queryHasSoftDeleteKey } from "@src/databases/sql/read-predicates";
+import { isSoftDeletedRow, queryHasSoftDeleteKey } from "@src/databases/core/query-primitives";
 
 describe("isSoftDeletedRow", () => {
   it("accepts every dialect representation of a deleted row", () => {

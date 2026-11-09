@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:shield-check"
 author: "SveltyCMS Team"
 created: "2025-10-25"
-updated: "2026-08-04"
+updated: "2026-11-09"
 tags:
   - "security"
   - "telemetry"
@@ -27,6 +27,17 @@ This is a mutually beneficial exchange:
 
 - **You Get:** Immediate notification of security patches, vulnerability alerts, and feature updates directly in your Admin Dashboard.
 - **We Get:** Anonymous aggregate data (Version, DB Type, Components Used) to help us prioritize development.
+
+### When a heartbeat is sent
+
+Exactly two triggers, and no scheduler:
+
+| Trigger            | When                                                                                      | Frequency             |
+| :----------------- | :---------------------------------------------------------------------------------------- | :-------------------- |
+| **Process boot**   | 10 s after the server finishes booting (deferred background timer, `unref()`d)            | once per process boot |
+| **Operator check** | `GET /api/telemetry/stats` — the dashboard's "check for updates" / connection diagnostics | on demand             |
+
+`TelemetryService` keeps a **12-hour in-memory cache** of the last response. It exists so repeated on-demand checks do not re-send a heartbeat — it is a cache, not a timer. There is deliberately **no `setInterval`**: a self-hosted CMS must not phone home on a clock, and a periodic tick would silently turn "boot or update" into "every 12 hours".
 
 ### How Identification Works (Privacy First)
 
@@ -65,13 +76,13 @@ Instead, your CMS generates a unique **Installation ID** by hashing your private
 To ensure the telemetry service never interferes with user experience or system stability, we implement several safety layers:
 
 - **Dependency Hardening**: Telemetry services now use explicit `await db.ensure<Feature>()` guards. They do not trigger initialization of heavyweight modules like the Content Manager; instead, they verify that the specific sub-system is READY before attempting access.
-- **Progressive Activation**: The telemetry check is scheduled during the **WARMING** phase. This ensures it runs strictly in the background after the primary API is already operational.
+- **Progressive Activation**: the check is scheduled from the deferred background boot, one macrotask after the primary API is already operational.
 - **Connection Awareness**: All external calls respect the `dbAdapter` connection status. If the database is not connected, cycles are skipped gracefully to prevent race conditions during early boot.
 - **Strict Timeouts**: All external calls have mandatory timeouts (5s for Geolocation, 10s for the Heartbeat). If the server is slow, the check is skipped.
 
 - **Fail-Safe Backgrounding**: Telemetry runs strictly in the background using "fire-and-forget" async patterns. It is never awaited by the main request cycle.
 - **Non-Fatal Failures**: Hardware metric collection and network errors are wrapped in `try-catch` blocks. The system fails silently and logs issues as warnings rather than errors.
-- **Rate Limiting**: Each IP address is limited to **1 check per 12 hours** (enforced by client and server).
+- **Rate Limiting**: at most **one heartbeat per boot**, plus one per explicit operator check. The client's 12-hour response cache suppresses repeated on-demand checks; the telemetry server enforces the same window per installation (and per hashed IP).
 - **Environment Isolation**: Telemetry is automatically disabled during build processes (`building` flag) or in CI/CD environments.
 
 ---
@@ -105,8 +116,11 @@ You retain full control. If you operate in a high-security air-gapped environmen
 ### Environment Variable (Hard Disable)
 
 ```bash
-SVELTYCMS_TELEMETRY=false
+SVELTY_TELEMETRY_DISABLED=true   # explicit switch
+DO_NOT_TRACK=1                   # cross-tool standard
 ```
+
+The legacy private-config toggle `SVELTYCMS_TELEMETRY=false` is still honoured. Any of the three disables both the boot heartbeat and the on-demand check. Telemetry is also skipped automatically under `TEST_MODE`, `CI`, `VITEST`, `NODE_ENV=test`, and during a build (`building` flag) — see [Server Hooks](./server-hooks.mdx).
 
 ## 3. Server Implementation (Tech Spec)
 

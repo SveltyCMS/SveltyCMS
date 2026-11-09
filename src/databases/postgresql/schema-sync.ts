@@ -299,6 +299,26 @@ export async function provisionPostgresTable(
         /* safe */
       }
 
+      // Tenant-LESS covering index for the SDK's default list order
+      // (`defaultListSortOption()` -> `updatedAt desc, _id desc`). The tenant
+      // twin above only serves that order when the compiled query carries a
+      // tenant equality; a single-tenant deployment omits `tenantId`, so the
+      // leading column is unconstrained and the LIMIT becomes a parallel seq
+      // scan + top-N sort (measured 60.8ms vs 0.022ms at 215k rows). Every write
+      // evicts the GraphQL body, so the mixed lane paid that sort on every
+      // post-write GraphQL read.
+      try {
+        const defaultOrderIdx = assertSafeSqlIdentifier(
+          pgSafeIndexName(`${physicalName}_updated_id`),
+          "index",
+        );
+        await ctx.raw.execute(
+          `CREATE INDEX IF NOT EXISTS "${defaultOrderIdx}" ON "${physicalName}" ("updatedAt" DESC, "_id" DESC)`,
+        );
+      } catch {
+        /* safe */
+      }
+
       try {
         const rawPubActive = `${physicalName}_pub_active`;
         const pubActiveIndex = assertSafeSqlIdentifier(pgSafeIndexName(rawPubActive), "index");
@@ -312,18 +332,26 @@ export async function provisionPostgresTable(
         /* safe */
       }
 
-      if ((schemaData as { jsonIndex?: boolean } | undefined)?.jsonIndex !== false) {
-        try {
-          const ginIndex = assertSafeSqlIdentifier(
-            pgSafeIndexName(`${physicalName}_data_gin`),
-            "index",
-          );
+      // 🔁 DRIFT: the GIN is provisioned once and never revisited, so a collection
+      // that later sets `jsonIndex: false` kept a dead index forever — every write
+      // still pays its maintenance and the footprint doubles, for a query form
+      // nothing emits any more. Converge on the declared schema instead (same
+      // pattern as the composite-index drops above). Only an explicit `false`
+      // drops, so `undefined` (the default) still provisions.
+      try {
+        const ginIndex = assertSafeSqlIdentifier(
+          pgSafeIndexName(`${physicalName}_data_gin`),
+          "index",
+        );
+        if ((schemaData as { jsonIndex?: boolean } | undefined)?.jsonIndex === false) {
+          await ctx.raw.execute(`DROP INDEX IF EXISTS "${ginIndex}"`);
+        } else {
           await ctx.raw.execute(
             `CREATE INDEX IF NOT EXISTS "${ginIndex}" ON "${physicalName}" USING gin ("data" jsonb_path_ops)`,
           );
-        } catch {
-          /* safe */
         }
+      } catch {
+        /* safe */
       }
 
       if (ctx.sql) {

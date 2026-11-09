@@ -18,7 +18,20 @@
 import * as nodeCrypto from "node:crypto";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { testWorkerContext } from "@src/utils/test-worker-context";
+import { isAutomatedTestHarness } from "@utils/private-config-policy";
 import { getHardwareProfile } from "@utils/hardware-profile";
+
+/** One-time harness check — `getStore()` is an ALS call that is always empty in prod. */
+let testHarnessChecked = false;
+let testHarnessActive = false;
+
+function isTestWorkerContextActive(): boolean {
+  if (!testHarnessChecked) {
+    testHarnessChecked = true;
+    testHarnessActive = isAutomatedTestHarness();
+  }
+  return testHarnessActive;
+}
 
 /**
  * Test-only cache namespace.
@@ -33,6 +46,7 @@ import { getHardwareProfile } from "@utils/hardware-profile";
  * worker segment, so skipping it entirely is the honest isolation boundary.
  */
 function testWorkerSuffix(): string {
+  if (!isTestWorkerContextActive()) return "";
   const worker = testWorkerContext.getStore();
   return worker ? `:w${worker}` : "";
 }
@@ -460,7 +474,13 @@ export function collectionResponseCacheTags(
 }
 
 export interface InvalidateLocalOpts {
-  /** When set, drop only these document turbo keys; lists/GraphQL are always evicted. */
+  /**
+   * The documents actually written. Lists and GraphQL bodies are ALWAYS evicted
+   * (a List body embeds the written row, and any PATCH may touch a field its
+   * sort or filter reads); `entryIds` only narrows the point tier so sibling
+   * `findById` turbo hits survive a single-row write. Omit it to drop the whole
+   * collection point tier (bulk/unknown write).
+   */
   entryIds?: Iterable<string>;
 }
 
@@ -1037,9 +1057,8 @@ class ResponseCacheService {
     opts?: { skipSharedL1?: boolean; tags?: string[]; preserveStale?: boolean; point?: boolean },
   ): void {
     const fullKey = this.buildKey(key, tenantId);
-    const slot = classifyTurboKey(key);
-    // Callers that already know the tier (the read lane's list branch) can skip
-    // the `classifyTurboKey` pathname scan; unknown callers keep inference.
+    // A caller that already knows the tier skips the `classifyTurboKey` scan.
+    const slot = opts?.point === undefined ? classifyTurboKey(key) : null;
     const inferredPointRead = opts?.point ?? slot?.entryId != null;
     const store = inferredPointRead ? this.pointL1 : this.localL1;
     entry.expiresAt = Date.now() + ttlMs;
@@ -1078,10 +1097,10 @@ class ResponseCacheService {
 
     const ttlSec = Math.max(1, Math.ceil(ttlMs / 1000));
     const tags = opts?.tags ? [...opts.tags] : ["res:all"];
-    if (key.includes("graphql") || key.includes("/api/graphql")) {
+    if (slot?.graphql) {
       tags.push("res:graphql");
+      this.graphqlL2Tenants.add(tenantId || "default");
     }
-    if (slot?.graphql) this.graphqlL2Tenants.add(tenantId || "default");
     const compressedToPersist = entry.compressed ? { ...entry.compressed } : undefined;
     void cacheService.set(
       `res:${key}`,
@@ -1191,9 +1210,15 @@ class ResponseCacheService {
 
   /**
    * Synchronous in-memory purge of cached response tuples for a collection.
-   * With `entryIds`, only those document turbo keys are dropped; list + GraphQL
-   * bodies of the collection are always evicted (read-after-write consistency).
-   * Sibling findById turbo hits stay warm (soak / mixed-write path).
+   *
+   * Every write evicts the collection's list and GraphQL bodies: a cached list
+   * embeds the written row, and any PATCH can change a field the list sorts or
+   * filters on (the caller cannot know which queries a field participates in).
+   * Keeping lists warm for a "point" write is therefore only safe until someone
+   * sorts by the field being written — the one cache state this service must
+   * never serve. `entryIds` narrows the POINT tier only: the written documents
+   * are dropped while sibling `findById` turbo hits stay warm. Without
+   * `entryIds` the whole collection point tier is dropped (bulk/unknown write).
    */
   public invalidateLocal(
     collectionName: string,
@@ -1202,8 +1227,12 @@ class ResponseCacheService {
   ): void {
     const tenant = tenantId || "default";
 
-    // 🎯 Surgical point-write fast path: when specific entryIds are mutated (e.g. PATCH /:id),
-    // drop only those document turbo keys so sibling findById, lists, and GraphQL stay warm.
+    this.evictListSet(this.listIndex, `${tenant}\0${collectionName}`, tenantId);
+    this.evictListSet(this.graphqlIndex, tenant, tenantId);
+    if (this.graphqlL2Tenants.has(tenant)) {
+      cacheService.bumpCollectionEpoch(GRAPHQL_CACHE_SCOPE, tenantId);
+    }
+
     if (opts?.entryIds) {
       for (const id of opts.entryIds) {
         this.dropIndexSet(this.entryIndex, `${tenant}\0${collectionName}\0${id}`);
@@ -1211,11 +1240,6 @@ class ResponseCacheService {
       return;
     }
 
-    this.evictListSet(this.listIndex, `${tenant}\0${collectionName}`, tenantId);
-    this.evictListSet(this.graphqlIndex, tenant, tenantId);
-    if (this.graphqlL2Tenants.has(tenant)) {
-      cacheService.bumpCollectionEpoch(GRAPHQL_CACHE_SCOPE, tenantId);
-    }
     const colKey = `${tenant}\0${collectionName}`;
     const entryKeys = this.collectionEntriesIndex.get(colKey);
     if (entryKeys) {

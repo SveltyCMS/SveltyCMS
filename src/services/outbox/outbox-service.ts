@@ -37,15 +37,44 @@ import { getDb } from "@src/databases/db";
 import { generateUUID } from "@src/utils/native-utils";
 import { nowISODateString } from "@utils/date";
 import { logger } from "@utils/logger";
+import { lazyModule } from "@utils/lazy-module";
 import { pubSub } from "@src/services/background/pub-sub";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { isMultiTenantMode } from "@src/utils/security/safe-query";
 import type {
+  BaseEntity,
   BaseQueryOptions,
   CountOptions,
   DatabaseId,
   DatabaseResult,
 } from "@src/databases/db-interface";
+
+/** Cached lazy handle — one module-registry lookup instead of one per event. */
+const getWebhookServiceLazy = lazyModule(() =>
+  import("@src/services/background/webhook-service").then((m) => m.webhookService),
+);
+/** Independent events are delivered concurrently, bounded to avoid a webhook stampede. */
+const OUTBOX_DELIVERY_CONCURRENCY = 10;
+
+/** Run `worker` over `items` with at most `limit` in flight. */
+async function runWithConcurrency<T, R>(
+  items: readonly T[],
+  limit: number,
+  worker: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = [];
+  let index = 0;
+  const workerCount = Math.min(Math.max(1, limit), items.length);
+  const workers = Array.from({ length: workerCount }, async () => {
+    while (true) {
+      const current = index++;
+      if (current >= items.length) return;
+      results[current] = await worker(items[current]);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
 
 /** Possible delivery statuses for an outbox event */
 export type OutboxEventStatus = "pending" | "delivered" | "failed";
@@ -77,6 +106,19 @@ export const OUTBOX_MAX_ATTEMPTS = 5;
 
 /** Cap for exponential backoff (5 minutes) */
 export const OUTBOX_BACKOFF_CAP_MS = 300_000;
+
+interface DeliveryOutcome {
+  event: OutboxEvent;
+  ok: boolean;
+  error?: string;
+}
+
+type RowUpdater = (
+  collection: string,
+  id: DatabaseId,
+  data: Record<string, unknown>,
+  options?: BaseQueryOptions,
+) => Promise<unknown>;
 
 /**
  * Map from outbox event types to webhook event types.
@@ -451,15 +493,51 @@ class OutboxServiceImpl {
       const ready = pendingEvents.filter((e) => isOutboxEventReady(e)).slice(0, batchSize);
       if (ready.length === 0) return empty;
 
-      for (const event of ready) {
+      // Independent events fan out concurrently; status persistence is batched below.
+      const outcomes = await runWithConcurrency(ready, OUTBOX_DELIVERY_CONCURRENCY, (event) =>
+        this._deliverEffects(event),
+      );
+
+      const stamp = nowISODateString();
+      const updates: Array<{ id: DatabaseId; data: Record<string, unknown> }> = [];
+
+      for (const outcome of outcomes) {
         processed += 1;
-        const ok = await this._deliver(event, db).catch((err) => {
-          logger.error(`[Outbox] Delivery error for event ${event._id}:`, err);
-          return false;
+        if (outcome.ok) {
+          delivered += 1;
+          updates.push({
+            id: outcome.event._id as unknown as DatabaseId,
+            data: { status: "delivered", deliveredAt: stamp, updatedAt: stamp },
+          });
+          logger.debug(`[Outbox] Delivered ${outcome.event.eventType} event ${outcome.event._id}`);
+          continue;
+        }
+
+        failed += 1;
+        const newAttempts = (outcome.event.attempts || 0) + 1;
+        const isFinal = newAttempts >= OUTBOX_MAX_ATTEMPTS;
+        updates.push({
+          id: outcome.event._id as unknown as DatabaseId,
+          data: {
+            status: isFinal ? "failed" : "pending",
+            attempts: newAttempts,
+            lastError: outcome.error,
+            updatedAt: stamp,
+          },
         });
-        if (ok) delivered += 1;
-        else failed += 1;
+
+        if (isFinal) {
+          logger.error(
+            `[Outbox] Event ${outcome.event._id} permanently failed after ${newAttempts} attempts`,
+          );
+        } else {
+          logger.warn(
+            `[Outbox] Event ${outcome.event._id} delivery failed (attempt ${newAttempts}, next in ~${outboxBackoffMs(newAttempts)}ms)`,
+          );
+        }
       }
+
+      await this._persistOutcomes(db, updates);
     } catch (error) {
       logger.error("[Outbox] Batch processing error:", error);
     } finally {
@@ -475,9 +553,9 @@ class OutboxServiceImpl {
   ): Promise<OutboxEvent[]> {
     // Scheduler-domain system capability, same contract as `flushEmitBuffer`:
     // the poller reads pending events across tenants in one batch (each row
-    // carries its own tenantId, which `_deliver` forwards to webhooks). Without
-    // the branded scope the tenant guard rejects this read in MULTI_TENANT mode
-    // and the 5 s poll logged a stack trace on every tick.
+    // carries its own tenantId, which `_deliverEffects` forwards to webhooks).
+    // Without the branded scope the tenant guard rejects this read in
+    // MULTI_TENANT mode and the 5 s poll logged a stack trace on every tick.
     const result = (await db.crud.findMany(this.collectionName, { status: "pending" } as any, {
       ...withSystemScope("scheduler"),
       limit,
@@ -488,19 +566,12 @@ class OutboxServiceImpl {
   }
 
   /**
-   * Deliver a single outbox event.
-   * @returns true if delivered, false if failed (will retry / permanent fail)
+   * Deliver a single event's side effects (pub/sub + webhook fan-out).
+   *
+   * Status persistence is deliberately NOT part of this method: `processBatch`
+   * collects every outcome and writes them in one bulk update per batch.
    */
-  private async _deliver(
-    event: OutboxEvent,
-    db: NonNullable<ReturnType<typeof getDb>>,
-  ): Promise<boolean> {
-    const eventId = event._id;
-    // Per-row status updates are the poller's own bookkeeping on rows it just
-    // read — same scheduler-domain capability as the fetch, so the guard does
-    // not reject them under MULTI_TENANT.
-    const systemScope = withSystemScope("scheduler");
-
+  private async _deliverEffects(event: OutboxEvent): Promise<DeliveryOutcome> {
     try {
       // 1. Internal pub/sub for automations / listeners
       await pubSub.publish(
@@ -518,49 +589,51 @@ class OutboxServiceImpl {
       // 2. Webhook fan-out for mapped event types
       const webhookEvent = OUTBOX_TO_WEBHOOK_EVENT[event.eventType];
       if (webhookEvent) {
-        const { webhookService } = await import("@src/services/background/webhook-service");
+        const webhookService = await getWebhookServiceLazy();
         await webhookService.trigger(webhookEvent as any, event.payload, event.tenantId ?? "");
       }
 
-      // 3. Mark delivered
-      await db.crud.update(
-        this.collectionName,
-        eventId as any,
-        {
-          status: "delivered",
-          deliveredAt: nowISODateString(),
-          updatedAt: nowISODateString(),
-        } as any,
-        systemScope,
-      );
-
-      logger.debug(`[Outbox] Delivered ${event.eventType} event ${eventId}`);
-      return true;
-    } catch (error: any) {
-      const newAttempts = (event.attempts || 0) + 1;
-      const isFinal = newAttempts >= OUTBOX_MAX_ATTEMPTS;
-
-      await db.crud.update(
-        this.collectionName,
-        eventId as any,
-        {
-          status: isFinal ? "failed" : "pending",
-          attempts: newAttempts,
-          lastError: String(error?.message || error).slice(0, 500),
-          updatedAt: nowISODateString(),
-        } as any,
-        systemScope,
-      );
-
-      if (isFinal) {
-        logger.error(`[Outbox] Event ${eventId} permanently failed after ${newAttempts} attempts`);
-      } else {
-        logger.warn(
-          `[Outbox] Event ${eventId} delivery failed (attempt ${newAttempts}, next in ~${outboxBackoffMs(newAttempts)}ms)`,
-        );
-      }
-      return false;
+      return { event, ok: true };
+    } catch (error) {
+      return {
+        event,
+        ok: false,
+        error: String((error as { message?: unknown })?.message ?? error).slice(0, 500),
+      };
     }
+  }
+
+  /**
+   * Persist delivery outcomes for a batch: one `bulkUpdate` when the adapter
+   * exposes it, otherwise the per-row `crud.update` fallback.
+   */
+  private async _persistOutcomes(
+    db: NonNullable<ReturnType<typeof getDb>>,
+    updates: Array<{ id: DatabaseId; data: Record<string, unknown> }>,
+  ): Promise<void> {
+    if (updates.length === 0) return;
+
+    // Per-row status updates are the poller's own bookkeeping on rows it just
+    // read — same scheduler-domain capability as the fetch, so the guard does
+    // not reject them under MULTI_TENANT.
+    const systemScope = withSystemScope("scheduler");
+
+    if (typeof db.batch?.bulkUpdate === "function") {
+      const result = await db.batch.bulkUpdate(
+        this.collectionName,
+        updates as unknown as Array<{ id: DatabaseId; data: Partial<BaseEntity> }>,
+        systemScope,
+      );
+      if (result.success) return;
+      logger.warn("[Outbox] Bulk status update failed; falling back to per-event updates", {
+        message: result.message,
+      });
+    }
+
+    const updateRow = db.crud.update as unknown as RowUpdater;
+    await Promise.all(
+      updates.map((update) => updateRow(this.collectionName, update.id, update.data, systemScope)),
+    );
   }
 
   /** Start the background polling worker. */

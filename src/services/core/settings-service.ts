@@ -1,5 +1,5 @@
 /**
- * @file src/services/settings-service.ts
+ * @file src/services/core/settings-service.ts
  * @description Server-only settings cache and management
  *
  * Features:
@@ -92,6 +92,21 @@ export class SettingsService {
     // file-fallback config (no env overrides) can shadow the real config for
     // the full TTL (5 min).
     const currentConfigStamp = getConfigStamp();
+    // Authoritative in-memory snapshot first: it is this process's source of
+    // truth, so a fresh entry beats any distributed copy and skips a cache
+    // round-trip on the hottest settings path. The config stamp still fences
+    // entries built from a previous config generation.
+    if (!overrides) {
+      const inMemory = this.caches.get(tenantId);
+      if (
+        inMemory &&
+        inMemory.loaded &&
+        inMemory.configStamp === currentConfigStamp &&
+        Date.now() - inMemory.loadedAt < CACHE_TTL
+      ) {
+        return inMemory;
+      }
+    }
     if (!overrides && typeof window === "undefined" && import.meta.env.SSR) {
       try {
         const { cacheService } = await loadCacheServiceModule();

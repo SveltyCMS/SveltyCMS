@@ -6,7 +6,7 @@ order: 72
 icon: "mdi:shield-search"
 author: "SveltyCMS Team"
 created: "2026-11-05"
-updated: "2026-11-07"
+updated: "2026-11-09"
 tags:
   - "security"
   - "threat-model"
@@ -34,6 +34,7 @@ under `src/routes/(site)/**`, the collection/content handlers in
 | **Elevation of privilege** — write skips a permission check               | `src/services/sdk/namespaces/collections-namespace.ts`                                 | Mutations call `hasPermissionWithRoles()` with the caller's roles before persistence; the publish gate is evaluated against the stored row.                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Plugin-provided collection hooks run with the caller's scope and can add checks but cannot remove the built-in ones.                       |
 
 | **Information disclosure** — list and point reads disagree on tenant scope | `src/services/sdk/namespaces/collections-namespace.ts`, `src/hooks/handle-collection-read-lane.ts` | Content rows are stored as `"global"` (SQL) or `null` (Mongo) when tenancy is off; the namespace and the read lane treat a null request tenant as unscoped (no tenant filter), so a point read sees the same rows the list returned on both adapter families. System tables keep the `IS NULL` scope in `getEffectiveTenantId`. | Callers that bypass the namespace/lane and pass a raw null tenant to the adapter get the system-scope (`IS NULL`) semantics. |
+| **Information disclosure** — a cached list survives a write | `src/services/sdk/namespaces/collections/post-write.ts`, `src/services/cache/response-cache.ts` | Every write (single-entry or bulk) bumps the collection epoch and evicts the collection's list + GraphQL bodies from L1 and shared L2; the point tier is narrowed to the written ids so sibling point reads stay warm. There is no list-preserving write: `entryIds` only scopes the point drop, because the caller cannot know which list bodies embed a field it writes. | A process crash between the durable write and the microtask flush can leave a body until its TTL; a mis-scoped collection name would miss the target list (tenant scope is still enforced by the cache key). |
 
 ## Assumptions
 

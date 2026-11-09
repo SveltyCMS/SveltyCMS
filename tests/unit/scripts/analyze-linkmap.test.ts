@@ -302,6 +302,9 @@ describe("Vite 8 / AST Linkmap Analyzer", () => {
     return cachedWorkspaceReport;
   };
 
+  // Walks every module in the workspace (~5 s idle on the build host, and more
+  // than 30 s on a loaded CI runner) — the global 30 s budget is sized for
+  // unit-speed tests, not a full AST analysis of the tree.
   it("explains a module's classification, reachability and findings", () => {
     const report = getWorkspaceReport();
 
@@ -309,7 +312,7 @@ describe("Vite 8 / AST Linkmap Analyzer", () => {
     expect(report.explain?.classification?.serverOnly).toBe(false);
     expect(report.explain?.reachability?.server).toBe(true);
     expect(report.explain?.findings).toBeDefined();
-  });
+  }, 120_000);
 
   it("explains an unanalysed path instead of throwing", () => {
     // Tests are outside src/ and excluded from linkmap analysis. An empty workspace

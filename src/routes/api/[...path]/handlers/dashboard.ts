@@ -371,7 +371,12 @@ export async function handleDashboardRoutes(
               responseHitRate: 0,
             },
             performance: { slowRequests: 0, avgHookExecutionTime: 0, bottlenecks: [] },
-            security: { rateLimitViolations: 0, cspViolations: 0, authFailures: 0 },
+            security: {
+              rateLimitViolations: 0,
+              cspViolations: 0,
+              securityViolations: 0,
+              authFailures: 0,
+            },
           };
         }
 

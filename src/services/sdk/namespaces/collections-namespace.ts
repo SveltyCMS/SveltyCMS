@@ -10,8 +10,11 @@
  * - schema-store.ts   — schema LRU, hot flags, benchmark fallbacks, model cache
  * - read-pipeline.ts  — filter normalization, tenant/publication query build,
  *   find cache keys, read-through cache
+ * - find-many.ts      — `find`/`search`/`count`/status facets (multi-row reads)
+ * - find-one.ts       — `findById` cache gates + the `loadOneById` point read
  * - write-pipeline.ts — field prep, schema hooks, write guard, widget pipeline,
  *                       AES-256-GCM encrypt:true at rest
+ * - delete-entry.ts   — soft/permanent delete + detached post-write effects
  * - post-write.ts     — L1/L2 invalidation, outbox batching, plugin hooks
  *
  * ### Features:
@@ -24,59 +27,29 @@
 
 import { modifyStream, type EntryData } from "@utils/modify-request";
 import { runAfterOperation } from "@src/content/schema-hooks";
-import {
-  applyPublicationToQuery,
-  isPublishedStatus,
-  publicationCacheSuffix,
-  resolvePublicationFilter,
-} from "@utils/security/publication-policy";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
 import { logger } from "@utils/logger";
 import { AppError, raise } from "@utils/error-handling";
 import { isAdmin } from "@src/databases/auth/constants";
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
-import type {
-  BaseEntity,
-  CountOptions,
-  DatabaseId,
-  IDBAdapter,
-  QueryFilter,
-  QueryBuilder,
-} from "@src/databases/db-interface";
+import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
 import type { contentSystem as serverContentSystem } from "@src/content/index.server";
-import type { FieldInstance, Schema, RevisionData } from "@src/content/types";
+import type { FieldInstance, Schema } from "@src/content/types";
 import { DEFAULT_REVISION_LIMIT } from "@src/content/revision-defaults";
 import { type LocalApiOptions, type CollectionProxy } from "./types";
-import { resolvePopulatedRelations, scheduleRelationWarmup } from "./populate-resolver";
 import { PROFILE_WRITE_ENABLED, profileSpan, profileMark } from "@utils/write-profiler";
-import {
-  decodePageCursor,
-  defaultListSortOption,
-  defaultPageSortOption,
-  encodePageCursor,
-  mergeKeysetFilter,
-  resolvePageSort,
-  withIdTiebreaker,
-} from "@src/databases/core/page-utils";
-import { parseIdLookup } from "@src/databases/core/query-primitives";
 import { nowISODateString } from "@src/utils/date";
-import { clampPageSize, unsupportedFilterOperators } from "@utils/api-params";
 import { redactRecord } from "@utils/field-access";
 import { blockedGuardedNames, stripGuardedFilter, stripGuardedSort } from "@utils/guarded-query";
 import {
   getReadConstraint,
   mergeAccessConstraint,
 } from "@src/services/security/access-rule-service";
-import { buildCollectionCacheTags, collectionTableName } from "@src/databases/core/collection-name";
+import { collectionTableName } from "@src/databases/core/collection-name";
 import { validateRequiredFields } from "@src/widgets/widget-validation";
 import { matchesVersion, normalizeExpectedVersion } from "@utils/optimistic-lock";
-import {
-  coerceFilterValues,
-  getAllowedFilterFieldIds,
-  getNestedFilterPaths,
-  rejectedFilterKeys,
-} from "@utils/collection-query-filters.server";
+import { coerceFilterValues } from "@utils/collection-query-filters.server";
 
 import {
   getDbModuleLazy,
@@ -101,31 +74,16 @@ import { workflowKnownAbsent } from "@src/services/background/workflow-presence"
 import { widgetRegistryService } from "@src/services/core/widget-registry-service";
 import {
   assertEncryptedFieldsNotQueried,
-  buildFindCacheKey,
   buildTenantQuery,
   decryptReadResult,
   decryptReadStream,
   normalizeRelationshipFilter,
-  readThroughCache,
-  presentRead,
   fieldEncryptionContext,
   readEncryptionContext,
   NO_ENCRYPTION_CONTEXT,
   DECRYPT_CLONE_OPTIONS,
-  hydrateRelationDisplays,
-  isHotCollectionId,
-  COLLECTION_QUERY_TTL_MS,
-  COLLECTION_QUERY_STALE_MS,
-  COLLECTION_QUERY_HOT_STALE_MS,
 } from "./collections/read-pipeline";
-import { mapEntryValues } from "@utils/entry-values";
-import { getSearchableFieldNames } from "@utils/collection-query-filters.server";
-import {
-  countStatusFacets,
-  type StatusFacetCounts,
-} from "@src/services/core/collection-filter-engine";
-import { recordListQuery } from "@utils/list-query-metrics";
-import { deepClone } from "@utils/native-utils";
+import { type StatusFacetCounts } from "@src/services/core/collection-filter-engine";
 import {
   applyWidgetPipeline,
   encryptWritePayload,
@@ -166,6 +124,16 @@ import {
   runAfterCommit,
   transactionOf,
 } from "./collections/transaction-context";
+import {
+  assertFilterableFields,
+  countEntries,
+  executeFind,
+  executeSearch,
+  getStatusFacets as collectStatusFacets,
+  type FindOptions,
+} from "./collections/find-many";
+import { executeFindById } from "./collections/find-one";
+import { executeDelete } from "./collections/delete-entry";
 
 /** Cached lazy handle to the content engine — one module-registry lookup instead of one per call. */
 let contentModulePromise: Promise<typeof import("@src/content/index.server")> | undefined;
@@ -216,49 +184,6 @@ function markWritePhase(options: LocalApiOptions, label: string, t0: number): vo
 /** Cheap start timestamp for a write phase — 0 when no marks map is present. */
 function writePhaseT0(options: LocalApiOptions): number {
   return options.__phaseMarks ? performance.now() : 0;
-}
-
-/** Searchable field names — hoisted so the per-item filter loop shares one array. */
-const SEARCHABLE_FIELDS = ["title", "content", "description", "name"];
-
-/**
- * Reject filter keys and operators the schema/query layer cannot address.
- *
- * A misspelled key used to reach the query builder: a silently empty list, or an
- * engine-specific error / unindexed scan for a deep path. Naming every invalid
- * key turns that into an actionable 400. The same goes for an operator subkey no
- * engine implements (`{"views":{"between":"1,5"}}`): `addFilterConds` treats a
- * non-`$` subkey as "the value is this whole object" and binds it, which the SQL
- * driver rejects at run time — a 500 instead of a 400.
- */
-function assertFilterableFields(schema: Schema, filter: unknown): void {
-  if (!filter || typeof filter !== "object" || Array.isArray(filter)) return;
-  const rejected = rejectedFilterKeys(
-    filter as Record<string, unknown>,
-    getAllowedFilterFieldIds(schema),
-    getNestedFilterPaths(schema),
-  );
-  if (rejected.length > 0) {
-    raise(
-      400,
-      `Unknown filter field${rejected.length > 1 ? "s" : ""}: ${rejected.join(", ")}`,
-      "FILTER_UNKNOWN_FIELD",
-      { fields: rejected },
-    );
-  }
-  const unsupported = unsupportedFilterOperators(filter);
-  if (unsupported.length > 0) {
-    const named = unsupported.map((entry) => `${entry.field}.${entry.operator}`);
-    raise(
-      400,
-      `Unknown filter operator${named.length > 1 ? "s" : ""}: ${named.join(", ")}`,
-      "FILTER_UNKNOWN_FIELD",
-      {
-        operators: named,
-        fields: [...new Set(unsupported.map((entry) => entry.field))],
-      },
-    );
-  }
 }
 
 /**
@@ -364,36 +289,6 @@ function scheduleIndexNowPing(
     .catch((err) => {
       logger.debug("[IndexNow] Publish ping scheduling failed (non-fatal)", { error: err });
     });
-}
-
-const clientSchemaMemo = new WeakMap<object, Schema>();
-
-function normalizeFilterOperators(f: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(f)) {
-    if (v && typeof v === "object" && !Array.isArray(v)) {
-      const vObj = v as Record<string, unknown>;
-      if ("contains" in vObj && typeof vObj.contains === "string") {
-        out[k] = { $contains: vObj.contains };
-      } else if ("in" in vObj && Array.isArray(vObj.in)) {
-        out[k] = { $in: vObj.in };
-      } else if ("eq" in vObj) {
-        out[k] = { $eq: vObj.eq };
-      } else if ("isNull" in vObj && typeof vObj.isNull === "boolean") {
-        out[k] = vObj.isNull ? { $eq: null } : { $ne: null };
-      } else if ("gte" in vObj || "lte" in vObj) {
-        const range: Record<string, unknown> = {};
-        if ("gte" in vObj) range.$gte = vObj.gte;
-        if ("lte" in vObj) range.$lte = vObj.lte;
-        out[k] = range;
-      } else {
-        out[k] = v;
-      }
-    } else {
-      out[k] = v;
-    }
-  }
-  return out;
 }
 
 export class CollectionsNamespace {
@@ -728,743 +623,20 @@ export class CollectionsNamespace {
       isAdmin?: boolean;
     },
   ) {
-    const {
-      collections,
-      tenantId,
-      user,
-      page = 1,
-      limit = 25,
-      sortField = "updatedAt",
-      sortDirection = "desc",
-      filter: additionalFilter = {},
-      status,
-      isAdmin = false,
-    } = options;
-
-    const cs = await getContentSystem();
-    const allCollections = await cs.getCollections(tenantId);
-    const collectionMap = new Map<string, Schema>();
-    for (const col of allCollections) {
-      if (col._id) collectionMap.set(col._id, col);
-    }
-
-    let collectionsToSearch: string[];
-    if (collections && collections.length > 0) {
-      collectionsToSearch = collections;
-    } else {
-      // Single pass — the previous map().filter() built a throwaway intermediate
-      // array of the same length on every search.
-      const ids: string[] = [];
-      for (const c of allCollections) {
-        if (c._id !== undefined) ids.push(c._id);
-      }
-      collectionsToSearch = ids;
-    }
-
-    const baseFilter: any = normalizeRelationshipFilter({
-      ...additionalFilter,
-    });
-
-    const effectivePublicationFilter = resolvePublicationFilter(
-      { user: options.user, system: options.system },
-      status || (isAdmin ? "all" : "published"),
+    return executeSearch(
+      {
+        _dbAdapter: this._dbAdapter,
+        schemaOf: (id, tenantId) => this.schemaOf(id, tenantId),
+        getCollectionName: (id) => this.getCollectionName(id),
+        getContentSystem,
+      },
+      query,
+      options,
     );
-    applyPublicationToQuery(baseFilter, effectivePublicationFilter);
-    if (effectivePublicationFilter === "all" && status) {
-      baseFilter.status = status;
-    }
-
-    const searchPromises = collectionsToSearch.map(async (collectionId) => {
-      const collection =
-        collectionMap.get(collectionId) || (await cs.getCollection(collectionId, tenantId));
-      if (!collection) return [];
-
-      try {
-        // Hot flags resolved once per collection — the result lane below
-        // re-used a second `ensureSchemaHotFlags` call on the same schema.
-        const hot = ensureSchemaHotFlags(collection);
-        assertEncryptedFieldsNotQueried(baseFilter, hot);
-        const accessConstraint = getReadConstraint(collection.name || String(collection._id), {
-          user,
-          role: user?.role,
-          tenantId: tenantId ? String(tenantId) : null,
-        });
-        const result = await this._dbAdapter.crud.findMany(
-          this.getCollectionName(collection._id as string),
-          mergeAccessConstraint(baseFilter, accessConstraint),
-          {
-            limit: 100,
-            tenantId: tenantId as DatabaseId,
-          },
-        );
-
-        if (result.success && result.data) {
-          const decrypted = presentRead(
-            { success: true, data: result.data },
-            collection,
-            hot,
-            readEncryptionContext(collection, tenantId, hot),
-            user,
-            options.system,
-          ) as { data?: unknown };
-          let items = Array.isArray(decrypted.data) ? decrypted.data : [];
-          if (query) {
-            const lowerQuery = query.toLowerCase();
-            items = items.filter((item: Record<string, unknown>) => {
-              return SEARCHABLE_FIELDS.some((field) => {
-                const value = (item as any)[field];
-                return typeof value === "string" && value.toLowerCase().includes(lowerQuery);
-              });
-            });
-          }
-
-          if (items.length > 0) {
-            await applyWidgetPipeline(collection as Schema, items as any[], {
-              dbAdapter: this._dbAdapter,
-              user,
-              type: "GET",
-              tenantId,
-              collectionName: collection.name,
-              skipValidation: options.skipValidation,
-              action: "search",
-            });
-
-            // 🚀 Zero-Copy Projection: Mutate directly to avoid spread/allocation overhead
-            for (let i = 0; i < items.length; i++) {
-              (items[i] as any)._collection = {
-                id: collection._id,
-                name: collection.name,
-                label: collection.label,
-              };
-            }
-          }
-
-          return items;
-        }
-        return [];
-      } catch {
-        return [];
-      }
-    });
-
-    const resultsArrays = await Promise.all(searchPromises);
-    const searchResults = resultsArrays.flat();
-
-    if (sortField && searchResults.length > 0) {
-      searchResults.sort((a: any, b: any) => {
-        const aVal = a[sortField];
-        const bVal = b[sortField];
-        if (typeof aVal === "string" && typeof bVal === "string") {
-          return sortDirection === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
-        }
-        if (typeof aVal === "number" && typeof bVal === "number") {
-          return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
-        }
-        return 0;
-      });
-    }
-
-    const startIndex = (page - 1) * limit;
-    return {
-      items: searchResults.slice(startIndex, startIndex + limit),
-      total: searchResults.length,
-      page,
-      pageSize: limit,
-      totalPages: Math.ceil(searchResults.length / limit),
-    };
   }
 
   async find(collectionId: string, options: any = {}) {
-    const t0 = performance.now();
-    const {
-      tenantId,
-      filter = {},
-      bypassCache = false,
-      editEntryId,
-      language,
-      search,
-      sorts,
-      orGroups,
-      swr = false,
-      includeFacets = false,
-      includeCount = false,
-    } = options;
-
-    const requestedLimit = options.pageSize ?? options.limit ?? 50;
-    const limit = clampPageSize(requestedLimit, 50);
-    const offset =
-      options.offset !== undefined ? options.offset : options.page ? (options.page - 1) * limit : 0;
-    const effectivePage = options.page ?? Math.floor(offset / limit) + 1;
-    const ttl = options.ttl ? Number(options.ttl) : undefined;
-    const schema = options.collection ?? (await this.schemaOf(collectionId, tenantId));
-    const plan = getCollectionExecutionPlan(schema);
-
-    let inputFilter = { ...(filter as Record<string, unknown>) };
-    if (editEntryId) {
-      inputFilter._id = editEntryId;
-    }
-    inputFilter = normalizeFilterOperators(inputFilter);
-
-    if (options.validateFilter === true) {
-      assertFilterableFields(schema, inputFilter);
-      inputFilter = coerceFilterValues(schema, inputFilter);
-    }
-    const guarded = blockedGuardedNames(schema, options.user, options.system);
-    const normalizedFilter = stripGuardedFilter(normalizeRelationshipFilter(inputFilter), guarded);
-    const ownership = ownershipFilter(schema, options.user, options.system);
-    if (ownership === null) return { success: true, data: [] };
-    const accessConstraint = getReadConstraint(schema.name || String(schema._id), {
-      user: options.user,
-      role: (options.user as { role?: string } | undefined)?.role,
-      tenantId: tenantId ? String(tenantId) : null,
-    });
-    const decodedCursor = decodePageCursor(options.cursor);
-    if (options.cursor && !decodedCursor) {
-      throw new AppError("Invalid keyset cursor", 400);
-    }
-    if (guarded && decodedCursor?.f && guarded.has(String(decodedCursor.f).split(".")[0])) {
-      throw new AppError("Invalid keyset cursor", 400);
-    }
-    const keysetMode = decodedCursor !== null || options.keyset === true;
-
-    if (typeof search === "string" && search.trim() && !editEntryId) {
-      const searchStr = search.trim();
-      const searchableFields = getSearchableFieldNames(schema);
-      if (searchableFields.length > 0) {
-        const searchConditions = searchableFields.map((field) => ({
-          [field]: { $contains: searchStr },
-        }));
-        if (normalizedFilter.$or && Array.isArray(normalizedFilter.$or)) {
-          normalizedFilter.$and = [
-            ...(normalizedFilter.$and && Array.isArray(normalizedFilter.$and)
-              ? normalizedFilter.$and
-              : []),
-            { $or: normalizedFilter.$or },
-            { $or: searchConditions },
-          ];
-          delete normalizedFilter.$or;
-        } else {
-          normalizedFilter.$or = searchConditions;
-        }
-      }
-    }
-
-    if (Array.isArray(orGroups) && orGroups.length > 0 && !editEntryId) {
-      if (normalizedFilter.$or && Array.isArray(normalizedFilter.$or)) {
-        normalizedFilter.$or = [...normalizedFilter.$or, ...orGroups];
-      } else {
-        normalizedFilter.$or = orGroups;
-      }
-    }
-
-    const resolvedFilter = plan.hasRelations
-      ? await compileRelationFilters(normalizedFilter, schema, {
-          dbAdapter: this._dbAdapter.crud,
-          getCollectionName: (id) => this.getCollectionName(id),
-          resolveTargetSchema: (id) => this.schemaOf(id, tenantId),
-          tenantId,
-          user: options.user,
-          system: options.system,
-        })
-      : normalizedFilter;
-    const baseQuery: any = decodedCursor
-      ? mergeKeysetFilter(resolvedFilter as Record<string, unknown>, decodedCursor)
-      : resolvedFilter;
-    const scopedQuery = mergeAccessConstraint(
-      ownership ? { ...baseQuery, ...ownership } : baseQuery,
-      accessConstraint,
-    );
-
-    const { query, effectiveFilter: effectivePublicationFilter } = buildTenantQuery(
-      scopedQuery,
-      tenantId,
-      { user: options.user, system: options.system },
-      options.publicationFilter,
-    );
-
-    const hot = ensureSchemaHotFlags(schema);
-    const encCtx = plan.hasEncryption
-      ? readEncryptionContext(schema, tenantId, hot)
-      : NO_ENCRYPTION_CONTEXT;
-    if (plan.hasEncryption) {
-      assertEncryptedFieldsNotQueried(
-        query,
-        hot,
-        options.sortField || (Array.isArray(options.sort) ? options.sort?.[0]?.[0] : undefined),
-      );
-    }
-
-    if (
-      !decodedCursor &&
-      !offset &&
-      !options.fields &&
-      !options.populate &&
-      !language &&
-      !includeFacets &&
-      !swr &&
-      !search &&
-      !includeCount
-    ) {
-      const lookup = parseIdLookup(query);
-      if (lookup) {
-        const negativeKey =
-          lookup.status === undefined
-            ? `${tenantId || "global"}:collection:${schema._id}:${lookup.id}`
-            : null;
-        const negativeEligible =
-          negativeKey !== null && !bypassCache && !options.system && options.disableErrors !== true;
-        if (
-          negativeKey !== null &&
-          negativeEligible &&
-          cacheService.isNegativeHit(negativeKey, (tenantId || undefined) as string)
-        ) {
-          return presentRead(
-            { success: true, data: [] },
-            schema,
-            hot,
-            encCtx,
-            options.user,
-            options.system,
-          );
-        }
-        const one = await this._dbAdapter.crud.findOne(
-          this.getCollectionName(schema._id as string),
-          query,
-          { tenantId: tenantId as DatabaseId },
-        );
-        const row =
-          one?.success && one.data ? (Array.isArray(one.data) ? one.data[0] : one.data) : null;
-        if (!row && negativeEligible && negativeKey !== null && one?.success === true) {
-          cacheService.recordMiss(negativeKey, (tenantId || undefined) as string, [
-            `doc:${schema._id}:${lookup.id}`,
-          ]);
-        }
-        if (row) {
-          if (plan.hasWidgets && hot._hasActiveWidgets) {
-            const payload = [row];
-            await applyWidgetPipeline(schema, payload, {
-              dbAdapter: this._dbAdapter,
-              user: options.user || { _id: "system", role: "admin" },
-              type: "GET",
-              tenantId,
-              collectionName: schema.name,
-              skipValidation: options.skipValidation,
-              action: "find",
-            });
-          }
-          const collectionMeta = (schema as any)._collectionMeta || {
-            id: schema._id,
-            name: schema.name,
-            label: schema.label,
-          };
-          (schema as any)._collectionMeta = collectionMeta;
-          (row as any)._collection = collectionMeta;
-        }
-        const envelope = { success: true, data: row ? [row] : [], entries: row ? [row] : [] };
-        if (plan.isPlain) {
-          return envelope;
-        }
-        return presentRead(envelope, schema, hot, encCtx, options.user, options.system);
-      }
-    }
-
-    const requestedSort =
-      sorts && sorts.length > 0
-        ? sorts.map((s: { field: string; direction?: "asc" | "desc" }) => [
-            s.field,
-            s.direction || "desc",
-          ])
-        : options.sort
-          ? typeof options.sort === "object" &&
-            !Array.isArray(options.sort) &&
-            "field" in options.sort
-            ? [[options.sort.field, options.sort.direction || "desc"]]
-            : options.sort
-          : options.sortField
-            ? ([[options.sortField, options.sortDirection || "desc"]] as [string, "asc" | "desc"][])
-            : undefined;
-    const sort = stripGuardedSort(requestedSort, guarded);
-
-    const sortForDb = keysetMode
-      ? withIdTiebreaker(
-          sort ??
-            (decodedCursor
-              ? decodedCursor.f
-                ? { [decodedCursor.f]: decodedCursor.d === "asc" ? 1 : -1 }
-                : { _id: decodedCursor.d === "asc" ? 1 : -1 }
-              : defaultPageSortOption()),
-        )
-      : (sort ?? defaultListSortOption());
-
-    const skipRequestCache = bypassCache || options.bypassRequestCache;
-    const cacheKey = keysetMode
-      ? null
-      : buildFindCacheKey({
-          schemaId: schema._id as string,
-          tenantId,
-          filter,
-          query,
-          limit,
-          offset,
-          sort,
-          decodedCursor,
-          effectiveFilter: effectivePublicationFilter,
-          skipRequestCache,
-          bypassCache,
-          options,
-        });
-
-    const shouldCount =
-      !keysetMode &&
-      (includeCount ||
-        options.page !== undefined ||
-        options.pageSize !== undefined ||
-        includeFacets ||
-        swr);
-
-    const loadFullData = async () => {
-      const fetchOpts = {
-        limit: keysetMode || shouldCount ? limit + 1 : limit,
-        offset: keysetMode ? 0 : offset,
-        sort: sortForDb,
-        fields: options.fields,
-        populate: options.populate,
-      };
-
-      const fetchFromDb = async () => {
-        let r = await this._dbAdapter.crud.findMany(
-          this.getCollectionName(schema._id as string),
-          query,
-          fetchOpts,
-        );
-        if (!r.success) {
-          try {
-            await this._dbAdapter.collection?.createModel?.(schema);
-          } catch (healError) {
-            logger.warn(`[CollectionsNamespace] Physical model heal failed for ${schema._id}`, {
-              healError,
-            });
-          }
-          r = await this._dbAdapter.crud.findMany(
-            this.getCollectionName(schema._id as string),
-            query,
-            fetchOpts,
-          );
-        }
-        return r;
-      };
-
-      const countPromise =
-        shouldCount && !editEntryId
-          ? this.count(collectionId, {
-              tenantId,
-              filter: inputFilter,
-              user: options.user,
-              system: options.system,
-              publicationFilter: options.publicationFilter,
-            }).catch(() => ({ success: false, data: undefined }))
-          : Promise.resolve({ success: false, data: undefined });
-
-      const [res, countRes] = await Promise.all([fetchFromDb(), countPromise]);
-
-      let rawRows: unknown[] = [];
-      let hasMore = false;
-      if (res.success && Array.isArray(res.data)) {
-        rawRows = res.data;
-        if (keysetMode || shouldCount) {
-          hasMore = rawRows.length > limit;
-          if (hasMore) rawRows = rawRows.slice(0, limit);
-        }
-      }
-
-      let totalItems: number | undefined;
-      if (shouldCount) {
-        if (editEntryId) {
-          totalItems = rawRows.length > 0 ? 1 : 0;
-        } else if (countRes.success && typeof countRes.data === "number") {
-          totalItems = countRes.data;
-        } else if (effectivePage === 1 && !hasMore && res.success) {
-          totalItems = rawRows.length;
-        } else {
-          totalItems = hasMore
-            ? (effectivePage - 1) * limit + rawRows.length + 1
-            : (effectivePage - 1) * limit + rawRows.length;
-        }
-      }
-
-      let data: unknown[] = rawRows;
-
-      if (keysetMode && res.success && data.length > 0) {
-        const cursorSort = resolvePageSort(sortForDb);
-        const last = hasMore ? (data[data.length - 1] as Record<string, unknown>) : null;
-        if (hasMore && last && last._id !== undefined && last._id !== null) {
-          const payload: Parameters<typeof encodePageCursor>[0] = {
-            id: String(last._id),
-            d: cursorSort.direction,
-          };
-          if (cursorSort.field !== "_id") {
-            payload.f = cursorSort.field;
-            payload.v = (last[cursorSort.field] as string | number | boolean | null) ?? null;
-          }
-          (res as { meta?: Record<string, unknown> }).meta = {
-            hasMore: true,
-            nextCursor: encodePageCursor(payload),
-          };
-        } else {
-          (res as { meta?: Record<string, unknown> }).meta = { hasMore: false };
-        }
-      }
-
-      if (res.success && data.length > 0) {
-        if (hot._hasActiveWidgets) {
-          await applyWidgetPipeline(schema, data as EntryData[], {
-            dbAdapter: this._dbAdapter,
-            user: options.user || { _id: "system", role: "admin" },
-            type: "GET",
-            tenantId,
-            collectionName: schema.name,
-            skipValidation: options.skipValidation,
-            action: "find",
-          });
-        }
-
-        if (!language) {
-          const collectionMeta = (schema as { _collectionMeta?: unknown })._collectionMeta || {
-            id: schema._id,
-            name: schema.name,
-            label: schema.label,
-          };
-          (schema as { _collectionMeta?: unknown })._collectionMeta = collectionMeta;
-          data = (data as Array<Record<string, unknown>>).map((item) => {
-            if (item) {
-              return { ...item, _collection: collectionMeta };
-            }
-            return item;
-          });
-        }
-      }
-
-      if (options.populate && res.success && data.length > 0) {
-        await resolvePopulatedRelations(
-          data,
-          schema,
-          options.populate,
-          tenantId,
-          this._dbAdapter,
-          this.getCollectionName.bind(this),
-          {
-            user: options.user,
-            system: options.system,
-            requestedPublicationFilter: effectivePublicationFilter,
-            resolveTargetSchema: (id: string) => this.schemaOf(id, tenantId),
-          },
-        );
-      }
-
-      if (language && !editEntryId && res.success && data.length > 0) {
-        data = (data as Array<Record<string, unknown>>).map((entry) =>
-          mapEntryValues(entry, schema.fields, {
-            language,
-            mode: "list",
-          }),
-        );
-        if (plan.hasRelations) {
-          await hydrateRelationDisplays(data, schema, this._dbAdapter, tenantId);
-        }
-      }
-
-      if (!editEntryId && res.success && data.length > 0) {
-        try {
-          const { pluginRegistry } = await import("@src/plugins");
-          const hooks = await pluginRegistry.getSSRHooks(String(schema._id), tenantId, schema);
-          if (hooks.length > 0) {
-            const pluginContext = {
-              user: options.user,
-              tenantId: tenantId || "default",
-              language: language || "en",
-              dbAdapter: this._dbAdapter,
-              collectionSchema: schema,
-            };
-            const allPluginData = await Promise.all(
-              hooks.map((hook) => hook(pluginContext, data as EntryData[])),
-            );
-            for (const hookData of allPluginData) {
-              for (const entryData of hookData) {
-                const found = (
-                  data as Array<{ _id?: unknown; pluginData?: Record<string, unknown> }>
-                ).find((r) => String(r._id) === String(entryData.entryId));
-                if (found) {
-                  found.pluginData = { ...found.pluginData, ...entryData.data };
-                }
-              }
-            }
-          }
-        } catch (err) {
-          logger.warn("Failed to run plugin SSR hooks", { error: err });
-        }
-      }
-
-      let revisions: RevisionData[] | undefined;
-      if (editEntryId && schema.revision) {
-        try {
-          const { HistoryService } = await import("@src/services/content/history-service");
-          const revisionsResult = await HistoryService.getRevisions({
-            collectionId: String(schema._id),
-            entryId: editEntryId,
-            tenantId: tenantId || "",
-            dbAdapter: this._dbAdapter,
-            limit: 100,
-          });
-          if (revisionsResult.success && "data" in revisionsResult) {
-            revisions = ((revisionsResult.data as { items?: RevisionData[] }).items ||
-              []) as RevisionData[];
-          }
-        } catch (e) {
-          logger.warn("Failed to load revisions", e);
-        }
-      }
-
-      let facets: StatusFacetCounts | undefined;
-      if (includeFacets) {
-        try {
-          facets = await this.getStatusFacets(schema, {
-            tenantId,
-            totalItems,
-          });
-        } catch (err) {
-          logger.debug("[CollectionsNamespace] Status facets failed", { error: err });
-          facets = {};
-        }
-      }
-
-      let clientSchema = clientSchemaMemo.get(schema);
-      if (!clientSchema) {
-        clientSchema = deepClone(schema) as Schema;
-        clientSchemaMemo.set(schema, clientSchema);
-      }
-
-      const envelope: Record<string, unknown> = {
-        ...res,
-        data,
-        entries: data,
-      };
-      if (shouldCount && totalItems !== undefined) {
-        envelope.pagination = {
-          totalItems,
-          pagesCount: Math.ceil(totalItems / limit) || 1,
-          currentPage: effectivePage,
-          pageSize: limit,
-          hasMore,
-        };
-      }
-      if (facets !== undefined) {
-        envelope.facets = facets;
-        envelope.statusFacets = facets;
-      }
-      if (revisions !== undefined) envelope.revisions = revisions;
-      if (language !== undefined) envelope.contentLanguage = language;
-      envelope.collectionSchema = clientSchema;
-
-      return envelope;
-    };
-
-    let result: Record<string, unknown> | null | undefined;
-    let cacheHit = false;
-
-    if (swr && cacheKey && !bypassCache) {
-      const staleTtlMs =
-        options.staleTtl ??
-        (isHotCollectionId(schema._id as string, tenantId)
-          ? COLLECTION_QUERY_HOT_STALE_MS
-          : COLLECTION_QUERY_STALE_MS);
-      const ttlMs =
-        (options.ttl ? Number(options.ttl) * 1000 : undefined) ?? COLLECTION_QUERY_TTL_MS;
-      const tags = buildCollectionCacheTags(schema._id as string);
-
-      result = await cacheService.getOrSetSWR(
-        cacheKey,
-        loadFullData,
-        ttlMs,
-        staleTtlMs,
-        tenantId,
-        CacheCategory.CONTENT,
-        tags,
-      );
-      cacheHit = true;
-      if (result) {
-        CollectionsNamespace.setRequestCache(cacheKey, result, schema._id as string, tenantId);
-      }
-    } else {
-      if (cacheKey) {
-        const cached = await readThroughCache(cacheKey, tenantId, {
-          skipRequestCache,
-          bypassCache,
-        });
-        if (cached.hit) {
-          CollectionsNamespace.setRequestCache(
-            cacheKey,
-            cached.payload,
-            schema._id as string,
-            tenantId,
-          );
-          recordListQuery({
-            source: "CollectionsNamespace.find",
-            durationMs: Math.round((performance.now() - t0) * 100) / 100,
-            cache: "hit",
-            collectionId: String(schema._id),
-            rowCount: Array.isArray(cached.payload?.data) ? cached.payload.data.length : 0,
-            queryHash: cacheKey,
-          });
-          if (plan.isPlain) {
-            return cached.payload;
-          }
-          return presentRead(cached.payload, schema, hot, encCtx, options.user, options.system);
-        }
-      }
-
-      result = cacheKey
-        ? await cacheService.coalesceQuery(cacheKey, loadFullData)
-        : await loadFullData();
-
-      if (!bypassCache && cacheKey && result?.success && result?.data) {
-        try {
-          await cacheService.set(
-            cacheKey,
-            result,
-            ttl || 180,
-            (tenantId || undefined) as string,
-            CacheCategory.CONTENT,
-            buildCollectionCacheTags(schema._id as string),
-          );
-
-          if (
-            query._id &&
-            (!result.data || (Array.isArray(result.data) && result.data.length === 0))
-          ) {
-            cacheService.recordMiss(cacheKey, (tenantId || undefined) as string);
-          }
-
-          CollectionsNamespace.setRequestCache(cacheKey, result, schema._id as string, tenantId);
-        } catch (error) {
-          logger.debug("[collections-namespace] suppressed error", error);
-        }
-      }
-    }
-
-    const durationMs = Math.round((performance.now() - t0) * 100) / 100;
-    recordListQuery({
-      source: "CollectionsNamespace.find",
-      durationMs,
-      cache: cacheHit ? "hit" : bypassCache ? "bypass" : "miss",
-      collectionId: String(schema._id),
-      rowCount: Array.isArray(result?.data) ? result.data.length : 0,
-      queryHash: cacheKey || "",
-    });
-
-    if (plan.isPlain) {
-      return result;
-    }
-    return presentRead(result, schema, hot, encCtx, options.user, options.system);
+    return executeFind(this, collectionId, options as FindOptions);
   }
 
   /**
@@ -1480,50 +652,7 @@ export class CollectionsNamespace {
       totalItems?: number;
     } = {},
   ): Promise<StatusFacetCounts> {
-    if (input.totalItems === 0) {
-      return { publish: 0, draft: 0, unpublish: 0, schedule: 0, archive: 0 };
-    }
-
-    const schema =
-      typeof collectionIdOrSchema === "string"
-        ? await this.schemaOf(collectionIdOrSchema, input.tenantId as DatabaseId | null | undefined)
-        : collectionIdOrSchema;
-    const collectionId = String(schema._id ?? schema.name ?? "unknown");
-    const tenantKey = input.tenantId ? String(input.tenantId) : "global";
-    const cacheKey = `collection:${collectionId}:facets:${tenantKey}`;
-    const tags = ["collection", `collection:${collectionId}`];
-
-    return cacheService.getOrSetSWR<StatusFacetCounts>(
-      cacheKey,
-      async () => {
-        const baseWhere: Record<string, unknown> = {};
-        if (isMultiTenantEnabled() && input.tenantId != null) {
-          baseWhere.tenantId = input.tenantId;
-        }
-
-        return countStatusFacets({
-          queryBuilder: (table) =>
-            this._dbAdapter.queryBuilder(table) as QueryBuilder<Record<string, unknown>>,
-          collectionTableName: collectionTableName(collectionId),
-          baseWhere,
-          tenantId: input.tenantId,
-          crudCount: (table, filter, opts) =>
-            this._dbAdapter.crud.count(
-              table,
-              filter as QueryFilter<BaseEntity>,
-              opts as CountOptions,
-            ) as Promise<{
-              success: boolean;
-              data?: number;
-            }>,
-        });
-      },
-      COLLECTION_QUERY_TTL_MS,
-      COLLECTION_QUERY_STALE_MS,
-      input.tenantId,
-      CacheCategory.COLLECTION,
-      tags,
-    );
+    return collectStatusFacets(this, collectionIdOrSchema, input);
   }
 
   async findStreaming(
@@ -1642,49 +771,7 @@ export class CollectionsNamespace {
       publicationFilter?: "published" | "draft" | "all";
     } = {},
   ) {
-    const { tenantId, filter = {} } = options;
-    const schema = await this.schemaOf(collectionId, tenantId);
-    let countInputFilter = filter as Record<string, unknown>;
-    if (options.validateFilter === true) {
-      assertFilterableFields(schema, filter);
-      countInputFilter = coerceFilterValues(schema, countInputFilter);
-    }
-    const normalizedFilter = stripGuardedFilter(
-      normalizeRelationshipFilter(countInputFilter),
-      blockedGuardedNames(schema, options.user, options.system),
-    );
-    assertEncryptedFieldsNotQueried(normalizedFilter, ensureSchemaHotFlags(schema));
-
-    const ownership = ownershipFilter(schema, options.user, options.system);
-    if (ownership === null) return { success: true, data: 0 };
-    const accessConstraint = getReadConstraint(schema.name || String(schema._id), {
-      user: options.user,
-      role: (options.user as { role?: string } | undefined)?.role,
-      tenantId: tenantId ? String(tenantId) : null,
-    });
-    const resolvedFilter = await compileRelationFilters(normalizedFilter, schema, {
-      dbAdapter: this._dbAdapter.crud,
-      getCollectionName: (id) => this.getCollectionName(id),
-      resolveTargetSchema: (id) => this.schemaOf(id, tenantId),
-      tenantId,
-      user: options.user,
-      system: options.system,
-    });
-    const scopedFilter = mergeAccessConstraint(
-      ownership ? { ...resolvedFilter, ...ownership } : resolvedFilter,
-      accessConstraint,
-    );
-
-    const { query } = buildTenantQuery(
-      scopedFilter,
-      tenantId,
-      { user: options.user, system: options.system },
-      options.publicationFilter,
-    );
-
-    return this._dbAdapter.crud.count(this.getCollectionName(schema._id as string), query as any, {
-      tenantId: tenantId as DatabaseId,
-    });
+    return countEntries(this, collectionId, options);
   }
 
   queryBuilder(collectionId: string, options: { tenantId?: DatabaseId | null } = {}) {
@@ -1794,265 +881,7 @@ export class CollectionsNamespace {
   }
 
   async findById(collectionId: string, entryId: string, options: LocalApiOptions = {}) {
-    const { tenantId, bypassCache = false, disableErrors = false } = options;
-    // Canonical lowercase schema cache key — the legacy `${tenant}:${collectionId}`
-    // (no lowercase) always missed getSchema's lowercased key, guaranteeing a
-    // duplicate entry + wasted resolution on every findById.
-    const schema =
-      peekReadySchema(tenantId, collectionId) ||
-      (await this.getSchema(collectionId, tenantId).catch((err) => {
-        if (disableErrors && err.status === 404) return null;
-        throw err;
-      }));
-
-    if (!schema) return { success: true, data: null };
-
-    // Freeze hot flags once. Until the named factories are loaded, the scan
-    // refuses to cache its result and would repeat on every random id.
-    if ((schema as { _hasActiveWidgets?: boolean })._hasActiveWidgets === undefined) {
-      await widgetRegistryService.ensureWidgets(widgetNamesOf(schema));
-      ensureSchemaHotFlags(schema);
-    }
-
-    const effectivePublicationFilter = resolvePublicationFilter(
-      { user: options.user, system: options.system },
-      options.publicationFilter,
-    );
-    const cacheKey = `${tenantId || "global"}:collection:${schema._id}:${entryId}${publicationCacheSuffix(effectivePublicationFilter)}`;
-    const skipRequestCache = bypassCache || options.bypassRequestCache;
-
-    // Warm the declared relations of a detail row for privileged callers. The
-    // entry editor opens relation pickers separately, so warming here makes the
-    // first open an L1 hit. `scheduleRelationWarmup` is deferred, capped and
-    // no-op for unprivileged callers; it never alters `data`.
-    const warmRelations = (result: { data?: unknown } | null | undefined): void => {
-      if (options.populate && options.populate.length > 0) return;
-      const row = result?.data;
-      if (!row || typeof row !== "object") return;
-      scheduleRelationWarmup(
-        [row],
-        schema,
-        tenantId || undefined,
-        this._dbAdapter,
-        (id) => this.getCollectionName(id),
-        {
-          user: options.user,
-          system: options.system,
-          requestedPublicationFilter: effectivePublicationFilter,
-          resolveTargetSchema: (id: string) => this.schemaOf(id, tenantId),
-        },
-      );
-    };
-
-    // The request cache for this key is only ever populated by a caller that did NOT
-    // pass `skipCacheService` (see `loadOneById`), so probing it on behalf of such a
-    // caller is dead work on the cold point-read path.
-    if (!skipRequestCache && !options.skipCacheService) {
-      const cachedEntry = getRequestCache(cacheKey);
-      if (cachedEntry !== undefined) {
-        const hot = ensureSchemaHotFlags(schema);
-        const result = presentRead(
-          cachedEntry,
-          schema,
-          hot,
-          readEncryptionContext(schema, tenantId, hot),
-          options.user,
-          options.system,
-        );
-        warmRelations(result);
-        return result;
-      }
-    }
-
-    // 🚀 SYNC L1 HIT: Use synchronous L1 check instead of async L2 get.
-    // For findByIdRandom (10K distinct IDs), the async cacheService.get() costs
-    // ~5µs per miss just in microtask overhead — getSync eliminates that.
-    // Callers that opted out of the shared cache (skipCacheService — the HTTP
-    // read lane) never wrote this key, so the probe is a guaranteed miss.
-    if (!bypassCache && !options.skipCacheService) {
-      const syncCached = cacheService.getSync?.<any>(cacheKey, (tenantId || undefined) as string);
-      if (syncCached !== undefined && syncCached !== null) {
-        CollectionsNamespace.setRequestCache(cacheKey, syncCached, schema._id as string, tenantId);
-        const hot = ensureSchemaHotFlags(schema);
-        const result = presentRead(
-          syncCached,
-          schema,
-          hot,
-          readEncryptionContext(schema, tenantId, hot),
-          options.user,
-          options.system,
-        );
-        warmRelations(result);
-        return result;
-      }
-    }
-
-    // Negative 404: a confirmed miss under this exact publication suffix skips
-    // the adapter. Excluded for system scope and `disableErrors` callers, which
-    // use a miss as an existence probe (singleton / create checks).
-    if (
-      !bypassCache &&
-      !options.skipCacheService &&
-      !options.system &&
-      !disableErrors &&
-      cacheService.isNegativeHit(cacheKey, (tenantId || undefined) as string)
-    ) {
-      const hot = ensureSchemaHotFlags(schema);
-      return presentRead(
-        { success: true, data: null },
-        schema,
-        hot,
-        readEncryptionContext(schema, tenantId, hot),
-        options.user,
-        options.system,
-      );
-    }
-
-    // Single-id hot path: direct loadOneById (no microtask batch delay). The
-    // cache key built above is threaded through so the point-read lane does not
-    // rebuild the same string and does not copy the options object.
-    const result = await this.loadOneById(schema, entryId, options, cacheKey);
-    warmRelations(result);
-    return result;
-  }
-
-  /**
-   * Single-id hot path — findOne + optional widget pipeline (no microtask batch delay).
-   */
-  private async loadOneById(schema: Schema, entryId: string, options: any, cacheKey?: string) {
-    const { tenantId, ttl, bypassCache } = options;
-    const collectionName = this.getCollectionName(schema._id as string);
-    // Content rows are written under the canonical `"global"` tenant (SQL) or
-    // `null` (Mongo) when tenancy is off, while the adapter's `tenantId: null`
-    // pins SQL filters to `IS NULL` and Mongo to `tenantId: null` (correct for
-    // auth/settings rows, wrong for content). A missing tenant is the unscoped
-    // read that matches content rows on both families — passing `"global"`
-    // still added a Mongo tenant filter and missed rows stored with `null`.
-    const adapterTenant = (tenantId || undefined) as DatabaseId | undefined;
-    const effectivePublicationFilter =
-      options.effectivePublicationFilter ||
-      resolvePublicationFilter(
-        { user: options.user, system: options.system },
-        options.publicationFilter,
-      );
-    // 🚀 DIRECT DB CALL: Direct findById bypasses findOne -> parseIdLookup overhead.
-    // Publication clamping is applied to the retrieved item so unpublished rows never
-    // escape to clamped callers (and empty result is cached under the publication suffix).
-    const crud = this._dbAdapter.crud as any;
-    const result =
-      typeof crud.findById === "function"
-        ? await crud.findById(collectionName, entryId as DatabaseId, {
-            tenantId: adapterTenant,
-            skipMeta: true,
-          })
-        : await crud.findOne(collectionName, { _id: entryId } as any, {
-            tenantId: adapterTenant,
-            skipMeta: true,
-          });
-
-    let item =
-      result.success && result.data
-        ? Array.isArray(result.data)
-          ? result.data[0]
-          : result.data
-        : null;
-
-    // Publication clamp: a clamped caller may only see published rows. The stored
-    // status is `publish` while this filter is named `published`, so both must be
-    // compared through the shared predicate — comparing the strings directly
-    // denied every row. Rows without a status are not status-versioned and keep
-    // passing through (unchanged behaviour).
-    if (item && effectivePublicationFilter !== "all") {
-      const status = (item as { status?: unknown }).status;
-      if (typeof status === "string") {
-        const allowed =
-          effectivePublicationFilter === "published"
-            ? isPublishedStatus(status)
-            : status === "draft" || status === "unpublish";
-        if (!allowed) item = null;
-      }
-    }
-
-    if (item) {
-      const hot = ensureSchemaHotFlags(schema);
-      if (hot._hasActiveWidgets) {
-        const payload = [{ ...item }];
-        await applyWidgetPipeline(schema, payload, {
-          dbAdapter: this._dbAdapter,
-          user: options.user || { _id: "system", role: "admin" },
-          type: "GET",
-          tenantId,
-          collectionName: schema.name,
-          skipValidation: options.skipValidation,
-          action: "findById",
-        });
-        item = payload[0] ?? item;
-      }
-
-      item._collection = (schema as any)._collectionMeta || {
-        id: schema._id,
-        name: schema.name,
-        label: schema.label,
-      };
-      (schema as any)._collectionMeta = item._collection;
-    }
-
-    const finalResult = { success: true, data: item || null };
-    const resolvedCacheKey =
-      cacheKey ??
-      `${tenantId || "global"}:collection:${schema._id}:${entryId}${publicationCacheSuffix(effectivePublicationFilter)}`;
-
-    if (!bypassCache && !options.skipCacheService) {
-      // The HTTP lane already stores the response body. A second copy of every
-      // random id in this LRU is insert+evict work the next GET never reads:
-      // the lane returns from the response cache before findById runs again.
-      CollectionsNamespace.setRequestCache(
-        resolvedCacheKey,
-        finalResult,
-        schema._id as string,
-        tenantId,
-      );
-      if (item) {
-        // Point-read lanes that already cache the full HTTP response opt out of
-        // the second entry: cacheService.set also writes the key prefix map, the
-        // doc tag index and an L2 serialization, all of which a random per-id
-        // scan pays for rows it will never read twice.
-        if (!options.skipCacheService) {
-          cacheService
-            .set(
-              resolvedCacheKey,
-              finalResult,
-              ttl || 180,
-              (tenantId || undefined) as string,
-              // Single-doc point read → ENTRY (cold category: async reads skip
-              // the LRU age update, so random per-id reads cannot evict hot
-              // list entries the way CONTENT-category hits would).
-              CacheCategory.ENTRY,
-              // 🚀 Surgical invalidation: tag by the SPECIFIC doc so a write to
-              // this entry clears only this key — NOT all 10k per-id entries.
-              [`doc:${schema._id}:${entryId}`],
-            )
-            .catch(() => {});
-        }
-      } else if (result.success && !options.system && options.disableErrors !== true) {
-        // Only a successful query can prove absence — a transient adapter error
-        // must never poison the negative cache. The doc tag lets the next write
-        // to this id clear the marker immediately (clearByTags → invalidateByTags).
-        cacheService.recordMiss(resolvedCacheKey, (tenantId || undefined) as string, [
-          `doc:${schema._id}:${entryId}`,
-        ]);
-      }
-    }
-
-    const hot = ensureSchemaHotFlags(schema);
-    return presentRead(
-      finalResult,
-      schema,
-      hot,
-      readEncryptionContext(schema, tenantId, hot),
-      options.user,
-      options.system,
-    );
+    return executeFindById(this, collectionId, entryId, options);
   }
 
   async create(collectionId: string, data: any, options: LocalApiOptions = {}) {
@@ -2713,59 +1542,7 @@ export class CollectionsNamespace {
     entryId: string,
     options: LocalApiOptions & { permanent?: boolean } = {},
   ) {
-    const { user, tenantId, system } = options;
-    if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
-    const schema = await this.schemaOf(collectionId, tenantId);
-    if (!system) {
-      const ownP = this.assertEntryOwnership(schema, entryId, tenantId, user, system);
-      if (ownP) await ownP;
-    }
-
-    const effectiveUser = system ? { _id: "system", role: "admin" } : user;
-
-    const result = await persistWithOutbox(
-      "delete",
-      async (txOpts) =>
-        this._dbAdapter.crud.delete(
-          this.getCollectionName(schema._id as string),
-          entryId as DatabaseId,
-          {
-            tenantId: tenantId as DatabaseId,
-            // false (default) = soft delete into the Trash, true = real DELETE.
-            permanent: options.permanent === true,
-            userId: effectiveUser?._id as DatabaseId,
-            ...txOpts,
-          },
-        ),
-      schema,
-      tenantId,
-      effectiveUser,
-      () => entryId,
-      () => null,
-      { skipSideEffects: options.skipSideEffects },
-    );
-
-    if (result && result.success) {
-      // ⚡ Response-path: never await side effects — concurrent delete RPS depends on this
-      schedulePostWrite(
-        this._dbAdapter,
-        "delete",
-        schema,
-        collectionId,
-        tenantId,
-        entryId,
-        null,
-        effectiveUser,
-        options,
-      );
-      if (!shouldSkipWriteSideEffects(options)) {
-        scheduleDefaultListWarm(schema._id as string, tenantId, effectiveUser, (warmOpts) =>
-          this.find(collectionId, { tenantId: warmOpts.tenantId, user: warmOpts.user }),
-        );
-      }
-    }
-
-    return result;
+    return executeDelete(this, collectionId, entryId, options);
   }
 
   /**

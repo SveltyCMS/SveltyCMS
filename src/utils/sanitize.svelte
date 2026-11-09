@@ -1,4 +1,4 @@
-<script lang="ts">
+<script module lang="ts">
 	/**
 	 * @file src/utils/sanitize.svelte
 	 * @description Isomorphic XSS-protected HTML renderer.
@@ -21,19 +21,13 @@
 
 	type SanitizeProfile = 'default' | 'rich-text' | 'strict';
 
-	interface Props {
-		class?: string;
-		html: string;
-		profile?: SanitizeProfile;
-	}
-
-	let { html, profile = 'default', class: className }: Props = $props();
-
-	// ── Module-scope sanitizer instance (lazy-init) ──
+	// ── Module-scope sanitizer instance (lazy-init, shared by all instances) ──
+	// `import('dompurify')` returns the same singleton module, so registering the
+	// URL hook inside a component instance stacked one identical hook per mount
+	// (never removed). Initialising here registers the hook exactly once.
 	let DOMPurify: any;
-	let addHook: any;
+	let initPromise: Promise<void> | null = null;
 	let hookAdded = false;
-	let sanitized = $state('');
 
 	// ── Profiles (shared between SSR and client) ──
 	const DEFAULT_TAGS = [
@@ -96,67 +90,68 @@
 		}
 	};
 
-	// ── Initialize sanitizer ──
+	// ── Initialize sanitizer (once per module, not per component instance) ──
 
-	async function initSanitizer() {
+	async function initSanitizer(): Promise<void> {
 		if (DOMPurify) return;
 
-		if (browser) {
-			// Client: DOMPurify uses native browser DOM
-			const mod = await import('dompurify');
-			DOMPurify = mod.default;
-		} else {
-			// Server: DOMPurify needs jsdom for DOM simulation
-			const [{ default: createDOMPurify }, { JSDOM }] = await Promise.all([
-				import('dompurify'),
-				// @ts-ignore - jsdom types may not be installed
-				import('jsdom')
-			]);
-			const window = new JSDOM('').window;
-			// @ts-ignore - DOMPurify factory returns sanitize function
-			DOMPurify = createDOMPurify(window);
-		}
+		initPromise ??= (async () => {
+			if (browser) {
+				// Client: DOMPurify uses native browser DOM
+				const mod = await import('dompurify');
+				DOMPurify = mod.default;
+			} else {
+				// Server: DOMPurify needs jsdom for DOM simulation
+				const [{ default: createDOMPurify }, { JSDOM }] = await Promise.all([
+					import('dompurify'),
+					// @ts-ignore - jsdom types may not be installed
+					import('jsdom')
+				]);
+				const window = new JSDOM('').window;
+				// @ts-ignore - DOMPurify factory returns sanitize function
+				DOMPurify = createDOMPurify(window);
+			}
 
-		addHook = DOMPurify?.addHook;
-
-		// URL validation hook registered once upon initialization (client and server)
-		if (addHook && !hookAdded) {
-			hookAdded = true;
-			addHook('afterSanitizeAttributes', (node: any) => {
-				if (node.tagName === 'A' && node.hasAttribute('href')) {
-					const href = node.getAttribute('href');
-					const isProtocolRelative = href ? href.startsWith('//') || href.startsWith('/\\') : false;
-					if (
-						href &&
-						(!href.match(/^(https?:|mailto:|\/|#)/) || isProtocolRelative) &&
-						!href.startsWith('data:')
-					) {
-						node.removeAttribute('href');
-					} else if (href?.match(/^https?:/)) {
-						node.setAttribute('rel', 'noopener noreferrer');
-						if (node.getAttribute('target') !== '_blank') {
-							node.removeAttribute('target');
+			// URL validation hook registered once at module scope (client and server)
+			if (!hookAdded) {
+				hookAdded = true;
+				DOMPurify.addHook('afterSanitizeAttributes', (node: any) => {
+					if (node.tagName === 'A' && node.hasAttribute('href')) {
+						const href = node.getAttribute('href');
+						const isProtocolRelative = href
+							? href.startsWith('//') || href.startsWith('/\\')
+							: false;
+						if (
+							href &&
+							(!href.match(/^(https?:|mailto:|\/|#)/) || isProtocolRelative) &&
+							!href.startsWith('data:')
+						) {
+							node.removeAttribute('href');
+						} else if (href?.match(/^https?:/)) {
+							node.setAttribute('rel', 'noopener noreferrer');
+							if (node.getAttribute('target') !== '_blank') {
+								node.removeAttribute('target');
+							}
 						}
 					}
-				}
-				if (node.tagName === 'IMG' && node.hasAttribute('src')) {
-					const src = node.getAttribute('src');
-					const isProtocolRelative = src ? src.startsWith('//') || src.startsWith('/\\') : false;
-					if (src && (!src.match(/^(https?:|data:|\/)/) || isProtocolRelative)) {
-						node.removeAttribute('src');
+					if (node.tagName === 'IMG' && node.hasAttribute('src')) {
+						const src = node.getAttribute('src');
+						const isProtocolRelative = src ? src.startsWith('//') || src.startsWith('/\\') : false;
+						if (src && (!src.match(/^(https?:|data:|\/)/) || isProtocolRelative)) {
+							node.removeAttribute('src');
+						}
 					}
-				}
-			});
-		}
+				});
+			}
+		})();
+
+		await initPromise;
 	}
 
 	// ── Sanitization logic ──
 
-	function sanitizeHtml() {
-		if (!html) {
-			sanitized = '';
-			return;
-		}
+	function sanitizeHtml(html: string, profile: SanitizeProfile): string {
+		if (!html) return '';
 
 		const config = {
 			ALLOWED_TAGS: PROFILES[profile].ALLOWED_TAGS,
@@ -164,12 +159,26 @@
 			ALLOW_DATA_ATTR: PROFILES[profile].ALLOW_DATA_ATTR
 		};
 
-		sanitized = DOMPurify.sanitize(html, config);
+		return DOMPurify.sanitize(html, config);
 	}
+</script>
+
+<script lang="ts">
+	interface Props {
+		class?: string;
+		html: string;
+		profile?: SanitizeProfile;
+	}
+
+	let { html, profile = 'default', class: className }: Props = $props();
+
+	let sanitized = $state('');
 
 	// ── Reactive: sanitize whenever html or profile changes ──
 	$effect(() => {
-		initSanitizer().then(() => sanitizeHtml());
+		initSanitizer().then(() => {
+			sanitized = sanitizeHtml(html, profile);
+		});
 	});
 </script>
 

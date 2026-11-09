@@ -269,9 +269,9 @@ export class CacheService {
 
   async incrementGlobalVersion(tenantId: string | null = "global"): Promise<number> {
     const key = `cms:${tenantId || "global"}:version`;
-    const current = await this.getGlobalVersion(tenantId);
-    const next = current + 1;
-    await this.set(key, next, 0, tenantId); // 0 = default TTL
+    // Atomic monotonic bump (INCRBY on L2, cooperative L1 otherwise) — the old
+    // read + 1 + write lost concurrent bumps.
+    const next = await this.increment(key, 1, tenantId);
     await this.publishInvalidation(key, tenantId);
     return next;
   }
@@ -980,8 +980,27 @@ export class CacheService {
 
     if (this.isL2Ready()) {
       try {
-        await this.l2.del(fullKey);
-        await this.publishInvalidation(key, tenantId, [key]);
+        // Publish the key as a PATTERN (peer L1 clears the exact key), not as a
+        // tag. `del` + `publish` share one pipeline to halve the round trips.
+        const message = JSON.stringify({
+          pattern: key,
+          tags: undefined,
+          tenantId,
+          nodeId: this.nodeId,
+          timestamp: Date.now(),
+        });
+        if (typeof this.l2.multi === "function") {
+          const multi = this.l2.multi();
+          multi.del(fullKey);
+          multi.publish(this.INVALIDATION_CHANNEL, message);
+          await multi.exec();
+        } else {
+          await this.l2.del(fullKey);
+          await this.l2.publish(this.INVALIDATION_CHANNEL, message);
+        }
+        // Preserve the existing CDN purge-by-tag semantics (the pub/sub message
+        // is now a pattern, but the CDN side still keys on the raw cache key).
+        this.triggerCdnPurge(key, [key]);
       } catch (err) {
         logger.error(`L2 Cache Delete Failure: ${fullKey}`, err);
       }
@@ -1140,38 +1159,43 @@ export class CacheService {
             } while (cursor !== "0");
           }
         } else {
-          const CHUNK_SIZE = 50;
           const tagPrefix = `${this.normalizeTenantId(tenantId)}:`;
-          const tagKeys = tags.map((t) => `tag:${tagPrefix}${t}`);
+          const uniqueTags = [...new Set(tags)];
+          const tagKeys = uniqueTags.map((t) => `tag:${tagPrefix}${t}`);
 
-          for (let i = 0; i < tagKeys.length; i += CHUNK_SIZE) {
-            const tagKeyChunk = tagKeys.slice(i, i + CHUNK_SIZE);
-            const membersChunks = await Promise.all(
-              tagKeyChunk.map((tk) => this.l2.sMembers(tk).catch(() => [] as string[])),
+          if (typeof this.l2.multi === "function") {
+            // Fetch every tag's members in ONE pipeline (1 round trip), then
+            // delete members + tag keys in a second pipeline (2 RTs total instead
+            // of one sMembers round trip per tag + one unlink per chunk).
+            const fetchMulti = this.l2.multi();
+            for (const tk of tagKeys) fetchMulti.sMembers(tk);
+            const replies = await fetchMulti.exec();
+            const membersChunks = (replies ?? []).map((r: unknown) =>
+              Array.isArray(r) ? (r as string[]) : ([] as string[]),
             );
 
-            if (typeof this.l2.multi === "function") {
-              const multi = this.l2.multi();
-              for (let j = 0; j < tagKeyChunk.length; j++) {
-                const keys = membersChunks[j];
-                if (keys && keys.length > 0) {
-                  if (typeof multi.unlink === "function") multi.unlink(keys);
-                  else multi.del(keys);
-                }
-                if (typeof multi.unlink === "function") multi.unlink(tagKeyChunk[j]);
-                else multi.del(tagKeyChunk[j]);
-              }
-              await multi.exec();
-            } else {
-              const allToDel: string[] = [...tagKeyChunk];
-              for (let j = 0; j < membersChunks.length; j++) {
-                const m = membersChunks[j];
-                if (m && m.length > 0) allToDel.push(...m);
-              }
-              if (allToDel.length > 0) {
-                if (typeof this.l2.unlink === "function") await this.l2.unlink(allToDel);
-                else await this.l2.del(allToDel);
-              }
+            const allToDel: string[] = [...tagKeys];
+            for (const members of membersChunks) {
+              if (members.length > 0) allToDel.push(...members);
+            }
+
+            if (allToDel.length > 0) {
+              const delMulti = this.l2.multi();
+              if (typeof delMulti.unlink === "function") delMulti.unlink(allToDel);
+              else delMulti.del(allToDel);
+              await delMulti.exec();
+            }
+          } else {
+            const allToDel: string[] = [...tagKeys];
+            const membersChunks = await Promise.all(
+              tagKeys.map((tk) => this.l2.sMembers(tk).catch(() => [] as string[])),
+            );
+            for (const members of membersChunks) {
+              if (members.length > 0) allToDel.push(...members);
+            }
+            if (allToDel.length > 0) {
+              if (typeof this.l2.unlink === "function") await this.l2.unlink(allToDel);
+              else await this.l2.del(allToDel);
             }
           }
         }

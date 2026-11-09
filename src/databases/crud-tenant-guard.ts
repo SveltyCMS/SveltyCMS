@@ -32,10 +32,28 @@ export function resetGuardCache(): void {
   resetSafeQueryCache();
 }
 
+type OperationLabel = string | (() => string);
+
+function resolveOperation(operation: OperationLabel | undefined, fallback: string): string {
+  return typeof operation === "function" ? operation() : operation || fallback;
+}
+
+function raiseTenantMismatch(
+  dataTenantId: unknown,
+  optionsTenantId: unknown,
+  operation?: OperationLabel,
+): never {
+  raise(
+    500,
+    `Security Violation: Attempted to write data for tenant "${String(dataTenantId)}" into tenant "${String(optionsTenantId)}" on ${resolveOperation(operation, "crud.write")}.`,
+    "TENANT_MISMATCH",
+  );
+}
+
 function enforceOptionsSync<T extends BaseQueryOptions | undefined>(
   options: T,
   mode: TenantGuardMode,
-  operation?: string,
+  operation?: OperationLabel,
 ): T {
   if (mode === "bypass") return options;
   if (!isMultiTenantMode()) return options;
@@ -43,7 +61,7 @@ function enforceOptionsSync<T extends BaseQueryOptions | undefined>(
   if (hasTenantBypass(options)) return options;
 
   // Fail-closed: never invent a synthetic "global" tenant.
-  assertTenantContext(options, operation || "crud");
+  assertTenantContext(options, resolveOperation(operation, "crud"));
 
   return options;
 }
@@ -63,7 +81,7 @@ function isPresentTenantId(value: unknown): value is DatabaseId {
 export function enforceDataTenantIdSync<T extends Record<string, unknown>>(
   data: T,
   options: BaseQueryOptions | undefined,
-  operation?: string,
+  operation?: OperationLabel,
 ): T {
   if (!isMultiTenantMode()) return data;
   if (hasTenantBypass(options)) return data;
@@ -75,11 +93,7 @@ export function enforceDataTenantIdSync<T extends Record<string, unknown>>(
 
   if (isPresentTenantId(data.tenantId)) {
     if (optionsHasScope && data.tenantId !== optionsTenantId) {
-      raise(
-        500,
-        `Security Violation: Attempted to write data for tenant "${String(data.tenantId)}" into tenant "${String(optionsTenantId)}" on ${operation || "crud.write"}.`,
-        "TENANT_MISMATCH",
-      );
+      raiseTenantMismatch(data.tenantId, optionsTenantId, operation);
     }
     return data;
   }
@@ -89,8 +103,79 @@ export function enforceDataTenantIdSync<T extends Record<string, unknown>>(
     return { ...data, tenantId: options.tenantId };
   }
 
-  assertTenantContext(options, operation || "crud.write");
+  assertTenantContext(options, resolveOperation(operation, "crud.write"));
   return data;
+}
+
+/**
+ * Batch variant of {@link enforceDataTenantIdSync}: checks the ambient tenant
+ * scope once and copies only rows that lack their own `tenantId`.
+ */
+function enforceDataTenantIdBatchSync<T extends Record<string, unknown>>(
+  data: T[],
+  options: BaseQueryOptions | undefined,
+  operation?: OperationLabel,
+): T[] {
+  if (!isMultiTenantMode()) return data;
+  if (hasTenantBypass(options)) return data;
+
+  const optionsTenantId = options?.tenantId;
+  const optionsHasScope = optionsTenantId !== undefined && optionsTenantId !== "";
+
+  if (!optionsHasScope) {
+    assertTenantContext(options, resolveOperation(operation, "crud.write"));
+    return data;
+  }
+
+  let result: T[] | null = null;
+  for (let i = 0; i < data.length; i++) {
+    const row = data[i];
+    if (isPresentTenantId(row.tenantId)) {
+      if (row.tenantId !== optionsTenantId) {
+        raiseTenantMismatch(row.tenantId, optionsTenantId, operation);
+      }
+      continue;
+    }
+    if (result === null) result = data.slice();
+    result[i] = { ...row, tenantId: optionsTenantId };
+  }
+  return result ?? data;
+}
+
+/**
+ * Upsert batch variant: the `query` part is never rewritten; only `data` rows
+ * lacking a `tenantId` are copied to receive the ambient tenant.
+ */
+function enforceUpsertManyBatchSync<T extends Record<string, unknown>>(
+  items: Array<{ query: unknown; data: T }>,
+  options: BaseQueryOptions | undefined,
+  operation?: OperationLabel,
+): Array<{ query: unknown; data: T }> {
+  if (!isMultiTenantMode()) return items;
+  if (hasTenantBypass(options)) return items;
+
+  const optionsTenantId = options?.tenantId;
+  const optionsHasScope = optionsTenantId !== undefined && optionsTenantId !== "";
+
+  if (!optionsHasScope) {
+    assertTenantContext(options, resolveOperation(operation, "crud.write"));
+    return items;
+  }
+
+  let result: Array<{ query: unknown; data: T }> | null = null;
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const row = item.data;
+    if (isPresentTenantId(row.tenantId)) {
+      if (row.tenantId !== optionsTenantId) {
+        raiseTenantMismatch(row.tenantId, optionsTenantId, operation);
+      }
+      continue;
+    }
+    if (result === null) result = items.slice();
+    result[i] = { query: item.query, data: { ...row, tenantId: optionsTenantId } };
+  }
+  return result ?? items;
 }
 
 /**
@@ -105,92 +190,101 @@ export function createTenantGuardedCrud(
   // Multi-tenancy is rarely used; don't tax every CRUD call with wrapper layers.
   if (!isMultiTenantMode()) return inner;
 
-  const g = <T extends BaseQueryOptions | undefined>(o: T, op: string) =>
-    enforceOptionsSync(o, mode, op);
+  const g = <T extends BaseQueryOptions | undefined>(o: T, collection: string, operation: string) =>
+    enforceOptionsSync(o, mode, () => `${collection}.${operation}`);
   const d = <T extends Record<string, unknown>>(
     data: T,
     options: BaseQueryOptions | undefined,
-    op: string,
-  ) => enforceDataTenantIdSync(data, options, op);
+    collection: string,
+    operation: string,
+  ) => enforceDataTenantIdSync(data, options, () => `${collection}.${operation}`);
 
   return {
-    aggregate: async (collection, pipeline, options) =>
-      inner.aggregate(collection, pipeline, g(options, "aggregate")),
+    aggregate: (collection, pipeline, options) =>
+      inner.aggregate(collection, pipeline, g(options, collection, "aggregate")),
 
-    count: async (collection, query, options) =>
-      inner.count(collection, query, g(options, "count")),
+    count: (collection, query, options) =>
+      inner.count(collection, query, g(options, collection, "count")),
 
-    exists: async (collection, query, options) =>
-      inner.exists(collection, query, g(options, "exists")),
+    exists: (collection, query, options) =>
+      inner.exists(collection, query, g(options, collection, "exists")),
 
-    find: async (collection, query, options) => inner.find(collection, query, g(options, "find")),
+    find: (collection, query, options) =>
+      inner.find(collection, query, g(options, collection, "find")),
 
-    findByIds: async (collection, ids, options) =>
-      inner.findByIds(collection, ids, g(options, "findByIds")),
+    findByIds: (collection, ids, options) =>
+      inner.findByIds(collection, ids, g(options, collection, "findByIds")),
 
-    findById: async (collection, id, options) =>
-      inner.findById(collection, id, g(options, "findById")),
+    findById: (collection, id, options) =>
+      inner.findById(collection, id, g(options, collection, "findById")),
 
-    findMany: async (collection, query, options) =>
-      inner.findMany(collection, query, g(options, "findMany")),
+    findMany: (collection, query, options) =>
+      inner.findMany(collection, query, g(options, collection, "findMany")),
 
-    findPage: async (collection, query, options) =>
-      inner.findPage(collection, query, g(options, "findPage")),
+    findPage: (collection, query, options) =>
+      inner.findPage(collection, query, g(options, collection, "findPage")),
 
-    findOne: async (collection, query, options) =>
-      inner.findOne(collection, query, g(options, "findOne")),
+    findOne: (collection, query, options) =>
+      inner.findOne(collection, query, g(options, collection, "findOne")),
 
-    streamMany: async (collection, query, options) =>
-      inner.streamMany(collection, query, g(options, "streamMany")),
+    streamMany: (collection, query, options) =>
+      inner.streamMany(collection, query, g(options, collection, "streamMany")),
 
-    insert: async (collection, data, options) => {
-      const opts = g(options, `${collection}.insert`);
-      return inner.insert(collection, d(data as any, opts, `${collection}.insert`), opts);
+    insert: (collection, data, options) => {
+      const opts = g(options, collection, "insert");
+      return inner.insert(collection, d(data as any, opts, collection, "insert"), opts);
     },
 
-    insertMany: async (collection, data, options) => {
-      const opts = g(options, `${collection}.insertMany`);
-      const guarded = data.map((item) => d(item as any, opts, `${collection}.insertMany`));
+    insertMany: (collection, data, options) => {
+      const opts = g(options, collection, "insertMany");
+      // The batch helper only copies tenant-less rows; the returned shape is
+      // identical to `data`, so restore the adapter's generic element type.
+      const guarded = enforceDataTenantIdBatchSync(
+        data as any,
+        opts,
+        () => `${collection}.insertMany`,
+      ) as unknown as typeof data;
       return inner.insertMany(collection, guarded, opts);
     },
 
-    update: async (collection, id, data, options) => {
-      const opts = g(options, `${collection}.update`);
-      return inner.update(collection, id, d(data as any, opts, `${collection}.update`), opts);
+    update: (collection, id, data, options) => {
+      const opts = g(options, collection, "update");
+      return inner.update(collection, id, d(data as any, opts, collection, "update"), opts);
     },
 
-    updateMany: async (collection, query, data, options) => {
-      const opts = g(options, `${collection}.updateMany`);
+    updateMany: (collection, query, data, options) => {
+      const opts = g(options, collection, "updateMany");
       return inner.updateMany(
         collection,
         query,
-        d(data as any, opts, `${collection}.updateMany`),
+        d(data as any, opts, collection, "updateMany"),
         opts,
       );
     },
 
-    upsert: async (collection, query, data, options) => {
-      const opts = g(options, `${collection}.upsert`);
-      return inner.upsert(collection, query, d(data as any, opts, `${collection}.upsert`), opts);
+    upsert: (collection, query, data, options) => {
+      const opts = g(options, collection, "upsert");
+      return inner.upsert(collection, query, d(data as any, opts, collection, "upsert"), opts);
     },
 
-    upsertMany: async (collection, items, options) => {
-      const opts = g(options, `${collection}.upsertMany`);
-      const guarded = items.map(({ query, data }) => ({
-        query,
-        data: d(data as any, opts, `${collection}.upsertMany`),
-      }));
+    upsertMany: (collection, items, options) => {
+      const opts = g(options, collection, "upsertMany");
+      const guarded = enforceUpsertManyBatchSync(
+        items as any,
+        opts,
+        () => `${collection}.upsertMany`,
+      ) as unknown as typeof items;
       return inner.upsertMany(collection, guarded, opts);
     },
 
-    delete: async (collection, id, options) =>
-      inner.delete(collection, id, g(options, `${collection}.delete`)),
+    delete: (collection, id, options) =>
+      inner.delete(collection, id, g(options, collection, "delete")),
 
-    deleteMany: async (collection, query, options) =>
-      inner.deleteMany(collection, query, g(options, `${collection}.deleteMany`)),
+    deleteMany: (collection, query, options) =>
+      inner.deleteMany(collection, query, g(options, collection, "deleteMany")),
 
-    restore: async (collection, id, options) =>
-      inner.restore(collection, id, g(options, `${collection}.restore`)),
+    restore: (collection, id, options) =>
+      inner.restore(collection, id, g(options, collection, "restore")),
 
     // Direct-to-Wire point reads keep the same tenant-options guard as every other
     // op. Without this delegation the wrapper (multi-tenant mode) hides the method —
@@ -199,22 +293,18 @@ export function createTenantGuardedCrud(
     // is on.
     ...(typeof inner.findPointWireStream === "function"
       ? {
-          findPointWireStream: async (
-            collection: string,
-            id: DatabaseId,
-            options?: BaseQueryOptions,
-          ) =>
+          findPointWireStream: (collection: string, id: DatabaseId, options?: BaseQueryOptions) =>
             inner.findPointWireStream!(
               collection,
               id,
-              g(options, `${collection}.findPointWireStream`),
+              g(options, collection, "findPointWireStream"),
             ),
         }
       : {}),
 
     ...(typeof inner.findListWireStream === "function"
       ? {
-          findListWireStream: async (
+          findListWireStream: (
             collection: string,
             options?: BaseQueryOptions & {
               limit?: number;
@@ -224,20 +314,19 @@ export function createTenantGuardedCrud(
               sortDirection?: "asc" | "desc";
               fields?: string[];
             },
-          ) =>
-            inner.findListWireStream!(collection, g(options, `${collection}.findListWireStream`)),
+          ) => inner.findListWireStream!(collection, g(options, collection, "findListWireStream")),
         }
       : {}),
 
     ...(typeof inner.atomicIncrement === "function"
       ? {
-          atomicIncrement: async (collection, id, field, amount, options) =>
+          atomicIncrement: (collection, id, field, amount, options) =>
             inner.atomicIncrement!(
               collection,
               id,
               field,
               amount,
-              g(options, `${collection}.atomicIncrement`),
+              g(options, collection, "atomicIncrement"),
             ),
         }
       : {}),
@@ -259,12 +348,19 @@ export function createTenantGuardedNamespace<T extends object>(
   // Single-tenant / benchmark: return namespace directly — zero Proxy overhead.
   if (!isMultiTenantMode()) return namespace;
 
+  const wrappers = new Map<PropertyKey, (...args: unknown[]) => unknown>();
+
   return new Proxy(namespace, {
     get(target, prop, receiver) {
       const original = Reflect.get(target, prop, receiver);
       if (typeof original !== "function") return original;
 
-      return (...args: any[]) => {
+      // Memoize one wrapper per property — the previous Proxy allocated a fresh
+      // closure on every property access under multi-tenant mode.
+      const cached = wrappers.get(prop);
+      if (cached) return cached;
+
+      const wrapper = (...args: unknown[]) => {
         if (mode === "bypass") {
           return original.apply(target, args);
         }
@@ -275,6 +371,8 @@ export function createTenantGuardedNamespace<T extends object>(
         }
         return original.apply(target, args);
       };
+      wrappers.set(prop, wrapper);
+      return wrapper;
     },
   }) as T;
 }

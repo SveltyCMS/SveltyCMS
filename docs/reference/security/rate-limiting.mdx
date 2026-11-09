@@ -26,7 +26,6 @@ lives in [Login security](./login-security.mdx).
 | File                  | Responsibility                                                     |
 | --------------------- | ------------------------------------------------------------------ |
 | `token-bucket.ts`     | Pure token-bucket math (no dependencies)                           |
-| `l1-filter.ts`        | Synchronous per-IP token bucket that rejects floods before Redis   |
 | `adaptive.ts`         | Adaptive capacity by tier × tenant plan × system pressure          |
 | `role-tiers.ts`       | RBAC seeding of role tiers (hot path: set lookup, no DB access)    |
 | `tenant-plan.ts`      | In-memory plan cache per `tenantId` (hot path: map get)            |
@@ -55,30 +54,29 @@ A bucket has `capacity` (max burst) and `refillPerSecond` (refill rate).
 
 ### Request flow
 
-0. `checkL1PreFilter()` runs **synchronously** as the first rate-limit step (in
-   `src/hooks/handle-rate-limit.ts`). See the section below.
 1. `loadBaseRateLimitConfig()` reads the base configuration from environment variables.
 2. `computeAdaptiveBucket()` adjusts `capacity`/`refill` for the caller's profile.
 3. `rateLimit()` tries **Redis** first → on error/timeout it falls back to **memory** (with logging).
 4. The hook sets `X-RateLimit-*` headers or returns **429** (`RATE_LIMITED`).
 
-### Synchronous L1 pre-filter
+### Volumetric flood protection (L1 pre-filter removed)
 
-`src/utils/rate-limit/l1-filter.ts` keeps one small token bucket per client IP in a
-bounded `Map` (10 000 entries, LRU eviction) and runs before any `await`, Redis
-round-trip, body parse, or Argon2id hash:
+The former synchronous per-IP L1 token bucket (`src/utils/rate-limit/l1-filter.ts`,
+200 req/s) was removed in `e5343a933` / PR #565. It rejected bulk write paths
+before the lane limiter ran (a 100k-document per-item seed died around document
+#244 while the adaptive limiter would have allowed it), and its only tuning knobs
+were documented as harness-only. The trade-off is accepted: the synchronous
+volumetric guard is gone.
 
-- **Defaults**: 200-token capacity, 200 tokens/s refill. A single IP that exceeds
-  the burst is answered with **429** immediately instead of consuming a Redis
-  connection or an event-loop turn.
-- **Cost**: integer arithmetic on a Map lookup (~20–50 ns), zero allocations for
-  IPs already tracked. The distributed limiter still applies per-endpoint costs
-  and adaptive capacity to traffic that passes the filter — the L1 bucket is a
-  flood gate, not a replacement for the token-bucket engine.
-- **Isolation**: the filter state is process-local. In a cluster each node drops
-  its own share of a flood; the Redis bucket remains the authoritative cross-node
-  limiter for traffic that reaches it.
-- **Tests**: `tests/unit/rate-limit/l1-filter.test.ts`.
+The request-rate controls that remain are the adaptive lane limiter
+(tier × tenant plan × system pressure), the per-tenant ceiling (multi-tenant
+deployments), the WAF (`SECURITY_RATE_LIMIT_SCALE`), and Redis-backed accounting
+when configured. `RATE_LIMIT_L1_CAPACITY` / `RATE_LIMIT_L1_REFILL_PER_SEC` are
+**no longer read** — setting them on `next` is a no-op. The benchmark harness
+still passes them for compatibility with `main`.
+
+For a large per-item seed, raise `RATE_LIMIT_MAX_REQUESTS` (the admin tier is
+×10) or seed through `POST …/bulk`, which amortises one request over 500 rows.
 
 ## Configuration
 

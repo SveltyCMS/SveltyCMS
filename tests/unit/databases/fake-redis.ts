@@ -23,10 +23,11 @@ interface StoredEntry {
 }
 
 interface MultiOp {
-  op: "set" | "sAdd" | "del";
+  op: "set" | "sAdd" | "del" | "sMembers" | "publish";
   key: string;
   value?: string | string[];
   opts?: SetOptions;
+  channel?: string;
 }
 
 /** Convert a Redis glob pattern to a RegExp (`*` → `.*`, rest escaped). */
@@ -109,6 +110,8 @@ export class FakeRedis {
     set: (key: string, value: string, opts?: SetOptions) => void;
     sAdd: (key: string, member: string | string[]) => void;
     del: (...keys: (string | string[])[]) => void;
+    sMembers: (key: string) => void;
+    publish: (channel: string, message: string) => void;
     exec: () => Promise<unknown[]>;
   } {
     // Arrow functions capture `this` lexically (the FakeRedis instance) —
@@ -124,6 +127,12 @@ export class FakeRedis {
       del: (...keys: (string | string[])[]) => {
         const flat = keys.flat(Infinity) as string[];
         ops.push({ op: "del", key: flat.join("\u0000"), value: undefined });
+      },
+      sMembers: (key: string) => {
+        ops.push({ op: "sMembers", key, value: undefined });
+      },
+      publish: (channel: string, message: string) => {
+        ops.push({ op: "publish", key: channel, channel, value: message });
       },
       exec: async () => {
         const replies: unknown[] = [];
@@ -149,6 +158,23 @@ export class FakeRedis {
             }
             this.sets.set(op.key, set);
             replies.push(1);
+          } else if (op.op === "sMembers") {
+            const members = [...(this.sets.get(op.key) ?? [])];
+            replies.push(members.filter((m) => this.rawGet(m) !== null));
+          } else if (op.op === "publish") {
+            const listeners = this.channels.get(op.channel as string);
+            if (!listeners) {
+              replies.push(0);
+              continue;
+            }
+            for (const cb of listeners) {
+              try {
+                cb(op.value as string);
+              } catch {
+                // subscriber errors must not break the publisher
+              }
+            }
+            replies.push(listeners.size);
           } else {
             let deleted = 0;
             for (const key of op.key.split("\u0000")) {

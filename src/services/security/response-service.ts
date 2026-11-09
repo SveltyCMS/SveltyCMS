@@ -109,6 +109,15 @@ const RAW_SECURITY_RATE_LIMIT_SCALE = Number(process.env.SECURITY_RATE_LIMIT_SCA
 const SECURITY_RATE_LIMIT_SCALE =
   RAW_SECURITY_RATE_LIMIT_SCALE > 0 ? RAW_SECURITY_RATE_LIMIT_SCALE : 1;
 
+/** Ordinal ranking for threat escalation — module-level so scans allocate nothing. */
+const THREAT_RANK: Record<ThreatLevel, number> = {
+  none: 0,
+  low: 1,
+  medium: 2,
+  high: 3,
+  critical: 4,
+};
+
 interface PayloadSnapshot {
   json?: unknown;
   text?: string;
@@ -134,6 +143,8 @@ export class SecurityResponseService {
   private readonly limiters = new Map<string, TokenBucketConfig>();
   private readonly lastAlertTime = new Map<string, number>();
   private readonly ALERT_COOLDOWN = 5 * 60 * 1000;
+  /** Hard bound so a distributed scan cannot grow the cooldown map without limit. */
+  private readonly MAX_ALERT_TRACKERS = 1024;
   private get dumpPath(): string {
     return path.join(resolveActiveDatabaseDir(), "security_rl_dump.json");
   }
@@ -453,14 +464,7 @@ export class SecurityResponseService {
   }
 
   private upgradeThreat(current: ThreatLevel, next: ThreatLevel): ThreatLevel {
-    const lvls: Record<ThreatLevel, number> = {
-      none: 0,
-      low: 1,
-      medium: 2,
-      high: 3,
-      critical: 4,
-    };
-    return lvls[next] > lvls[current] ? next : current;
+    return THREAT_RANK[next] > THREAT_RANK[current] ? next : current;
   }
 
   private detectAnomalies(request: Request): AnomalyResult {
@@ -689,15 +693,36 @@ export class SecurityResponseService {
     }
   }
 
+  /**
+   * Cooldown gate plus bounded bookkeeping: expired entries are evicted on
+   * access, and the map is capped FIFO so an alert flood cannot grow it.
+   */
+  private shouldRecordAlert(ip: string, now: number): boolean {
+    const last = this.lastAlertTime.get(ip);
+    if (last !== undefined) {
+      if (now - last < this.ALERT_COOLDOWN) return false;
+      this.lastAlertTime.delete(ip);
+    }
+    if (this.lastAlertTime.size >= this.MAX_ALERT_TRACKERS) {
+      for (const [key, ts] of this.lastAlertTime) {
+        if (now - ts >= this.ALERT_COOLDOWN) this.lastAlertTime.delete(key);
+      }
+      if (this.lastAlertTime.size >= this.MAX_ALERT_TRACKERS) {
+        const oldest = this.lastAlertTime.keys().next().value;
+        if (oldest !== undefined) this.lastAlertTime.delete(oldest);
+      }
+    }
+    this.lastAlertTime.set(ip, now);
+    return true;
+  }
+
   public async dispatchAlert(
     ip: string,
     level: ThreatLevel,
     reason: string,
     tenantId?: string,
   ): Promise<void> {
-    const last = this.lastAlertTime.get(ip);
-    if (last && Date.now() - last < this.ALERT_COOLDOWN) return;
-    this.lastAlertTime.set(ip, Date.now());
+    if (!this.shouldRecordAlert(ip, Date.now())) return;
 
     const webhook = process.env.SECURITY_WEBHOOK_URL;
     if (!webhook) return;

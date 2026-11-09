@@ -3,9 +3,11 @@
  * @description Multi-strategy predictive preloading system for SveltyCMS.
  *
  * ### Hardening (audit 2026-07):
- * - Memory-leak prevention: WeakMap replaces Set — GC auto-collects removed DOM links
+ * - Memory-leak prevention: WeakMap tracks processed links; the predictive set is
+ *   pruned lazily (`isConnected`) on each pointer frame so removed DOM nodes drop out
  * - Promise coalescing: getHotPaths caches the Promise itself (single network request)
  * - Passive event listeners: pointermove uses { passive: true } for scroll optimization
+ * - rAF-coalesced pointer evaluation: one cone check per frame, not per event
  * - Simplified lifecycle: MutationObserver + WeakMap eliminate manual destroy() calls
  *
  * Four strategies:
@@ -48,7 +50,13 @@ const _trackedLinks = new WeakMap<
   { strategy: string; timer?: ReturnType<typeof setTimeout> }
 >();
 const _preloaded = new Map<string, number>(); // href → timestamp
+const MAX_PRELOADED = 50;
+// Predictive-strategy links, populated by observeLink (initial scan + MutationObserver).
+// Iterating this Set replaces a `document.querySelectorAll` on every pointermove.
+const _predictiveLinks = new Set<HTMLAnchorElement>();
 let _observer: IntersectionObserver | null = null;
+let _pointerRaf = 0;
+let _pendingPointer: PointerEvent | null = null;
 let _started = false;
 
 // ─── Core Logic ────────────────────────────────────────────────────────────
@@ -69,6 +77,12 @@ async function preload(href: string, options: { prewarm?: boolean } = {}): Promi
   const now = Date.now();
   if ((_preloaded.get(href) ?? 0) > now - PRELOAD_DEDUP_MS) return;
   _preloaded.set(href, now);
+  // Bound the dedup map — Map preserves insertion order, so the first key is the
+  // oldest. Without this, every visited href would live for the whole session.
+  if (_preloaded.size > MAX_PRELOADED) {
+    const oldest = _preloaded.keys().next().value;
+    if (oldest !== undefined) _preloaded.delete(oldest);
+  }
 
   try {
     // Server-side route cache pre-warm — predictive cone only (see file header).
@@ -99,6 +113,18 @@ function getHotPaths(): Promise<Set<string>> {
 // ─── Strategy: Predictive Cone ─────────────────────────────────────────────
 
 function handlePointerMove(event: PointerEvent): void {
+  _pendingPointer = event;
+  if (_pointerRaf) return;
+  // Coalesce bursts of pointermove events into one cone evaluation per frame.
+  _pointerRaf = requestAnimationFrame(() => {
+    _pointerRaf = 0;
+    const pending = _pendingPointer;
+    _pendingPointer = null;
+    if (pending) evaluatePredictiveCone(pending);
+  });
+}
+
+function evaluatePredictiveCone(event: PointerEvent): void {
   const predicted = event.getPredictedEvents?.() ?? [];
   if (predicted.length < 2) return;
 
@@ -107,38 +133,46 @@ function handlePointerMove(event: PointerEvent): void {
   const dy = last.clientY - event.clientY;
   const cursorAngle = Math.atan2(dy, dx);
 
-  const targets = document.querySelectorAll<HTMLAnchorElement>(
-    "a[data-preload='predict'], a[data-preload='smart']",
-  );
+  for (const link of _predictiveLinks) {
+    // Prune nodes removed from the document since they were observed.
+    if (!link.isConnected) {
+      _predictiveLinks.delete(link);
+      continue;
+    }
 
-  targets.forEach(async (link) => {
     const rect = link.getBoundingClientRect();
     const cx = rect.left + rect.width / 2;
     const cy = rect.top + rect.height / 2;
 
     const dist = Math.hypot(cx - event.clientX, cy - event.clientY);
-    if (dist > CONE_LENGTH || dist < 10) return;
+    if (dist > CONE_LENGTH || dist < 10) continue;
 
     const angleToTarget = Math.atan2(cy - event.clientY, cx - event.clientX);
     let diff = Math.abs(angleToTarget - cursorAngle);
     if (diff > Math.PI) diff = 2 * Math.PI - diff;
+    if (diff > CONE_ANGLE) continue;
 
-    if (diff <= CONE_ANGLE) {
-      if (link.dataset.preload === "smart") {
+    if (link.dataset.preload === "smart") {
+      void (async () => {
         const hotPaths = await getHotPaths();
         const collection = link.pathname.split("/")[1];
-        if (hotPaths.has(collection)) preload(link.href, { prewarm: true });
-      } else {
-        preload(link.href, { prewarm: true });
-      }
+        if (hotPaths.has(collection)) void preload(link.href, { prewarm: true });
+      })();
+    } else {
+      void preload(link.href, { prewarm: true });
     }
-  });
+  }
 }
 
 // ─── Lifecycle Management ──────────────────────────────────────────────────
 
 function observeLink(link: HTMLAnchorElement) {
   const strategy = link.dataset.preload || "hover";
+
+  // Feed the pointer-cone evaluator without re-querying the DOM per frame.
+  if (strategy === "predict" || strategy === "smart") {
+    _predictiveLinks.add(link);
+  }
 
   // Cleanup previous listeners if link is re-processed
   if (_trackedLinks.has(link)) return;
@@ -175,6 +209,9 @@ export function initPredictivePreload(): void {
       m.addedNodes.forEach((node) => {
         if (node instanceof HTMLAnchorElement && node.hasAttribute("data-preload"))
           observeLink(node);
+      });
+      m.removedNodes.forEach((node) => {
+        if (node instanceof HTMLAnchorElement) _predictiveLinks.delete(node);
       });
     }
   });

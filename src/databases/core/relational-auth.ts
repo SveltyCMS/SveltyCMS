@@ -37,6 +37,7 @@ import {
 import type { ISODateString } from "@src/content/types";
 import { assertTenantContext } from "@src/utils/security/safe-query";
 import { RAW_DECLINED, rowsAffected } from "./drizzle-sql-helpers";
+import type { SqlDialect } from "./sql-query-builder";
 
 /**
  * Normalize the `amr` JSON column once at the session boundary. SQLite (mode:"json")
@@ -53,6 +54,81 @@ function normalizeSessionAmr<T>(row: T): T {
   const amr = (row as { amr?: unknown } | null | undefined)?.amr;
   if (!row || amr === undefined || amr === null) return row;
   return { ...(row as Record<string, unknown>), amr: parseJsonField<string[]>(amr, []) } as T;
+}
+
+/**
+ * Explicit physical columns for the validate-session fast path.
+ *
+ * Deliberately excludes `password`, `totpSecret`, `backupCodes`,
+ * `last2FAVerification` and `authenticators` — a session validation only needs
+ * the identity/role/tenant shape, never the credential material the old
+ * `SELECT u.*` leaked into the hot path (and, via `mapUser`, into the result).
+ */
+const AUTH_USER_VALIDATION_COLUMNS = [
+  "_id",
+  "email",
+  "username",
+  "emailVerified",
+  "blocked",
+  "firstName",
+  "lastName",
+  "avatar",
+  "roleIds",
+  "role",
+  "isAdmin",
+  "isRegistered",
+  "is2FAEnabled",
+  "tenantId",
+  "createdAt",
+  "updatedAt",
+] as const;
+
+/**
+ * Allowlist for the static identifier positions below. The columns are
+ * compile-time constants, but the identifier-interpolation scanners require an
+ * explicit guard before a name is spliced into a SQL template.
+ */
+const SAFE_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+interface ValidateSessionSqlPlan {
+  sqlite: boolean;
+  noTenant: string;
+  tenantEq: string;
+  tenantNull: string;
+}
+
+/** One SQL plan per dialect id — the column list and placeholder style never change per call. */
+const validateSessionSqlCache = new Map<string, ValidateSessionSqlPlan>();
+
+function buildValidateSessionSql(dialect: SqlDialect): ValidateSessionSqlPlan {
+  const cached = validateSessionSqlCache.get(dialect.id);
+  if (cached) return cached;
+
+  const cols = AUTH_USER_VALIDATION_COLUMNS.map((c) => {
+    if (!SAFE_IDENTIFIER.test(c)) {
+      throw new Error(`[RelationalAuthModule] Unsafe column name in validation plan: ${c}`);
+    }
+    return `u.${c}`;
+  }).join(", ");
+  const idPh = dialect.bindAt(0);
+  const sqlite = dialect.id === "sqlite";
+  // SQLite stores `expires` as INTEGER epoch-ms and is compared to a bound
+  // Date.now(); PG/MariaDB store a real timestamp compared to NOW().
+  const expiryClause = sqlite ? `s.expires > ${dialect.bindAt(1)}` : "s.expires > NOW()";
+  const tenantPh = dialect.bindAt(sqlite ? 2 : 1);
+
+  const base =
+    `SELECT ${cols} FROM auth_sessions s INNER JOIN auth_users u ON s.user_id = u._id ` +
+    `WHERE s._id = ${idPh} AND ${expiryClause}`;
+
+  const plan: ValidateSessionSqlPlan = {
+    sqlite,
+    noTenant: `${base} LIMIT 1`,
+    tenantEq: `${base} AND u.tenantId = ${tenantPh} LIMIT 1`,
+    tenantNull: `${base} AND u.tenantId IS NULL LIMIT 1`,
+  };
+  validateSessionSqlCache.set(dialect.id, plan);
+  return plan;
 }
 
 export class RelationalAuthModule implements IAuthAdapter {
@@ -622,9 +698,17 @@ export class RelationalAuthModule implements IAuthAdapter {
   ): Promise<DatabaseResult<void>> {
     return this.adapter.wrap(
       async () => {
+        const conditions = [eq(this.schema.authSessions._id, sessionId as string)];
+        // Logout / session-rotation delete by raw session id with no tenant context
+        // yet; only tenant-scoped callers (session eviction, user-attribute updates)
+        // get a tenant predicate. applyTenantFilter fail-closes when tenantId is
+        // missing, so guard it — a scoped delete must never touch another tenant's row.
+        if (options?.tenantId !== undefined) {
+          applyTenantFilter(conditions, this.schema.authSessions.tenantId, options);
+        }
         await this.getDb(options)
           .delete(this.schema.authSessions)
-          .where(eq(this.schema.authSessions._id, sessionId as string));
+          .where(and(...conditions));
       },
       "DELETE_SESSION_FAILED",
       undefined,
@@ -638,40 +722,41 @@ export class RelationalAuthModule implements IAuthAdapter {
   ): Promise<DatabaseResult<User | null>> {
     return this.adapter.wrap(
       async () => {
-        const nowMs = Date.now();
-        // Bypass Drizzle proxy — use direct SQL for high-performance session validation
-        try {
-          const isSQLite = this.isSQLiteAdapter();
-          const isPg =
-            (this.adapter as any).type === "postgresql" ||
-            (this.adapter as any).dbType === "postgres" ||
-            (this.adapter as any).dbType === "postgresql";
+        // Bypass Drizzle proxy — use direct SQL for high-performance session
+        // validation. One cached parameterized SQL per dialect, explicit columns
+        // only, and the tenant predicate the Drizzle fallback enforces so a
+        // tenant-A session can never validate against tenant-B.
+        const dialect = (this.adapter as { sqlDialect?: SqlDialect }).sqlDialect;
+        const rawExecute = (
+          this.adapter as { raw?: { execute?: (sql: string, params?: any[]) => Promise<any> } }
+        ).raw?.execute;
 
-          let rows: any[];
-          if (isSQLite) {
-            rows = await this.adapter.raw.execute(
-              `SELECT u.* FROM auth_sessions s INNER JOIN auth_users u ON s.user_id = u._id WHERE s._id = ? AND s.expires > ? LIMIT 1`,
-              [sessionId, nowMs],
-            );
-          } else if (isPg) {
-            rows = await this.adapter.raw.execute(
-              `SELECT u.* FROM auth_sessions s INNER JOIN auth_users u ON s.user_id = u._id WHERE s._id = $1 AND s.expires > NOW() LIMIT 1`,
-              [sessionId],
-            );
-          } else {
-            // MariaDB / MySQL
-            rows = await this.adapter.raw.execute(
-              `SELECT u.* FROM auth_sessions s INNER JOIN auth_users u ON s.user_id = u._id WHERE s._id = ? AND s.expires > NOW() LIMIT 1`,
-              [sessionId],
+        if (dialect && typeof dialect.bindAt === "function" && typeof rawExecute === "function") {
+          try {
+            const plan = buildValidateSessionSql(dialect);
+            const hasTenant = options?.tenantId !== undefined;
+            const tenantIsNull = options?.tenantId === null;
+
+            const sqlText = hasTenant
+              ? tenantIsNull
+                ? plan.tenantNull
+                : plan.tenantEq
+              : plan.noTenant;
+
+            const params: any[] = [sessionId];
+            if (plan.sqlite) params.push(Date.now());
+            if (hasTenant && !tenantIsNull) params.push(options!.tenantId);
+
+            const rows = await rawExecute(sqlText, params);
+            if (rows && rows.length > 0) {
+              return this.mapUser(rows[0]);
+            }
+            return null;
+          } catch (err) {
+            logger.error(
+              `[RelationalAuthModule] validateSession raw path failed, falling back to Drizzle: ${err}`,
             );
           }
-
-          if (rows && rows.length > 0) {
-            return this.mapUser(rows[0]);
-          }
-          return null;
-        } catch {
-          // Fall back to Drizzle query if direct SQL fails
         }
 
         const db = this.getDb(options);
@@ -757,11 +842,24 @@ export class RelationalAuthModule implements IAuthAdapter {
     return this.adapter.wrap(
       async () => {
         const db = this.getDb();
-        const updateData = {
+        const preparedUpdate = convertISOToDates({
           expires: new Date(newExpiry),
-          updatedAt: new Date(),
-        };
-        const preparedUpdate = convertISOToDates(updateData as any);
+          updatedAt: nowISODateString(),
+        } as any);
+
+        // Single round-trip where the driver supports UPDATE … RETURNING
+        // (SQLite + PostgreSQL). MariaDB keeps the UPDATE + re-read fallback.
+        if ((this.adapter as any).updateReturnsRows === true) {
+          const [res] = await db
+            .update(this.schema.authSessions)
+            .set(preparedUpdate)
+            .where(eq(this.schema.authSessions._id, sessionId as string))
+            .returning();
+          return normalizeSessionAmr(
+            convertDatesToISO(res, { table: "authSessions" }),
+          ) as unknown as Session;
+        }
+
         await db
           .update(this.schema.authSessions)
           .set(preparedUpdate)
@@ -783,8 +881,10 @@ export class RelationalAuthModule implements IAuthAdapter {
 
   async deleteExpiredSessions(): Promise<DatabaseResult<number>> {
     return this.adapter.wrap(async () => {
-      await this.getDb().delete(this.schema.authSessions).where(this.expiredSessionCondition());
-      return 0;
+      const result = await this.getDb()
+        .delete(this.schema.authSessions)
+        .where(this.expiredSessionCondition());
+      return rowsAffected(result) ?? 0;
     }, "DELETE_EXPIRED_SESSIONS_FAILED");
   }
 
@@ -870,7 +970,10 @@ export class RelationalAuthModule implements IAuthAdapter {
   ): Promise<DatabaseResult<{ expiresAt: ISODateString; user_id: DatabaseId } | null>> {
     return this.adapter.wrap(async () => {
       const [res] = await this.getDb()
-        .select(this.adapter.getPhysicalSelection(this.schema.authSessions))
+        .select({
+          expires: this.schema.authSessions.expires,
+          user_id: this.schema.authSessions.user_id,
+        })
         .from(this.schema.authSessions)
         .where(eq(this.schema.authSessions._id, sessionId as string))
         .limit(1);
@@ -882,32 +985,25 @@ export class RelationalAuthModule implements IAuthAdapter {
     }, "GET_SESSION_DATA_FAILED");
   }
   async rotateToken(oldToken: string, expires: ISODateString): Promise<DatabaseResult<string>> {
-    return this.adapter.transaction(async (tx: any) => {
-      const [old] = await tx.db
-        .select(this.adapter.getPhysicalSelection(this.schema.authSessions))
-        .from(this.schema.authSessions)
-        .where(eq(this.schema.authSessions._id, oldToken))
-        .limit(1);
-      if (!old) throw new Error("Session not found");
-      const newId = generateId();
-      // Rotation swaps the session id only — MFA proof and device metadata must survive it.
-      const carried = normalizeSessionAmr(old) as Record<string, unknown>;
-      await tx.db.insert(this.schema.authSessions).values({
-        _id: newId,
-        user_id: old.user_id,
-        expires: new Date(expires),
-        tenantId: old.tenantId,
-        userAgent: carried.userAgent,
-        deviceId: carried.deviceId,
-        ipAddress: carried.ipAddress,
-        amr: carried.amr,
-        mfaVerifiedAt: carried.mfaVerifiedAt,
-      });
-      await tx.db
-        .delete(this.schema.authSessions)
-        .where(eq(this.schema.authSessions._id, oldToken));
-      return { success: true, data: newId };
-    });
+    return this.adapter.wrap(
+      async () => {
+        const newId = generateId();
+        const db = this.getDb();
+        // Single-statement rotation: swap the session id and refresh the expiry
+        // in place. Every other column — MFA proof, device metadata, timestamps —
+        // carries over unchanged because UPDATE only touches the two SET columns,
+        // unlike the old SELECT + INSERT + DELETE which dropped createdAt/updatedAt.
+        const result = await db
+          .update(this.schema.authSessions)
+          .set({ _id: newId, expires: new Date(expires) })
+          .where(eq(this.schema.authSessions._id, oldToken));
+        if (rowsAffected(result) === 0) throw new Error("Session not found");
+        return newId as string;
+      },
+      "ROTATE_SESSION_FAILED",
+      undefined,
+      { isWrite: true },
+    );
   }
 
   async cleanupRotatedSessions(): Promise<DatabaseResult<number>> {

@@ -2,8 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { isAutomatedTestHarness, resolvePrivateConfigFileName } from "./private-config-policy.ts";
 
-let cachedResult: boolean | null = null;
-let cacheTime = 0;
+let cachedResult: { value: boolean; at: number } | null = null;
+const CACHE_TTL_MS = 2000;
 
 /** Runtime env — never use bare `process.env.X` (Vite may mangle those at build time). */
 function runtimeEnv(key: string): string | undefined {
@@ -12,7 +12,6 @@ function runtimeEnv(key: string): string | undefined {
 
 export function invalidateFastSetupCache(): void {
   cachedResult = null;
-  cacheTime = 0;
 }
 
 /**
@@ -24,6 +23,8 @@ export function invalidateFastSetupCache(): void {
  * - Regex-based field verification: matches keys as quoted strings, not inside comments
  * - Length threshold: increased from 50 to 100 to better filter mid-write race conditions
  * - Uses a 2-second module-level cache to avoid per-request filesystem I/O.
+ * - The cache stores **both** outcomes: an incomplete setup would otherwise run
+ *   `existsSync` + `readFileSync` on every request while setup is in progress.
  * - The cache is intentionally short-lived to pick up config changes after a setup restart.
  */
 export function isSetupComplete(): boolean {
@@ -37,20 +38,25 @@ export function isSetupComplete(): boolean {
     return true;
   }
 
-  // 2-second cache to avoid redundant I/O across requests in the same process
-  if (cachedResult === true && Date.now() - cacheTime < 2000) {
-    return true;
+  // 2-second cache (positive and negative) to avoid redundant I/O across requests
+  const now = Date.now();
+  if (cachedResult !== null && now - cachedResult.at < CACHE_TTL_MS) {
+    return cachedResult.value;
   }
 
   try {
     const isTestMode = isAutomatedTestHarness();
 
-    if (isTestMode && runtimeEnv("STRICT_SETUP_CHECK") !== "true") return true;
+    if (isTestMode && runtimeEnv("STRICT_SETUP_CHECK") !== "true") {
+      cachedResult = { value: true, at: now };
+      return true;
+    }
 
     const configFileName = resolvePrivateConfigFileName();
     const privateConfigPath = path.join(process.cwd(), "config", configFileName);
 
     if (!fs.existsSync(privateConfigPath)) {
+      cachedResult = { value: false, at: now };
       return false;
     }
 
@@ -68,16 +74,17 @@ export function isSetupComplete(): boolean {
 
       // Validate minimum content length to filter out half-written files during write-race
       if (content.length > 100 && hasRequiredFields) {
-        cachedResult = true;
-        cacheTime = Date.now();
+        cachedResult = { value: true, at: now };
         return true;
       }
     } catch {
       // File may be locked momentarily during write — treat as incomplete
     }
 
+    cachedResult = { value: false, at: now };
     return false;
   } catch {
+    cachedResult = { value: false, at: now };
     return false;
   }
 }

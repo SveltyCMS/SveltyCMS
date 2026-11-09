@@ -46,6 +46,7 @@ export class PluginRegistry implements IPluginService {
   // register at boot (overwrites in place), so cache until the next register.
   private _allPlugins: Plugin[] | null = null;
   private _hookPresence = new Map<string, boolean>();
+  private _ssrHookPresence: boolean | null = null;
 
   // Register a new plugin
   async register(plugin: Plugin): Promise<DatabaseResult<void>> {
@@ -62,6 +63,7 @@ export class PluginRegistry implements IPluginService {
       // Invalidate cached views (plugin set changed at boot / hot reload)
       this._allPlugins = null;
       this._hookPresence.clear();
+      this._ssrHookPresence = null;
 
       // Register plugin capabilities into the merged catalog
       if (plugin.metadata.capabilities && plugin.metadata.capabilities.length > 0) {
@@ -116,6 +118,23 @@ export class PluginRegistry implements IPluginService {
   /** Clears the hook presence cache (e.g. after WASM plugin registration) */
   invalidateHookPresence(): void {
     this._hookPresence.clear();
+    this._ssrHookPresence = null;
+  }
+
+  /**
+   * Cached check for SSR-hook presence. The list read path calls this on every
+   * non-empty result before resolving `getSSRHooks`, which otherwise walks every
+   * plugin and resolves each lazily-loaded server module just to discover there
+   * is no `ssrHook`. A plugin may expose the hook statically or through a
+   * registered server loader, so a registered loader counts as presence.
+   */
+  hasAnySSRHook(): boolean {
+    if (this._ssrHookPresence !== null) return this._ssrHookPresence;
+    const found = this.getAll().some(
+      (p) => typeof p.ssrHook === "function" || pluginServerRegistry.has(p.metadata.id),
+    );
+    this._ssrHookPresence = found;
+    return found;
   }
 
   // Get a specific plugin by ID
@@ -129,6 +148,7 @@ export class PluginRegistry implements IPluginService {
     if (deleted) {
       this._allPlugins = null;
       this._hookPresence.clear();
+      this._ssrHookPresence = null;
     }
     return deleted;
   }
@@ -138,6 +158,7 @@ export class PluginRegistry implements IPluginService {
     this.plugins.clear();
     this._allPlugins = null;
     this._hookPresence.clear();
+    this._ssrHookPresence = null;
   }
 
   // Initialize the plugin settings service from a factory injected by the server

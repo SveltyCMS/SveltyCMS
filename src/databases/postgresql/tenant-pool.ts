@@ -11,7 +11,7 @@
 
 import postgres from "postgres";
 import { logger } from "@utils/logger";
-import type { TenantPoolManager } from "../sql/tenant-pool-manager";
+import type { TenantPoolManager } from "../core/tenant-pool-manager";
 import { PG_TEXT_DATE_TYPES, pgConnectionParameters, pgIdleTimeout } from "./postgres-utils";
 
 export interface PostgresTenantPoolContext {

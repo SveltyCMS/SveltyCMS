@@ -179,10 +179,10 @@ export async function executeUpsertById<T extends BaseEntity>(
   }
   if (!ctx.persistTimestampsAsDate) {
     for (let i = 0; i < len; i++) {
-      batchValues[i] = convertISOToDates(
-        { ...batchValues[i] },
-        { ...ctx.convertDatesOptions, table: collection },
-      );
+      batchValues[i] = convertISOToDates(batchValues[i], {
+        ...ctx.convertDatesOptions,
+        table: collection,
+      });
     }
   }
 

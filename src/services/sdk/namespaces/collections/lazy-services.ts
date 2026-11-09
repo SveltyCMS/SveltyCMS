@@ -45,3 +45,12 @@ export const getHistoryServiceLazy = lazyModule(
 
 /** Database module — used by refresh() to pick up a fresh adapter. */
 export const getDbModuleLazy = lazyModule(() => import("@src/databases/db"));
+
+/**
+ * Plugin registry — used by the list read path for SSR hooks. Resolving the
+ * barrel once turns the per-list `await import("@src/plugins")` into a cached
+ * promise resolve.
+ */
+export const getPluginRegistryLazy = lazyModule(() =>
+  import("@src/plugins").then((m) => m.pluginRegistry),
+);

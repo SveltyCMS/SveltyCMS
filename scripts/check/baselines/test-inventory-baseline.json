@@ -2,10 +2,10 @@
   "version": 1,
   "layers": {
     "unit": {
-      "generatedAt": "2026-11-08T17:02:33.304Z",
+      "generatedAt": "2026-11-09T20:37:06.855Z",
       "totals": {
-        "files": 870,
-        "tests": 8246
+        "files": 882,
+        "tests": 8301
       },
       "areas": {
         "unit": {
@@ -29,8 +29,8 @@
           "tests": 42
         },
         "unit/ci": {
-          "files": 5,
-          "tests": 41
+          "files": 6,
+          "tests": 50
         },
         "unit/collaboration": {
           "files": 1,
@@ -62,23 +62,23 @@
         },
         "unit/core": {
           "files": 11,
-          "tests": 127
+          "tests": 128
         },
         "unit/dashboard": {
           "files": 7,
           "tests": 51
         },
         "unit/databases": {
-          "files": 91,
-          "tests": 738
+          "files": 103,
+          "tests": 800
         },
         "unit/graphql": {
           "files": 4,
           "tests": 37
         },
         "unit/hooks": {
-          "files": 36,
-          "tests": 570
+          "files": 37,
+          "tests": 575
         },
         "unit/live": {
           "files": 1,
@@ -89,8 +89,8 @@
           "tests": 294
         },
         "unit/multi-tenancy": {
-          "files": 6,
-          "tests": 32
+          "files": 7,
+          "tests": 35
         },
         "unit/performance": {
           "files": 1,
@@ -105,8 +105,8 @@
           "tests": 438
         },
         "unit/rate-limit": {
-          "files": 12,
-          "tests": 91
+          "files": 11,
+          "tests": 86
         },
         "unit/routes": {
           "files": 64,
@@ -149,8 +149,8 @@
           "tests": 143
         },
         "unit/utils": {
-          "files": 104,
-          "tests": 987
+          "files": 102,
+          "tests": 967
         },
         "unit/widgets": {
           "files": 28,

@@ -14,6 +14,11 @@
 
 import type { ContentNode } from "@src/content/types";
 import { getEditDistance } from "@utils/string";
+import { STATIC_CATALOG } from "@utils/command-palette-catalog";
+
+// Re-export so existing consumers keep importing the catalog from this module.
+export { STATIC_CATALOG };
+export type { StaticCatalogDef } from "@utils/command-palette-catalog";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -250,6 +255,50 @@ function getNormalizedEntry(entry: CommandPaletteEntry): NormalizedPaletteEntry 
   return cached;
 }
 
+// ─── Score memo ─────────────────────────────────────────────────────────────
+
+/**
+ * Per-entry score memo. `flattenToRankedItems` rescored the whole catalog on
+ * every keystroke; the same entry is scored again when a component re-renders
+ * or a query is revisited. Keys include filter + pathname because both feed the
+ * score. The WeakMap keeps entries collectable, and each bucket is capped so a
+ * long session cannot accumulate unbounded per-query entries.
+ */
+const SCORE_MEMO_MAX_QUERIES = 16;
+const scoreMemo = new WeakMap<CommandPaletteEntry, Map<string, number>>();
+
+// Per-query token memo — the token split is identical for every entry scored
+// against the same query, so compute it once and reuse it across the catalog.
+const QUERY_MEMO_MAX = 32;
+const queryMemo = new Map<string, string[]>();
+
+function getQueryTokens(query: string): string[] {
+  let tokens = queryMemo.get(query);
+  if (!tokens) {
+    if (queryMemo.size >= QUERY_MEMO_MAX) {
+      const oldest = queryMemo.keys().next().value;
+      if (oldest !== undefined) queryMemo.delete(oldest);
+    }
+    tokens = query.split(/\s+/).filter(Boolean);
+    queryMemo.set(query, tokens);
+  }
+  return tokens;
+}
+
+function memoizeScore(entry: CommandPaletteEntry, key: string, score: number): number {
+  let bucket = scoreMemo.get(entry);
+  if (!bucket) {
+    bucket = new Map();
+    scoreMemo.set(entry, bucket);
+  }
+  if (bucket.size >= SCORE_MEMO_MAX_QUERIES) {
+    const oldest = bucket.keys().next().value;
+    if (oldest !== undefined) bucket.delete(oldest);
+  }
+  bucket.set(key, score);
+  return score;
+}
+
 /**
  * Score an entry against a normalized query (0 = no match, higher = better).
  */
@@ -262,7 +311,18 @@ export function scoreEntry(
   } = {},
 ): number {
   const { pathname = "", filter = "all" } = options;
+  const memoKey = `${filter}\u0000${pathname}\u0000${query}`;
+  const cached = scoreMemo.get(entry)?.get(memoKey);
+  if (cached !== undefined) return cached;
+  return memoizeScore(entry, memoKey, computeEntryScore(entry, query, pathname, filter));
+}
 
+function computeEntryScore(
+  entry: CommandPaletteEntry,
+  query: string,
+  pathname: string,
+  filter: PrefixFilter,
+): number {
   if (filter !== "all" && filter !== "path") {
     if (filter === "action" && entry.category !== "action") return 0;
     if (filter === "page" && entry.category !== "page" && entry.category !== "plugin") return 0;
@@ -312,28 +372,43 @@ export function scoreEntry(
     if (bestMatchTerm) score += bestMatchTerm * 1.15;
 
     // Multi-word: all tokens must appear somewhere in the full match blob
-    const tokens = query.split(/\s+/).filter(Boolean);
+    const tokens = getQueryTokens(query);
     if (tokens.length > 1) {
       const allPresent = tokens.every((t) => blob.includes(t));
       if (!allPresent) score *= 0.15;
       else score += 20;
     }
 
-    // Fuzzy fallback when no strong substring match
-    if (score < 30 && query.length >= 2) {
-      const titleDist = getEditDistance(query, title);
+    // Fuzzy fallback for typos only. Skip it when:
+    // - the score is already good (>= 30),
+    // - the query is too short to be meaningful (< 3 chars), or
+    // - the query is already a plain substring of the blob (cheap pre-filter;
+    //   the weighted substring scores above already accounted for it).
+    if (score < 30 && query.length >= 3 && !blob.includes(query)) {
       // getEditDistance is normalized 0–1 (lower = closer)
+      const titleDist = getEditDistance(query, title);
       if (titleDist <= 0.4) {
         score += Math.round((1 - titleDist) * 40);
       }
-      for (const k of keywords) {
-        const kd = getEditDistance(query, k);
-        if (kd <= 0.35) score += Math.round((1 - kd) * 25);
+
+      // Short-circuit the remaining fuzzy passes once the score clears the bar.
+      if (score < 30) {
+        for (let i = 0; i < keywords.length; i++) {
+          const kd = getEditDistance(query, keywords[i]);
+          if (kd <= 0.35) score += Math.round((1 - kd) * 25);
+          if (score >= 30) break;
+        }
       }
-      for (const term of matchTerms.slice(0, 24)) {
-        if (term.length < 3) continue;
-        const td = getEditDistance(query, term);
-        if (td <= 0.35) score += Math.round((1 - td) * 20);
+
+      if (score < 30) {
+        const termLimit = Math.min(matchTerms.length, 24);
+        for (let i = 0; i < termLimit; i++) {
+          const term = matchTerms[i];
+          if (!term || term.length < 3) continue;
+          const td = getEditDistance(query, term);
+          if (td <= 0.35) score += Math.round((1 - td) * 20);
+          if (score >= 30) break;
+        }
       }
     }
 
@@ -586,270 +661,8 @@ export function collectionsToEntries(
   return out;
 }
 
-// ─── Static admin catalog (keys resolved by UI) ─────────────────────────────
-
-export interface StaticCatalogDef {
-  id: string;
-  category: SearchCategory;
-  titleKey: string;
-  descriptionKey: string;
-  /** English fallback if Paraglide not compiled yet */
-  titleFallback: string;
-  descriptionFallback: string;
-  keywords: string[];
-  icon: string;
-  path: string;
-  triggers?: Record<string, SearchTrigger>;
-  contextBoost?: string[];
-  weight?: number;
-}
-
-export const STATIC_CATALOG: StaticCatalogDef[] = [
-  {
-    id: "page:dashboard",
-    category: "page",
-    titleKey: "global_search_dashboard_title",
-    descriptionKey: "global_search_dashboard_description",
-    titleFallback: "Dashboard",
-    descriptionFallback: "System overview, activity, and real-time health metrics.",
-    keywords: ["home", "dashboard", "activity", "health", "metrics"],
-    icon: "mdi:view-dashboard",
-    path: "/dashboard",
-    contextBoost: ["/dashboard"],
-    weight: 20,
-    triggers: { "Go to Dashboard": { path: "/dashboard" } },
-  },
-  {
-    id: "page:media",
-    category: "page",
-    titleKey: "global_search_media_title",
-    descriptionKey: "global_search_media_description",
-    titleFallback: "Media Gallery",
-    descriptionFallback: "DAM engine with tagging, batch editing, and transcoding.",
-    keywords: ["media", "gallery", "images", "batch", "transcode", "video", "audio", "dam"],
-    icon: "mdi:image-multiple",
-    path: "/mediagallery",
-    contextBoost: ["/mediagallery"],
-    weight: 18,
-    triggers: {
-      "Go to Media Gallery": { path: "/mediagallery" },
-      "Batch Image Processor": { path: "/mediagallery?mode=batch" },
-      "Video Transcoding Hub": { path: "/mediagallery?mode=transcode" },
-    },
-  },
-  {
-    id: "page:collectionbuilder",
-    category: "page",
-    titleKey: "global_search_builder_title",
-    descriptionKey: "global_search_builder_description",
-    titleFallback: "Collection Builder",
-    descriptionFallback: "Build schemas with visual logic and field validation.",
-    keywords: ["builder", "collection", "schema", "logic", "field", "validation"],
-    icon: "mdi:database-edit",
-    path: "/config/collectionbuilder",
-    contextBoost: ["/config/collectionbuilder"],
-    weight: 18,
-    triggers: {
-      "Go to Collection Builder": { path: "/config/collectionbuilder" },
-      "Create New Collection": { path: "/config/collectionbuilder/new" },
-    },
-  },
-  {
-    id: "action:create-collection",
-    category: "action",
-    titleKey: "global_search_create_collection_title",
-    descriptionKey: "global_search_create_collection_description",
-    titleFallback: "Create collection",
-    descriptionFallback: "Open Collection Builder with a new schema.",
-    keywords: ["create", "new", "collection", "schema"],
-    icon: "mdi:plus-box",
-    path: "/config/collectionbuilder/new",
-    contextBoost: ["/config/collectionbuilder"],
-    weight: 16,
-  },
-  {
-    id: "page:settings",
-    category: "page",
-    titleKey: "global_search_settings_title",
-    descriptionKey: "global_search_settings_description",
-    titleFallback: "System Settings",
-    descriptionFallback: "Database, email, cache, and security configuration.",
-    keywords: ["settings", "config", "smtp", "email", "cache", "security", "database"],
-    icon: "mdi:cog",
-    path: "/config/system-settings",
-    contextBoost: ["/config/system-settings", "/config"],
-    weight: 15,
-  },
-  {
-    id: "page:monitor",
-    category: "page",
-    titleKey: "global_search_monitor_title",
-    descriptionKey: "global_search_monitor_description",
-    titleFallback: "System Monitor",
-    descriptionFallback: "Health dashboard, audit log, and plugin status.",
-    keywords: ["monitor", "health", "audit", "status", "logs", "cpu", "memory"],
-    icon: "mdi:heart-pulse",
-    path: "/config/monitor",
-    contextBoost: ["/config/monitor"],
-    weight: 12,
-  },
-  {
-    id: "page:access",
-    category: "page",
-    titleKey: "global_search_access_title",
-    descriptionKey: "global_search_access_description",
-    titleFallback: "Access Management",
-    descriptionFallback: "Users, roles, permissions, tokens, and SAML/SCIM.",
-    keywords: ["access", "users", "roles", "permissions", "tokens", "rbac", "saml", "scim"],
-    icon: "mdi:shield-account",
-    path: "/config/access-management",
-    contextBoost: ["/config/access-management"],
-    weight: 14,
-  },
-  {
-    id: "page:tenants",
-    category: "page",
-    titleKey: "global_search_tenants_title",
-    descriptionKey: "global_search_tenants_description",
-    titleFallback: "Tenants",
-    descriptionFallback: "Manage organizations, resource quotas, and tenant isolation.",
-    keywords: ["tenant", "tenants", "organizations", "quota", "isolation", "multi-tenant"],
-    icon: "mdi:office-building",
-    path: "/config/tenants",
-    contextBoost: ["/config/tenants", "/config", "/admin"],
-    weight: 15,
-  },
-  {
-    id: "page:extensions",
-    category: "page",
-    titleKey: "global_search_extensions_title",
-    descriptionKey: "global_search_extensions_description",
-    titleFallback: "Extensions",
-    descriptionFallback: "Plugins, widgets, themes, and marketplace discovery.",
-    keywords: ["extensions", "plugins", "widgets", "themes", "marketplace", "install"],
-    icon: "mdi:puzzle",
-    path: "/config/extensions",
-    contextBoost: ["/config/extensions"],
-    weight: 12,
-  },
-  {
-    id: "page:automations",
-    category: "page",
-    titleKey: "global_search_automations_title",
-    descriptionKey: "global_search_automations_description",
-    titleFallback: "Automations",
-    descriptionFallback: "Event-driven workflows with conditional logic.",
-    keywords: ["automation", "workflow", "trigger", "action", "event", "rule"],
-    icon: "mdi:robot",
-    path: "/config/automations",
-    contextBoost: ["/config/automations"],
-    weight: 12,
-  },
-  {
-    id: "page:queue",
-    category: "page",
-    titleKey: "global_search_queue_title",
-    descriptionKey: "global_search_queue_description",
-    titleFallback: "Background Queue",
-    descriptionFallback: "Jobs, scheduled tasks, and failed operation retries.",
-    keywords: ["queue", "jobs", "tasks", "background", "retry", "scheduled"],
-    icon: "mdi:tray-full",
-    path: "/config/queue",
-    contextBoost: ["/config/queue"],
-    weight: 10,
-  },
-  {
-    id: "page:sync",
-    category: "page",
-    titleKey: "global_search_sync_title",
-    descriptionKey: "global_search_sync_description",
-    titleFallback: "Data Sync & Import",
-    descriptionFallback: "Import from WordPress, Strapi, Directus, Drupal, or exports.",
-    keywords: ["sync", "import", "export", "migrate", "wordpress", "strapi", "directus", "drupal"],
-    icon: "mdi:swap-horizontal",
-    path: "/config/sync",
-    contextBoost: ["/config/sync"],
-    weight: 10,
-  },
-  {
-    id: "page:webhooks",
-    category: "page",
-    titleKey: "global_search_webhooks_title",
-    descriptionKey: "global_search_webhooks_description",
-    titleFallback: "Webhooks",
-    descriptionFallback: "Outgoing HTTP callbacks on content events.",
-    keywords: ["webhook", "callback", "http", "event", "integration", "dlq"],
-    icon: "mdi:webhook",
-    path: "/config/webhooks",
-    contextBoost: ["/config/webhooks"],
-    weight: 10,
-  },
-  {
-    id: "page:redirects",
-    category: "page",
-    titleKey: "global_search_redirects_title",
-    descriptionKey: "global_search_redirects_description",
-    titleFallback: "Redirects",
-    descriptionFallback: "301/302 rules with regex patterns and CSV import.",
-    keywords: ["redirect", "seo", "301", "302", "regex", "url", "rewrite"],
-    icon: "mdi:directions-fork",
-    path: "/config/redirects",
-    contextBoost: ["/config/redirects"],
-    weight: 8,
-  },
-  {
-    id: "page:trash",
-    category: "page",
-    titleKey: "global_search_trash_title",
-    descriptionKey: "global_search_trash_description",
-    titleFallback: "Trash",
-    descriptionFallback: "Recover or permanently delete soft-deleted content.",
-    keywords: ["trash", "delete", "recover", "restore", "soft-delete", "undo"],
-    icon: "mdi:delete-restore",
-    path: "/config/trash",
-    contextBoost: ["/config/trash"],
-    weight: 8,
-  },
-  {
-    id: "page:user",
-    category: "page",
-    titleKey: "global_search_profile_title",
-    descriptionKey: "global_search_profile_description",
-    titleFallback: "User Profile",
-    descriptionFallback: "Account settings, avatar, password, 2FA, and sessions.",
-    keywords: ["user", "profile", "avatar", "password", "2fa", "session", "account"],
-    icon: "mdi:account-circle",
-    path: "/user",
-    contextBoost: ["/user"],
-    weight: 12,
-  },
-  {
-    id: "page:config",
-    category: "page",
-    titleKey: "global_search_config_title",
-    descriptionKey: "global_search_config_description",
-    titleFallback: "Configuration",
-    descriptionFallback: "System configuration overview and navigation hub.",
-    keywords: ["config", "settings", "setup", "administration", "system"],
-    icon: "mdi:tune",
-    path: "/config",
-    contextBoost: ["/config"],
-    weight: 10,
-  },
-  {
-    id: "action:invite-user",
-    category: "action",
-    titleKey: "global_search_invite_user_title",
-    descriptionKey: "global_search_invite_user_description",
-    titleFallback: "Invite user",
-    descriptionFallback: "Open user management to send an invite token.",
-    keywords: ["invite", "user", "token", "register"],
-    icon: "mdi:account-plus",
-    path: "/user",
-    contextBoost: ["/user", "/config/access-management"],
-    weight: 11,
-  },
-];
+// ─── Static admin catalog ───────────────────────────────────────────────────
+// The data table lives in `command-palette-catalog.ts` and is re-exported above.
 
 /**
  * Resolve static catalog for display + multi-locale matching.

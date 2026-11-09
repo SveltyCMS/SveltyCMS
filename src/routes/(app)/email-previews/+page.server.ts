@@ -29,29 +29,10 @@ import { logger } from "@utils/logger";
 import { getEmailTemplate, renderEmailToStrings } from "@utils/email.server";
 import { createEmail, emailList, sendEmail } from "@better-svelte-email/preview";
 import { LocalCMS } from "@src/services/sdk";
+import { preparePreviewHtml } from "@utils/email-preview.server";
 
 /** Template directory, relative to the project root. */
 const EMAILS_PATH = "src/components/emails";
-
-/**
- * Prepare rendered email HTML for the opaque-origin `srcdoc` preview iframe.
- *
- * A sandboxed `srcdoc` document without `allow-same-origin` has an opaque
- * origin, so Chromium resolves root-relative URLs against `about:srcdoc` and
- * logs `net::ERR_INVALID_ARGUMENT` for the template logo. Expand them to the
- * request origin. Scripts and inline handlers are stripped as well: the iframe
- * is sandboxed regardless, and every blocked script makes Chrome log a console
- * error that the E2E zero-error guard (rightly) fails on.
- */
-function preparePreviewHtml(html: string, origin: string): string {
-  return html
-    .replace(/<script\b[\s\S]*?<\/script>/gi, "")
-    .replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
-    .replace(
-      /\s(src|href)="\/(?!\/)([^"]*)"/gi,
-      (_full: string, attr: string, path: string) => ` ${attr}="${origin}/${path}"`,
-    );
-}
 
 /**
  * Representative props so every template can render standalone. Templates

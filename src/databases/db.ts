@@ -119,6 +119,10 @@ export const dbAdapter: DatabaseAdapter = createSelfHealingProxy<IDBAdapter>(
   },
 );
 
+// Bound-method cache for the auth proxy — one bound function per instance/method,
+// mirroring createSelfHealingProxy so `auth.x` doesn't re-bind on every access.
+const authBoundCache = new WeakMap<object, Map<string, Function>>();
+
 export const auth: any = new Proxy(
   {},
   {
@@ -126,15 +130,49 @@ export const auth: any = new Proxy(
       const instance = getGlobal(AUTH_KEY);
       if (!instance) return undefined;
       const val = (instance as Record<string, any>)[prop];
-      return typeof val === "function" ? val.bind(instance) : val;
+      if (typeof val !== "function") return val;
+
+      let cache = authBoundCache.get(instance);
+      if (!cache) {
+        cache = new Map();
+        authBoundCache.set(instance, cache);
+      }
+      const cached = cache.get(prop);
+      if (cached) return cached;
+
+      const bound = val.bind(instance);
+      cache.set(prop, bound);
+      return bound;
     },
   },
 );
 
 // Global initialization promise proxy.
+// Caches the resolved promise so repeated `.then`/`.catch`/`.finally` accesses
+// don't re-run ensureFullInitialization() + .bind() once boot settles.
+let cachedResolvedDbInit: Promise<any | null> | null = null;
+let cachedPendingDbInit: Promise<any | null> | null = null;
+
+function cacheCurrentInitPromise(): Promise<any | null> {
+  const current = getDbInitPromise();
+  if (cachedPendingDbInit !== current) {
+    cachedPendingDbInit = current;
+    current.then(
+      () => {
+        cachedResolvedDbInit = current;
+        cachedPendingDbInit = null;
+      },
+      () => {
+        cachedPendingDbInit = null;
+      },
+    );
+  }
+  return current;
+}
+
 export const dbInitPromise: Promise<any | null> = new Proxy(Promise.resolve(null), {
   get(_, prop) {
-    const promise = getDbInitPromise();
+    const promise = cachedResolvedDbInit ?? cacheCurrentInitPromise();
     if (prop === "then") return promise.then.bind(promise);
     const val = (promise as any)[prop];
     return typeof val === "function" ? val.bind(promise) : val;

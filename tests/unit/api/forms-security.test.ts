@@ -290,9 +290,10 @@ describe("CRUD tenant guard body tenantId", () => {
     const guard = createTenantGuardedCrud(inner, "reject");
 
     await expect(
-      guard.insert("posts", { title: "Hello", tenantId: "tenant-b" } as never, {
-        tenantId: "tenant-a" as DatabaseId,
-      }),
+      (async () =>
+        guard.insert("posts", { title: "Hello", tenantId: "tenant-b" } as never, {
+          tenantId: "tenant-a" as DatabaseId,
+        }))(),
     ).rejects.toThrow(/Security Violation|tenant/i);
     expect(inner.insert).not.toHaveBeenCalled();
   });

@@ -67,6 +67,7 @@ import {
   DEFAULT_MAX_WAL_BYTES,
   type WalCheckpointResult,
 } from "@src/services/background/wal-checkpoint.server";
+import { startIndexUsageReporter } from "@src/services/background/index-usage.server";
 import { outboxService } from "@src/services/outbox/outbox-service";
 import { scheduleBackgroundBoot } from "@src/services/boot/deferred-boot";
 // ESM shims for CJS packages that still read __filename / __dirname at runtime
@@ -402,15 +403,23 @@ if (!building) {
               logger.error("[WAL] Housekeeping scheduler failed to start", err),
             );
 
-            // Telemetry check
-            const globalWithTelemetry = globalThis as typeof globalThis & {
-              __SVELTY_TELEMETRY_INTERVAL__?: NodeJS.Timeout;
-            };
+            // 📊 Index usage — one-shot PostgreSQL catalog read; see
+            // startIndexUsageReport(). Fire-and-forget by design: nothing on
+            // the request path depends on it, and it never throws into boot.
+            await startIndexUsageReport().catch((err) =>
+              logger.debug("[IndexUsage] reporter failed to start", err),
+            );
 
-            if (globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__) {
-              clearInterval(globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__);
-            }
-
+            // Telemetry check — ONCE per boot.
+            //
+            // There is deliberately NO periodic timer. A heartbeat is sent when the
+            // process boots and when an operator explicitly asks for a check
+            // (`GET /api/telemetry/stats`). `TelemetryService.CHECK_INTERVAL` (12 h)
+            // is an in-memory CACHE that suppresses duplicate heartbeats from
+            // repeated on-demand checks — it is not a scheduler. A timer here would
+            // turn the documented "boot or update" contract into "every 12 hours",
+            // which a self-hosted CMS must not do silently
+            // (docs/reference/architecture/telemetry-ecology.mdx).
             const initialTelemetryCheck = setTimeout(() => {
               telemetryService
                 .checkUpdateStatus()
@@ -418,17 +427,6 @@ if (!building) {
             }, 10_000);
             // Housekeeping timers must never keep the event loop alive (clean Ctrl+C exit).
             void initialTelemetryCheck.unref?.();
-
-            const telemetryInterval = setInterval(
-              () => {
-                telemetryService
-                  .checkUpdateStatus()
-                  .catch((err) => logger.error("Periodic telemetry check failed", err));
-              },
-              1000 * 60 * 60 * 12, // 12 hours
-            );
-            void telemetryInterval.unref?.();
-            globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__ = telemetryInterval;
           }, "Background");
         }
 
@@ -537,6 +535,20 @@ async function startWalHousekeeping(): Promise<void> {
     walSizeBytes,
     maxWalBytes,
   });
+}
+
+/**
+ * Emit one unused-index report for PostgreSQL.
+ *
+ * The lazy index schedulers only create trees; `pg_stat_user_indexes` is the
+ * only source that says whether anything reads them. This is a single catalog
+ * read (`SVELTY_INDEX_USAGE_REPORT=0` opts out), fire-and-forget so no request
+ * waits for it. Pruning is a separate, explicit opt-in inside the reporter.
+ */
+async function startIndexUsageReport(): Promise<void> {
+  if (process.env.SVELTY_INDEX_USAGE_REPORT === "0") return;
+  const { getDb } = await loadDbModule();
+  startIndexUsageReporter(getDb());
 }
 /** Cheap per-request id sequence for the non-trace path (see handle()). */
 let requestSeq = 0;
@@ -890,7 +902,7 @@ export const handle: Handle = async ({ event, resolve }) => {
         setupComplete &&
         (state === "IDLE" || (globalThis as any).__SYSTEM_OVERALL_STATE__ === undefined)
       ) {
-        import("./databases/db")
+        loadDbModule()
           .then(({ getDbInitPromise }) => {
             getDbInitPromise(false, "CORE").catch((err) =>
               logger.error("[System] Database init failed", err),

@@ -3,7 +3,7 @@
  * @description Statistical regression detection with root cause classification.
  *
  * ### Two-Pass Architecture:
- * Pass 1: Build MetricTrend[] per adapter using linearRegression + computeTrendSlope
+ * Pass 1: Build MetricTrend[] per adapter using linearRegression + computeTrendSlopeFromStats
  * Pass 2: Classify root cause across all trends using correlation rules
  *
  * ### Post-Pass Enhancements (July 2026):
@@ -32,6 +32,7 @@
  */
 
 import { Database } from "bun:sqlite";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import {
   extractMetrics,
@@ -58,36 +59,68 @@ import type {
 
 // ── Local Wrappers ──────────────────────────────────────────────────────────────
 
-/** In-memory cache for history loads — avoids redundant SQLite queries. */
+/**
+ * In-memory cache for history loads — avoids redundant SQLite queries.
+ *
+ * Arrays are frozen: `loadHistoryCached` returns the cached reference directly
+ * when the caller wants the whole series (no slice allocation), so a caller that
+ * sorted/mutated a series would poison it for every later read. Freezing turns
+ * that class of bug into an immediate throw instead of a silent false negative.
+ */
 const _historyCache = new Map<string, number[]>();
+
+/** Cached `-redis` strip per adapter key (budget + folder lookups hit it constantly). */
+const _baseKeyCache = new Map<string, string>();
+
+/** `sqlite-redis` → `sqlite`, computed once per distinct adapter key. */
+function baseAdapterKey(dbKey: string): string {
+  let key = _baseKeyCache.get(dbKey);
+  if (key === undefined) {
+    key = dbKey.replace("-redis", "");
+    _baseKeyCache.set(dbKey, key);
+  }
+  return key;
+}
 
 function _cacheKey(dbKey: string, histKey: string): string {
   return `${dbKey}::${histKey}`;
 }
 
+/** Stable dedup key for an emitted regression (`db::metric` exactly as pushed). */
+function dedupKey(dbKey: string, metric: string): string {
+  return `${dbKey}::${metric}`;
+}
+
 /** Load metric history from SQLite with in-memory caching. */
 function loadHistoryCached(dbKey: string, histKey: string, limit: number): number[] {
   const key = _cacheKey(dbKey, histKey);
-  if (!_historyCache.has(key)) {
-    _historyCache.set(key, loadMetricHistory(dbKey, histKey));
+  let cached = _historyCache.get(key);
+  if (!cached) {
+    // `.slice()` guarantees a private copy before freezing; the loader already
+    // returns a fresh array, but this keeps the invariant explicit.
+    cached = Object.freeze(loadMetricHistory(dbKey, histKey).slice()) as number[];
+    _historyCache.set(key, cached);
   }
-  return _historyCache.get(key)!.slice(0, limit);
+  // Whole series requested → return the cached array (frozen, read-only) with
+  // no slice allocation. A limited view → hand back a fresh, mutable copy.
+  return limit >= cached.length ? cached : cached.slice(0, limit);
 }
 
 /**
- * Compute a MetricTrend-compatible direction and confidence from raw history.
+ * Compute a MetricTrend-compatible direction and confidence from statistics that
+ * are already computed (slope / r² from `linearRegression`, `sd` from `stddev`).
+ * Avoids a second pass over the series.
  */
-function computeTrendSlope(
-  history: number[],
+function computeTrendSlopeFromStats(
+  sampleSize: number,
   current: number,
   budget: number,
+  slope: number,
+  r2: number,
+  sd: number,
 ): { direction: string; confidence: number } {
-  const { slope, r2 } = linearRegression(history);
-  const sd = stddev(history);
-
   const absSlope = Math.abs(slope);
-  const isSignificant =
-    sd > 0 ? absSlope / (sd / Math.sqrt(history.length)) > 0.5 : absSlope > 0.001;
+  const isSignificant = sd > 0 ? absSlope / (sd / Math.sqrt(sampleSize)) > 0.5 : absSlope > 0.001;
 
   if (!isSignificant || absSlope < 0.0001) {
     return { direction: "stable", confidence: Math.min(r2, 0.5) };
@@ -109,22 +142,19 @@ function computeTrendSlope(
  * (per-request schema rebuilds, turbo/response-cache misses) that avg-based
  * checks stay green on. Latent until a benchmark records both phases.
  */
+/** Minimal structural type for the prepared cold/warm scan (prepared once per run). */
+type ColdWarmQuery = { all: (dbType: string) => unknown[] };
+
 function detectColdWarmRatioRegressions(
-  db: any,
+  query: ColdWarmQuery,
   dbKey: string,
   regressions: RegressionResult[],
+  seenKeys: Set<string>,
 ): void {
   try {
-    const baseDb = dbKey.replace("-redis", "");
-    // Prepare once per handle (bun:sqlite also caches) and drop the unused
-    // `timestamp` column to reduce deserialization on the 600-row scan.
-    const query = db.query(
-      `SELECT metric, phase, avg_ms FROM runs
-       WHERE db_type = ? AND status = 'SUCCESS' AND avg_ms > 0
-         AND run_mode = 'matrix'
-         AND COALESCE(NULLIF(server_mode, ''), 'unknown') = 'production'
-       ORDER BY timestamp DESC LIMIT 600`,
-    );
+    const baseDb = baseAdapterKey(dbKey);
+    // The statement is prepared once for the whole run (see detectRegressions)
+    // and the unused `timestamp` column is dropped to keep the 600-row scan lean.
     const rows = query.all(baseDb) as {
       metric: string;
       phase: string;
@@ -161,9 +191,13 @@ function detectColdWarmRatioRegressions(
 
       const deltaPct = ((latestRatio - baseline) / baseline) * 100;
       if (deltaPct > 20) {
+        const metricLabel = `${metric} (cold/warm ratio)`;
+        const key = dedupKey(dbKey, metricLabel);
+        if (seenKeys.has(key)) continue;
+        seenKeys.add(key);
         regressions.push({
           db: dbKey,
-          metric: `${metric} (cold/warm ratio)`,
+          metric: metricLabel,
           current: latestRatio,
           previousAvg: baseline,
           changePct: deltaPct,
@@ -192,10 +226,7 @@ function classifyRootCauseFromSet(
 ): string {
   for (const rule of rules) {
     if (!degradingSet.has(rule.primaryMetric)) continue;
-    const correlatedCount = rule.correlatedMetrics.filter((m: string) =>
-      degradingSet.has(m),
-    ).length;
-    if (correlatedCount >= 1) return rule.name;
+    if (rule.correlatedMetrics.some((m) => degradingSet.has(m))) return rule.name;
   }
   if (degradingSet.size >= 2) return "multi-metric";
   return "unknown";
@@ -214,7 +245,7 @@ interface RegressionCheck {
 // ── Budget Helpers ──────────────────────────────────────────────────────────────
 
 function getEffectiveBudget(dbKey: string, metricKey: string): number {
-  const overrides = ADAPTER_BUDGET_OVERRIDES[dbKey.replace("-redis", "")] || {};
+  const overrides = ADAPTER_BUDGET_OVERRIDES[baseAdapterKey(dbKey)] || {};
   return (overrides as any)[metricKey] ?? (PERFORMANCE_BUDGET as any)[metricKey] ?? 999;
 }
 
@@ -276,79 +307,91 @@ const IMPROVEMENT_THRESHOLD_PCT = -20;
 
 // ── Static Check Registry ───────────────────────────────────────────────────────
 
-function buildChecks(m: Record<string, number>): RegressionCheck[] {
-  return [
-    {
-      key: "collections",
-      value: m.collections,
-      histKey: "collections_p95",
-      label: "REST/Collections p95",
-      trendMetric: "collections",
-    },
-    {
-      key: "graphqlAvg",
-      value: m.graphqlAvg,
-      histKey: "graphql_avg",
-      label: "GraphQL Avg",
-      trendMetric: "graphqlAvg",
-    },
-    {
-      key: "hooks",
-      value: m.hooks,
-      histKey: "middleware_hooks_p95",
-      label: "Hooks/Middleware",
-      trendMetric: "hooks",
-    },
-    {
-      key: "memGrowth",
-      value: m.memGrowth,
-      histKey: "mem_growth",
-      label: "Memory Growth",
-      trendMetric: "memGrowth",
-    },
-    {
-      key: "indexPressure",
-      value: m.indexPressure,
-      histKey: "index_pressure_p95",
-      label: "Index Pressure",
-      trendMetric: "indexPressure",
-    },
-    {
-      key: "dbRaw",
-      value: m.dbRaw,
-      histKey: "adapter_read_avg",
-      label: "DB Raw p95",
-      trendMetric: "dbRaw",
-    },
-    {
-      key: "mixedAvg",
-      value: m.mixedAvg,
-      histKey: "mixed_workload_aggregate",
-      label: "Mixed Workload",
-      trendMetric: "mixedAvg",
-    },
-  ];
+interface CheckDef {
+  key: string;
+  histKey: string;
+  label: string;
+  trendMetric: string;
 }
 
-function findCheckLabel(checks: RegressionCheck[], trend: MetricTrend): string {
-  return (
-    checks.find((c) => c.trendMetric === trend.metric || c.key === trend.metric)?.label ||
-    trend.metric
-  );
+/** Static check registry — `buildChecks` only fills the per-run values. */
+const CHECK_DEFS: readonly CheckDef[] = [
+  {
+    key: "collections",
+    histKey: "collections_p95",
+    label: "REST/Collections p95",
+    trendMetric: "collections",
+  },
+  { key: "graphqlAvg", histKey: "graphql_avg", label: "GraphQL Avg", trendMetric: "graphqlAvg" },
+  {
+    key: "hooks",
+    histKey: "middleware_hooks_p95",
+    label: "Hooks/Middleware",
+    trendMetric: "hooks",
+  },
+  { key: "memGrowth", histKey: "mem_growth", label: "Memory Growth", trendMetric: "memGrowth" },
+  {
+    key: "indexPressure",
+    histKey: "index_pressure_p95",
+    label: "Index Pressure",
+    trendMetric: "indexPressure",
+  },
+  { key: "dbRaw", histKey: "adapter_read_avg", label: "DB Raw p95", trendMetric: "dbRaw" },
+  {
+    key: "mixedAvg",
+    histKey: "mixed_workload_aggregate",
+    label: "Mixed Workload",
+    trendMetric: "mixedAvg",
+  },
+];
+
+/** O(1) label lookup (replaces a `checks.find` per emitted regression). */
+const LABEL_BY_METRIC = new Map<string, string>(
+  CHECK_DEFS.map((d) => [d.trendMetric, d.label] as const),
+);
+
+function labelForMetric(metric: string): string {
+  return LABEL_BY_METRIC.get(metric) ?? metric;
+}
+
+function buildChecks(m: Record<string, number>): RegressionCheck[] {
+  const checks: RegressionCheck[] = [];
+  for (const def of CHECK_DEFS) {
+    checks.push({
+      key: def.key,
+      value: m[def.trendMetric] ?? 0,
+      histKey: def.histKey,
+      label: def.label,
+      trendMetric: def.trendMetric,
+    });
+  }
+  return checks;
 }
 
 // ── Per-Adapter Trend Building ──────────────────────────────────────────────────
+
+interface AdapterTrends {
+  trends: MetricTrend[];
+  /** Series loaded for this adapter, keyed by BOTH `histKey` and `trendMetric`. */
+  histories: Map<string, number[]>;
+}
 
 function buildAdapterTrends(
   dbKey: string,
   checks: RegressionCheck[],
   historyLimit: number,
-): MetricTrend[] {
+): AdapterTrends {
   const trends: MetricTrend[] = [];
+  const histories = new Map<string, number[]>();
+
   for (const check of checks) {
     if (!check.value || check.value <= 0) continue;
 
     const history = loadHistoryCached(dbKey, check.histKey, historyLimit);
+    // Register under both names so flapping reuses the exact series the trend was
+    // computed on (it previously reloaded `trend.metric` — the wrong key).
+    histories.set(check.histKey, history);
+    histories.set(check.trendMetric || check.key, history);
 
     if (history.length < MIN_RUNS_FOR_TREND) continue;
 
@@ -356,7 +399,14 @@ function buildAdapterTrends(
     const baseline = weightedAverage(history);
     const sd = stddev(history);
     const budget = getEffectiveBudget(dbKey, check.key);
-    const { direction, confidence } = computeTrendSlope(history, check.value, budget);
+    const { direction, confidence } = computeTrendSlopeFromStats(
+      history.length,
+      check.value,
+      budget,
+      slope,
+      r2,
+      sd,
+    );
 
     trends.push({
       adapter: dbKey,
@@ -374,7 +424,7 @@ function buildAdapterTrends(
       forecastRunsToBreach: null,
     });
   }
-  return trends;
+  return { trends, histories };
 }
 
 // ── Baseline-Building Pushes ────────────────────────────────────────────────────
@@ -383,6 +433,7 @@ function emitBaselineAlerts(
   dbKey: string,
   checks: RegressionCheck[],
   regressions: RegressionResult[],
+  seenKeys: Set<string>,
 ): void {
   for (const check of checks) {
     if (!check.value || check.value <= 0) continue;
@@ -392,6 +443,9 @@ function emitBaselineAlerts(
     const baseline = history.length > 0 ? weightedAverage(history) : 0;
     const pct = baseline > 0 ? ((check.value - baseline) / baseline) * 100 : 0;
     if (Math.abs(pct) > 15) {
+      const key = dedupKey(dbKey, check.label);
+      if (seenKeys.has(key)) continue;
+      seenKeys.add(key);
       regressions.push({
         db: dbKey,
         metric: check.label,
@@ -415,13 +469,15 @@ function emitBudgetViolations(
   dbKey: string,
   checks: RegressionCheck[],
   regressions: RegressionResult[],
+  seenKeys: Set<string>,
 ): void {
   for (const check of checks) {
     if (!check.value || check.value <= 0) continue;
     const budget = getEffectiveBudget(dbKey, check.key);
     if (check.value > budget) {
-      const alreadyListed = regressions.some((r) => r.db === dbKey && r.metric === check.label);
-      if (!alreadyListed) {
+      const key = dedupKey(dbKey, check.label);
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
         regressions.push({
           db: dbKey,
           metric: check.label,
@@ -445,6 +501,7 @@ function emitBudgetViolations(
 function detectCrossCutting(
   allGlobalTrends: MetricTrend[],
   regressions: RegressionResult[],
+  seenKeys: Set<string>,
 ): EnhancedRegressionReport["crossCutting"] {
   const crossCutting: EnhancedRegressionReport["crossCutting"] = [];
   const byMetric = new Map<string, MetricTrend[]>();
@@ -485,10 +542,9 @@ function detectCrossCutting(
 
     for (const t of trends) {
       const pct = t.baseline > 0 ? ((t.current - t.baseline) / t.baseline) * 100 : 0;
-      const alreadyListed = regressions.some(
-        (r) => r.db === t.adapter && r.metric.includes(t.metric),
-      );
-      if (!alreadyListed) {
+      const key = dedupKey(t.adapter, t.metric);
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
         regressions.push({
           db: t.adapter,
           metric: t.metric,
@@ -553,15 +609,33 @@ export async function detectRegressions(
   const regressions: RegressionResult[] = [];
   const sqliteHistoryFile = path.join(ROOT_RESULTS_DIR, "history.sqlite");
 
+  // Shared dedup set: keyed by `db::metric` exactly as emitted, so baseline,
+  // budget, trend, cold/warm and cross-cutting emitters never double-list.
+  const seenKeys = new Set<string>();
+
   // Clear cache per invocation
   _historyCache.clear();
+
+  if (!existsSync(sqliteHistoryFile)) {
+    console.log("ℹ No benchmark history yet — skipping regression detection.");
+    return { regressions: [], report: emptyReport() };
+  }
 
   let db: Database | null = null;
 
   try {
-    db = new Database(sqliteHistoryFile);
+    // Read-only: the detector only reads. Fall back to a writable handle when the
+    // WAL/SHM cannot be opened read-only (e.g. a read-only mount).
+    try {
+      db = new Database(sqliteHistoryFile, { readonly: true });
+    } catch {
+      db = new Database(sqliteHistoryFile);
+    }
 
-    const tableExists = db
+    // Both branches above assigned a handle; narrow once for the rest of the run.
+    const handle = db;
+
+    const tableExists = handle
       .query("SELECT name FROM sqlite_master WHERE type='table' AND name='runs'")
       .get();
 
@@ -570,13 +644,22 @@ export async function detectRegressions(
       return { regressions: [], report: emptyReport() };
     }
 
+    // Prepared once for the whole run — not once per adapter.
+    const coldWarmQuery = handle.query(
+      `SELECT metric, phase, avg_ms FROM runs
+       WHERE db_type = ? AND status = 'SUCCESS' AND avg_ms > 0
+         AND run_mode = 'matrix'
+         AND COALESCE(NULLIF(server_mode, ''), 'unknown') = 'production'
+       ORDER BY timestamp DESC LIMIT 600`,
+    );
+
     const allGlobalTrends: MetricTrend[] = [];
 
     // ── Process each adapter result ──
     for (const res of results) {
       if (res.status !== "SUCCESS") continue;
 
-      const m = extractMetrics(res.metrics || {}, res.db.replace("-redis", ""));
+      const m = extractMetrics(res.metrics || {}, baseAdapterKey(res.db));
       const dbKey = res.db;
 
       // Skip if still warming up
@@ -585,16 +668,16 @@ export async function detectRegressions(
 
       const checks = buildChecks(m);
 
-      // Baseline-building alerts (not enough history for stat analysis)
-      emitBaselineAlerts(dbKey, checks, regressions);
+      // Baseline-building alerts (not enough history for statistical analysis)
+      emitBaselineAlerts(dbKey, checks, regressions, seenKeys);
 
       // 🎯 Cold/warm ratio check (cache/schema-path regression signature)
-      detectColdWarmRatioRegressions(db, dbKey, regressions);
+      detectColdWarmRatioRegressions(coldWarmQuery, dbKey, regressions, seenKeys);
 
-      // Build trend data
-      const adapterTrends = buildAdapterTrends(dbKey, checks, 20);
+      // Build trend data + the loaded series (shared with flapping below).
+      const { trends: adapterTrends, histories } = buildAdapterTrends(dbKey, checks, 20);
 
-      // ── Root cause classification ──
+      // ── Root cause classification (uses pre-flapping directions) ──
       const validTrends = adapterTrends.filter(
         (t) => t.direction !== "stable" && t.confidence > 0.5,
       );
@@ -604,123 +687,133 @@ export async function detectRegressions(
           ? classifyRootCauseFromSet(degradingSet, CORRELATION_RULES)
           : "unknown";
 
-      // ── Flapping detection ──
+      // ── Single pass: flapping → budget forecast → regression / improvement ──
       for (const trend of adapterTrends) {
-        const rawHistory = loadHistoryCached(dbKey, trend.metric, 20);
+        const label = labelForMetric(trend.metric);
+
+        // Flapping reuses the exact series the trend was computed on.
+        const rawHistory =
+          histories.get(trend.metric) ?? loadHistoryCached(dbKey, trend.metric, 20);
         const { isFlapping, flipCount } = detectFlapping(rawHistory);
         if (isFlapping) {
           trend.direction = "flapping" as any;
-          regressions.push({
-            db: dbKey,
-            metric: findCheckLabel(checks, trend),
-            current: trend.current,
-            previousAvg: trend.baseline,
-            changePct:
-              trend.baseline > 0 ? ((trend.current - trend.baseline) / trend.baseline) * 100 : 0,
-            isRegression: false,
-            reason: `Metric is flapping — ${flipCount} direction flips across ${rawHistory.length} runs. Likely a non-deterministic test or environmental noise.`,
-            direction: "flapping",
-            confidence: 0.8,
-            rootCause: "non-deterministic",
-            severity: "warn",
-            isFlapping: true,
-            forecastRuns: null,
-          });
-        }
-      }
-
-      // ── Budget forecasting ──
-      for (const trend of adapterTrends) {
-        if (trend.direction === "flapping" || trend.direction === "stable") continue;
-        if (trend.slope <= 0) continue;
-        const budget = getEffectiveBudget(dbKey, trend.metric);
-        const forecast = computeBudgetForecast(trend.current, trend.slope, budget);
-        if (forecast) trend.forecastRunsToBreach = forecast.runsUntilBreach;
-      }
-
-      // ── Emit regressions ──
-      for (const trend of adapterTrends) {
-        if (trend.direction !== "degrading" && trend.direction !== "critical") continue;
-
-        const pct =
-          trend.baseline > 0 ? ((trend.current - trend.baseline) / trend.baseline) * 100 : 0;
-        const severity: "warn" | "critical" = trend.direction === "critical" ? "critical" : "warn";
-
-        let reason =
-          rootCause !== "unknown"
-            ? `Statistical regression — likely root cause: ${rootCause}`
-            : `Statistical regression detected (${trend.direction}, confidence: ${(trend.confidence * 100).toFixed(0)}%)`;
-
-        if (trend.forecastRunsToBreach !== null && trend.forecastRunsToBreach !== undefined) {
-          reason += ` | Budget breach forecast: ~${trend.forecastRunsToBreach} runs if trend continues (slope: ${trend.slope.toFixed(4)})`;
-        }
-
-        regressions.push({
-          db: dbKey,
-          metric: findCheckLabel(checks, trend),
-          current: trend.current,
-          previousAvg: trend.baseline,
-          changePct: pct,
-          isRegression: true,
-          reason,
-          slope: trend.slope,
-          direction: trend.direction,
-          confidence: trend.confidence,
-          rootCause,
-          severity,
-          forecastRuns: trend.forecastRunsToBreach ?? null,
-        });
-      }
-
-      // ── Improvement detection ──
-      for (const trend of adapterTrends) {
-        if (
-          trend.direction === "degrading" ||
-          trend.direction === "critical" ||
-          trend.direction === "flapping"
-        )
+          const key = dedupKey(dbKey, label);
+          if (!seenKeys.has(key)) {
+            seenKeys.add(key);
+            regressions.push({
+              db: dbKey,
+              metric: label,
+              current: trend.current,
+              previousAvg: trend.baseline,
+              changePct:
+                trend.baseline > 0 ? ((trend.current - trend.baseline) / trend.baseline) * 100 : 0,
+              isRegression: false,
+              reason: `Metric is flapping — ${flipCount} direction flips across ${rawHistory.length} runs. Likely a non-deterministic test or environmental noise.`,
+              direction: "flapping",
+              confidence: 0.8,
+              rootCause: "non-deterministic",
+              severity: "warn",
+              isFlapping: true,
+              forecastRuns: null,
+            });
+          }
           continue;
+        }
+
+        // Budget forecast (stable metrics have no slope to project).
+        if (trend.direction !== "stable" && trend.slope > 0) {
+          const budget = getEffectiveBudget(dbKey, trend.metric);
+          const forecast = computeBudgetForecast(trend.current, trend.slope, budget);
+          if (forecast) trend.forecastRunsToBreach = forecast.runsUntilBreach;
+        }
+
+        // Regression
+        if (trend.direction === "degrading" || trend.direction === "critical") {
+          const key = dedupKey(dbKey, label);
+          if (!seenKeys.has(key)) {
+            seenKeys.add(key);
+            const pct =
+              trend.baseline > 0 ? ((trend.current - trend.baseline) / trend.baseline) * 100 : 0;
+            const severity: "warn" | "critical" =
+              trend.direction === "critical" ? "critical" : "warn";
+
+            let reason =
+              rootCause !== "unknown"
+                ? `Statistical regression — likely root cause: ${rootCause}`
+                : `Statistical regression detected (${trend.direction}, confidence: ${(trend.confidence * 100).toFixed(0)}%)`;
+
+            if (trend.forecastRunsToBreach !== null && trend.forecastRunsToBreach !== undefined) {
+              reason += ` | Budget breach forecast: ~${trend.forecastRunsToBreach} runs if trend continues (slope: ${trend.slope.toFixed(4)})`;
+            }
+
+            regressions.push({
+              db: dbKey,
+              metric: label,
+              current: trend.current,
+              previousAvg: trend.baseline,
+              changePct: pct,
+              isRegression: true,
+              reason,
+              slope: trend.slope,
+              direction: trend.direction,
+              confidence: trend.confidence,
+              rootCause,
+              severity,
+              forecastRuns: trend.forecastRunsToBreach ?? null,
+            });
+          }
+          continue;
+        }
+
+        // Improvement
         const pct =
           trend.baseline > 0 ? ((trend.current - trend.baseline) / trend.baseline) * 100 : 0;
         if (pct < IMPROVEMENT_THRESHOLD_PCT) {
-          regressions.push({
-            db: dbKey,
-            metric: findCheckLabel(checks, trend),
-            current: trend.current,
-            previousAvg: trend.baseline,
-            changePct: pct,
-            isRegression: false,
-            reason: `Performance improved by ${Math.abs(pct).toFixed(1)}% — baseline: ${trend.baseline.toFixed(2)}ms → current: ${trend.current.toFixed(2)}ms. Possible optimization or cache warming.`,
-            slope: trend.slope,
-            direction: "improving",
-            confidence: trend.confidence,
-            rootCause: "improvement",
-            severity: "info",
-            isImprovement: true,
-            forecastRuns: null,
-          });
+          const key = dedupKey(dbKey, label);
+          if (!seenKeys.has(key)) {
+            seenKeys.add(key);
+            regressions.push({
+              db: dbKey,
+              metric: label,
+              current: trend.current,
+              previousAvg: trend.baseline,
+              changePct: pct,
+              isRegression: false,
+              reason: `Performance improved by ${Math.abs(pct).toFixed(1)}% — baseline: ${trend.baseline.toFixed(2)}ms → current: ${trend.current.toFixed(2)}ms. Possible optimization or cache warming.`,
+              slope: trend.slope,
+              direction: "improving",
+              confidence: trend.confidence,
+              rootCause: "improvement",
+              severity: "info",
+              isImprovement: true,
+              forecastRuns: null,
+            });
+          }
         }
       }
 
       // Budget violation checks
-      emitBudgetViolations(dbKey, checks, regressions);
+      emitBudgetViolations(dbKey, checks, regressions, seenKeys);
 
       // Collect for cross-DB analysis
-      for (const trend of adapterTrends) {
-        allGlobalTrends.push(trend);
-      }
+      for (const trend of adapterTrends) allGlobalTrends.push(trend);
     }
 
     // ── Cross-DB correlation ──
-    const crossCutting = detectCrossCutting(allGlobalTrends, regressions);
+    const crossCutting = detectCrossCutting(allGlobalTrends, regressions, seenKeys);
 
     // ── Budget forecasts summary ──
     const budgetForecasts = buildForecastSummary(allGlobalTrends);
 
-    // ── Build structured report ──
-    const improvements = regressions.filter((r) => r.isImprovement);
-    const flappingAlerts = regressions.filter((r) => r.isFlapping);
-    const actualRegressions = regressions.filter((r) => !r.isImprovement && !r.isFlapping);
+    // ── Build structured report (single pass instead of three filters) ──
+    const improvements: RegressionResult[] = [];
+    const flappingAlerts: RegressionResult[] = [];
+    const actualRegressions: RegressionResult[] = [];
+    for (const r of regressions) {
+      if (r.isImprovement) improvements.push(r);
+      else if (r.isFlapping) flappingAlerts.push(r);
+      else actualRegressions.push(r);
+    }
 
     return {
       regressions: actualRegressions,

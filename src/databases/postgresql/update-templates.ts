@@ -28,12 +28,46 @@ export const MAX_UPDATE_BATCH_SIZE =
   UPDATE_BATCH_SIZE_BUCKETS[UPDATE_BATCH_SIZE_BUCKETS.length - 1];
 const IMPOSSIBLE_ID = "__svelty_sentinel_never_matches__";
 
+export type PgColumnType = "jsonb" | "timestamptz" | "boolean" | "numeric" | "text";
+
+export interface PgColumnTypePlan {
+  physName: string;
+  safeCol: string;
+  isJson: boolean;
+  pgType: PgColumnType;
+}
+
+/**
+ * Single source of truth for a column's physical name, quoted-safe identifier,
+ * JSON flag and SQL cast type. Insert, single update, bulk update and the batch
+ * VALUES cast all share this so the logical-vs-physical name disagreement that
+ * previously split insert/update JSON detection can never diverge again.
+ */
+export function resolvePgColumnTypePlan(
+  phys: { name?: string; dataType?: string; columnType?: string } | undefined,
+  col: string,
+): PgColumnTypePlan {
+  const physName = phys?.name ?? col;
+  const safeCol = assertSafeSqlIdentifier(physName, "column");
+  const isJson =
+    physName === "data" || phys?.dataType === "json" || String(phys?.columnType).includes("Json");
+  let pgType: PgColumnType = "text";
+  if (isJson) pgType = "jsonb";
+  else if (phys?.dataType === "date" || String(phys?.columnType).includes("Timestamp"))
+    pgType = "timestamptz";
+  else if (phys?.dataType === "boolean") pgType = "boolean";
+  else if (phys?.dataType === "number" || String(phys?.columnType).includes("Int"))
+    pgType = "numeric";
+  return { physName, safeCol, isJson, pgType };
+}
+
 export interface PostgresUpdateContext {
   sql?: unknown;
   getColumn(
     table: unknown,
     name: string,
   ): { name?: string; dataType?: string; columnType?: string } | undefined;
+  getColumnTypePlan(table: unknown, col: string): PgColumnTypePlan;
   getTxnSql(options: BaseQueryOptions): unknown;
   convertDatesOptions: Record<string, unknown>;
   updateValuesTemplateCache: Map<string, Array<{ size: number; sqlText: string }>>;
@@ -57,26 +91,8 @@ export function bindPgParam(v: unknown, asJson: boolean): unknown {
   return v;
 }
 
-export function pgUpdateCastExpr(
-  getColumn: (
-    table: unknown,
-    col: string,
-  ) => { name?: string; dataType?: string; columnType?: string } | undefined,
-  table: unknown,
-  col: string,
-  i: number,
-): string {
-  const phys = getColumn(table, col);
-  const isJson = col === "data" || String(phys?.columnType).includes("Json");
-  if (isJson) return `u.c${i}::jsonb`;
-  if (phys?.dataType === "date" || String(phys?.columnType).includes("Timestamp")) {
-    return `u.c${i}::timestamptz`;
-  }
-  if (phys?.dataType === "boolean") return `u.c${i}::boolean`;
-  if (phys?.dataType === "number" || String(phys?.columnType).includes("Int")) {
-    return `u.c${i}::numeric`;
-  }
-  return `u.c${i}`;
+export function pgUpdateCastExpr(plan: PgColumnTypePlan, i: number): string {
+  return plan.pgType === "text" ? `u.c${i}` : `u.c${i}::${plan.pgType}`;
 }
 
 export function resolveUpdateProjection(
@@ -113,9 +129,8 @@ export function getUpdateValuesTemplates(
   const safeTableName = assertSafeSqlIdentifier(tableName, "table");
   const safeIdCol = assertSafeSqlIdentifier(idColName, "column");
   const setClauses = columns.map((col, i) => {
-    const phys = ctx.getColumn(table, col);
-    const physical = phys?.name ?? col;
-    return `"${assertSafeSqlIdentifier(physical, "column")}" = ${pgUpdateCastExpr((t, c) => ctx.getColumn(t, c), table, col, i)}`;
+    const plan = ctx.getColumnTypePlan(table, col);
+    return `"${plan.safeCol}" = ${pgUpdateCastExpr(plan, i)}`;
   });
   const aliasCols = [
     ...columns.map((_, i) => `c${i}`),
@@ -166,10 +181,9 @@ export function getUpdateTemplate(
     const setPairs: string[] = [];
     for (let i = 0; i < columns.length; i++) {
       const col = columns[i];
-      const phys = ctx.getColumn(table, col);
-      const physName = phys?.name ?? col;
-      const safeCol = assertSafeSqlIdentifier(physName, "column");
-      const isJson = physName === "data" || phys?.dataType === "json";
+      const plan = ctx.getColumnTypePlan(table, col);
+      const safeCol = plan.safeCol;
+      const isJson = plan.isJson;
       isJsonMap[i] = isJson;
       setPairs.push(
         isJson && mergeJsonData

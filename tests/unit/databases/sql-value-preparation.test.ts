@@ -21,7 +21,7 @@ import {
   isDateColumnKey,
   isDateLikeColumnName,
   isJsonSerializableValue,
-} from "@src/databases/sql/value-preparation";
+} from "@src/databases/core/sql-values";
 
 describe("isDateLikeColumnName", () => {
   it("recognizes the special pair and temporal suffixes", () => {
@@ -167,6 +167,16 @@ describe("insert defaults", () => {
 
     expect(calls).toBe(1);
     expect(row).toEqual({ createdAt: "stamp", updatedAt: "stamp" });
+  });
+
+  it("mutates the caller's object in place when inPlace is set", () => {
+    const plan = buildInsertDefaultsPlan({ createdAt: {}, updatedAt: {} });
+    const input = { _id: "abc" };
+
+    const row = applyInsertDefaults(input, plan, () => "stamp", { inPlace: true });
+
+    expect(row).toBe(input);
+    expect(row).toEqual({ _id: "abc", createdAt: "stamp", updatedAt: "stamp" });
   });
 
   it("coerces boolean defaults to 0/1 for intBoolean dialects", () => {

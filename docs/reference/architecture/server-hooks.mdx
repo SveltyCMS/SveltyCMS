@@ -139,7 +139,7 @@ SveltyCMS includes a minimal Heartbeat System (Telemetry) to help the core team 
 ### How it works
 
 1.  **Non-Blocking:** The telemetry runs as a background process initialized in `hooks.server.ts` (outside the request pipeline).
-2.  **Frequency:** It sends a heartbeat once every 12 hours per server instance.
+2.  **Frequency:** One heartbeat per server **boot** (10 s after startup), plus one per explicit operator check (`GET /api/telemetry/stats`). There is no periodic timer; a 12-hour in-memory cache suppresses duplicate on-demand heartbeats.
 3.  **Efficiency:** Uses Singleton patterns to preventing caching issues during Hot Module Replacement (HMR).
 4.  **Data Collected:**
     - SveltyCMS Version (e.g., 1.0.0)

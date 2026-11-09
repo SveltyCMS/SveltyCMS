@@ -13,7 +13,7 @@
  */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { TenantPoolManager } from "@src/databases/sql/tenant-pool-manager";
+import { TenantPoolManager } from "@src/databases/core/tenant-pool-manager";
 
 interface FakePool {
   id: string;
@@ -154,5 +154,51 @@ describe("TenantPoolManager", () => {
     expect(manager.size).toBe(0);
     expect(manager.currentTenantId).toBeNull();
     expect(closed.map((c) => c.tenantId).sort()).toEqual(["t1", "t2"]);
+  });
+
+  it("get does not refresh the LRU timestamp (acquire does)", () => {
+    const { manager, closed } = makeManager();
+    let now = 1_000;
+    vi.spyOn(Date, "now").mockImplementation(() => now);
+
+    manager.set("old", makePool("old"));
+    now = 2_000;
+    manager.set("new", makePool("new"));
+
+    // `get` must leave "old" as the least-recently-used idle pool.
+    manager.get("old");
+    manager.evictOldestIdle(2);
+
+    expect(manager.has("old")).toBe(false);
+    expect(manager.has("new")).toBe(true);
+    expect(closed).toEqual([{ id: "old", tenantId: "old" }]);
+  });
+
+  it("closeAll clears the last-used map", async () => {
+    const { manager } = makeManager();
+    manager.set("t1", makePool("p1"));
+    manager.set("t2", makePool("p2"));
+
+    await manager.closeAll();
+
+    const internals = manager as unknown as { _lastUsed: Map<string, number> };
+    expect(internals._lastUsed.size).toBe(0);
+  });
+
+  it("close removes the pool before awaiting closePool", async () => {
+    let resolveClose: (() => void) | undefined;
+    const manager = new TenantPoolManager<FakePool>({
+      label: "TestAdapter",
+      closePool: () =>
+        new Promise<void>((resolve) => {
+          resolveClose = resolve;
+        }),
+    });
+    manager.set("t", makePool("t"));
+
+    const closing = manager.close("t");
+    expect(manager.has("t")).toBe(false);
+    resolveClose?.();
+    await expect(closing).resolves.toBe(true);
   });
 });

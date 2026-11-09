@@ -256,15 +256,13 @@ export function isApiLike(pathname: string): boolean {
 
 export { isAdmin } from "@src/databases/auth/constants";
 
-let cachedTrustedProxies: Set<string> | "all" | null = null;
-
 function isProxyTrusted(ip: string): boolean {
-  if (cachedTrustedProxies === null) {
-    const list = getTrustedProxies();
-    cachedTrustedProxies = list === "all" ? "all" : new Set(list);
-  }
-  if (cachedTrustedProxies === "all") return true;
-  return cachedTrustedProxies.has(ip);
+  // getTrustedProxies() caches the parsed allowlist against the config stamp
+  // (config-state), so a changed TRUSTED_PROXIES setting takes effect without
+  // a restart. The previous module-level Set here was never invalidated.
+  const list = getTrustedProxies();
+  if (list === "all") return true;
+  return list.includes(ip);
 }
 
 /**
@@ -321,6 +319,26 @@ export function getClientIp(event: RequestEvent): string {
 }
 
 /**
+ * Probe whether a `Headers` instance accepts mutations. SvelteKit `resolve()`
+ * responses expose immutable Headers whose `set()` throws `TypeError: Headers
+ * are immutable`; the exception is contained in this one helper so the caller
+ * can branch on a boolean instead of using the throw as control flow.
+ */
+function headersAreMutable(headers: Headers): boolean {
+  const probe = "x-svelty-mutable-probe";
+  try {
+    const hadProbe = headers.has(probe);
+    const previous = hadProbe ? headers.get(probe) : null;
+    headers.set(probe, "1");
+    if (hadProbe && previous !== null) headers.set(probe, previous);
+    else headers.delete(probe);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Clone a SvelteKit/upstream Response into a new one with mutable headers.
  * `resolve()` responses often expose immutable Headers — mutating them throws
  * `TypeError: Headers are immutable`. Always use this before setting headers.
@@ -329,27 +347,28 @@ export function withMutableHeaders(
   response: Response,
   mutate: (headers: Headers) => void,
 ): Response {
-  try {
+  // Mutable path: mutate in place (zero allocations). Immutable path: clone once.
+  if (headersAreMutable(response.headers)) {
     mutate(response.headers);
     return response;
-  } catch {
-    const headers = new Headers(response.headers);
-    mutate(headers);
-    const fastBody = (response as unknown as { __fastBody?: string | Uint8Array }).__fastBody;
-    // Uint8Array is a valid BodyInit at runtime; the DOM lib's generic
-    // ArrayBufferLike (which can be SharedArrayBuffer) is what makes the
-    // direct assignment fail type-checking.
-    const bodyInit = (fastBody ?? response.body) as BodyInit | null;
-    const cloned = new Response(bodyInit, {
-      status: response.status,
-      statusText: response.statusText,
-      headers,
-    });
-    if (fastBody !== undefined) {
-      (cloned as unknown as { __fastBody?: string | Uint8Array }).__fastBody = fastBody;
-    }
-    return cloned;
   }
+
+  const headers = new Headers(response.headers);
+  mutate(headers);
+  const fastBody = (response as unknown as { __fastBody?: string | Uint8Array }).__fastBody;
+  // Uint8Array is a valid BodyInit at runtime; the DOM lib's generic
+  // ArrayBufferLike (which can be SharedArrayBuffer) is what makes the
+  // direct assignment fail type-checking.
+  const bodyInit = (fastBody ?? response.body) as BodyInit | null;
+  const cloned = new Response(bodyInit, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+  if (fastBody !== undefined) {
+    (cloned as unknown as { __fastBody?: string | Uint8Array }).__fastBody = fastBody;
+  }
+  return cloned;
 }
 
 /**
