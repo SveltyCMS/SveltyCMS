@@ -2,10 +2,10 @@
   "version": 1,
   "layers": {
     "unit": {
-      "generatedAt": "2026-11-08T17:02:33.304Z",
+      "generatedAt": "2026-11-09T04:00:36.978Z",
       "totals": {
         "files": 870,
-        "tests": 8246
+        "tests": 8247
       },
       "areas": {
         "unit": {
@@ -105,8 +105,8 @@
           "tests": 438
         },
         "unit/rate-limit": {
-          "files": 12,
-          "tests": 91
+          "files": 11,
+          "tests": 86
         },
         "unit/routes": {
           "files": 64,
@@ -149,8 +149,8 @@
           "tests": 143
         },
         "unit/utils": {
-          "files": 104,
-          "tests": 987
+          "files": 105,
+          "tests": 993
         },
         "unit/widgets": {
           "files": 28,
