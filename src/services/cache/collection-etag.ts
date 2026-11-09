@@ -51,14 +51,30 @@ function decodePart(value: string): string {
  * Returns null for list/search/reorder/revisions/non-collection paths.
  */
 export function getCollectionIdFromApiPath(pathname: string): string | null {
-  if (!pathname.startsWith("/api/collections/")) return null;
-  const parts = pathname.split("/");
-  // ["", "api", "collections", "{id}", ...]
-  const collectionId = parts[3];
+  const prefix = "/api/collections/";
+  if (!pathname.startsWith(prefix)) return null;
+  // Zero-allocation segment scan (no `split`): read id / segment 4 / segment 5
+  // in place, mirroring `classifyTurboKey` in response-cache.
+  const end = pathname.length;
+  let pos = prefix.length;
+  let slash = pathname.indexOf("/", pos);
+  const idEnd = slash < 0 ? end : slash;
+  const collectionId = pathname.slice(pos, idEnd);
   if (!collectionId || SKIP_COLLECTION_IDS.has(collectionId)) return null;
-  if (parts[4] === "revisions" || parts[5] === "revisions" || parts[4] === "export") {
-    return null;
-  }
+
+  if (idEnd >= end) return collectionId;
+  pos = idEnd + 1;
+  slash = pathname.indexOf("/", pos);
+  const seg4End = slash < 0 ? end : slash;
+  const seg4 = pathname.slice(pos, seg4End);
+  if (seg4 === "revisions" || seg4 === "export") return null;
+
+  if (seg4End >= end) return collectionId;
+  pos = seg4End + 1;
+  slash = pathname.indexOf("/", pos);
+  const seg5End = slash < 0 ? end : slash;
+  if (pathname.slice(pos, seg5End) === "revisions") return null;
+
   return collectionId;
 }
 

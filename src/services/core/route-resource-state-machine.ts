@@ -16,7 +16,9 @@
 
 import { CacheCategory } from "@src/databases/cache/types";
 import type { DatabaseId } from "@src/content/types";
+import type { IDBAdapter } from "@src/databases/db-interface";
 import { validateId } from "@src/databases/core/query-primitives";
+import { lazyModule } from "@utils/lazy-module";
 import { trimPointReadEnvelope } from "@utils/point-read-payload";
 import { logger } from "@utils/logger";
 import {
@@ -29,6 +31,25 @@ import {
 let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
 function loadDbModule(): Promise<typeof import("@src/databases/db")> {
   return (dbModulePromise ??= import("@src/databases/db"));
+}
+
+/** Cached lazy handles for the prewarm dependencies (never re-resolved per call). */
+const loadSdkModule = lazyModule(() => import("@src/services/sdk"));
+const loadBehavioralLearnerModule = lazyModule(
+  () => import("@src/services/intelligence/behavioral-learner"),
+);
+
+type LocalCmsInstance = import("@src/services/sdk").LocalCMS;
+/** One LocalCMS per adapter — its namespaces resolve lazily but are reused afterwards. */
+const localCmsByAdapter = new WeakMap<IDBAdapter, LocalCmsInstance>();
+
+async function getLocalCms(adapter: IDBAdapter): Promise<LocalCmsInstance> {
+  const cached = localCmsByAdapter.get(adapter);
+  if (cached) return cached;
+  const { LocalCMS } = await loadSdkModule();
+  const cms = new LocalCMS(adapter);
+  localCmsByAdapter.set(adapter, cms);
+  return cms;
 }
 
 /** User identity for user-scoped turbo keys (never share bodies across users — FLAC). */
@@ -313,8 +334,7 @@ export class RouteResourceStateMachine {
       const adapter = getDb();
       if (!adapter) return false;
 
-      const { LocalCMS } = await import("@src/services/sdk");
-      const cms = new LocalCMS(adapter);
+      const cms = await getLocalCms(adapter);
       const opts = { tenantId: tenantId as DatabaseId, user };
 
       if (parsed) {
@@ -383,8 +403,7 @@ export class RouteResourceStateMachine {
     user?: PrewarmUser | null,
   ): Promise<string | null> {
     try {
-      const { predictNextPathAdaptive, getHotEntries } =
-        await import("@src/services/intelligence/behavioral-learner");
+      const { predictNextPathAdaptive, getHotEntries } = await loadBehavioralLearnerModule();
       const predicted = predictNextPathAdaptive(tenantId, currentPath);
       if (predicted && predicted !== currentPath) {
         if (origin) {

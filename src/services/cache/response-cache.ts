@@ -18,7 +18,20 @@
 import * as nodeCrypto from "node:crypto";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { testWorkerContext } from "@src/utils/test-worker-context";
+import { isAutomatedTestHarness } from "@utils/private-config-policy";
 import { getHardwareProfile } from "@utils/hardware-profile";
+
+/** One-time harness check — `getStore()` is an ALS call that is always empty in prod. */
+let testHarnessChecked = false;
+let testHarnessActive = false;
+
+function isTestWorkerContextActive(): boolean {
+  if (!testHarnessChecked) {
+    testHarnessChecked = true;
+    testHarnessActive = isAutomatedTestHarness();
+  }
+  return testHarnessActive;
+}
 
 /**
  * Test-only cache namespace.
@@ -33,6 +46,7 @@ import { getHardwareProfile } from "@utils/hardware-profile";
  * worker segment, so skipping it entirely is the honest isolation boundary.
  */
 function testWorkerSuffix(): string {
+  if (!isTestWorkerContextActive()) return "";
   const worker = testWorkerContext.getStore();
   return worker ? `:w${worker}` : "";
 }
@@ -1043,9 +1057,8 @@ class ResponseCacheService {
     opts?: { skipSharedL1?: boolean; tags?: string[]; preserveStale?: boolean; point?: boolean },
   ): void {
     const fullKey = this.buildKey(key, tenantId);
-    const slot = classifyTurboKey(key);
-    // Callers that already know the tier (the read lane's list branch) can skip
-    // the `classifyTurboKey` pathname scan; unknown callers keep inference.
+    // A caller that already knows the tier skips the `classifyTurboKey` scan.
+    const slot = opts?.point === undefined ? classifyTurboKey(key) : null;
     const inferredPointRead = opts?.point ?? slot?.entryId != null;
     const store = inferredPointRead ? this.pointL1 : this.localL1;
     entry.expiresAt = Date.now() + ttlMs;
@@ -1084,10 +1097,10 @@ class ResponseCacheService {
 
     const ttlSec = Math.max(1, Math.ceil(ttlMs / 1000));
     const tags = opts?.tags ? [...opts.tags] : ["res:all"];
-    if (key.includes("graphql") || key.includes("/api/graphql")) {
+    if (slot?.graphql) {
       tags.push("res:graphql");
+      this.graphqlL2Tenants.add(tenantId || "default");
     }
-    if (slot?.graphql) this.graphqlL2Tenants.add(tenantId || "default");
     const compressedToPersist = entry.compressed ? { ...entry.compressed } : undefined;
     void cacheService.set(
       `res:${key}`,

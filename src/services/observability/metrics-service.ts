@@ -1,5 +1,5 @@
 /**
- * @file src/services/metrics-service.ts
+ * @file src/services/observability/metrics-service.ts
  * @description Unified high-performance metrics service for SveltyCMS
  *
  * Supports per-tenant and global metrics with minimal overhead.
@@ -63,6 +63,7 @@ export interface MetricsReport {
   security: {
     rateLimitViolations: number;
     cspViolations: number;
+    securityViolations: number;
     authFailures: number;
   };
 }
@@ -88,7 +89,12 @@ class MetricsCounters {
   };
 
   // Security
-  security = { rateLimitViolations: 0, cspViolations: 0, authFailures: 0 };
+  security = {
+    rateLimitViolations: 0,
+    cspViolations: 0,
+    securityViolations: 0,
+    authFailures: 0,
+  };
 
   // Performance
   performance = {
@@ -250,7 +256,7 @@ class MetricsService {
   }
 
   incrementSecurityViolations(tenantId?: string | null): void {
-    this.getCounters(tenantId).security.cspViolations++;
+    this.getCounters(tenantId).security.securityViolations++;
   }
 
   // ── Performance Metrics ─────────────────────────────────
@@ -363,6 +369,7 @@ class MetricsService {
       security: {
         rateLimitViolations: c.security.rateLimitViolations,
         cspViolations: c.security.cspViolations,
+        securityViolations: c.security.securityViolations,
         authFailures: c.security.authFailures,
       },
     };
@@ -410,6 +417,8 @@ class MetricsService {
         `svelty_security_violations_total{type="rate_limit"} ${report.security.rateLimitViolations}`,
         `# TYPE svelty_security_violations_total counter`,
         `svelty_security_violations_total{type="csp"} ${report.security.cspViolations}`,
+        `# TYPE svelty_security_violations_total counter`,
+        `svelty_security_violations_total{type="security"} ${report.security.securityViolations}`,
       ].join("\n") + "\n"
     );
   }

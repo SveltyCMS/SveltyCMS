@@ -1,12 +1,11 @@
 /**
- * @file src/services/tenant-service.ts
+ * @file src/services/core/tenant-service.ts
  * @description specialized service for managing Multi-Tenancy operations
  *
  * Responsibilities:
  * - Creating new tenants (linked to an owner)
- * - Enforcing Resource Quotas (limit checks)
- * - Tracking Usage (incrementing counters)
- * - Managing Tenant Lifecycle (suspend/activate)
+ * - Cascade-deleting a tenant and all of its associated data
+ * - Reading a tenant and seeding the in-memory plan registry
  */
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 
@@ -154,130 +153,6 @@ export class TenantService {
     }
     if (result.data) seedTenantPlan(String(result.data._id), result.data.plan);
     return result.data;
-  }
-
-  /**
-   * Check if a tenant has exceeded a specific resource quota.
-   * Throws AppError if quota exceeded.
-   */
-  public async checkQuota(
-    tenantId: string,
-    resource: keyof TenantQuota,
-    currentIncrement = 1,
-  ): Promise<void> {
-    const dbAdapter = await this.getDbAdapter();
-    if (!dbAdapter) {
-      return;
-    }
-    const tenant = await this.getTenant(tenantId);
-    if (!tenant) {
-      return;
-    }
-
-    // Skip checks for Enterprise plans
-    if (tenant.plan === "enterprise") {
-      return;
-    }
-
-    let usageVal = 0;
-    let limitVal = 0;
-
-    switch (resource) {
-      case "maxUsers":
-        usageVal = tenant.usage.usersCount;
-        limitVal = tenant.quota.maxUsers;
-        break;
-      case "maxStorageBytes":
-        usageVal = tenant.usage.storageBytes;
-        limitVal = tenant.quota.maxStorageBytes;
-        break;
-      case "maxCollections":
-        usageVal = tenant.usage.collectionsCount;
-        limitVal = tenant.quota.maxCollections;
-        break;
-      case "maxApiRequestsPerMonth":
-        usageVal = tenant.usage.apiRequestsMonth;
-        limitVal = tenant.quota.maxApiRequestsPerMonth;
-        break;
-    }
-
-    if (usageVal + currentIncrement > limitVal) {
-      logger.warn(`Quota Exceeded for Tenant ${tenantId}: ${resource} (${usageVal}/${limitVal})`);
-      throw new AppError(
-        `Resource limit reached: ${resource}. Please upgrade your plan.`,
-        403,
-        "QUOTA_EXCEEDED",
-      );
-    }
-  }
-
-  /**
-   * Increment usage stats for a tenant.
-   */
-  public async incrementUsage(
-    tenantId: string,
-    resource: keyof TenantQuota,
-    amount = 1,
-  ): Promise<void> {
-    if (!tenantId) {
-      return;
-    }
-
-    const fieldMap: Record<keyof TenantQuota, string> = {
-      maxUsers: "usage.usersCount",
-      maxStorageBytes: "usage.storageBytes",
-      maxCollections: "usage.collectionsCount",
-      maxApiRequestsPerMonth: "usage.apiRequestsMonth",
-    };
-
-    const updateField = fieldMap[resource];
-    if (!updateField) {
-      return;
-    }
-
-    try {
-      const tenant = await this.getTenant(tenantId);
-      if (!tenant) {
-        return;
-      }
-
-      const newUsage = { ...tenant.usage };
-
-      if (resource === "maxUsers") {
-        newUsage.usersCount += amount;
-      }
-      if (resource === "maxStorageBytes") {
-        newUsage.storageBytes += amount;
-      }
-      if (resource === "maxCollections") {
-        newUsage.collectionsCount += amount;
-      }
-      if (resource === "maxApiRequestsPerMonth") {
-        newUsage.apiRequestsMonth += amount;
-      }
-      newUsage.lastUpdated = new Date();
-
-      const dbAdapter = await this.getDbAdapter();
-      if (!dbAdapter) {
-        return;
-      }
-      await dbAdapter.system.tenants.update(tenantId as any, {
-        usage: newUsage,
-      });
-    } catch (err) {
-      logger.error(`Failed to update usage for tenant ${tenantId}`, err);
-    }
-  }
-
-  /**
-   * Decrement usage (e.g. deleting users/files)
-   */
-  public async decrementUsage(
-    tenantId: string,
-    resource: keyof TenantQuota,
-    amount = 1,
-  ): Promise<void> {
-    return this.incrementUsage(tenantId, resource, -amount);
   }
 }
 

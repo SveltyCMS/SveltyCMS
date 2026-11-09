@@ -113,6 +113,8 @@ export class AuditService {
   private flushTimer: any = null;
   private microBatchTimer: NodeJS.Timeout | null = null;
   private inFlightFlush: Promise<void> | null = null;
+  /** Serializes `flush()` itself so interval/micro-batch/size/chainSync callers cannot interleave buffer swaps. */
+  private flushInFlight: Promise<void> | null = null;
   private readonly MAX_BUFFER_SIZE = 50; // Sustained-stream flush threshold (burst tails use the debounced timer)
   private readonly MICRO_BATCH_MS = 15; // 🚀 Trailing idle window to coalesce write bursts
   private readonly MAX_TOTAL_BUFFER = 200; // 🛡️ HARD CAP: Lowered from 500 to 200 for stability
@@ -125,10 +127,24 @@ export class AuditService {
   }
 
   private startFlushTimer() {
+    type AuditTimerHost = typeof globalThis & {
+      __sveltyAuditInterval?: ReturnType<typeof setInterval>;
+    };
+    const host = globalThis as AuditTimerHost;
+
     if (this.flushTimer) clearInterval(this.flushTimer);
+    // 🛡️ HMR SAFETY: a module re-evaluation creates a new singleton; clear the
+    // stale interval before installing the new one (mirrors the watchdog latch).
+    if (host.__sveltyAuditInterval) {
+      clearInterval(host.__sveltyAuditInterval);
+      host.__sveltyAuditInterval = undefined;
+    }
     // 🧪 PERFORMANCE: During benchmarks, we don't even need the timer if logs are disabled
     if (isAuditDisabledByEnv()) return;
-    this.flushTimer = setInterval(() => this.flush(), this.FLUSH_INTERVAL_MS);
+    const timer = setInterval(() => this.flush(), this.FLUSH_INTERVAL_MS);
+    (timer as { unref?: () => void }).unref?.();
+    this.flushTimer = timer;
+    host.__sveltyAuditInterval = timer;
   }
 
   private isMissingAuditStoreError(error: unknown) {
@@ -163,20 +179,48 @@ export class AuditService {
     });
   }
 
-  public async flush() {
+  public flush(): Promise<void> {
+    const running = this.flushInFlight;
+    if (running) {
+      // Wait for the active swap, then drain anything buffered while it ran —
+      // `chainSync` must not return before its entry is persisted.
+      return running.then(() => {
+        if (this.buffer.length === 0 || this.flushInFlight) return;
+        return this.flush();
+      });
+    }
+    let run: Promise<void>;
+    run = (async () => {
+      // Drain in passes: entries can be buffered while a DB write is in flight.
+      // The single `flushInFlight` handle stops two callers interleaving swaps.
+      // A failed pass returns false so the loop stops instead of hammering a
+      // broken store (the restored buffer retries later).
+      for (let pass = 0; pass < 8; pass++) {
+        const drained = await this._flushOnce();
+        if (!drained || this.buffer.length === 0) break;
+      }
+    })().finally(() => {
+      if (this.flushInFlight === run) this.flushInFlight = null;
+    });
+    this.flushInFlight = run;
+    return run;
+  }
+
+  /** Returns true when the pass consumed its buffer; false stops the drain loop. */
+  private async _flushOnce(): Promise<boolean> {
     if (this.microBatchTimer) {
       clearTimeout(this.microBatchTimer);
       this.microBatchTimer = null;
     }
-    if (this.buffer.length === 0) return;
+    if (this.buffer.length === 0) return false;
     if (isAuditDisabledByEnv()) {
       this.buffer = [];
-      return;
+      return false;
     }
     const flags = await getAuditFlags().catch(() => null);
     if (flags?.disabled) {
       this.buffer = [];
-      return;
+      return false;
     }
 
     const entriesToFlush = [...this.buffer];
@@ -199,18 +243,20 @@ export class AuditService {
             await dbAdapterInstance.crud.insert(this.collectionName, entry);
           }
         }
+      } else {
+        // No DB adapter — the append-only log file is the only sink.
+        await this.appendEntriesToFile(entriesToFlush);
       }
-
-      const logData = entriesToFlush.map((e) => e.rawJson ?? JSON.stringify(e)).join("\n") + "\n";
-      await fsPromises.appendFile(this.logFile, logData);
+      return true;
     } catch (error) {
       if (this.isMissingAuditStoreError(error)) {
         logger.warn("[Audit] Audit store unavailable during flush; dropping buffered entries");
-        const logData = entriesToFlush.map((e) => e.rawJson ?? JSON.stringify(e)).join("\n") + "\n";
-        await fsPromises.appendFile(this.logFile, logData).catch(() => {});
-        return;
+        await this.appendEntriesToFile(entriesToFlush).catch(() => {});
+        return false;
       }
 
+      // DB write failed — fall back to the append-only log file.
+      await this.appendEntriesToFile(entriesToFlush).catch(() => {});
       logger.error("[Audit] Flush failed, restoring buffer", error);
       // 🛡️ MEMORY LEAK FIX: Cap the restoration to prevent unbounded growth
       const combined = [...entriesToFlush, ...this.buffer];
@@ -222,7 +268,14 @@ export class AuditService {
       } else {
         this.buffer = combined;
       }
+      return false;
     }
+  }
+
+  /** Append-only fallback sink, used only when the DB write is unavailable. */
+  private appendEntriesToFile(entries: BufferedAuditEntry[]): Promise<void> {
+    const logData = entries.map((e) => e.rawJson ?? JSON.stringify(e)).join("\n") + "\n";
+    return fsPromises.appendFile(this.logFile, logData);
   }
 
   public registerHooks(adapter: IDBAdapter) {

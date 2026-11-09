@@ -14,6 +14,15 @@
 
 export type ThreatLevel = "none" | "low" | "medium" | "high" | "critical";
 
+/** Ordinal ranking for threat escalation — module-level so every scan starts allocation-free. */
+const THREAT_RANK: Record<ThreatLevel, number> = {
+  none: 0,
+  low: 1,
+  medium: 2,
+  high: 3,
+  critical: 4,
+};
+
 export interface WafScanResult {
   blocked: boolean;
   reason?: string;
@@ -610,14 +619,7 @@ function scanHaystack(value: string, checkLdap: boolean): ThreatLevel {
 }
 
 function maxThreat(a: ThreatLevel, b: ThreatLevel): ThreatLevel {
-  const rank: Record<ThreatLevel, number> = {
-    none: 0,
-    low: 1,
-    medium: 2,
-    high: 3,
-    critical: 4,
-  };
-  return rank[b] > rank[a] ? b : a;
+  return THREAT_RANK[b] > THREAT_RANK[a] ? b : a;
 }
 
 /**
