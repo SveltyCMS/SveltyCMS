@@ -315,10 +315,16 @@ if [ "${SKIP_E2E_SMOKE:-false}" != "true" ]; then
     esac
   done
   E2E_TARGETS="${UNIQUE_TARGETS# }"
+  # Headed Chromium needs an X server. CI runs the smoke gate under xvfb, so the
+  # local gate has to do the same instead of failing with "Missing X server or $DISPLAY".
+  E2E_PREFIX=""
+  if [ -z "${DISPLAY:-}" ] && command -v xvfb-run >/dev/null 2>&1; then
+    E2E_PREFIX="xvfb-run -a"
+  fi
   if gate_cached "e2e@${DIFF_SCOPE}"; then
     info "E2E browser gate already passed for this tree + diff base — skipping"
     OK=$((OK + 2))
-  elif run "🌐  E2E Browser Gate (Chromium)" pm_run scripts/runs/run-e2e.ts --no-build $E2E_TARGETS; then
+  elif run "🌐  E2E Browser Gate (Chromium)" ${E2E_PREFIX} "$PM_BIN" run scripts/runs/run-e2e.ts --no-build $E2E_TARGETS; then
     OK=$((OK + 1))
     record_gate "e2e@${DIFF_SCOPE}"
     # Any retried-pass locally is a warning sign: CI scores it against a budget.
