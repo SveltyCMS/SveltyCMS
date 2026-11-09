@@ -98,6 +98,10 @@ export default defineConfig({
     },
     launchOptions: {
       slowMo: Number.parseInt(process.env.SLOW_MO || "0", 10),
+      // Chromium refuses to start with its setuid sandbox when the process runs as
+      // root, which is the normal case inside our CI-parity container. GitHub runners
+      // run as a non-root user, so this stays a no-op there.
+      args: process.getuid?.() === 0 ? ["--no-sandbox"] : [],
     },
     trace: "on-first-retry",
     video: "retain-on-failure",
