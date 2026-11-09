@@ -15,7 +15,7 @@ import { LocalCMS } from "@src/services/sdk";
 import { contentSystem, ensureContentInitialized } from "@src/content/index.server";
 import { getRequestFlags, shouldSkipRouteMiddleware } from "@utils/hook-utils";
 import { logger } from "@utils/logger";
-import { getSetupState, SetupState } from "@utils/server/setup-check";
+import { getSetupState, peekSetupState, SetupState } from "@utils/server/setup-check";
 
 const WHITELIST_REGEX =
   /^(?:\/[a-z]{2,5}(?:-[a-zA-Z]+)?)?\/(api|_app|config|user|dashboard|mediagallery|login|email-previews|admin|setup)(?:\/|$)/;
@@ -71,7 +71,9 @@ export const handleLocalContext: Handle = async ({ event, resolve }) => {
 
   // 2. Content System Initialization
   const tenantId = locals.tenantId ? String(locals.tenantId) : null;
-  const setupState = (locals as any).__setupState || (await getSetupState());
+  // `__setupState` is set by handleSystemState; the sync `peekSetupState()` is
+  // the fallback so a known state never pays the async fs/DB read here.
+  const setupState = (locals as any).__setupState || peekSetupState() || (await getSetupState());
   (locals as any).__setupConfigExists = setupState !== SetupState.MISSING_CONFIG;
 
   if (setupState !== SetupState.COMPLETE) {

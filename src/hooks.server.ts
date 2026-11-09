@@ -902,7 +902,7 @@ export const handle: Handle = async ({ event, resolve }) => {
         setupComplete &&
         (state === "IDLE" || (globalThis as any).__SYSTEM_OVERALL_STATE__ === undefined)
       ) {
-        import("./databases/db")
+        loadDbModule()
           .then(({ getDbInitPromise }) => {
             getDbInitPromise(false, "CORE").catch((err) =>
               logger.error("[System] Database init failed", err),
