@@ -30,6 +30,7 @@ import {
   type RawListWireStreamResult,
 } from "../core/sql-adapter-core";
 import { POSTGRES_DIALECT, type SqlDialect } from "../core/sql-query-builder";
+import { isDefaultListSort } from "../core/page-utils";
 import { PostgresWireStreamEngine } from "./postgresql-wire-stream";
 import { getJsonDataPatch, parseJsonDataBlob } from "../core/query-primitives";
 import type {
@@ -43,7 +44,10 @@ import {
   bindPgParam,
   executePostgresBatchUpdateValues,
   executePostgresSingleUpdate,
+  resolvePgColumnTypePlan,
   resolveUpdateProjection,
+  type PgColumnTypePlan,
+  type PostgresUpdateContext,
 } from "./update-templates";
 import { getPostgresTenantPool, setPostgresTenantPool } from "./tenant-pool";
 import { eq, getTableName } from "drizzle-orm";
@@ -65,7 +69,7 @@ import {
 } from "../core/relational-utils";
 import { generateUUID } from "@src/utils/native-utils";
 import { NetworkDbQueueGate } from "../core/network-db-queue-gate";
-import { TenantPoolManager } from "../sql/tenant-pool-manager";
+import { TenantPoolManager } from "../core/tenant-pool-manager";
 import { PG_STATEMENT_WARMUP_ENV } from "./statement-warmup";
 
 import {
@@ -184,43 +188,80 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     }
   >();
 
+  /** Per-table column type plans (physical name, safe identifier, JSON flag, cast). */
+  private _columnTypePlanCache = new Map<object, Map<string, PgColumnTypePlan>>();
+
+  protected getColumnTypePlan(table: any, col: string): PgColumnTypePlan {
+    let perCol = this._columnTypePlanCache.get(table);
+    if (!perCol) {
+      perCol = new Map();
+      this._columnTypePlanCache.set(table, perCol);
+    }
+    let plan = perCol.get(col);
+    if (!plan) {
+      plan = resolvePgColumnTypePlan(this.getColumn(table, col), col);
+      perCol.set(col, plan);
+    }
+    return plan;
+  }
+
+  private _insertManyTemplateCache = new Map<
+    string,
+    {
+      colList: string;
+      safeTable: string;
+      unnestSqlText: string;
+      keys: string[];
+      isJsonMap: boolean[];
+    }
+  >();
+
+  private _getInsertManyTemplate(
+    table: any,
+    tableName: string,
+    cols: string[],
+    skipReturning: boolean,
+  ) {
+    const key = `${tableName}:${cols.join(",")}:${skipReturning ? "s" : "r"}`;
+    const hit = this._insertManyTemplateCache.get(key);
+    if (hit) return hit;
+
+    const colMeta = cols.map((c) => ({ key: c, ...this.getColumnTypePlan(table, c) }));
+    const colList = colMeta.map((m) => `"${m.safeCol}"`).join(", ");
+    const safeTable = assertSafeSqlIdentifier(tableName, "table");
+
+    const unnestPlaceholders = colMeta.map((_, i) => `$${i + 1}::text[]`).join(", ");
+    const selectCols = colMeta
+      .map((m, i) => (m.pgType === "text" ? `u.c${i}` : `u.c${i}::${m.pgType}`))
+      .join(", ");
+    const uAliasCols = colMeta.map((_, i) => `c${i}`).join(", ");
+    const unnestSqlText = `INSERT INTO "${safeTable}" (${colList}) SELECT ${selectCols} FROM UNNEST(${unnestPlaceholders}) AS u(${uAliasCols})${skipReturning ? "" : " RETURNING *"}`;
+
+    const tpl = {
+      colList,
+      safeTable,
+      unnestSqlText,
+      keys: colMeta.map((m) => m.key),
+      isJsonMap: colMeta.map((m) => m.isJson),
+    };
+    this.evictIfFull(this._insertManyTemplateCache);
+    this._insertManyTemplateCache.set(key, tpl);
+    return tpl;
+  }
+
   private _getInsertTemplate(table: any, tableName: string, synthesized: Record<string, any>) {
     const synthCols = Object.keys(synthesized);
     const key = `${tableName}:${synthCols.join(",")}`;
     let tpl = this._insertTemplateCache.get(key);
     if (!tpl) {
       const safeTableName = assertSafeSqlIdentifier(tableName, "table");
-      const colList = synthCols
-        .map((c) => {
-          const phys = this.getColumn(table, c);
-          return `"${assertSafeSqlIdentifier(phys?.name ?? c, "column")}"`;
-        })
-        .join(", ");
-      const isJsonMap: boolean[] = [];
-      const placeholders = synthCols.map((c, i) => {
-        const phys = this.getColumn(table, c);
-        const physName = phys?.name ?? c;
-        const isJson = physName === "data" || (phys as any)?.dataType === "json";
-        isJsonMap[i] = isJson;
-        return isJson ? `$${i + 1}::jsonb` : `$${i + 1}`;
-      });
+      const plans = synthCols.map((c) => this.getColumnTypePlan(table, c));
+      const isJsonMap = plans.map((p) => p.isJson);
+      const colList = plans.map((p) => `"${p.safeCol}"`).join(", ");
+      const placeholders = plans.map((p, i) => (p.isJson ? `$${i + 1}::jsonb` : `$${i + 1}`));
       const unnestPlaceholders = synthCols.map((_, i) => `$${i + 1}::text[]`).join(", ");
-      const selectCols = synthCols
-        .map((c, i) => {
-          const phys = this.getColumn(table, c);
-          if (isJsonMap[i]) return `u.c${i}::jsonb`;
-          if (
-            phys?.dataType === "date" ||
-            String((phys as any)?.columnType).includes("Timestamp")
-          ) {
-            return `u.c${i}::timestamptz`;
-          }
-          if (phys?.dataType === "boolean") return `u.c${i}::boolean`;
-          if (phys?.dataType === "number" || String((phys as any)?.columnType).includes("Int")) {
-            return `u.c${i}::numeric`;
-          }
-          return `u.c${i}`;
-        })
+      const selectCols = plans
+        .map((p, i) => (p.pgType === "text" ? `u.c${i}` : `u.c${i}::${p.pgType}`))
         .join(", ");
       const uAliasCols = synthCols.map((_, i) => `c${i}`).join(", ");
       const sqlText = `INSERT INTO "${safeTableName}" (${colList}) VALUES (${placeholders.join(", ")})`;
@@ -239,6 +280,9 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   public override clearStatementCaches(): void {
     super.clearStatementCaches();
     this._insertTemplateCache.clear();
+    this._insertManyTemplateCache.clear();
+    this._columnTypePlanCache.clear();
+    this._rawBulkUpdateTemplateCache.clear();
     this._updateValuesTemplateCache.clear();
     this._updateTemplateCache.clear();
   }
@@ -402,24 +446,42 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     }
   >();
 
+  private _rawBulkUpdateTemplateCache = new Map<
+    string,
+    {
+      physCols: Array<{ col: string; isJson: boolean }>;
+      dataCol: boolean;
+      rawSql: string;
+    }
+  >();
+
+  /** Lazily-built, reused update context (P3) — `sql` stays fresh via getter. */
+  private _pgUpdateContext?: PostgresUpdateContext;
+
+  private _getUpdateContext(): PostgresUpdateContext {
+    if (!this._pgUpdateContext) {
+      const readSql = () => this.sql;
+      this._pgUpdateContext = {
+        get sql() {
+          return readSql();
+        },
+        getColumn: (t, n) => this.getColumn(t, n),
+        getColumnTypePlan: (t, c) => this.getColumnTypePlan(t, c),
+        getTxnSql: (o) => this.getTxnSql(o),
+        convertDatesOptions: this.convertDatesOptions,
+        updateValuesTemplateCache: this._updateValuesTemplateCache,
+        updateTemplateCache: this._updateTemplateCache,
+      };
+    }
+    return this._pgUpdateContext;
+  }
+
   protected override async rawUpdateManyReturning<T extends import("../db-interface").BaseEntity>(
     table: any,
     collection: string,
     batch: Array<{ id: DatabaseId; values: Record<string, any>; options: BaseQueryOptions }>,
   ): Promise<T[] | null> {
-    return executePostgresBatchUpdateValues(
-      {
-        sql: this.sql,
-        getColumn: (t, n) => this.getColumn(t, n),
-        getTxnSql: (o) => this.getTxnSql(o),
-        convertDatesOptions: this.convertDatesOptions,
-        updateValuesTemplateCache: this._updateValuesTemplateCache,
-        updateTemplateCache: this._updateTemplateCache,
-      },
-      table,
-      collection,
-      batch,
-    );
+    return executePostgresBatchUpdateValues(this._getUpdateContext(), table, collection, batch);
   }
 
   protected override async rawUpdateReturning<T extends import("../db-interface").BaseEntity>(
@@ -431,14 +493,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     options: BaseQueryOptions,
   ): Promise<RawFindResult<T>> {
     return executePostgresSingleUpdate(
-      {
-        sql: this.sql,
-        getColumn: (t, n) => this.getColumn(t, n),
-        getTxnSql: (o) => this.getTxnSql(o),
-        convertDatesOptions: this.convertDatesOptions,
-        updateValuesTemplateCache: this._updateValuesTemplateCache,
-        updateTemplateCache: this._updateTemplateCache,
-      },
+      this._getUpdateContext(),
       table,
       collection,
       values,
@@ -621,12 +676,12 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         this.prepareUpdateValues(table, u.data, u.id as string, now, options),
       );
 
-      // 🔀 PARTIAL-UPDATE MERGE: the CASE builder can wrap the `data` column in the
-      // dialect operator (one statement). A patch the operator cannot express
-      // (nested object / explicit null on this engine) would need each row's stored
+      // 🔀 PARTIAL-UPDATE MERGE: compute the patch once per row (the previous
+      // filter + bind both re-called getJsonDataPatch). A patch the operator
+      // cannot express (nested object / explicit null) needs each row's stored
       // blob, so refuse the fast path — the caller's per-row loop merges exactly.
-      const jsonPatchRows = prepared.filter((v) => getJsonDataPatch(v) !== undefined);
-      if (jsonPatchRows.some((v) => !this.canMergeJsonInOneStatement(getJsonDataPatch(v)!))) {
+      const jsonPatches = prepared.map((v) => getJsonDataPatch(v));
+      if (jsonPatches.some((p) => p !== undefined && !this.canMergeJsonInOneStatement(p!))) {
         return null;
       }
 
@@ -644,82 +699,15 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       }
       if (setCols.length === 0) return null;
 
-      // Resolve column types once per batch
-      const colMeta = setCols.map((col) => {
-        const phys = this.getColumn(table, col);
-        const physName = phys?.name ?? col;
-        const safeCol = assertSafeSqlIdentifier(physName, "column");
-        const isJson = physName === "data" || (phys as any)?.dataType === "json";
-        let pgType = "text";
-        if (isJson) pgType = "jsonb";
-        else if (
-          phys?.dataType === "date" ||
-          String((phys as any)?.columnType).includes("Timestamp")
-        )
-          pgType = "timestamptz";
-        else if (phys?.dataType === "boolean") pgType = "boolean";
-        else if (phys?.dataType === "number" || String((phys as any)?.columnType).includes("Int"))
-          pgType = "numeric";
-        return { col, physName, safeCol, isJson, pgType };
-      });
-
-      const maxRowsPerChunk = 500;
-      let modifiedCount = 0;
-      const safeTableName = assertSafeSqlIdentifier(tableName, "table");
-      const safeIdCol = assertSafeSqlIdentifier(idColName, "column");
       const hasTenant =
         options?.tenantId !== undefined &&
         options.tenantId !== null &&
         options.tenantId !== "global";
 
-      // Separate physical columns from the json 'data' blob column
-      const physCols = colMeta.filter((m) => m.physName !== "data");
-      const dataCol = colMeta.find((m) => m.physName === "data");
+      const tpl = this._getRawBulkUpdateTemplate(table, tableName, idColName, setCols, hasTenant);
 
-      // Build constant UNNEST parameter placeholders:
-      // $1::text[] for IDs
-      // For each physical column: $val::text[], $present::text[]
-      // For data column: $dataVal::text[], $dataMode::text[] ('patch' | 'set' | 'keep')
-      const unnestPlaceholders: string[] = ["$1::text[]"];
-      const vAliases: string[] = ["_unnest_id"];
-      let paramCount = 1;
-
-      const setClauses: string[] = [];
-
-      for (let i = 0; i < physCols.length; i++) {
-        const m = physCols[i];
-        paramCount += 2;
-        unnestPlaceholders.push(`$${paramCount - 1}::text[]`, `$${paramCount}::text[]`);
-        const valAlias = `c${i}_val`;
-        const presAlias = `c${i}_pres`;
-        vAliases.push(valAlias, presAlias);
-
-        const cast = m.pgType === "text" ? `v."${valAlias}"` : `v."${valAlias}"::${m.pgType}`;
-        setClauses.push(
-          `"${m.safeCol}" = CASE WHEN v."${presAlias}" = '1' THEN ${cast} ELSE t."${m.safeCol}" END`,
-        );
-      }
-
-      if (dataCol) {
-        paramCount += 2;
-        unnestPlaceholders.push(`$${paramCount - 1}::text[]`, `$${paramCount}::text[]`);
-        vAliases.push("data_val", "data_mode");
-        setClauses.push(
-          `"${dataCol.safeCol}" = CASE
-            WHEN v."data_mode" = 'patch' THEN COALESCE(t."${dataCol.safeCol}", '{}'::jsonb) || v."data_val"::jsonb
-            WHEN v."data_mode" = 'set' THEN v."data_val"::jsonb
-            ELSE t."${dataCol.safeCol}"
-          END`,
-        );
-      }
-
-      let whereSql = `t."${safeIdCol}" = v."_unnest_id"`;
-      const tenantParamIdx = paramCount + 1;
-      if (hasTenant) {
-        whereSql += ` AND t."tenantId" = $${tenantParamIdx}`;
-      }
-
-      const rawSql = `UPDATE "${safeTableName}" AS t SET ${setClauses.join(", ")} FROM UNNEST(${unnestPlaceholders.join(", ")}) AS v(${vAliases.map((a) => `"${a}"`).join(", ")}) WHERE ${whereSql}`;
+      const maxRowsPerChunk = 500;
+      let modifiedCount = 0;
 
       const runChunks = async (db: any) => {
         for (let start = 0; start < prepared.length; start += maxRowsPerChunk) {
@@ -728,7 +716,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
 
           const boundParams: unknown[] = [chunkIds];
 
-          for (const m of physCols) {
+          for (const m of tpl.physCols) {
             const vals: unknown[] = Array.from({ length: chunk.length });
             const pres: string[] = Array.from({ length: chunk.length });
             for (let r = 0; r < chunk.length; r++) {
@@ -744,12 +732,12 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
             boundParams.push(vals, pres);
           }
 
-          if (dataCol) {
+          if (tpl.dataCol) {
             const dataVals: unknown[] = Array.from({ length: chunk.length });
             const dataModes: string[] = Array.from({ length: chunk.length });
             for (let r = 0; r < chunk.length; r++) {
               const row = chunk[r];
-              if (getJsonDataPatch(row) !== undefined) {
+              if (jsonPatches[start + r] !== undefined) {
                 dataModes[r] = "patch";
                 dataVals[r] = bindPgParam(row.data, true);
               } else if (Object.hasOwn(row, "data")) {
@@ -767,7 +755,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
             boundParams.push(String(options.tenantId));
           }
 
-          const res = await db.unsafe(rawSql, boundParams, { prepare: true });
+          const res = await db.unsafe(tpl.rawSql, boundParams, { prepare: true });
           modifiedCount += Number((res as any)?.count ?? 0);
         }
       };
@@ -785,6 +773,75 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       logger.debug(`[PostgreSQL] rawBulkUpdate error for ${tableName}:`, err);
       return null;
     }
+  }
+
+  /**
+   * Build + cache the constant UNNEST UPDATE statement for a (table, id column,
+   * column set, tenant shape). The SQL text stays stable for the prepared-statement
+   * cache; only the per-chunk binding arrays change between calls.
+   */
+  private _getRawBulkUpdateTemplate(
+    table: any,
+    tableName: string,
+    idColName: string,
+    setCols: string[],
+    hasTenant: boolean,
+  ) {
+    const key = `${tableName}:${idColName}:${hasTenant ? "t" : "o"}:${setCols.join(",")}`;
+    const hit = this._rawBulkUpdateTemplateCache.get(key);
+    if (hit) return hit;
+
+    const colMeta = setCols.map((col) => ({ col, ...this.getColumnTypePlan(table, col) }));
+    const physCols = colMeta.filter((m) => m.physName !== "data");
+    const dataCol = colMeta.find((m) => m.physName === "data");
+
+    const safeTableName = assertSafeSqlIdentifier(tableName, "table");
+    const safeIdCol = assertSafeSqlIdentifier(idColName, "column");
+
+    const unnestPlaceholders: string[] = ["$1::text[]"];
+    const vAliases: string[] = ["_unnest_id"];
+    let paramCount = 1;
+    const setClauses: string[] = [];
+
+    for (let i = 0; i < physCols.length; i++) {
+      const m = physCols[i];
+      paramCount += 2;
+      unnestPlaceholders.push(`$${paramCount - 1}::text[]`, `$${paramCount}::text[]`);
+      const valAlias = `c${i}_val`;
+      const presAlias = `c${i}_pres`;
+      vAliases.push(valAlias, presAlias);
+      const cast = m.pgType === "text" ? `v."${valAlias}"` : `v."${valAlias}"::${m.pgType}`;
+      setClauses.push(
+        `"${m.safeCol}" = CASE WHEN v."${presAlias}" = '1' THEN ${cast} ELSE t."${m.safeCol}" END`,
+      );
+    }
+
+    if (dataCol) {
+      paramCount += 2;
+      unnestPlaceholders.push(`$${paramCount - 1}::text[]`, `$${paramCount}::text[]`);
+      vAliases.push("data_val", "data_mode");
+      setClauses.push(
+        `"${dataCol.safeCol}" = CASE
+            WHEN v."data_mode" = 'patch' THEN COALESCE(t."${dataCol.safeCol}", '{}'::jsonb) || v."data_val"::jsonb
+            WHEN v."data_mode" = 'set' THEN v."data_val"::jsonb
+            ELSE t."${dataCol.safeCol}"
+          END`,
+      );
+    }
+
+    let whereSql = `t."${safeIdCol}" = v."_unnest_id"`;
+    if (hasTenant) whereSql += ` AND t."tenantId" = $${paramCount + 1}`;
+
+    const rawSql = `UPDATE "${safeTableName}" AS t SET ${setClauses.join(", ")} FROM UNNEST(${unnestPlaceholders.join(", ")}) AS v(${vAliases.map((a) => `"${a}"`).join(", ")}) WHERE ${whereSql}`;
+
+    const tpl = {
+      physCols: physCols.map((m) => ({ col: m.col, isJson: m.isJson })),
+      dataCol: dataCol !== undefined,
+      rawSql,
+    };
+    this.evictIfFull(this._rawBulkUpdateTemplateCache);
+    this._rawBulkUpdateTemplateCache.set(key, tpl);
+    return tpl;
   }
 
   /**
@@ -828,53 +885,16 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           for (const k in batchValues[i]) cols.add(k);
         }
         if (cols.size > 0) {
-          // Pre-resolve column metadata once per batch (no inner-loop getColumn lookups)
-          const colMeta = Array.from(cols).map((c) => {
-            const phys = this.getColumn(table, c);
-            const physName = phys?.name ?? c;
-            const isJson = physName === "data" || (phys as any)?.dataType === "json";
-            let pgType = "text";
-            if (isJson) pgType = "jsonb";
-            else if (
-              phys?.dataType === "date" ||
-              String((phys as any)?.columnType).includes("Timestamp")
-            )
-              pgType = "timestamptz";
-            else if (phys?.dataType === "boolean") pgType = "boolean";
-            else if (
-              phys?.dataType === "number" ||
-              String((phys as any)?.columnType).includes("Int")
-            )
-              pgType = "numeric";
-            return {
-              key: c,
-              physName,
-              safeCol: assertSafeSqlIdentifier(physName, "column"),
-              isJson,
-              pgType,
-            };
-          });
-
-          const colList = colMeta.map((m) => `"${m.safeCol}"`).join(", ");
-          const safeTable = assertSafeSqlIdentifier(getTableName(table), "table");
+          const tpl = this._getInsertManyTemplate(
+            table,
+            getTableName(table),
+            Array.from(cols),
+            skipReturning,
+          );
 
           // UNNEST parameters are 1 array per column, bypassing scalar 65535 parameter limit
           const chunkSize = 2000;
           const rowsOut: any[] = [];
-
-          // Stable UNNEST statement text with element-wise casting — plans once and stays in statement cache
-          const unnestPlaceholders = colMeta.map((_, i) => `$${i + 1}::text[]`).join(", ");
-          const selectCols = colMeta
-            .map((m, i) => {
-              if (m.isJson) return `u.c${i}::jsonb`;
-              if (m.pgType === "timestamptz") return `u.c${i}::timestamptz`;
-              if (m.pgType === "boolean") return `u.c${i}::boolean`;
-              if (m.pgType === "numeric") return `u.c${i}::numeric`;
-              return `u.c${i}`;
-            })
-            .join(", ");
-          const uAliasCols = colMeta.map((_, i) => `c${i}`).join(", ");
-          const unnestSqlText = `INSERT INTO "${safeTable}" (${colList}) SELECT ${selectCols} FROM UNNEST(${unnestPlaceholders}) AS u(${uAliasCols})${skipReturning ? "" : " RETURNING *"}`;
 
           for (let start = 0; start < len; start += chunkSize) {
             const chunk = batchValues.slice(start, start + chunkSize);
@@ -883,8 +903,8 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
             let hasUndefined = false;
             for (let r = 0; r < chunk.length; r++) {
               const row = chunk[r];
-              for (let c = 0; c < colMeta.length; c++) {
-                if (row[colMeta[c].key] === undefined) {
+              for (let c = 0; c < tpl.keys.length; c++) {
+                if (row[tpl.keys[c]] === undefined) {
                   hasUndefined = true;
                   break;
                 }
@@ -894,10 +914,10 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
 
             if (!hasUndefined) {
               // 🚀 FAST UNNEST PATH: identical SQL text for every chunk size, array binding
-              const unnestParams = colMeta.map((m) =>
-                chunk.map((r) => bindPgParam(r[m.key], m.isJson)),
+              const unnestParams = tpl.keys.map((key, idx) =>
+                chunk.map((r) => bindPgParam(r[key], tpl.isJsonMap[idx])),
               );
-              const rows = await exec.unsafe(unnestSqlText, unnestParams, { prepare: true });
+              const rows = await exec.unsafe(tpl.unnestSqlText, unnestParams, { prepare: true });
               wroteAny = true;
               if (Array.isArray(rows) && rows.length > 0) rowsOut.push(...rows);
             } else {
@@ -907,9 +927,10 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
               for (let r = 0; r < chunk.length; r++) {
                 const row = chunk[r];
                 const rowPlaceholders: string[] = [];
-                for (let c = 0; c < colMeta.length; c++) {
-                  const m = colMeta[c];
-                  const v = row[m.key];
+                for (let c = 0; c < tpl.keys.length; c++) {
+                  const key = tpl.keys[c];
+                  const isJson = tpl.isJsonMap[c];
+                  const v = row[key];
                   if (v === undefined) {
                     rowPlaceholders.push("default");
                     continue;
@@ -919,9 +940,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
                     rowPlaceholders.push(`$${params.length}`);
                   } else if (v !== null && typeof v === "object" && !Array.isArray(v)) {
                     params.push(JSON.stringify(v));
-                    rowPlaceholders.push(
-                      m.isJson ? `$${params.length}::jsonb` : `$${params.length}`,
-                    );
+                    rowPlaceholders.push(isJson ? `$${params.length}::jsonb` : `$${params.length}`);
                   } else {
                     params.push(v);
                     rowPlaceholders.push(`$${params.length}`);
@@ -929,7 +948,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
                 }
                 valuesSql.push(`(${rowPlaceholders.join(", ")})`);
               }
-              const sqlText = `INSERT INTO "${safeTable}" (${colList}) VALUES ${valuesSql.join(", ")}${skipReturning ? "" : " RETURNING *"}`;
+              const sqlText = `INSERT INTO "${tpl.safeTable}" (${tpl.colList}) VALUES ${valuesSql.join(", ")}${skipReturning ? "" : " RETURNING *"}`;
               // prepare: false so unique chunk shapes do not crowd out the statement cache
               const rows = await exec.unsafe(sqlText, params, { prepare: false });
               wroteAny = true;
@@ -989,14 +1008,13 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     const txnSql = this.getTxnSql(options ?? {});
     const exec = txnSql ?? this.sql;
     if (!exec) throw new Error("Database not connected");
-    if (txnSql || !this.queueGate || this.queueGate.isInsideActiveContext()) {
-      const rows = await exec.unsafe(sqlText, params as any[], { prepare: true });
-      return Array.isArray(rows) ? rows : [];
-    }
     const run = async () => {
       const rows = await exec.unsafe(sqlText, params as any[], { prepare: true });
       return Array.isArray(rows) ? rows : [];
     };
+    if (txnSql || !this.queueGate || this.queueGate.isInsideActiveContext()) {
+      return run();
+    }
     return this.queueGate.acquire(run);
   }
 
@@ -1019,7 +1037,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       ? `("tenantId", "${safeCol}" ${dir}, "_id" ${dir})`
       : `("${safeCol}" ${dir}, "_id" ${dir})`;
     const ddl = `CREATE INDEX CONCURRENTLY IF NOT EXISTS "${indexName}" ON "${safeTable}" ${cols}`;
-    this.runIndexDdl(ddl, safeTable, `list index for ${tableName}.${plan.column}`);
+    this.runIndexDdl(ddl, safeTable, `list index for ${tableName}.${plan.column}`, indexName);
   }
 
   /**
@@ -1051,14 +1069,14 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
 
     const safeTable = assertSafeSqlIdentifier(tableName, "table");
     const safeCol = assertSafeSqlIdentifier(column, "column");
-    const { ddl } = buildPublishedListIndexDdl({
+    const { ddl, indexName } = buildPublishedListIndexDdl({
       tableName,
       column,
       direction,
       withTenant,
       hasDeleted,
     });
-    this.runIndexDdl(ddl, safeTable, `published list index for ${tableName}.${safeCol}`);
+    this.runIndexDdl(ddl, safeTable, `published list index for ${tableName}.${safeCol}`, indexName);
   }
 
   /**
@@ -1066,7 +1084,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
    * client, `statement_timeout = 0`) so the list that discovered the sort never
    * waits on the build and the pool keeps every worker connection.
    */
-  private runIndexDdl(ddl: string, safeTable: string, label: string): void {
+  private runIndexDdl(ddl: string, safeTable: string, label: string, indexName?: string): void {
     void (async () => {
       let client: ReturnType<typeof postgres> | null = null;
       try {
@@ -1084,6 +1102,18 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         const exec = client ?? this.sql;
         if (!exec) return;
         await exec.unsafe("SET statement_timeout = 0").catch(() => {});
+        if (indexName) {
+          // A cancelled `CREATE INDEX CONCURRENTLY` leaves an INVALID index behind,
+          // and `IF NOT EXISTS` then refuses to build it again — permanently. The
+          // query planner never uses an invalid index, so the cost silently stays.
+          const rows = (await exec.unsafe(
+            `SELECT i.indisvalid FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid WHERE c.relname = $1`,
+            [indexName],
+          )) as Array<{ indisvalid?: boolean }>;
+          if (rows.length > 0 && rows[0].indisvalid === false) {
+            await exec.unsafe(`DROP INDEX CONCURRENTLY IF EXISTS "${indexName}"`).catch(() => {});
+          }
+        }
         await exec.unsafe(ddl);
         await exec.unsafe(`ANALYZE "${safeTable}"`).catch(() => {});
       } catch (err) {
@@ -1195,6 +1225,8 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   private _dynamicSortIndexes = new Map<string, "requested" | "done">();
   /** Published-list partial indexes already requested (DDL is never retried per request). */
   private _publishedListIndexKeys = new Set<string>();
+  /** Tables whose tenant-less default-order index was already requested. */
+  private _defaultOrderIndexKeys = new Set<string>();
 
   protected override onDynamicSort(collection: string, tableName: string, field: string): void {
     if (process.env.SVELTY_LAZY_SORT_INDEXES === "0") return;
@@ -1262,6 +1294,41 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         }
       }
     })();
+  }
+
+  /**
+   * Provision the covering index for the SDK's default list order.
+   *
+   * `defaultListSortOption()` returns `[[updatedAt, desc], [_id, desc]]`, and the
+   * docstring above it claims the order "rides the (tenantId, updatedAt, _id)
+   * composite". That holds only when the compiled query carries a tenant
+   * equality; single-tenant deployments omit `tenantId` entirely, so the leading
+   * index column is unconstrained and PostgreSQL plans the LIMIT as a parallel
+   * seq scan + top-N sort. Measured at 215k rows: **60.8ms** without this index,
+   * **0.022ms** with it — and every write evicts the GraphQL body, so the mixed
+   * lane paid that sort on each post-write GraphQL read.
+   *
+   * Unlike `onDynamicSort`, the sort keys are real columns; there is nothing to
+   * inspect per field, so one index covers the shape. Bounded and idempotent.
+   */
+  protected override onFindMany(collection: string, options: unknown): void {
+    if (process.env.SVELTY_LAZY_SORT_INDEXES === "0") return;
+    if (!isDefaultListSort((options as { sort?: unknown } | undefined)?.sort)) return;
+    const table = this.getTable(collection);
+    if (!table) return;
+    const tableName = getTableName(table);
+    if (this._defaultOrderIndexKeys.has(tableName)) return;
+    if (this._defaultOrderIndexKeys.size >= PostgresAdapterCore.MAX_PUBLISHED_LIST_INDEXES) return;
+    this._defaultOrderIndexKeys.add(tableName);
+
+    const safeTable = assertSafeSqlIdentifier(tableName, "table");
+    const indexName = assertSafeSqlIdentifier(pgSafeIndexName(`${tableName}_updated_id`), "index");
+    this.runIndexDdl(
+      `CREATE INDEX CONCURRENTLY IF NOT EXISTS "${indexName}" ON "${safeTable}" ("updatedAt" DESC, "_id" DESC)`,
+      safeTable,
+      `default-order index for ${tableName}`,
+      indexName,
+    );
   }
 
   /**
@@ -1425,12 +1492,13 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     if (!this.sql) throw new Error("Database not connected");
 
     // If a per-tenant dedicated pool is active, use it for full
-    // connection-level isolation instead of the shared pool.
-    if (
-      this._tenantPools.currentTenantId &&
-      this._tenantPools.has(this._tenantPools.currentTenantId)
-    ) {
-      return this._tenantPools.get(this._tenantPools.currentTenantId)!;
+    // connection-level isolation instead of the shared pool. `acquire`
+    // refreshes the pool's LRU timestamp so the busiest tenant is never
+    // evicted as "idle" while routing through it.
+    const tenantId = this._tenantPools.currentTenantId;
+    if (tenantId) {
+      const tenantPool = this._tenantPools.acquire(tenantId);
+      if (tenantPool) return tenantPool;
     }
 
     if (mode === "write" || this.allReplicaSqls.length === 0) {
@@ -1539,11 +1607,6 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       );
 
       if (typeof finalConnection === "string") {
-        options = {
-          max: Number(process.env.DATABASE_MAX_CONNECTIONS) || getHardwareProfile().dbPoolSize,
-          connect_timeout: 30,
-          onclose,
-        };
         let poolerUrl = process.env.DATABASE_POOLER_URL;
         let effectivePrepare = true;
 
@@ -1630,9 +1693,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           prepare: usePrepared,
           idle_timeout: pgIdleTimeout(c.idle_timeout),
           max_lifetime: Number(c.max_lifetime || 60 * 60),
-          keepalive: c.keepalive ?? true,
-          keepaliveInitialDelayMillis: Number(c.keepaliveInitialDelayMillis || 10000),
-          pipeline: c.pipeline ?? true,
+          keep_alive: 10,
           debug: false,
           connection: pgConnectionParameters({
             ...c.connection,
@@ -1644,25 +1705,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
 
       // Auto-create database if missing
       try {
-        this.sql = postgres(finalConnection, options);
-        this._rawConnectionConfig = { finalConnection, options };
-        this._db = drizzle(this.sql, { schema });
-        await this.sql`SELECT 1`;
-        this.connected = true;
-        const poolMax = options.max || 20;
-        const gateDisabled =
-          process.env.DATABASE_QUEUE_GATE === "0" || process.env.SVELTY_DB_QUEUE_GATE === "0";
-        if (!gateDisabled) {
-          this.queueGate = new NetworkDbQueueGate({
-            maxConcurrency: Number(process.env.DATABASE_MAX_CONCURRENCY) || poolMax,
-            maxQueue: Number(process.env.DATABASE_MAX_QUEUE) || 500,
-            timeoutMs: Number(process.env.DATABASE_QUEUE_TIMEOUT_MS) || 15_000,
-            name: "PostgreSQL",
-            enableWriteCoalescing: true,
-          });
-        }
-        logger.info("Connected to PostgreSQL");
-        return { success: true, data: undefined };
+        return await this.finishConnect(finalConnection, options);
       } catch (err: any) {
         const isMissingDb = err.code === "3D000" || err.message?.includes("does not exist");
 
@@ -1678,25 +1721,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
             try {
               await adminSql.unsafe(`CREATE DATABASE "${dbName}"`);
               await adminSql.end();
-              this.sql = postgres(finalConnection, options);
-              this._rawConnectionConfig = { finalConnection, options };
-              this._db = drizzle(this.sql, { schema });
-              await this.sql`SELECT 1`;
-              this.connected = true;
-              const poolMax = options.max || 20;
-              const gateDisabled =
-                process.env.DATABASE_QUEUE_GATE === "0" || process.env.SVELTY_DB_QUEUE_GATE === "0";
-              if (!gateDisabled) {
-                this.queueGate = new NetworkDbQueueGate({
-                  maxConcurrency: Number(process.env.DATABASE_MAX_CONCURRENCY) || poolMax,
-                  maxQueue: Number(process.env.DATABASE_MAX_QUEUE) || 500,
-                  timeoutMs: Number(process.env.DATABASE_QUEUE_TIMEOUT_MS) || 15_000,
-                  name: "PostgreSQL",
-                  enableWriteCoalescing: true,
-                });
-              }
-              logger.info("Connected to PostgreSQL");
-              return { success: true, data: undefined };
+              return await this.finishConnect(finalConnection, options);
             } catch (createErr) {
               await adminSql.end();
               throw createErr;
@@ -1709,6 +1734,29 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       this.connected = false;
       return this.handleError(error, "CONNECTION_FAILED");
     }
+  }
+
+  /** Shared post-connection success path: open pool → drizzle → probe → queue gate. */
+  private async finishConnect(finalConnection: any, options: any): Promise<DatabaseResult<void>> {
+    this.sql = postgres(finalConnection, options);
+    this._rawConnectionConfig = { finalConnection, options };
+    this._db = drizzle(this.sql, { schema });
+    await this.sql`SELECT 1`;
+    this.connected = true;
+    const poolMax = options.max || 20;
+    const gateDisabled =
+      process.env.DATABASE_QUEUE_GATE === "0" || process.env.SVELTY_DB_QUEUE_GATE === "0";
+    if (!gateDisabled) {
+      this.queueGate = new NetworkDbQueueGate({
+        maxConcurrency: Number(process.env.DATABASE_MAX_CONCURRENCY) || poolMax,
+        maxQueue: Number(process.env.DATABASE_MAX_QUEUE) || 500,
+        timeoutMs: Number(process.env.DATABASE_QUEUE_TIMEOUT_MS) || 15_000,
+        name: "PostgreSQL",
+        enableWriteCoalescing: true,
+      });
+    }
+    logger.info("Connected to PostgreSQL");
+    return { success: true, data: undefined };
   }
 
   async disconnect(): Promise<DatabaseResult<void>> {
@@ -1957,18 +2005,6 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   };
 
   // --------------------------------------------------------------------------
-  // Stream Many (Delegates to SqlAdapterCore paged cursor)
-  // --------------------------------------------------------------------------
-
-  public async streamMany<T extends import("../db-interface").BaseEntity>(
-    collection: string,
-    query: import("../db-interface").QueryFilter<T>,
-    options: import("../db-interface").FindOptions<T> = {},
-  ): Promise<import("../db-interface").DatabaseResult<AsyncIterable<T>>> {
-    return super.streamMany(collection, query, options);
-  }
-
-  // --------------------------------------------------------------------------
   // Upsert Native
   // --------------------------------------------------------------------------
 
@@ -2028,12 +2064,13 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       async () => {
         const table = this.getTable(collection);
         if (!table) throw new Error(`Collection table not found: ${collection}`);
-        const tableName = getTableName(table);
+        const tableName = assertSafeSqlIdentifier(getTableName(table), "table");
         const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
         if (!idCol) throw new Error("ID column not found");
 
         // Identifiers may be embedded; values (_id, amount, tenantId) are always bound.
         const safeField = assertSafeSqlIdentifier(field);
+        const safeIdCol = assertSafeSqlIdentifier(idCol.name, "column");
         const amountNum = assertFiniteAmount(amount);
         const idStr = String(id);
         const dataCol = this.getColumn(table, "data");
@@ -2049,30 +2086,26 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         let sqlQuery: string;
         let params: unknown[];
 
-        if (fieldIsColumn) {
-          params = [idStr, amountNum, ...tenantParams];
-          sqlQuery = `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + $2::numeric, "updatedAt" = now() WHERE "${idCol.name}" = $1${tenantSql} RETURNING *`;
-        } else if (dataCol) {
+        if (!fieldIsColumn && dataCol) {
           // Param $3 is the field name — statement text is stable and plans once for all numeric JSON fields
           params = [idStr, amountNum, field, ...tenantParams];
-          sqlQuery = `UPDATE "${tableName}" SET "data" = jsonb_set(CASE WHEN jsonb_typeof("data") = 'object' THEN "data" ELSE '{}'::jsonb END, ARRAY[$3]::text[], to_jsonb(coalesce(("data"->>$3)::numeric, 0) + $2::numeric)), "updatedAt" = now() WHERE "${idCol.name}" = $1${tenantSql} RETURNING *`;
+          sqlQuery = `UPDATE "${tableName}" SET "data" = jsonb_set(CASE WHEN jsonb_typeof("data") = 'object' THEN "data" ELSE '{}'::jsonb END, ARRAY[$3]::text[], to_jsonb(coalesce(("data"->>$3)::numeric, 0) + $2::numeric)), "updatedAt" = now() WHERE "${safeIdCol}" = $1${tenantSql} RETURNING *`;
         } else {
           params = [idStr, amountNum, ...tenantParams];
-          sqlQuery = `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + $2::numeric, "updatedAt" = now() WHERE "${idCol.name}" = $1${tenantSql} RETURNING *`;
+          sqlQuery = `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + $2::numeric, "updatedAt" = now() WHERE "${safeIdCol}" = $1${tenantSql} RETURNING *`;
         }
 
-        if (options.skipReturning === true) {
-          const sqlSkip = sqlQuery.replace(/ RETURNING \*$/, "");
+        const execute = async (sql: string): Promise<unknown> => {
+          let lastErr: unknown;
           for (let attempt = 0; attempt < 5; attempt++) {
             try {
-              const result = await this.raw.execute(sqlSkip, params);
-              const count = Number(result?.count ?? 0);
-              if (count === 0) throw new Error(`Entry not found: ${idStr}`);
-              return { _id: idStr };
-            } catch (err: any) {
+              return await this.raw.execute(sql, params);
+            } catch (err) {
+              lastErr = err;
+              const pgErr = err as { message?: string; code?: string };
               if (
                 attempt < 4 &&
-                (err?.message?.includes("too many clients") || err?.code === "53300")
+                (pgErr.message?.includes("too many clients") || pgErr.code === "53300")
               ) {
                 await new Promise((r) => setTimeout(r, 20 * (attempt + 1)));
                 continue;
@@ -2080,25 +2113,18 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
               throw err;
             }
           }
+          throw lastErr;
+        };
+
+        if (options.skipReturning === true) {
+          const result = await execute(sqlQuery.replace(/ RETURNING \*$/, ""));
+          const count = Number((result as { count?: number } | undefined)?.count ?? 0);
+          if (count === 0) throw new Error(`Entry not found: ${idStr}`);
+          return { _id: idStr };
         }
 
-        let rows: any[] = [];
-        for (let attempt = 0; attempt < 5; attempt++) {
-          try {
-            rows = (await this.raw.execute(sqlQuery, params)) || [];
-            break;
-          } catch (err: any) {
-            if (
-              attempt < 4 &&
-              (err?.message?.includes("too many clients") || err?.code === "53300")
-            ) {
-              await new Promise((r) => setTimeout(r, 20 * (attempt + 1)));
-              continue;
-            }
-            throw err;
-          }
-        }
-        if (rows.length === 0) {
+        const rows = (await execute(sqlQuery)) as unknown[];
+        if (!Array.isArray(rows) || rows.length === 0) {
           throw new Error(`Entry not found after increment: ${idStr}`);
         }
         return rows[0] as Record<string, unknown>;

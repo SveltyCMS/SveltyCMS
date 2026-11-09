@@ -299,6 +299,26 @@ export async function provisionPostgresTable(
         /* safe */
       }
 
+      // Tenant-LESS covering index for the SDK's default list order
+      // (`defaultListSortOption()` -> `updatedAt desc, _id desc`). The tenant
+      // twin above only serves that order when the compiled query carries a
+      // tenant equality; a single-tenant deployment omits `tenantId`, so the
+      // leading column is unconstrained and the LIMIT becomes a parallel seq
+      // scan + top-N sort (measured 60.8ms vs 0.022ms at 215k rows). Every write
+      // evicts the GraphQL body, so the mixed lane paid that sort on every
+      // post-write GraphQL read.
+      try {
+        const defaultOrderIdx = assertSafeSqlIdentifier(
+          pgSafeIndexName(`${physicalName}_updated_id`),
+          "index",
+        );
+        await ctx.raw.execute(
+          `CREATE INDEX IF NOT EXISTS "${defaultOrderIdx}" ON "${physicalName}" ("updatedAt" DESC, "_id" DESC)`,
+        );
+      } catch {
+        /* safe */
+      }
+
       try {
         const rawPubActive = `${physicalName}_pub_active`;
         const pubActiveIndex = assertSafeSqlIdentifier(pgSafeIndexName(rawPubActive), "index");
