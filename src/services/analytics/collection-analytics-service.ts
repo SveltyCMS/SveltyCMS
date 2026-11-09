@@ -19,6 +19,9 @@ import type { DatabaseId, FieldInstance } from "@src/content/types";
 import type { LocalCMS } from "@src/services/sdk";
 import { contentStore } from "@src/stores/content-registry.svelte";
 import { toISOString } from "@src/utils/date";
+import { cacheService } from "@src/databases/cache/cache-service";
+import { CacheCategory } from "@src/databases/cache/types";
+import { buildCollectionCacheTags } from "@src/databases/core/collection-name";
 
 export interface CollectionFieldMeta {
   name: string;
@@ -307,117 +310,149 @@ class CollectionAnalyticsService {
       activeFilter[dateField] = dateCond;
     }
 
-    // Retrieve documents for calculation
-    const findRes = await cms.collections.find(collectionId, {
-      tenantId: tenantId ?? undefined,
-      user,
-      limit: 1000,
-      filter: activeFilter,
-      publicationFilter: "all",
-    });
-
-    const docs = (findRes?.success && Array.isArray(findRes.data) ? findRes.data : []) as Array<
-      Record<string, unknown>
-    >;
-
-    let value = 0;
-    if (measure === "count" || !field) {
-      value = docs.length;
-    } else {
-      const nums = docs.map((d) => Number(d[field])).filter((n) => Number.isFinite(n));
-
-      if (nums.length === 0) {
-        value = 0;
-      } else if (measure === "sum") {
-        value = nums.reduce((a, b) => a + b, 0);
-      } else if (measure === "avg") {
-        value = nums.reduce((a, b) => a + b, 0) / nums.length;
-      } else if (measure === "min") {
-        value = Math.min(...nums);
-      } else if (measure === "max") {
-        value = Math.max(...nums);
-      }
+    const prevRange =
+      compare === "previous" && start && end ? resolvePreviousRange(start, end) : null;
+    const prevFilter: Record<string, unknown> | null = prevRange ? { ...filter } : null;
+    if (prevFilter && prevRange?.prevStart && prevRange?.prevEnd) {
+      prevFilter[dateField] = {
+        $gte: toISOString(prevRange.prevStart),
+        $lte: toISOString(prevRange.prevEnd),
+      };
     }
 
-    // Previous period calculation
-    let previousValue: number | undefined;
-    let pctChange: number | undefined;
-    let trend: "up" | "down" | "neutral" | undefined;
+    const useCount = measure === "count" || !field;
+    // The metric only needs the date field (sparkline) and the measure field —
+    // project them instead of loading up to 1000 full documents per period.
+    const projectedFields = field && field !== dateField ? [dateField, field] : [dateField];
 
-    if (compare === "previous" && start && end) {
-      const { prevStart, prevEnd } = resolvePreviousRange(start, end);
-      const prevFilter: Record<string, unknown> = { ...filter };
-      if (prevStart && prevEnd) {
-        prevFilter[dateField] = {
-          $gte: toISOString(prevStart),
-          $lte: toISOString(prevEnd),
-        };
-      }
-
-      const prevRes = await cms.collections.find(collectionId, {
+    const findPeriod = (periodFilter: Record<string, unknown>) =>
+      cms.collections.find(collectionId, {
         tenantId: tenantId ?? undefined,
         user,
         limit: 1000,
-        filter: prevFilter,
+        fields: projectedFields,
+        filter: periodFilter,
         publicationFilter: "all",
       });
 
-      const prevDocs = (
-        prevRes?.success && Array.isArray(prevRes.data) ? prevRes.data : []
-      ) as Array<Record<string, unknown>>;
+    const countPeriod = (periodFilter: Record<string, unknown>) =>
+      cms.collections.count(collectionId, {
+        tenantId: tenantId ?? undefined,
+        user,
+        filter: periodFilter,
+        publicationFilter: "all",
+      });
 
-      if (measure === "count" || !field) {
-        previousValue = prevDocs.length;
-      } else {
-        const nums = prevDocs.map((d) => Number(d[field])).filter((n) => Number.isFinite(n));
-        previousValue =
-          nums.length > 0
-            ? measure === "sum"
-              ? nums.reduce((a, b) => a + b, 0)
-              : measure === "avg"
-                ? nums.reduce((a, b) => a + b, 0) / nums.length
-                : measure === "min"
-                  ? Math.min(...nums)
-                  : Math.max(...nums)
-            : 0;
-      }
-
-      if (previousValue > 0) {
-        pctChange = Math.round(((value - previousValue) / previousValue) * 100);
-      } else if (value > 0) {
-        pctChange = 100;
-      } else {
-        pctChange = 0;
-      }
-
-      trend = pctChange > 0 ? "up" : pctChange < 0 ? "down" : "neutral";
-    }
-
-    // Goal tracking
-    let pctGoal: number | undefined;
-    let remaining: number | undefined;
-    if (typeof goal === "number" && goal > 0) {
-      pctGoal = Math.min(100, Math.round((value / goal) * 100));
-      remaining = Math.max(0, goal - value);
-    }
-
-    // Generate 8-point sparkline distribution across period
-    const sparkline = this.generateSparkline(docs, dateField, measure, field, start, end);
-
-    return {
-      value,
-      formattedValue: formatMetricNumber(value),
-      previousValue,
-      pctChange,
-      trend,
-      goal,
-      pctGoal,
-      remaining,
-      sparkline,
-      periodLabel,
+    const actor =
+      user && typeof user === "object" ? (user as { _id?: unknown; role?: unknown }) : undefined;
+    const actorKey = actor ? `${String(actor._id ?? "")}:${String(actor.role ?? "")}` : "anon";
+    const cacheKey = [
+      "analytics:metric",
+      collectionId,
+      period,
+      startDate ?? "",
+      endDate ?? "",
+      dateField,
       measure,
-      field,
+      field ?? "",
+      compare,
+      goal ?? "",
+      actorKey,
+      JSON.stringify(filter),
+    ].join(":");
+
+    const compute = async (): Promise<MetricQueryResult> => {
+      // Current docs (sparkline + document measures) and the previous period/
+      // count legs run together instead of as sequential round trips.
+      const [findRes, prevFindRes, countRes, prevCountRes] = await Promise.all([
+        findPeriod(activeFilter),
+        prevFilter && !useCount ? findPeriod(prevFilter) : Promise.resolve(null),
+        useCount ? countPeriod(activeFilter) : Promise.resolve(null),
+        useCount && prevFilter ? countPeriod(prevFilter) : Promise.resolve(null),
+      ]);
+
+      const docs = (findRes?.success && Array.isArray(findRes.data) ? findRes.data : []) as Array<
+        Record<string, unknown>
+      >;
+
+      const aggregate = (rows: Array<Record<string, unknown>>): number => {
+        if (measure === "count" || !field) return rows.length;
+        const nums = rows.map((d) => Number(d[field])).filter((n) => Number.isFinite(n));
+        if (nums.length === 0) return 0;
+        if (measure === "sum") return nums.reduce((a, b) => a + b, 0);
+        if (measure === "avg") return nums.reduce((a, b) => a + b, 0) / nums.length;
+        if (measure === "min") return Math.min(...nums);
+        return Math.max(...nums);
+      };
+
+      // A count measure reads a single aggregate rather than the capped document page.
+      const value =
+        useCount && countRes?.success && typeof countRes.data === "number"
+          ? countRes.data
+          : aggregate(docs);
+
+      // Previous period calculation
+      let previousValue: number | undefined;
+      let pctChange: number | undefined;
+      let trend: "up" | "down" | "neutral" | undefined;
+
+      if (prevFilter) {
+        if (useCount) {
+          previousValue =
+            prevCountRes?.success && typeof prevCountRes.data === "number" ? prevCountRes.data : 0;
+        } else {
+          const prevDocs = (
+            prevFindRes?.success && Array.isArray(prevFindRes.data) ? prevFindRes.data : []
+          ) as Array<Record<string, unknown>>;
+          previousValue = aggregate(prevDocs);
+        }
+
+        if (previousValue > 0) {
+          pctChange = Math.round(((value - previousValue) / previousValue) * 100);
+        } else if (value > 0) {
+          pctChange = 100;
+        } else {
+          pctChange = 0;
+        }
+
+        trend = pctChange > 0 ? "up" : pctChange < 0 ? "down" : "neutral";
+      }
+
+      // Goal tracking
+      let pctGoal: number | undefined;
+      let remaining: number | undefined;
+      if (typeof goal === "number" && goal > 0) {
+        pctGoal = Math.min(100, Math.round((value / goal) * 100));
+        remaining = Math.max(0, goal - value);
+      }
+
+      // Generate 8-point sparkline distribution across period
+      const sparkline = this.generateSparkline(docs, dateField, measure, field, start, end);
+
+      return {
+        value,
+        formattedValue: formatMetricNumber(value),
+        previousValue,
+        pctChange,
+        trend,
+        goal,
+        pctGoal,
+        remaining,
+        sparkline,
+        periodLabel,
+        measure,
+        field,
+      };
     };
+
+    return cacheService.getOrSet(
+      cacheKey,
+      compute,
+      60,
+      (tenantId ?? undefined) as string | undefined,
+      CacheCategory.CONTENT,
+      buildCollectionCacheTags(collectionId),
+    );
   }
 
   /**
@@ -452,6 +487,16 @@ class CollectionAnalyticsService {
       tenantId: tenantId ?? undefined,
       user,
       limit: 2000,
+      // Project only the fields the grouping/measurement reads (was full docs).
+      fields: Array.from(
+        new Set(
+          [
+            dateField,
+            groupBy === "field" ? groupField : undefined,
+            measure !== "count" ? metricField : undefined,
+          ].filter((f): f is string => typeof f === "string" && f.length > 0),
+        ),
+      ),
       filter: activeFilter,
       publicationFilter: "all",
     });

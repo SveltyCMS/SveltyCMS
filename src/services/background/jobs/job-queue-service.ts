@@ -176,6 +176,10 @@ class JobQueueService {
       for (const job of jobs) {
         // status-transition jobs belong to the scheduler (see scheduler.ts) —
         // never claim or fail them here, or the scheduler's work gets destroyed.
+        // NOTE: `getNextReady` has no task-type/exclusion option, so this poller
+        // still receives and skips them. The scheduler now queries with a
+        // pushed-down `taskType` filter, so due status-transition rows leave the
+        // pending set on its next tick instead of lingering in this batch.
         if (job.taskType === "status-transition") continue;
         this.currentRunning++;
         this.executeJob(job, db)

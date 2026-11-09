@@ -95,6 +95,7 @@ import { applyWidgetPipeline } from "./write-pipeline";
 import { compileRelationFilters } from "./relation-filter";
 import { ownershipFilter } from "./access-filter";
 import { getCollectionExecutionPlan, type CollectionExecutionPlan } from "./execution-plan";
+import { getPluginRegistryLazy } from "./lazy-services";
 
 /** Searchable field names — hoisted so the per-item filter loop shares one array. */
 const SEARCHABLE_FIELDS = ["title", "content", "description", "name"];
@@ -275,14 +276,20 @@ export async function countEntries(
     role: (options.user as { role?: string } | undefined)?.role,
     tenantId: tenantId ? String(tenantId) : null,
   });
-  const resolvedFilter = await compileRelationFilters(normalizedFilter, schema, {
-    dbAdapter: ctx._dbAdapter.crud,
-    getCollectionName: (id) => ctx.getCollectionName(id),
-    resolveTargetSchema: (id) => ctx.schemaOf(id, tenantId),
-    tenantId,
-    user: options.user as { _id?: unknown; role?: unknown; isAdmin?: unknown } | null | undefined,
-    system: options.system,
-  });
+  const plan = getCollectionExecutionPlan(schema);
+  const resolvedFilter = plan.hasRelations
+    ? await compileRelationFilters(normalizedFilter, schema, {
+        dbAdapter: ctx._dbAdapter.crud,
+        getCollectionName: (id) => ctx.getCollectionName(id),
+        resolveTargetSchema: (id) => ctx.schemaOf(id, tenantId),
+        tenantId,
+        user: options.user as
+          | { _id?: unknown; role?: unknown; isAdmin?: unknown }
+          | null
+          | undefined,
+        system: options.system,
+      })
+    : normalizedFilter;
   const scopedFilter = mergeAccessConstraint(
     ownership ? { ...resolvedFilter, ...ownership } : resolvedFilter,
     accessConstraint,
@@ -295,6 +302,27 @@ export async function countEntries(
     options.publicationFilter,
   );
 
+  return ctx._dbAdapter.crud.count(ctx.getCollectionName(schema._id as string), query, {
+    tenantId: tenantId as DatabaseId,
+  });
+}
+
+/**
+ * Count rows for an already-computed, fully-scoped query.
+ *
+ * `executeFind`'s paginated count leg used to call `countEntries`, which re-ran
+ * schema resolution, relationship normalization, guarded stripping, ownership +
+ * access-rule scoping and relation compilation — all of which the caller had
+ * just computed to build `query`. This internal path skips that work: the caller
+ * passes the post-constraint query (publication clamping already applied by
+ * `buildTenantQuery`) and only the count is executed.
+ */
+async function countScopedQuery(
+  ctx: CollectionsReadContext,
+  schema: Schema,
+  query: QueryFilter<BaseEntity>,
+  tenantId?: string | DatabaseId | null,
+) {
   return ctx._dbAdapter.crud.count(ctx.getCollectionName(schema._id as string), query, {
     tenantId: tenantId as DatabaseId,
   });
@@ -821,13 +849,10 @@ export async function executeFind(
 
     const countPromise =
       shouldCount && !editEntryId
-        ? countEntries(ctx, collectionId, {
-            tenantId,
-            filter: inputFilter,
-            user: options.user,
-            system: options.system,
-            publicationFilter: options.publicationFilter,
-          }).catch(() => ({ success: false, data: undefined }))
+        ? countScopedQuery(ctx, schema, query, tenantId).catch(() => ({
+            success: false,
+            data: undefined,
+          }))
         : Promise.resolve({ success: false, data: undefined });
 
     const [res, countRes] = await Promise.all([fetchFromDb(), countPromise]);
@@ -940,26 +965,28 @@ export async function executeFind(
 
     if (!editEntryId && res.success && data.length > 0) {
       try {
-        const { pluginRegistry } = await import("@src/plugins");
-        const hooks = await pluginRegistry.getSSRHooks(String(schema._id), tenantId, schema);
-        if (hooks.length > 0) {
-          const pluginContext = {
-            user: options.user,
-            tenantId: tenantId || "default",
-            language: language || "en",
-            dbAdapter: ctx._dbAdapter,
-            collectionSchema: schema,
-          };
-          const allPluginData = await Promise.all(
-            hooks.map((hook) => hook(pluginContext, data as EntryData[])),
-          );
-          for (const hookData of allPluginData) {
-            for (const entryData of hookData) {
-              const found = (
-                data as Array<{ _id?: unknown; pluginData?: Record<string, unknown> }>
-              ).find((r) => String(r._id) === String(entryData.entryId));
-              if (found) {
-                found.pluginData = { ...found.pluginData, ...entryData.data };
+        const pluginRegistry = await getPluginRegistryLazy();
+        if (pluginRegistry.hasAnySSRHook()) {
+          const hooks = await pluginRegistry.getSSRHooks(String(schema._id), tenantId, schema);
+          if (hooks.length > 0) {
+            const pluginContext = {
+              user: options.user,
+              tenantId: tenantId || "default",
+              language: language || "en",
+              dbAdapter: ctx._dbAdapter,
+              collectionSchema: schema,
+            };
+            const allPluginData = await Promise.all(
+              hooks.map((hook) => hook(pluginContext, data as EntryData[])),
+            );
+            for (const hookData of allPluginData) {
+              for (const entryData of hookData) {
+                const found = (
+                  data as Array<{ _id?: unknown; pluginData?: Record<string, unknown> }>
+                ).find((r) => String(r._id) === String(entryData.entryId));
+                if (found) {
+                  found.pluginData = { ...found.pluginData, ...entryData.data };
+                }
               }
             }
           }

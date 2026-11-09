@@ -35,6 +35,8 @@ interface CollectionHeat {
 interface TenantBehavior {
   heat: CollectionHeat;
   lastPersisted: number;
+  /** Last full transition-map prune for this tenant (memo window, see TRANSITION_PRUNE_MEMO_MS). */
+  lastTransitionPrune: number;
 }
 
 // ─── State ────────────────────────────────────────────────────────────────
@@ -43,6 +45,12 @@ const _tenants = new Map<string, TenantBehavior>();
 const HALF_LIFE_MS = 24 * 60 * 60 * 1000;
 const DECAY_FACTOR = Math.LN2 / HALF_LIFE_MS;
 const PERSIST_INTERVAL_MS = 15 * 60 * 1000;
+/**
+ * `predictNextPath` pruned the whole transition map (up to MAX_TRANSITIONS_HEAT
+ * records) on every call. Bound it to one pass per tenant per window; the size
+ * cap in `updateTransitionRecord` still enforces capacity between prunes.
+ */
+const TRANSITION_PRUNE_MEMO_MS = 60_000;
 let _persistTimer: ReturnType<typeof setInterval> | null = null;
 
 // 🔴 FIX 8 (unbounded growth): the three heat maps grow one entry per distinct
@@ -83,6 +91,7 @@ function getOrCreateTenant(tenantId: string): TenantBehavior {
         transitions: new Map(),
       },
       lastPersisted: Date.now(),
+      lastTransitionPrune: 0,
     };
     _tenants.set(tenantId, t);
   }
@@ -451,8 +460,12 @@ export function predictNextPath(tenantId: string, currentPath: string): string |
   const t = _tenants.get(tenantId);
   if (!t) return null;
   const now = Date.now();
-  // 🔴 FIX 8: prune cold entries + enforce cap before reading
-  pruneTransitionsHeat(t.heat.transitions, MAX_TRANSITIONS_HEAT, now);
+  // Throttled per tenant — a full-map decay pass on every prediction call is
+  // O(transitions) and runs on interactive page loads.
+  if (now - t.lastTransitionPrune >= TRANSITION_PRUNE_MEMO_MS) {
+    pruneTransitionsHeat(t.heat.transitions, MAX_TRANSITIONS_HEAT, now);
+    t.lastTransitionPrune = now;
+  }
   const subMap = t.heat.transitions.get(currentPath);
   if (!subMap || subMap.size === 0) return null;
 

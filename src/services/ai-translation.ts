@@ -17,7 +17,11 @@ import { aiService } from "@src/services/core/ai-service";
 import { auditService } from "@src/services/security/audit-service";
 import { AuditEventType } from "@src/services/security/audit-service";
 import { logger } from "@utils/logger";
+import { lazyModule } from "@utils/lazy-module";
 import type { DatabaseId } from "@src/databases/db-interface";
+
+/** Cached lazy handle — one module-registry lookup instead of one per translation. */
+const loadBenchmarkRuntime = lazyModule(() => import("@utils/benchmark-runtime"));
 
 interface TranslationCacheEntry {
   translatedText: string;
@@ -73,7 +77,7 @@ export class AITranslationService {
       tenantId?: DatabaseId | null;
     } = {},
   ): Promise<string | null> {
-    const { isBenchmarkExternalServicesDisabled } = await import("@utils/benchmark-runtime");
+    const { isBenchmarkExternalServicesDisabled } = await loadBenchmarkRuntime();
     if (isBenchmarkExternalServicesDisabled()) {
       logger.debug("[AITranslation] Skipped translate (benchmark mode)");
       return null;
