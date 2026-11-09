@@ -19,7 +19,7 @@ import {
   resolvePointWireQuery,
   validateWireListInput,
   type PointWireSqlTemplates,
-} from "../sql/wire-stream-shared";
+} from "../core/sql-wire-stream";
 import type { BaseQueryOptions, DatabaseId } from "../db-interface";
 import type { RawPointWireStreamResult, RawListWireStreamResult } from "../core/sql-adapter-core";
 import { versionTokenString } from "@utils/optimistic-lock";

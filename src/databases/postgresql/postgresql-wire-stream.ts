@@ -15,7 +15,8 @@ import {
   resolvePointWireQuery,
   validateWireListInput,
   type PointWireSqlTemplates,
-} from "../sql/wire-stream-shared";
+  type WireProjectedField,
+} from "../core/sql-wire-stream";
 import type { BaseQueryOptions, DatabaseId } from "../db-interface";
 import type { RawPointWireStreamResult, RawListWireStreamResult } from "../core/sql-adapter-core";
 import { logger } from "@src/utils/logger";
@@ -32,6 +33,22 @@ interface ListWireSql {
   tenantPub: string | null;
   tenantNull: string;
   tenantPubNull: string | null;
+}
+
+/**
+ * Builds the projected `jsonb_build_object` document expression for a list read.
+ *
+ * Physical columns are referenced directly (`"col"`); projected fields that live
+ * only in the `data` jsonb blob are emitted as `"data"->'key'`, which returns
+ * jsonb — so a stored JSON number stays a number and a string stays a string,
+ * exactly as the SDK hydration path would produce. Dotted/nested keys never
+ * reach here: `validateWireListInput` declines them first.
+ */
+export function buildProjectedListDoc(projectedFields: WireProjectedField[]): string {
+  const pairs = projectedFields.map((pf) =>
+    pf.kind === "column" ? `'${pf.name}', "${pf.name}"` : `'${pf.name}', "data"->'${pf.name}'`,
+  );
+  return `jsonb_build_object(${pairs.join(", ")})`;
 }
 
 export class PostgresWireStreamEngine {
@@ -153,9 +170,9 @@ export class PostgresWireStreamEngine {
     if (!exec) return { kind: "declined" };
 
     try {
-      const v = validateWireListInput(executor, table, options, '"');
+      const v = validateWireListInput(executor, table, options, '"', true);
       if (!v) return { kind: "declined" };
-      const { isProjected, dedupedProjectedCols, orderClause, cacheKey, limit, offset } = v;
+      const { isProjected, projectedFields, orderClause, cacheKey, limit, offset } = v;
 
       let tableCache = this._listSqlCache.get(table);
       if (!tableCache) {
@@ -174,8 +191,7 @@ export class PostgresWireStreamEngine {
 
         let doc: string;
         if (isProjected) {
-          const pairs = dedupedProjectedCols.map((col) => `'${col}', "${col}"`);
-          doc = `jsonb_build_object(${pairs.join(", ")})`;
+          doc = buildProjectedListDoc(projectedFields);
         } else {
           const matCols = collectSafeMaterializedColumns(table);
           if (!matCols) return { kind: "declined" };

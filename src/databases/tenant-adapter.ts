@@ -54,18 +54,22 @@ export function getRequestDbAdapter(): TenantBoundAdapter | null {
   return tenantAls.getStore() ?? null;
 }
 
-/**
- * Wrap adapter to auto-inject `defaultTenantId` into every options bag.
- * Does not invent a tenant when multi-tenant is off — caller should only wrap when resolved.
- */
-export function forTenant(
+/** Bound-adapter cache: one bound adapter per (raw adapter, tenant) for per-request reuse. */
+const forTenantCache = new WeakMap<DatabaseAdapter, Map<DatabaseId, TenantBoundAdapter>>();
+/** Small cap: evict the oldest tenant binding so a tenant-cardinality spike cannot pin adapters. */
+const FOR_TENANT_CACHE_CAP = 100;
+
+function buildTenantBoundAdapter(
   adapter: DatabaseAdapter,
   defaultTenantId: DatabaseId,
 ): TenantBoundAdapter {
   const injectTenant = (options?: BaseQueryOptions): BaseQueryOptions => {
-    // Never override explicit tenantId or intentional system/legacy bypass
-    if (hasTenantBypass(options)) {
-      return { ...options };
+    // Never override explicit tenantId or intentional system/legacy bypass.
+    if (options && hasTenantBypass(options)) {
+      return options;
+    }
+    if (options && options.tenantId) {
+      return options;
     }
     return {
       ...options,
@@ -103,6 +107,33 @@ export function forTenant(
       return raw;
     },
   }) as TenantBoundAdapter;
+}
+
+/**
+ * Wrap adapter to auto-inject `defaultTenantId` into every options bag.
+ * Does not invent a tenant when multi-tenant is off — caller should only wrap when resolved.
+ */
+export function forTenant(
+  adapter: DatabaseAdapter,
+  defaultTenantId: DatabaseId,
+): TenantBoundAdapter {
+  let tenantCache = forTenantCache.get(adapter);
+  if (!tenantCache) {
+    tenantCache = new Map();
+    forTenantCache.set(adapter, tenantCache);
+  }
+
+  const cachedBound = tenantCache.get(defaultTenantId);
+  if (cachedBound) return cachedBound;
+
+  const bound = buildTenantBoundAdapter(adapter, defaultTenantId);
+
+  if (tenantCache.size >= FOR_TENANT_CACHE_CAP) {
+    const oldestKey = tenantCache.keys().next().value;
+    if (oldestKey !== undefined) tenantCache.delete(oldestKey);
+  }
+  tenantCache.set(defaultTenantId, bound);
+  return bound;
 }
 
 /**

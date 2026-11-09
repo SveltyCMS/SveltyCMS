@@ -32,6 +32,7 @@ const mockGet = vi.fn();
 const mockGetSync = vi.fn();
 const mockSet = vi.fn();
 const mockClearByTags = vi.fn();
+const mockIncrement = vi.fn();
 
 vi.mock("@src/databases/cache/cache-service", () => ({
   cacheService: {
@@ -39,6 +40,7 @@ vi.mock("@src/databases/cache/cache-service", () => ({
     getSync: (...args: unknown[]) => mockGetSync(...args),
     set: (...args: unknown[]) => mockSet(...args),
     clearByTags: (...args: unknown[]) => mockClearByTags(...args),
+    increment: (...args: unknown[]) => mockIncrement(...args),
   },
 }));
 
@@ -105,19 +107,22 @@ describe("createCountCachedCrud", () => {
   });
 
   it("returns cached number without calling inner on hit", async () => {
-    mockGetSync.mockReturnValue(42);
+    mockGet.mockResolvedValue(42);
     const wrapped = createCountCachedCrud(inner);
     const res = await wrapped.count("posts", {}, { tenantId: "t1" as DatabaseId });
     expect(res).toEqual({ success: true, data: 42 });
     expect(innerCount).not.toHaveBeenCalled();
-    expect(mockGet).not.toHaveBeenCalled();
-    // getSync takes exactly 2 runtime args (key, tenantId) — never a category.
-    expect(mockGetSync).toHaveBeenCalledTimes(1);
-    expect(mockGetSync).toHaveBeenCalledWith(expect.stringContaining("count:posts:auto:"), "t1");
+    // One L1/L2 lookup: get() carries the category; getSync is no longer probed.
+    expect(mockGetSync).not.toHaveBeenCalled();
+    expect(mockGet).toHaveBeenCalledTimes(1);
+    expect(mockGet).toHaveBeenCalledWith(
+      expect.stringContaining("count:posts:auto:"),
+      "t1",
+      CacheCategory.CONTENT,
+    );
   });
 
   it("calls inner on miss and writes cache", async () => {
-    mockGetSync.mockReturnValue(null);
     mockGet.mockResolvedValue(undefined);
     innerCount.mockResolvedValue({ success: true, data: 7 });
     mockSet.mockResolvedValue(undefined);
@@ -182,6 +187,7 @@ describe("BaseAdapter.invalidateQueryCache tag scope", () => {
   beforeEach(() => {
     mockSet.mockReset();
     mockClearByTags.mockReset().mockResolvedValue(undefined);
+    mockIncrement.mockReset().mockResolvedValue(1);
   });
 
   it("clears the tag superset, so a physical-only name reaches logical-spelled entries", async () => {

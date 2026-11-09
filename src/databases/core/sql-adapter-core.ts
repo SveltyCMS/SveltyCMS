@@ -21,7 +21,7 @@
  * - materialized-column registry shared by createModel and schema prewarm
  * - prepared queryBuilder list/count via executeCompiled
  * - lazy list index for a physical sort other than updatedAt
- * - pure JSON-merge / value-preparation / soft-delete predicates live in `src/databases/sql/`
+ * - pure JSON-merge / value-preparation / soft-delete predicates live in `core/`
  */
 import { BaseAdapter } from "./base-adapter";
 import { logger } from "@utils/logger";
@@ -81,11 +81,19 @@ import { PROFILE_WRITE_ENABLED, profileMark } from "@utils/write-profiler";
 import { BatchModule } from "./batch-module";
 import { CollectionModule } from "./collection-module";
 import { normalizeSortDirection } from "./page-utils";
-import { clearJsonDataPatch, getJsonDataPatch, jsonPatchNeedsJsMerge } from "./query-primitives";
-import { SqlQueryBuilder, type SqlDialect, SQLITE_DIALECT } from "./sql-query-builder";
-import { type InsertDefaultEntry } from "../sql/value-preparation";
-import { canMergeJsonPatchInOneStatement, jsonMergeWrapperExpression } from "../sql/json-merge";
-import { queryHasSoftDeleteKey } from "../sql/read-predicates";
+import {
+  clearJsonDataPatch,
+  getJsonDataPatch,
+  jsonPatchNeedsJsMerge,
+  queryHasSoftDeleteKey,
+} from "./query-primitives";
+import {
+  clearCompiledSqlCache,
+  SqlQueryBuilder,
+  type SqlDialect,
+  SQLITE_DIALECT,
+} from "./sql-query-builder";
+import { type InsertDefaultEntry } from "./sql-values";
 import {
   executeSqlCount,
   executeSqlExists,
@@ -130,7 +138,9 @@ import {
   assertTopLevelJsonPatchKey,
   buildJsonKeyPatchSetValue,
   buildJsonMergeSetValue,
+  canMergeJsonPatchInOneStatement,
   hydrateSqlJsonDataPatch,
+  jsonMergeWrapperExpression,
   mergeSqlJsonPatchIntoSet,
   serializeJsonPatchValue,
   type SqlJsonPatchContext,
@@ -345,6 +355,15 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   protected onDynamicSort(_collection: string, _tableName: string, _field: string): void {}
 
   /**
+   * Called once per `findMany` with the effective options. Adapters override to
+   * provision an index for a PHYSICAL sort the caller never asked for — the
+   * SDK's default `updatedAt desc, _id desc` (`defaultListSortOption`).
+   * `onDynamicSort` cannot cover it: it only fires for fields that resolve to a
+   * JSON extraction, while `updatedAt` and `_id` are real columns. Default: no-op.
+   */
+  protected onFindMany(_collection: string, _options: unknown): void {}
+
+  /**
    * One attempt per (table, column, direction, tenant prefix). A failed build
    * stays marked so a hot list does not retry DDL on every request.
    */
@@ -484,6 +503,9 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
    */
   public clearStatementCaches(): void {
     this._rawFindByIdSqlCache = new WeakMap();
+    // DDL that adds a physical column invalidates every cached `SELECT *` plan
+    // in the shared query builder (the cache key is shape-only, not column-list).
+    clearCompiledSqlCache();
   }
 
   /** FIFO-evict a Map cache at `cap` entries. */
@@ -1759,7 +1781,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       // (PostgreSQL) only convert on this rare fallback, not the raw hot path.
       const drizzleValues = this.persistTimestampsAsDate
         ? values
-        : convertISOToDates({ ...values }, { ...this.convertDatesOptions, table: collection });
+        : convertISOToDates(values, { ...this.convertDatesOptions, table: collection });
       const query = this.getDrizzleInstance(options).insert(table).values(drizzleValues);
       if (this.insertReturnsRows && !skipReturning) {
         const result = await (query as any).returning();
@@ -2084,7 +2106,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
 
     const drizzleUpdate = this.persistTimestampsAsDate
       ? values
-      : convertISOToDates({ ...values }, { ...this.convertDatesOptions, table: collection });
+      : convertISOToDates(values, { ...this.convertDatesOptions, table: collection });
     const query = this.getDrizzleInstance(options)
       .update(table)
       .set(drizzleUpdate)

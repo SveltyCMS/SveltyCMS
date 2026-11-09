@@ -809,6 +809,20 @@ test("Competitive 11-Workload Replica Benchmark", async () => {
       printMixedBreakdown(mixSamples);
     }
 
+    // 🏔️ SCALE BLIND SPOT: the default list order (`updatedAt desc, _id desc`)
+    // is served by an index only on its tenant-less form once that index exists;
+    // without it the plan is a seq scan + top-N sort whose cost grows with the
+    // table. At 2k docs that is sub-millisecond and invisible, while at 100k it
+    // is ~30–60ms — and `mixed` is the only lane that reads lists/GraphQL after
+    // a write, so it is where the cost lands. The external 100k-doc harness
+    // caught this; a small local run cannot.
+    if (SEED_COUNT < 10_000) {
+      logger.info(
+        `ℹ Scale note: BENCH_DOCS=${SEED_COUNT} (< 10000) — default-order sort cost is sub-ms here. ` +
+          `Use BENCH_DOCS=100000 to exercise the (updatedAt DESC, _id DESC) covering index in mixed.`,
+      );
+    }
+
     printTruthTable({
       title: `COMPETITIVE HARNESS REPLICA (${dbType.toUpperCase()} — ${createdIds.length} Docs, COLD vs WARM)`,
       subtitle: `Cold vs Warm Steady-State (${CONCURRENCY}c)`,
