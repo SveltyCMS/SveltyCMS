@@ -312,6 +312,17 @@ function rememberCompiledSql(key: string, sqlText: string): string {
   return sqlText;
 }
 
+/**
+ * Drop every cached compiled SQL string. DDL (e.g. `ALTER TABLE ADD COLUMN`)
+ * changes the physical `SELECT *` shape without changing the cache key (which
+ * is a predicate/order/projection signature, not a column list), so a stale
+ * entry silently omits the freshly materialized column. `SqlAdapterCore.clearStatementCaches`
+ * calls this alongside its statement-template resets.
+ */
+export function clearCompiledSqlCache(): void {
+  compiledSqlCache.clear();
+}
+
 function isBindable(value: unknown): value is string | number | boolean {
   return typeof value === "string" || typeof value === "number" || typeof value === "boolean";
 }

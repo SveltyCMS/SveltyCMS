@@ -14,7 +14,7 @@ import {
   resolvePointWireQuery,
   validateWireListInput,
   type WireColumnLookup,
-} from "@src/databases/sql/wire-stream-shared";
+} from "@src/databases/core/sql-wire-stream";
 import type { DatabaseId } from "@src/databases/db-interface";
 import { validateSpec } from "@src/services/json-render/catalog";
 import { deepClone } from "@utils/native-utils";

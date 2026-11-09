@@ -61,7 +61,7 @@ import {
 import { generateUUID } from "@src/utils/native-utils";
 import { extractPkConflictId } from "../core/query-primitives";
 import { NetworkDbQueueGate } from "../core/network-db-queue-gate";
-import { TenantPoolManager } from "../sql/tenant-pool-manager";
+import { TenantPoolManager } from "../core/tenant-pool-manager";
 
 /** Options bag accepted by the inherited `BaseAdapter.wrap` error wrapper. */
 type AdapterWrapOptions = NonNullable<Parameters<SqlAdapterCore["wrap"]>[3]>;
