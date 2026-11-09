@@ -35,11 +35,9 @@ import {
   entry_saved,
   entry_scheduled,
 } from "@src/paraglide/messages";
-
-// Dialog Components
+import { englishPlural } from "@utils/string";
 import ConfirmDialog from "@components/system/confirm-dialog.svelte";
 import ScheduleModal from "@components/collection-display/schedule-modal.svelte";
-import { englishPlural } from "@utils/string";
 
 // --- Security ---
 
@@ -147,10 +145,10 @@ class ModalManager {
    * Show a standardized confirmation dialog.
    * @returns Promise<boolean> resolves to true if confirmed, false if cancelled.
    */
-  showConfirm(options: ConfirmModalOptions): Promise<boolean> {
-    return new Promise((resolve) => {
-      const theme = options.theme || DEFAULT_THEMES.default;
+  async showConfirm(options: ConfirmModalOptions): Promise<boolean> {
+    const theme = options.theme || DEFAULT_THEMES.default;
 
+    return new Promise<boolean>((resolve) => {
       this.trigger(
         ConfirmDialog,
         {
@@ -272,7 +270,7 @@ class ModalManager {
   /**
    * Show scheduling modal.
    */
-  showSchedule(options: {
+  async showSchedule(options: {
     initialAction?: string;
     onSchedule: (date: Date, action: string) => void | Promise<void>;
   }): Promise<{ date: Date; action: string } | null> {

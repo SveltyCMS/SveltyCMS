@@ -15,16 +15,7 @@
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { logger } from "@utils/logger";
 import { clientJsonHeaders } from "@utils/security/client-csrf";
-
-// ─── Inline helpers (avoid circular import from barrel) ───────────────────
-
-/** Human-readable file size — keep local to avoid barrel conflict with src/utils/file.ts. */
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return `${(bytes / 1024 ** i).toFixed(i > 0 ? 1 : 0)} ${units[i]}`;
-}
+import { formatBytes } from "@utils/file";
 
 /** Windows reserved filenames (case-insensitive). */
 const RESERVED_WINDOWS = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i;

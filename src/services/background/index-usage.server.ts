@@ -28,6 +28,7 @@
  */
 
 import { logger } from "@utils/logger";
+import { formatBytes } from "@utils/file";
 import { assertSafeSqlIdentifier } from "@src/databases/core/relational-utils";
 import {
   buildIndexObservationWindowSql,
@@ -57,7 +58,6 @@ const DEFAULT_MIN_OBSERVATION_DAYS = 30;
 const MAX_DROPS_PER_RUN = 8;
 const REPORT_TOP_N = 5;
 const SECONDS_PER_DAY = 86_400;
-const BYTE_UNITS = ["B", "KB", "MB", "GB", "TB"] as const;
 
 /**
  * Start the single-shot reporter. Returns immediately; the catalog read and
@@ -182,17 +182,6 @@ function toNonNegativeNumber(value: unknown): number {
         ? Number(value)
         : Number(value ?? 0);
   return Number.isFinite(numeric) && numeric > 0 ? numeric : 0;
-}
-
-function formatBytes(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
-  let value = bytes;
-  let unit = 0;
-  while (value >= 1024 && unit < BYTE_UNITS.length - 1) {
-    value /= 1024;
-    unit++;
-  }
-  return `${unit === 0 ? Math.round(value) : value.toFixed(1)} ${BYTE_UNITS[unit]}`;
 }
 
 function formatWindow(seconds: number): string {
