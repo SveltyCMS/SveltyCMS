@@ -6,13 +6,26 @@
  * enabling detection of tampering, deletion, or reordering of entries.
  *
  * Features:
- * - SHA-256 cryptographic chaining (CSPRNG-compliant via globalThis.crypto.subtle)
+ * - SHA-256 cryptographic chaining (`node:crypto`, synchronous, ~2µs/entry)
  * - Genesis hash constant for first entry anchoring
  * - Tenant-keyed in-memory last-hash cache to avoid DB lookups on every write
+ * - Per-tenant in-process mutex so concurrent writers cannot fork the chain
+ * - ONE canonical payload function shared by writer and verifier
  * - Full chain verification with tamper detection
- * - Multi-tenant aware (optional tenantId scoping)
+ * - Multi-tenant aware (tenantId scoping; untenanted writes share `__global__`)
+ *
+ * ### Multi-process deployments
+ * `withTenantLock` only serialises writers inside *this* process. A deployment
+ * that runs several Node processes against one database (cluster mode, PM2,
+ * more than one container) can still have two processes read the same
+ * predecessor hash and fork the chain. Such deployments need a DB-level guard —
+ * e.g. `SELECT ... FOR UPDATE` on the tenant's chain head inside the same
+ * transaction that inserts the new entry, or a unique index on
+ * `(tenantId, previousHash)`. The single-process guarantee here is documented,
+ * not assumed silently.
  */
 
+import { createHash } from "node:crypto";
 import { dbAdapter as dbAdapterInstance } from "@src/databases/db";
 import { logger } from "@utils/logger";
 
@@ -28,9 +41,15 @@ export interface ChainedAuditEntry {
   actorRole?: string;
   tenantId?: string | null;
   timestamp?: string;
+  severity?: string;
+  result?: string;
+  targetId?: string | null;
+  targetType?: string | null;
   details?: Record<string, unknown>;
   previousHash?: string;
   chainHash?: string;
+  /** Legacy alias kept for rows written before `chainHash` existed. */
+  hash?: string;
   eventType?: string;
   createdAt?: unknown;
   updatedAt?: unknown;
@@ -43,18 +62,124 @@ export interface ChainVerificationResult {
   brokenAt: number | null;
   totalEntries: number;
   tamperedEntries: number;
+  /** Leading rows written before the chain existed (skipped, not tampered). */
+  unchainedPrefix?: number;
   details?: string[];
 }
 
 /**
- * Converts a string to a SHA-256 hex digest using the Web Crypto API.
- * Uses globalThis.crypto.subtle for CSPRNG-compliant hashing.
+ * The fields covered by the chain hash, in the order they are committed to.
+ * The list is used by the writer, the verifier and the Merkle helpers — a
+ * writer/verifier field mismatch is the classic way a hash chain becomes
+ * permanently "tampered", so both sides call `canonicalAuditPayload()`.
  */
-async function sha256(data: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const hashBuffer = await globalThis.crypto.subtle.digest("SHA-256", encoder.encode(data));
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+export const AUDIT_CHAIN_FIELDS = [
+  "action",
+  "actorEmail",
+  "actorId",
+  "actorRole",
+  "eventType",
+  "severity",
+  "result",
+  "targetId",
+  "targetType",
+  "timestamp",
+  "details",
+  "tenantId",
+] as const;
+
+/**
+ * JSON with object keys sorted at every level.
+ *
+ * Determinism matters twice: the writer and the verifier must serialise the
+ * same object identically, and some backends (MariaDB/MySQL JSON) reorder
+ * object keys on storage. Sorting makes the payload independent of both.
+ */
+function stableStringify(value: unknown): string {
+  if (value === undefined) return "null";
+  if (value === null) return "null";
+  if (typeof value === "number") return Number.isFinite(value) ? String(value) : "null";
+  if (typeof value !== "object") return JSON.stringify(value) as string;
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableStringify(item)).join(",")}]`;
+  }
+  const obj = value as Record<string, unknown>;
+  const keys = Object.keys(obj)
+    .filter((k) => obj[k] !== undefined)
+    .sort();
+  return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(obj[k])}`).join(",")}}`;
+}
+
+/** Ids round-trip through VARCHAR columns, so always compare them as strings. */
+function normalizeScalar(value: unknown): string | null {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}
+
+/** Timestamps are hashed exactly as written; Date instances are normalised to ISO. */
+function normalizeTimestamp(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === "string") return value;
+  if (typeof value === "number") return new Date(value).toISOString();
+  return String(value);
+}
+
+/**
+ * `details` may come back from a backend as either a parsed object or the raw
+ * JSON text (SQLite TEXT column without a JSON parser). Both shapes must hash
+ * the same, so a string is parsed when possible.
+ */
+function normalizeDetails(value: unknown): Record<string, unknown> {
+  if (value === null || value === undefined) return {};
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
+    } catch {
+      return {};
+    }
+  }
+  return value as Record<string, unknown>;
+}
+
+/**
+ * The single canonical payload that the chain hash commits to.
+ * Writer (`append`) and verifier (`verifyChain`) both call this — never
+ * serialise the raw entry yourself.
+ *
+ * The top-level key order is fixed literals (alphabetical, matching
+ * `AUDIT_CHAIN_FIELDS`) rather than a per-call `Object.keys().sort()`: this
+ * runs on every audit write, and the key set is constant. `details` is
+ * free-form, so it alone goes through `stableStringify`.
+ */
+export function canonicalAuditPayload(entry: ChainedAuditEntry): string {
+  const action = entry.action ?? "";
+  return JSON.stringify({
+    action,
+    actorEmail: entry.actorEmail ?? null,
+    actorId: normalizeScalar(entry.actorId),
+    actorRole: entry.actorRole ?? null,
+    eventType: entry.eventType ?? action,
+    severity: entry.severity ?? null,
+    result: entry.result ?? null,
+    targetId: normalizeScalar(entry.targetId),
+    targetType: entry.targetType ?? null,
+    timestamp: normalizeTimestamp(entry.timestamp),
+    details: stableStringify(normalizeDetails(entry.details)),
+    tenantId: normalizeScalar(entry.tenantId),
+  });
+}
+
+/**
+ * chainHash = SHA-256(canonicalPayload + previousHash) as lowercase hex.
+ * Synchronous so the append hot path costs one hash, no event-loop hop.
+ */
+export function computeChainHash(entry: ChainedAuditEntry, previousHash: string): string {
+  return createHash("sha256")
+    .update(canonicalAuditPayload(entry) + previousHash)
+    .digest("hex");
 }
 
 export class AuditChainService {
@@ -62,50 +187,72 @@ export class AuditChainService {
   /** Last chained hash per tenant — a single shared slot would link one tenant's
    *  entry to another tenant's predecessor. `__global__` keys untenanted writes. */
   private readonly lastHashCache = new Map<string, string>();
+  /** Per-tenant tail of the write queue (in-process mutex, see file header). */
+  private readonly tenantLocks = new Map<string, Promise<void>>();
 
   private static cacheKey(tenantId?: string | null): string {
     return tenantId || "__global__";
   }
 
   /**
+   * Runs `fn` after every previously queued append for the same tenant.
+   * The tail never rejects, so one failed append cannot poison the queue.
+   */
+  private async withTenantLock<T>(
+    tenantId: string | null | undefined,
+    fn: () => Promise<T>,
+  ): Promise<T> {
+    const key = AuditChainService.cacheKey(tenantId);
+    const previous = this.tenantLocks.get(key) ?? Promise.resolve();
+    const run = previous.then(fn, fn);
+    const tail = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    this.tenantLocks.set(key, tail);
+    try {
+      return await run;
+    } finally {
+      // Drop the slot when this append is the last one queued, otherwise the
+      // map would grow one entry per tenant forever.
+      if (this.tenantLocks.get(key) === tail) {
+        this.tenantLocks.delete(key);
+      }
+    }
+  }
+
+  /**
+   * Chains one audit entry: reads the tenant's chain head, computes
+   * `previousHash` + `chainHash`, and advances the cached head — all under the
+   * per-tenant lock. O(1) on the hot path (one SHA-256, no DB round-trip once
+   * the tenant head is cached).
+   */
+  async append(entry: ChainedAuditEntry): Promise<ChainedAuditEntry> {
+    const tenantId = (entry.tenantId as string | null | undefined) ?? null;
+    const cacheKey = AuditChainService.cacheKey(tenantId);
+    return this.withTenantLock(tenantId, async () => {
+      // Steady state: the head is cached, so no DB round-trip and no extra
+      // async hop on the hot path (the async read happens once per tenant).
+      const previousHash = this.lastHashCache.get(cacheKey) ?? (await this.getLastHash(tenantId));
+      const chainHash = computeChainHash(entry, previousHash);
+      this.lastHashCache.set(cacheKey, chainHash);
+      return { ...entry, previousHash, chainHash };
+    });
+  }
+
+  /**
    * Creates a new audit log entry with cryptographic chain hashes.
-   * Automatically computes previousHash (SHA-256 of last entry) and
-   * chainHash (SHA-256 of current entry data concatenated with previousHash).
+   * Kept for API compatibility: identical to `append()`.
    */
   async createLog(entry: ChainedAuditEntry): Promise<ChainedAuditEntry> {
-    const previousHash = await this.getLastHash(entry.tenantId as string | undefined);
-
-    // Build the content to hash: serialize entry fields deterministically
-    const entryData = JSON.stringify({
-      action: entry.action,
-      actorEmail: entry.actorEmail,
-      actorId: entry.actorId,
-      actorRole: entry.actorRole,
-      eventType: entry.eventType ?? entry.action,
-      timestamp: entry.timestamp,
-      details: entry.details ?? {},
-      tenantId: entry.tenantId,
-    });
-
-    const chainHash = await sha256(entryData + previousHash);
-
-    const chainedEntry: ChainedAuditEntry = {
-      ...entry,
-      previousHash,
-      chainHash,
-    };
-
-    // Update in-memory cache (tenant-scoped)
-    this.lastHashCache.set(AuditChainService.cacheKey(entry.tenantId), chainHash);
-
-    return chainedEntry;
+    return this.append(entry);
   }
 
   /**
    * Retrieves the hash of the most recent audit log entry, or GENESIS_HASH if none exists.
    * Uses in-memory caching to avoid DB lookups on every write.
    */
-  private async getLastHash(tenantId?: string): Promise<string> {
+  private async getLastHash(tenantId?: string | null): Promise<string> {
     const cacheKey = AuditChainService.cacheKey(tenantId);
     // Return cached value if available and tenant matches
     const cached = this.lastHashCache.get(cacheKey);
@@ -124,13 +271,22 @@ export class AuditChainService {
       }
 
       const result = await dbAdapterInstance.crud.findMany(this.collectionName, filter as any, {
-        limit: 1,
+        // Untenanted writes share the `__global__` chain, but an unfiltered
+        // "latest row" could belong to a tenant and fork that chain. Read a
+        // small window and pick the first untenanted row instead.
+        limit: tenantId ? 1 : 25,
         sort: { timestamp: "desc" } as any,
         tenantId: tenantId as any,
       });
 
-      if (result.success && result.data && result.data.length > 0) {
-        const lastEntry = result.data[0] as unknown as ChainedAuditEntry;
+      const rows = (result.success && result.data
+        ? result.data
+        : []) as unknown as ChainedAuditEntry[];
+      const lastEntry = tenantId
+        ? rows[0]
+        : rows.find((row) => row.tenantId === null || row.tenantId === undefined);
+
+      if (lastEntry) {
         const hash = lastEntry.chainHash ?? lastEntry.previousHash ?? GENESIS_HASH;
         this.lastHashCache.set(cacheKey, hash);
         return hash;
@@ -145,7 +301,12 @@ export class AuditChainService {
   /**
    * Verifies the entire audit chain for integrity.
    * Walks all entries sorted by timestamp, recomputing chainHash for each
-   * and comparing against the stored value. Detects any tampering.
+   * with the same canonical payload the writer used, and comparing against the
+   * stored value. Detects any tampering.
+   *
+   * Rows written before the chain existed (no chainHash/previousHash at all)
+   * are skipped only as a prefix: once the chain has started, a row without a
+   * chain hash is an integrity failure, not "legacy data".
    *
    * @param tenantId - Optional tenant scope for verification
    * @returns ChainVerificationResult with validity status and details
@@ -153,6 +314,7 @@ export class AuditChainService {
   async verifyChain(tenantId?: string): Promise<ChainVerificationResult> {
     const tamperedEntries: number[] = [];
     const details: string[] = [];
+    let unchainedPrefix = 0;
 
     try {
       if (!dbAdapterInstance) {
@@ -197,11 +359,29 @@ export class AuditChainService {
         };
       }
 
-      const entries = result.data as unknown as ChainedAuditEntry[];
+      const entries = (result.data as unknown as ChainedAuditEntry[]).filter(
+        // Chains are per tenant. An untenanted verification must not walk
+        // tenanted rows: the tenant boundary would read as a chain break.
+        (entry) => (entry.tenantId ?? null) === (tenantId ?? null),
+      ) as ChainedAuditEntry[];
       let expectedPreviousHash = GENESIS_HASH;
+      let sawChained = false;
 
       for (let i = 0; i < entries.length; i++) {
         const entry = entries[i];
+        const storedChainHash =
+          typeof entry.chainHash === "string" && entry.chainHash.length > 0
+            ? entry.chainHash
+            : typeof entry.hash === "string" && entry.hash.length > 0
+              ? entry.hash
+              : null;
+
+        // Pre-chain rows: only tolerable before the chain has started.
+        if (!sawChained && storedChainHash === null && !entry.previousHash) {
+          unchainedPrefix++;
+          continue;
+        }
+        sawChained = true;
 
         // Check that stored previousHash matches expected
         if (entry.previousHash !== expectedPreviousHash) {
@@ -213,21 +393,10 @@ export class AuditChainService {
           );
         }
 
-        // Recompute chainHash and compare
-        const entryData = JSON.stringify({
-          action: entry.action,
-          actorEmail: entry.actorEmail,
-          actorId: entry.actorId,
-          actorRole: entry.actorRole,
-          eventType: (entry as any).eventType ?? entry.action,
-          timestamp: entry.timestamp,
-          details: entry.details ?? {},
-          tenantId: entry.tenantId,
-        });
+        // Recompute chainHash with the shared canonical payload
+        const computedChainHash = computeChainHash(entry, entry.previousHash ?? GENESIS_HASH);
 
-        const computedChainHash = await sha256(entryData + (entry.previousHash ?? GENESIS_HASH));
-
-        if (entry.chainHash !== computedChainHash) {
+        if (storedChainHash !== computedChainHash) {
           if (!tamperedEntries.includes(i)) {
             tamperedEntries.push(i);
           }
@@ -239,7 +408,7 @@ export class AuditChainService {
         }
 
         // Set expected previous hash for next iteration
-        expectedPreviousHash = entry.chainHash ?? entry.previousHash ?? GENESIS_HASH;
+        expectedPreviousHash = storedChainHash ?? entry.previousHash ?? GENESIS_HASH;
       }
 
       const valid = tamperedEntries.length === 0;
@@ -250,6 +419,7 @@ export class AuditChainService {
         brokenAt: brokenAt !== null ? brokenAt + 1 : null, // 1-based for display
         totalEntries: entries.length,
         tamperedEntries: tamperedEntries.length,
+        unchainedPrefix,
         details: details.length > 0 ? details : undefined,
       };
     } catch (err) {
@@ -287,18 +457,7 @@ export class AuditChainService {
 
     let level: string[] = [];
     for (const entry of entries) {
-      const entryData = JSON.stringify({
-        action: entry.action,
-        actorEmail: entry.actorEmail,
-        actorId: entry.actorId,
-        actorRole: entry.actorRole,
-        eventType: (entry as any).eventType ?? entry.action,
-        timestamp: entry.timestamp,
-        details: entry.details ?? {},
-        tenantId: entry.tenantId,
-      });
-      const leafHash = await sha256(entryData + (entry.previousHash ?? GENESIS_HASH));
-      level.push(leafHash);
+      level.push(computeChainHash(entry, entry.previousHash ?? GENESIS_HASH));
     }
 
     while (level.length > 1) {
@@ -306,8 +465,11 @@ export class AuditChainService {
       for (let i = 0; i < level.length; i += 2) {
         const left = level[i];
         const right = i + 1 < level.length ? level[i + 1] : left;
-        const combined = await sha256(left + right);
-        nextLevel.push(combined);
+        nextLevel.push(
+          createHash("sha256")
+            .update(left + right)
+            .digest("hex"),
+        );
       }
       level = nextLevel;
     }
@@ -329,18 +491,7 @@ export class AuditChainService {
     const proof: { position: "left" | "right"; hash: string }[] = [];
     let level: string[] = [];
     for (const entry of entries) {
-      const entryData = JSON.stringify({
-        action: entry.action,
-        actorEmail: entry.actorEmail,
-        actorId: entry.actorId,
-        actorRole: entry.actorRole,
-        eventType: (entry as any).eventType ?? entry.action,
-        timestamp: entry.timestamp,
-        details: entry.details ?? {},
-        tenantId: entry.tenantId,
-      });
-      const leafHash = await sha256(entryData + (entry.previousHash ?? GENESIS_HASH));
-      level.push(leafHash);
+      level.push(computeChainHash(entry, entry.previousHash ?? GENESIS_HASH));
     }
 
     let index = targetIndex;
@@ -360,8 +511,11 @@ export class AuditChainService {
       for (let i = 0; i < level.length; i += 2) {
         const left = level[i];
         const right = i + 1 < level.length ? level[i + 1] : left;
-        const combined = await sha256(left + right);
-        nextLevel.push(combined);
+        nextLevel.push(
+          createHash("sha256")
+            .update(left + right)
+            .digest("hex"),
+        );
       }
 
       level = nextLevel;

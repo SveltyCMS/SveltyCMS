@@ -809,6 +809,10 @@ export const SYSTEM_LITERAL_COLUMNS: Record<string, string[]> = {
     "tenantId",
     "createdAt",
     "updatedAt",
+    // Chain columns: without them in the projection, `findMany` returns rows
+    // with no previousHash/chainHash and verification can never succeed.
+    "previousHash",
+    "chainHash",
   ],
   fourOhFourLogs: [
     "_id",

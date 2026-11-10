@@ -3,7 +3,6 @@
  * @description Unified Audit Service providing high-integrity, multi-tenant audit logging.
  */
 
-import { createHash } from "node:crypto";
 import fsPromises from "node:fs/promises";
 import path from "node:path";
 import { dbAdapter as dbAdapterInstance } from "@src/databases/db";
@@ -21,6 +20,7 @@ import {
   getAuditFlagsSync,
   isAuditDisabledByEnv,
 } from "@utils/security/audit-flags";
+import { auditChainService, type ChainedAuditEntry } from "@src/services/audit-chain";
 
 export type AuditSeverity = "low" | "medium" | "high" | "critical";
 
@@ -100,30 +100,129 @@ export interface AuditLogEntry extends BaseEntity {
   result: "success" | "failure" | "partial";
   hash?: string;
   previousHash?: string;
+  /** SHA-256 of the canonical payload + previousHash — see `audit-chain.ts`. */
+  chainHash?: string;
   rawJson?: string;
 }
 
 export type BufferedAuditEntry = Omit<AuditLogEntry, "_id"> & { _id?: DatabaseId };
 
+/** Tunables, overridable in tests. Defaults are the production values. */
+export interface AuditServiceOptions {
+  /** Sustained-stream flush threshold (entries). */
+  maxBufferSize?: number;
+  /** Hard cap on buffered entries; the OLDEST are dropped and counted beyond it. */
+  maxTotalBuffer?: number;
+  /** Periodic flush interval. */
+  flushIntervalMs?: number;
+  /** Trailing idle window that coalesces write bursts. */
+  microBatchMs?: number;
+}
+
+/**
+ * Live instances, so the SIGTERM/SIGINT hook can flush every buffer (the module
+ * singleton in production, individual instances in tests).
+ */
+const liveAuditServices = new Set<AuditService>();
+
+/**
+ * Flush every buffered audit entry before the process dies.
+ *
+ * Without this, up to `maxTotalBuffer` entries — the entries an operator most
+ * wants after a crash — are lost on every deploy/restart. Bounded by a 2s
+ * deadline so a wedged database cannot hang shutdown forever.
+ */
+export async function flushAuditBuffersOnShutdown(): Promise<void> {
+  const pending = [...liveAuditServices].map((service) => service.flush().catch(() => {}));
+  if (pending.length === 0) return;
+  await Promise.race([
+    Promise.all(pending).then(() => undefined),
+    new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, 2000);
+      (timer as { unref?: () => void }).unref?.();
+    }),
+  ]);
+}
+
+function installShutdownHooks(): void {
+  type SignalHost = typeof globalThis & { __sveltyAuditShutdownHooks?: boolean };
+  const host = globalThis as SignalHost;
+  // HMR re-evaluates this module; install the handlers once per process.
+  if (host.__sveltyAuditShutdownHooks) return;
+  host.__sveltyAuditShutdownHooks = true;
+
+  const onSignal = (code: number) => {
+    void flushAuditBuffersOnShutdown().finally(() => process.exit(code));
+  };
+  process.once("SIGTERM", () => onSignal(143));
+  process.once("SIGINT", () => onSignal(130));
+}
+
 export class AuditService {
   private readonly collectionName = "auditLogs";
   private readonly logFile = path.join(process.cwd(), "logs", "audit.log");
-  private lastHash: string = "0000000000000000000000000000000000000000000000000000000000000000";
   private buffer: BufferedAuditEntry[] = [];
   private flushTimer: any = null;
   private microBatchTimer: NodeJS.Timeout | null = null;
   private inFlightFlush: Promise<void> | null = null;
   /** Serializes `flush()` itself so interval/micro-batch/size/chainSync callers cannot interleave buffer swaps. */
   private flushInFlight: Promise<void> | null = null;
-  private readonly MAX_BUFFER_SIZE = 50; // Sustained-stream flush threshold (burst tails use the debounced timer)
-  private readonly MICRO_BATCH_MS = 15; // 🚀 Trailing idle window to coalesce write bursts
-  private readonly MAX_TOTAL_BUFFER = 200; // 🛡️ HARD CAP: Lowered from 500 to 200 for stability
-  private readonly FLUSH_INTERVAL_MS = 5000;
+  /** Entries discarded because the buffer was full — surfaced, never silent. */
+  private droppedEntries = 0;
+  private lastDropWarnAt = 0;
+  private readonly maxBufferSize: number;
+  private readonly maxTotalBuffer: number;
+  private readonly microBatchMs: number;
+  private readonly flushIntervalMs: number;
   private initialized = false;
 
-  constructor() {
+  constructor(options: AuditServiceOptions = {}) {
+    this.maxBufferSize = options.maxBufferSize ?? 50;
+    this.maxTotalBuffer = options.maxTotalBuffer ?? 200;
+    this.microBatchMs = options.microBatchMs ?? 15;
+    this.flushIntervalMs = options.flushIntervalMs ?? 5000;
+
+    liveAuditServices.add(this);
+    installShutdownHooks();
+
     this.init().catch((err) => logger.error("AuditService init failed", err));
     this.startFlushTimer();
+  }
+
+  /** Number of buffered entries discarded since start (0 = no audit loss). */
+  public getDroppedEntryCount(): number {
+    return this.droppedEntries;
+  }
+
+  /** Stops the timers and unregisters the instance (tests / graceful teardown). */
+  public async shutdown(): Promise<void> {
+    if (this.flushTimer) {
+      clearInterval(this.flushTimer);
+      this.flushTimer = null;
+    }
+    if (this.microBatchTimer) {
+      clearTimeout(this.microBatchTimer);
+      this.microBatchTimer = null;
+    }
+    liveAuditServices.delete(this);
+    await this.flush().catch(() => {});
+  }
+
+  /**
+   * Counts dropped entries and warns loudly. Audit loss must never be silent:
+   * the warning is throttled to one per second but the cumulative total is
+   * always included, and `getDroppedEntryCount()` exposes it to health checks.
+   */
+  private recordDroppedEntries(count: number, reason: string): void {
+    if (count <= 0) return;
+    this.droppedEntries += count;
+    const now = Date.now();
+    if (this.droppedEntries === count || now - this.lastDropWarnAt >= 1000) {
+      this.lastDropWarnAt = now;
+      logger.warn(
+        `[Audit] Dropped ${count} audit entr${count === 1 ? "y" : "ies"} (${reason}); ${this.droppedEntries} dropped in total — the audit trail is INCOMPLETE`,
+      );
+    }
   }
 
   private startFlushTimer() {
@@ -141,7 +240,7 @@ export class AuditService {
     }
     // 🧪 PERFORMANCE: During benchmarks, we don't even need the timer if logs are disabled
     if (isAuditDisabledByEnv()) return;
-    const timer = setInterval(() => this.flush(), this.FLUSH_INTERVAL_MS);
+    const timer = setInterval(() => this.flush(), this.flushIntervalMs);
     (timer as { unref?: () => void }).unref?.();
     this.flushTimer = timer;
     host.__sveltyAuditInterval = timer;
@@ -250,7 +349,12 @@ export class AuditService {
       return true;
     } catch (error) {
       if (this.isMissingAuditStoreError(error)) {
-        logger.warn("[Audit] Audit store unavailable during flush; dropping buffered entries");
+        // The fallback file keeps the forensics, but these rows will never be
+        // in the chain — count them so the gap is explicit.
+        this.recordDroppedEntries(
+          entriesToFlush.length,
+          "audit store unavailable during flush (file fallback only)",
+        );
         await this.appendEntriesToFile(entriesToFlush).catch(() => {});
         return false;
       }
@@ -260,11 +364,12 @@ export class AuditService {
       logger.error("[Audit] Flush failed, restoring buffer", error);
       // 🛡️ MEMORY LEAK FIX: Cap the restoration to prevent unbounded growth
       const combined = [...entriesToFlush, ...this.buffer];
-      if (combined.length > this.MAX_TOTAL_BUFFER) {
-        logger.warn(
-          `[Audit] Buffer overflow, dropping ${combined.length - this.MAX_TOTAL_BUFFER} logs`,
+      if (combined.length > this.maxTotalBuffer) {
+        this.recordDroppedEntries(
+          combined.length - this.maxTotalBuffer,
+          "retry buffer overflow after failed flush",
         );
-        this.buffer = combined.slice(-this.MAX_TOTAL_BUFFER);
+        this.buffer = combined.slice(-this.maxTotalBuffer);
       } else {
         this.buffer = combined;
       }
@@ -406,18 +511,34 @@ export class AuditService {
           timestamp,
           createdAt: timestamp as any,
           updatedAt: timestamp as any,
-          previousHash: this.lastHash,
         };
 
-        // Tamper-evident audit chain (SHA-256 of the entry JSON), not a password KDF.
-        // codeql[js/insufficient-password-hash]
-        const serialized = JSON.stringify(entry);
-        const hash = createHash("sha256").update(serialized).digest("hex");
-        // Pre-serialize full entry sharing base serialized attributes to eliminate double JSON.stringify on flush
-        const fullSerialized = `${serialized.slice(0, -1)},"hash":${JSON.stringify(hash)}}`;
-        const fullEntry: BufferedAuditEntry = { ...entry, hash, rawJson: fullSerialized };
-        this.lastHash = hash;
+        // Tamper-evident audit chain: `AuditChainService` reads the tenant's
+        // chain head under a per-tenant lock and hashes the canonical payload
+        // (the same one `verifyChain()` uses). `createHash` here was a private
+        // scheme the verifier could never reproduce — every row looked tampered.
+        const chained = await auditChainService.append(entry as ChainedAuditEntry);
+        const chainHash = chained.chainHash as string;
 
+        // `hash` is kept as an alias for callers written before `chainHash`.
+        // codeql[js/insufficient-password-hash]
+        const persisted = {
+          ...entry,
+          previousHash: chained.previousHash,
+          chainHash,
+          hash: chainHash,
+        };
+        // Serialise once for the file fallback (the DB path drops rawJson);
+        // built from `persisted` so the fallback line has no rawJson key.
+        const fullEntry: BufferedAuditEntry = { ...persisted, rawJson: JSON.stringify(persisted) };
+
+        // 🛡️ BOUNDED BUFFER: drop the OLDEST entries beyond the hard cap and
+        // count them — unbounded growth is a memory leak, silent loss is worse.
+        if (this.buffer.length >= this.maxTotalBuffer) {
+          const overflow = this.buffer.length - this.maxTotalBuffer + 1;
+          this.buffer.splice(0, overflow);
+          this.recordDroppedEntries(overflow, "buffer full (oldest entries evicted)");
+        }
         this.buffer.push(fullEntry);
         // 🛡️ ENTERPRISE MODE: AUDIT_CHAIN_SYNC awaits persistence before returning,
         // guaranteeing the entry survives even if the process dies mid-request.
@@ -443,7 +564,7 @@ export class AuditService {
               );
             }
           }
-        } else if (this.buffer.length >= this.MAX_BUFFER_SIZE) {
+        } else if (this.buffer.length >= this.maxBufferSize) {
           if (this.microBatchTimer) {
             clearTimeout(this.microBatchTimer);
             this.microBatchTimer = null;
@@ -459,7 +580,7 @@ export class AuditService {
           // commit — the measured +1.8ms-per-create regression. A resetting
           // timer only fires MICRO_BATCH_MS after the stream goes quiet (the
           // documented "trailing idle window" intent), so sustained streams
-          // flush at MAX_BUFFER_SIZE instead of on the timer.
+          // flush at maxBufferSize instead of on the timer.
           if (this.microBatchTimer) {
             clearTimeout(this.microBatchTimer);
           }
@@ -468,7 +589,7 @@ export class AuditService {
             void this.flush().catch((err) =>
               logger.error("[AuditService] Failed to flush micro-batch audit logs:", err),
             );
-          }, this.MICRO_BATCH_MS);
+          }, this.microBatchMs);
         }
       })
       .catch((err) => logger.warn("[AuditService] Chain lock error:", err));
