@@ -262,19 +262,39 @@ type ProxyRule =
   | { kind: "v6"; base: bigint; prefix: number };
 
 /** Compiled rules per cached allowlist array — the array identity is stable per config stamp. */
-const compiledProxyRules = new WeakMap<string[], ProxyRule[]>();
+interface CompiledProxyRules {
+  rules: ProxyRule[];
+  /** False when every entry is an exact address — then no IP parsing is needed at all. */
+  hasCidr: boolean;
+}
+const compiledProxyRules = new WeakMap<string[], CompiledProxyRules>();
 
 function parseIpv4(ip: string): number | null {
-  const parts = ip.split(".");
-  if (parts.length !== 4) return null;
+  // Allocation-free scan: this runs for every request whose direct peer is checked,
+  // and the split()+regex version alone cost ~100 ns per call in the measurement.
   let out = 0;
-  for (const part of parts) {
-    if (!/^\d{1,3}$/.test(part)) return null;
-    const n = Number(part);
-    if (n > 255) return null;
-    out = ((out << 8) | n) >>> 0;
+  let part = 0;
+  let digits = 0;
+  let parts = 0;
+
+  for (let i = 0; i < ip.length; i++) {
+    const c = ip.charCodeAt(i);
+    if (c === 46) {
+      if (digits === 0) return null;
+      out = ((out << 8) | part) >>> 0;
+      part = 0;
+      digits = 0;
+      parts++;
+      continue;
+    }
+    if (c < 48 || c > 57) return null;
+    part = part * 10 + (c - 48);
+    digits++;
+    if (digits > 3 || part > 255) return null;
   }
-  return out >>> 0;
+
+  if (digits === 0 || parts !== 3) return null;
+  return ((out << 8) | part) >>> 0;
 }
 
 function parseIpv6(ip: string): bigint | null {
@@ -358,16 +378,25 @@ export function isTrustedProxyIp(ip: string, list: string[] | "all"): boolean {
   if (list.length === 0) return false;
 
   const candidate = normaliseIp(ip);
-  let rules = compiledProxyRules.get(list);
-  if (!rules) {
-    rules = list.map(parseProxyRule);
-    compiledProxyRules.set(list, rules);
+  let compiled = compiledProxyRules.get(list);
+  if (!compiled) {
+    const rules = list.map(parseProxyRule);
+    compiled = { rules, hasCidr: rules.some((r) => r.kind !== "exact") };
+    compiledProxyRules.set(list, compiled);
+  }
+
+  // Common deployment: an explicit list of proxy addresses. String comparison only.
+  if (!compiled.hasCidr) {
+    for (const rule of compiled.rules) {
+      if (rule.kind === "exact" && rule.value === candidate) return true;
+    }
+    return false;
   }
 
   const v4 = parseIpv4(candidate);
   const v6 = v4 === null ? parseIpv6(candidate) : null;
 
-  for (const rule of rules) {
+  for (const rule of compiled.rules) {
     if (rule.kind === "exact") {
       if (rule.value === candidate) return true;
       continue;
