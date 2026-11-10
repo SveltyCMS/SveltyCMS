@@ -172,6 +172,9 @@ export function applyScimPatchOps(
           const dbField = mapScimPathToDbField(path);
           if (dbField) {
             updates[dbField] = op.value;
+            // The auth pipeline enforces `blocked`; `isActive` alone is only a label.
+            // An IdP deprovisioning a user (active:false) must cut access, so both move.
+            if (dbField === "isActive") updates.blocked = op.value === false;
           }
         }
         break;
@@ -181,6 +184,12 @@ export function applyScimPatchOps(
           const dbField = mapScimPathToDbField(path);
           if (dbField) {
             updates[dbField] = null;
+            // RFC 7644: an absent `active` means active. Un-block as well, or a
+            // deprovision/re-provision cycle would leave the account locked.
+            if (dbField === "isActive") {
+              updates.isActive = true;
+              updates.blocked = false;
+            }
           }
         }
         break;
@@ -219,7 +228,11 @@ function mapScimFieldsToDb(value: Record<string, any>): Record<string, any> {
   const result: Record<string, any> = {};
 
   if ("userName" in value) result.email = value.userName;
-  if ("active" in value) result.isActive = value.active;
+  if ("active" in value) {
+    result.isActive = value.active;
+    // Same reason as in applyScimPatchOps: `blocked` is what authentication reads.
+    result.blocked = value.active === false;
+  }
   if ("displayName" in value) result.username = value.displayName;
   if ("name" in value && typeof value.name === "object") {
     if (value.name.givenName) result.username = value.name.givenName;
@@ -321,7 +334,8 @@ export function buildScimUser(user: Record<string, any>, baseUrl: string): Recor
       familyName: user.lastName || "",
     },
     displayName: user.username || user.email,
-    active: user.isActive !== false,
+    // Effective state: a blocked account is inactive even if isActive was never cleared.
+    active: user.isActive !== false && user.blocked !== true,
     emails: [{ value: user.email, type: "work", primary: true }],
     roles: user.role ? [{ value: user.role, display: user.role, primary: true }] : [],
     meta: {
