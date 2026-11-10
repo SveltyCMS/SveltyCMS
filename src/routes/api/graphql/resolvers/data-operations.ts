@@ -18,6 +18,7 @@
 import { GraphQLScalarType, Kind } from "graphql";
 import type { IDBAdapter } from "@databases/db-interface";
 import type { PublicationFilter } from "@src/utils/security/publication-policy";
+import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 
 /** Cached lazy handle to the content sync service — one module-registry lookup instead of one per call. */
 let contentSyncServiceModulePromise:
@@ -329,6 +330,40 @@ interface GraphQLContext {
   publicationFilter?: PublicationFilter;
 }
 
+/**
+ * Resolves the tenant a data operation runs against.
+ *
+ * This is the GraphQL counterpart of `resolveRequestTenant`
+ * (REST: routes/api/[...path]/handlers/system/system-shared.ts): a caller-supplied
+ * `tenantId` argument may only differ from the session tenant for super-admins.
+ * Without this gate `contentExportRun(tenantId: "...")` let any authenticated user
+ * run an export against another tenant, while the same request over REST was
+ * rejected with 403.
+ *
+ * Fails closed when a multi-tenant deployment has no session tenant, instead of
+ * silently trusting the argument.
+ */
+function resolveGraphQLTenant(
+  argTenantId: string | undefined | null,
+  sessionTenantId: string | undefined | null,
+  ctx: GraphQLContext,
+): string | undefined {
+  const session = sessionTenantId ? String(sessionTenantId) : "";
+  const requested = argTenantId ? String(argTenantId) : "";
+
+  if (!session) {
+    if (isMultiTenantEnabled()) throw new Error("Tenant context required");
+    return requested || undefined;
+  }
+
+  if (requested && requested !== session) {
+    if (String(ctx.user?.role ?? "").toLowerCase() === "super-admin") return requested;
+    throw new Error("Forbidden: Cannot access other tenants");
+  }
+
+  return session;
+}
+
 // ---------------------------------------------------------------------------
 // Query Resolvers
 // ---------------------------------------------------------------------------
@@ -340,7 +375,7 @@ export function dataOperationsQueryResolvers(_dbAdapter: IDBAdapter, tenantId?: 
     configStatus: async (_: unknown, args: { tenantId?: string }, ctx: GraphQLContext) => {
       if (!ctx.user) throw new Error("Authentication required");
       const { configService } = await loadConfigServiceModule();
-      const status = await configService.getStatus(args.tenantId ?? tid);
+      const status = await configService.getStatus(resolveGraphQLTenant(args.tenantId, tid, ctx));
       return {
         status: status.status,
         changes: {
@@ -358,7 +393,7 @@ export function dataOperationsQueryResolvers(_dbAdapter: IDBAdapter, tenantId?: 
     backupList: async (_: unknown, args: { tenantId?: string }, ctx: GraphQLContext) => {
       if (!ctx.user?.isAdmin) throw new Error("Admin access required");
       const { backupService } = await loadBackupServiceModule();
-      const result = await backupService.listBackups(args.tenantId ?? tid);
+      const result = await backupService.listBackups(resolveGraphQLTenant(args.tenantId, tid, ctx));
       return result.backups.map((b) => ({
         path: b.path,
         label: b.label,
@@ -377,7 +412,9 @@ export function dataOperationsQueryResolvers(_dbAdapter: IDBAdapter, tenantId?: 
     channelList: async (_: unknown, args: { tenantId?: string }, ctx: GraphQLContext) => {
       if (!ctx.user?.isAdmin) throw new Error("Admin access required");
       const { contentSyncService } = await loadContentSyncServiceModule();
-      const channels = await contentSyncService.listChannels(args.tenantId ?? tid);
+      const channels = await contentSyncService.listChannels(
+        resolveGraphQLTenant(args.tenantId, tid, ctx),
+      );
       return channels.map((c) => ({
         channelId: c.channelId,
         label: c.label,
@@ -423,7 +460,7 @@ export function dataOperationsMutationResolvers(_dbAdapter: IDBAdapter, tenantId
       if (!ctx.user?.isAdmin) throw new Error("Admin access required");
       const { configService } = await loadConfigServiceModule();
       const result = await configService.performExport({
-        tenantId: args.tenantId ?? tid,
+        tenantId: resolveGraphQLTenant(args.tenantId, tid, ctx),
       });
       return {
         dirPath: result.dirPath,
@@ -438,7 +475,7 @@ export function dataOperationsMutationResolvers(_dbAdapter: IDBAdapter, tenantId
     ) => {
       if (!ctx.user?.isAdmin) throw new Error("Admin access required");
       const { configService } = await loadConfigServiceModule();
-      const status = await configService.getStatus(args.tenantId ?? tid);
+      const status = await configService.getStatus(resolveGraphQLTenant(args.tenantId, tid, ctx));
 
       const allChanges = [
         ...status.changes.new.map((e) => ({ ...e, action: "create" })),
@@ -484,7 +521,7 @@ export function dataOperationsMutationResolvers(_dbAdapter: IDBAdapter, tenantId
       if (!ctx.user?.isAdmin) throw new Error("Admin access required");
       const { configService } = await loadConfigServiceModule();
 
-      const status = await configService.getStatus(args.tenantId ?? tid);
+      const status = await configService.getStatus(resolveGraphQLTenant(args.tenantId, tid, ctx));
       const hasDestructive = status.changes.deleted.length > 0;
 
       if (hasDestructive && !args.confirmed) {
@@ -495,7 +532,9 @@ export function dataOperationsMutationResolvers(_dbAdapter: IDBAdapter, tenantId
       }
 
       try {
-        await configService.performImport({ tenantId: args.tenantId ?? tid });
+        await configService.performImport({
+          tenantId: resolveGraphQLTenant(args.tenantId, tid, ctx),
+        });
         return {
           success: true,
           message: "Configuration applied successfully.",
@@ -519,7 +558,7 @@ export function dataOperationsMutationResolvers(_dbAdapter: IDBAdapter, tenantId
       const { contentPackageService } = await loadContentPackageServiceModule();
       const result = await contentPackageService.validateExport({
         collections: args.collections,
-        tenantId: args.tenantId ?? tid,
+        tenantId: resolveGraphQLTenant(args.tenantId, tid, ctx),
         userId: (ctx.user as any)?._id ?? ctx.user,
       });
       return {
@@ -539,7 +578,7 @@ export function dataOperationsMutationResolvers(_dbAdapter: IDBAdapter, tenantId
       try {
         const pkg = await contentPackageService.runExport({
           collections: args.collections,
-          tenantId: args.tenantId ?? tid,
+          tenantId: resolveGraphQLTenant(args.tenantId, tid, ctx),
           userId: (ctx.user as any)?._id ?? ctx.user,
         });
         return {
@@ -563,7 +602,7 @@ export function dataOperationsMutationResolvers(_dbAdapter: IDBAdapter, tenantId
       if (!ctx.user) throw new Error("Authentication required");
       const { contentPackageService } = await loadContentPackageServiceModule();
       const result = await contentPackageService.validateImport(args.package as any, {
-        tenantId: args.tenantId ?? tid,
+        tenantId: resolveGraphQLTenant(args.tenantId, tid, ctx),
       });
       return {
         valid: result.valid,
@@ -582,7 +621,7 @@ export function dataOperationsMutationResolvers(_dbAdapter: IDBAdapter, tenantId
       if (!ctx.user?.isAdmin) throw new Error("Admin access required");
       const { backupService } = await loadBackupServiceModule();
       const result = await backupService.createBackup({
-        tenantId: args.tenantId ?? tid,
+        tenantId: resolveGraphQLTenant(args.tenantId, tid, ctx),
         userId: (ctx.user as any)?._id ?? ctx.user,
         includeMedia: args.includeMedia ?? false,
       });
@@ -603,7 +642,7 @@ export function dataOperationsMutationResolvers(_dbAdapter: IDBAdapter, tenantId
       const { backupService } = await loadBackupServiceModule();
       const result = await backupService.restoreBackup(args.backupPath, {
         confirmed: args.confirmed,
-        tenantId: args.tenantId ?? tid,
+        tenantId: resolveGraphQLTenant(args.tenantId, tid, ctx),
         userId: (ctx.user as any)?._id ?? ctx.user,
       });
       return {
@@ -625,7 +664,10 @@ export function dataOperationsMutationResolvers(_dbAdapter: IDBAdapter, tenantId
       const { MigrationEngine } = await loadMigrationEngineModule();
       const { contentStore } = await import("@stores/content-registry.svelte");
 
-      const schema = contentStore.getCollection(args.collectionName, args.tenantId ?? tid ?? null);
+      const schema = contentStore.getCollection(
+        args.collectionName,
+        resolveGraphQLTenant(args.tenantId, tid, ctx) ?? null,
+      );
       if (!schema) {
         throw new Error(`Collection not found: "${args.collectionName}"`);
       }
@@ -673,7 +715,9 @@ export function dataOperationsMutationResolvers(_dbAdapter: IDBAdapter, tenantId
       // Try to infer collection from planId prefix patterns
       if (!collectionId) {
         // The planId was generated by createPlan; try looking up all collections
-        const allCollections = contentStore.getCollections(args.tenantId ?? tid ?? null);
+        const allCollections = contentStore.getCollections(
+          resolveGraphQLTenant(args.tenantId, tid, ctx) ?? null,
+        );
         for (const col of allCollections) {
           const freshPlan = await MigrationEngine.createPlan(col as any);
           if (freshPlan.planId === args.planId) {
@@ -690,7 +734,10 @@ export function dataOperationsMutationResolvers(_dbAdapter: IDBAdapter, tenantId
         );
       }
 
-      const schema = contentStore.getCollection(collectionId, args.tenantId ?? tid ?? null);
+      const schema = contentStore.getCollection(
+        collectionId,
+        resolveGraphQLTenant(args.tenantId, tid, ctx) ?? null,
+      );
       if (!schema) {
         throw new Error(`Collection not found: "${collectionId}"`);
       }
