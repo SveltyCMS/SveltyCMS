@@ -75,17 +75,37 @@ async function testing(action: string, body: Record<string, unknown>, tenant: st
   return { res, json };
 }
 
-function extractTitles(body: any): string[] {
+function extractRows(body: any): any[] {
   const items = body?.data?.items || body?.data || body?.items || body || [];
-  const arr = Array.isArray(items) ? items : [];
-  return arr.map((i: any) => i?.title).filter(Boolean);
+  return Array.isArray(items) ? items : [];
+}
+
+function extractTitles(body: any): string[] {
+  return extractRows(body)
+    .map((i: any) => i?.title)
+    .filter(Boolean);
 }
 
 describe("Tenant isolation (A vs B) — authenticated HTTP", () => {
   let adminCookie = "";
+  /**
+   * Explicit DB gate. A live server with no database connection cannot exercise
+   * isolation at all, so every test skips (visibly) instead of failing inside the
+   * seed step or, worse, "passing" on an empty fixture. `/api/system/health`
+   * answers 533 when the DB is down and 200 + database:true when it is usable.
+   */
+  let dbReady = false;
+  let skipReason = "database not connected";
 
   beforeAll(async () => {
     await waitForServer();
+    const health = await fetch(`${API}/api/system/health`).catch(() => null);
+    const healthBody: any = health ? await health.json().catch(() => ({})) : {};
+    dbReady = health?.status === 200 && healthBody?.database !== false;
+    if (!dbReady) {
+      skipReason = `database not connected (health ${health?.status ?? "unreachable"})`;
+      return;
+    }
     await cleanupTestDatabase().catch(() => {});
     adminCookie = await prepareAuthenticatedContext();
     expect(adminCookie.length).toBeGreaterThan(0);
@@ -108,10 +128,11 @@ describe("Tenant isolation (A vs B) — authenticated HTTP", () => {
   }, 180_000);
 
   afterAll(async () => {
-    await cleanupTestDatabase().catch(() => {});
+    if (dbReady) await cleanupTestDatabase().catch(() => {});
   });
 
-  it("health accepts x-test-tenant-id for A and B", async () => {
+  it("health accepts x-test-tenant-id for A and B", async (ctx) => {
+    if (!dbReady) return ctx.skip(skipReason);
     for (const t of [TENANT_A, TENANT_B]) {
       const res = await fetch(`${API}/api/system/health`, { headers: tenantHeaders(t) });
       // 200 = healthy, 533 = reachable but DB not connected (api/[...path]).
@@ -120,7 +141,8 @@ describe("Tenant isolation (A vs B) — authenticated HTTP", () => {
     }
   });
 
-  it("authenticated list as B never returns tenant A marker", async () => {
+  it("authenticated list as B never returns tenant A marker", async (ctx) => {
+    if (!dbReady) return ctx.skip(skipReason);
     const marker = `iso-marker-${Date.now()}`;
     const entryId = generateUUID();
 
@@ -153,11 +175,29 @@ describe("Tenant isolation (A vs B) — authenticated HTTP", () => {
         headers: tenantHeaders(TENANT_B, adminCookie),
       },
     );
-    // Auth required path must accept 200 or 401 depending on tenant session binding
-    expect([200, 401]).toContain(listB.status);
+    // Cross-tenant read: the session was opened for tenant A and now asks for
+    // tenant B. Exactly two outcomes are legitimate and BOTH are asserted:
+    //   - rejected (401/403) → fail-closed, and the body carries no A data;
+    //   - 200 → served strictly inside tenant B, so A's marker is absent and no
+    //     returned row is owned by A. Nothing is seeded for B, so B's slice must
+    //     be empty.
+    // The previous `expect([200, 401])` + assert-only-when-200 shape accepted any
+    // leaking 200 body, i.e. it could never fail on a real cross-tenant leak.
+    const bodyB = await listB.json().catch(() => ({}));
     if (listB.status === 200) {
-      const bodyB = await listB.json().catch(() => ({}));
-      expect(extractTitles(bodyB)).not.toContain(marker);
+      const rowsB = extractRows(bodyB);
+      expect(extractTitles(bodyB), "tenant B list leaked tenant A's marker").not.toContain(marker);
+      for (const row of rowsB) {
+        if (row && typeof row === "object" && "tenantId" in row) {
+          expect(row.tenantId, "tenant B list returned a row owned by A").not.toBe(TENANT_A);
+        }
+      }
+      expect(rowsB.length, "tenant B has no fixtures, so its slice must be empty").toBe(0);
+    } else {
+      expect([401, 403], `cross-tenant list must be rejected, got ${listB.status}`).toContain(
+        listB.status,
+      );
+      expect(extractTitles(bodyB), "rejection body leaked tenant A's marker").not.toContain(marker);
     }
 
     const listA = await fetch(
@@ -173,7 +213,8 @@ describe("Tenant isolation (A vs B) — authenticated HTTP", () => {
     expect(titlesA).toContain(marker);
   });
 
-  it("admin session is reusable across tenant headers", async () => {
+  it("admin session is reusable across tenant headers", async (ctx) => {
+    if (!dbReady) return ctx.skip(skipReason);
     const resA = await fetch(`${API}/api/user?raw=true`, {
       headers: tenantHeaders(TENANT_A, adminCookie),
     });
@@ -181,7 +222,10 @@ describe("Tenant isolation (A vs B) — authenticated HTTP", () => {
       headers: tenantHeaders(TENANT_B, adminCookie),
     });
     expect(resA.status).toBe(200);
-    expect([200, 401]).toContain(resB.status);
+    // Replaying an A-bound session against tenant B is either answered inside B or
+    // rejected fail-closed. Anything else (5xx, redirect, NAMESPACE_FORBIDDEN) is
+    // no longer tolerated silently.
+    expect([200, 401, 403], `cross-tenant /api/user got ${resB.status}`).toContain(resB.status);
     // Sanity: fixtures still valid
     expect(testFixtures.adminUser.email).toContain("@");
   });

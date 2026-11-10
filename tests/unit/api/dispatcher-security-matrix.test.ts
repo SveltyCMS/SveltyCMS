@@ -183,15 +183,21 @@ describe("Dispatcher security matrix (real +server)", () => {
     });
 
     it("allows collections list without tenantId when multi-tenant is OFF", async () => {
-      // Temporarily flip MT off
+      // Pin MT off for the whole case: `mockReturnValueOnce` only covered the first
+      // flag read, so the request-boundary tenant gate (tenant-required.server) and
+      // the handler-level guard would disagree inside one request.
       const tenant = await import("@utils/tenant-isolation.server");
-      vi.mocked(tenant.isMultiTenantEnabled).mockReturnValueOnce(false);
-
-      await expectApi(
-        "GET",
-        { path: "collections", user: admin, tenantId: null, bypass: true },
-        [200, 404],
-      );
+      const mocked = vi.mocked(tenant.isMultiTenantEnabled);
+      mocked.mockReturnValue(false);
+      try {
+        await expectApi(
+          "GET",
+          { path: "collections", user: admin, tenantId: null, bypass: true },
+          [200, 404],
+        );
+      } finally {
+        mocked.mockReturnValue(true);
+      }
     });
 
     it("adopts the authenticated user's own tenant when the request tenant is unresolved", async () => {
