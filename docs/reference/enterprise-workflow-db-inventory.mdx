@@ -18,12 +18,19 @@ tags:
 
 # Enterprise Workflow, Proxy/Session & Database Support Inventory
 
-> **Status: inventory draft (2026-11-10).** Produced by inspecting the code at
-> `efa57c55e`; every row carries a `path:line` reference. Key rows were re-checked
-> independently (`enforceTenantPolicy`, `getTenantPool`/`setTenantPool`, `createLog`,
-> `resolveGraphQLTenant`). Rows without a reachable call site are marked `not found`
-> with the search that produced that result. Treat it as a review queue, not as an
-> audit certificate.
+> **Status: pre-PR baseline audit.** Snapshot of the code at `efa57c55e`, the branch point of
+> PR #566. Line references are valid for that revision; files this PR touches have shifted, so
+> those findings are referenced by symbol as well. Per-finding status is listed below — entries
+> marked **fixed in PR #566** are no longer current defects and must not be read as open risks.
+> Rows without a reachable call site keep their `not found` result and the search behind it.
+
+| Finding                                                                                              | Status                                                  | Evidence                                                                                  |
+| :--------------------------------------------------------------------------------------------------- | :------------------------------------------------------ | :---------------------------------------------------------------------------------------- |
+| `TRUSTED_PROXIES` matched only exact strings — documented CIDR blocks never matched                  | **Fixed in PR #566** (commits `0040f073d`, `f2281aeaf`) | `isTrustedProxyIp()` in `hook-utils.ts`; `tests/unit/security/trusted-proxy-cidr.test.ts` |
+| Workflow publish gate unreachable for normal collections (`plan.hasWorkflows` never set)             | **Still open**                                          | `collections-namespace.ts`, `execution-plan.ts`                                           |
+| Bulk write paths bypass `assertPublishAllowed`                                                       | **Still open**                                          | `bulk-operations.ts`, `handlers/collections.ts`                                           |
+| Tenant/global session revocation is process-local; only the user path is distributed                 | **Still open**                                          | `revocation-epoch.ts` vs `revocation-publish.server.ts`                                   |
+| No versioned DB migrations; MongoDB has no transactions; README claims MySQL without `DB_TYPE=mysql` | **Still open**                                          | `mariadb/adapter-core.ts`, `mongo-db-adapter.ts`                                          |
 
 This page records **what the source actually enforces** on branch `fix/enterprise-readiness-20261110` (HEAD `efa57c55e`). It is an inventory, not a design document: each row points at the line that does the work, and each gap points at the line where a caller can step around it.
 

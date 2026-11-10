@@ -169,8 +169,10 @@ The CMS can run directly exposed, but a reverse proxy adds:
 - WebSocket: `proxy_http_version 1.1; proxy_set_header Upgrade $http_upgrade; proxy_set_header Connection "upgrade";` for `/ws`.
 - Health: proxy `/api/system/health`.
 
-**TRUSTED_PROXIES** (config key, not yet enforced):
-`TRUSTED_PROXIES=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16` (or your LB IPs) is stored in `config/private.ts` and exposed via `getTrustedProxies()` in `src/databases/config-state.ts`, but no rate-limiter/auth/audit path consumes it yet. The hooks currently read `X-Forwarded-*` directly, so deploy behind a proxy that strips client-supplied forwarding headers. Wiring `TRUSTED_PROXIES` into client-IP resolution is tracked in the [roadmap](../../project/roadmap-2026.mdx).
+**TRUSTED_PROXIES** (enforced):
+`TRUSTED_PROXIES=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16` (or your LB IPs) is stored in `config/private.ts` and read through `getTrustedProxies()` (`src/databases/config-state.ts`). `isTrustedProxyIp()` (`src/utils/hook-utils.ts`) matches **exact addresses and IPv4/IPv6 CIDR blocks**, normalises IPv4-mapped IPv6 (`::ffff:10.0.0.5`), and treats malformed entries (bad prefix, invalid compression, more than one `::`) as non-matching — it never throws and never widens the allowlist. Forwarded headers (`CF-Connecting-IP`, `X-Real-IP`, `X-Forwarded-For`) are only read when the direct peer matches that list; otherwise the socket address is used.
+
+Remaining limitations: `TRUSTED_PROXIES=all` trusts every peer, so it re-opens `X-Forwarded-For` spoofing — use it only behind a proxy that strips client-supplied forwarding headers. The compiled rule set is cached per configuration generation, so a changed allowlist takes effect without a restart. The client IP is resolved once per request and used for rate-limit bucketing and audit records.
 
 ### Production Nginx Example (Copy-Paste Ready)
 
@@ -179,7 +181,7 @@ The CMS can run directly exposed, but a reverse proxy adds:
 # Place in /etc/nginx/sites-available/ and enable.
 # Assumes SveltyCMS on 127.0.0.1:3000, TLS terminated here.
 #
-# Also set in SveltyCMS private config (reserved; not yet enforced):
+# Also set in SveltyCMS private config (enforced; exact IPs or CIDR, IPv4 and IPv6):
 #   TRUSTED_PROXIES=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
 
 upstream sveltycms {
@@ -344,7 +346,7 @@ All layers are optional — start simple and add as you grow.
 
 - Poolers and proxies must not bypass our 4-layer defense (middleware → dispatcher permissions → handler checks → page actions).
 - Tenant isolation stays in the query layer (`tenantId` filters or separate schemas/DBs). Poolers/proxies are transparent at the connection level.
-- Always validate `X-Forwarded-*` only from trusted proxies. The `TRUSTED_PROXIES` key is defined but not yet enforced by the rate limiter/auth/audit path (see [roadmap](../../project/roadmap-2026.mdx)); today the hooks read `X-Forwarded-*` directly, so the proxy must strip client-supplied forwarding headers.
+- `X-Forwarded-*` is only honoured when the direct peer matches `TRUSTED_PROXIES` (exact address or CIDR). Keep the proxy stripping client-supplied forwarding headers anyway: with `TRUSTED_PROXIES=all`, or with a shared load-balancer address, the first forwarded hop is taken as the client IP.
 - Audit logs capture the client IP resolved by the hooks; behind a proxy, correct values depend on the proxy sanitizing `X-Forwarded-For`.
 
 ## When (Not) to Enable Layers
