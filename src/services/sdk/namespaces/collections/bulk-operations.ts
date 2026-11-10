@@ -119,7 +119,7 @@ async function loadBulkGateRows(
  * Per-entry gates for `bulkUpdate`, mirroring `update()`: payload preparation
  * and publish validation against stored rows.
  */
-async function collectBulkRejections(
+export async function collectBulkRejections(
   ctx: BulkContext,
   schema: Schema,
   hot: SchemaHotFlags,
@@ -134,6 +134,16 @@ async function collectBulkRejections(
 ): Promise<void> {
   const { user, system, tenantId, options } = execCtx;
   const publishing = updates.some((u) => isPublishTransition(u.data));
+  const collectionId = String(schema._id ?? "");
+
+  // Bulk publishing must pass the same review gate as a single update. The presence
+  // note keeps collections without a workflow off the import and off the query path.
+  const gatePossible =
+    publishing &&
+    !system &&
+    !options.skipValidation &&
+    !workflowKnownAbsent(collectionId, tenantId as string | undefined);
+  const workflowService = gatePossible ? await getWorkflowServiceLazy() : undefined;
 
   let existing: Map<string, Record<string, unknown>> | undefined;
   if (publishing && (hot._hasRequiredFields || hot._hasConditionallyRequiredFields)) {
@@ -170,6 +180,23 @@ async function collectBulkRejections(
         id: row.id,
         message: missing.map((f) => `Field '${f}' is required when publishing`).join("; "),
       });
+      continue;
+    }
+
+    if (workflowService && isPublishTransition(payload)) {
+      try {
+        await workflowService.assertPublishAllowed(
+          collectionId,
+          tenantId as string | undefined,
+          user as never,
+          row.id,
+        );
+      } catch (err) {
+        out.push({
+          id: row.id,
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
     }
   }
 }

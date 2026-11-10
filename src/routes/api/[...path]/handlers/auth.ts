@@ -635,8 +635,24 @@ export async function handleOidcLoginStart(event: RequestEvent, tenantId?: Datab
   }
 
   const origin = event.url.origin;
-  const redirectUri =
-    event.url.searchParams.get("redirect_uri") || `${origin}/api/auth/oidc-callback`;
+  const requestedRedirect = event.url.searchParams.get("redirect_uri");
+  let redirectUri = `${origin}/api/auth/oidc-callback`;
+
+  if (requestedRedirect) {
+    // Same-origin only. A foreign `redirect_uri` makes the login start an open redirect
+    // and, against an OP that allows it, delivers the authorization code to that host.
+    let parsed: URL | undefined;
+    try {
+      parsed = new URL(requestedRedirect, origin);
+    } catch {
+      raise(400, "redirect_uri is not a valid URL");
+    }
+    if (parsed.origin !== origin) raise(400, "redirect_uri must be a same-origin URL");
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      raise(400, "redirect_uri must use http or https");
+    }
+    redirectUri = parsed.toString();
+  }
   const state = generateSecureToken(16);
   const nonce = generateSecureToken(16);
   const { codeVerifier, codeChallenge } = generatePkce();

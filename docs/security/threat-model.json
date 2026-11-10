@@ -15,7 +15,7 @@
       ],
       "model": "docs/security/threat-models/api-dispatch.mdx",
       "reviewed_at": "2026-11-10",
-      "fingerprint": "c0219d438554beab17b7242b4ec3b4d75318a88b7f18902fe6d06de3e3ef97eb"
+      "fingerprint": "0fce791a392f073b335b003bf1e09a3ec4b013ae85d81db12c3b9cc260be5b0d"
     },
     {
       "id": "auth-session",
@@ -38,7 +38,7 @@
       ],
       "model": "docs/security/threat-models/auth-session.mdx",
       "reviewed_at": "2026-11-10",
-      "fingerprint": "ac63a0e4cd776eb35659a2396e3ca18280c20e79202c8a23ba1f96fb1756ea0b"
+      "fingerprint": "66e74654a0bd2d27be337cb844b5932fd69104f12d2d4d022f025aa05661475a"
     },
     {
       "id": "content-write",
@@ -57,8 +57,8 @@
         "src/hooks/handle-collection-write-lane.ts"
       ],
       "model": "docs/security/threat-models/content-write.mdx",
-      "reviewed_at": "2026-11-09",
-      "fingerprint": "0e021c5a7948d477e9be07d3b6ea133bbdb502393c86a0c13d2e176bdd5964b1"
+      "reviewed_at": "2026-11-10",
+      "fingerprint": "2b6660a0ecd92ecf6074721e5e13016d4f52de1d39bb05ce29e8cdeddc4389ee"
     },
     {
       "id": "media-files",
