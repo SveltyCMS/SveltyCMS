@@ -147,6 +147,16 @@ export interface SsoSessionMetadata {
   postLogoutRedirectUri?: string;
   /** When the SSO session was created */
   createdAt: string;
+  /**
+   * SAML `NameID` of the assertion that created this session.
+   *
+   * An IdP-initiated `LogoutRequest` carries only a `NameID` (and optionally a
+   * `SessionIndex`) — never our session cookie — so this is the only link back
+   * to the CMS session that has to be destroyed.
+   */
+  samlNameId?: string;
+  /** SAML `AuthnStatement/@SessionIndex` recorded at login. */
+  samlSessionIndex?: string;
   /** State parameter for CSRF protection during logout redirect */
   logoutState?: string;
 }
@@ -165,6 +175,9 @@ const ssoProviders = new Map<string, SsoProviderConfig>();
 function providerKey(id: string, tenantId?: string | null): string {
   return `${tenantId ?? "global"}:${id}`;
 }
+
+/** Provider id under which SAML sessions are recorded. */
+export const SAML_SSO_PROVIDER_ID = "saml";
 
 /** Session → SSO metadata mapping (in-memory, keyed by sessionId). */
 const ssoSessionMetadata = new Map<string, SsoSessionMetadata>();
@@ -314,7 +327,7 @@ export async function saveSsoProviders(
  * set — so a second node sees the deletion too, and the in-process session cache is
  * invalidated so the same node stops serving the cached entry as well.
  */
-async function terminateSessionAndMetadata(
+export async function terminateSessionAndMetadata(
   sessionId: string,
   tenantId?: string | null,
 ): Promise<void> {
@@ -400,6 +413,31 @@ export async function getSsoSessionMetadata(
     logger.debug("[SSO] Distributed session metadata unavailable", err);
   }
   return undefined;
+}
+
+/**
+ * Finds the SSO sessions created by a SAML assertion.
+ *
+ * IdP-initiated `LogoutRequest` messages identify the session by `NameID` and,
+ * optionally, `SessionIndex`. A request without a `SessionIndex` — or a session
+ * recorded without one — matches on `NameID` alone: refusing to match would
+ * leave the session alive, which is the failure this lookup exists to prevent.
+ */
+export function findSamlSessions(
+  nameId: string,
+  sessionIndex?: string,
+): Array<{ sessionId: string; tenantId?: string }> {
+  if (!nameId) return [];
+  const matches: Array<{ sessionId: string; tenantId?: string }> = [];
+  for (const [sessionId, metadata] of ssoSessionMetadata) {
+    if (metadata.provider !== SAML_SSO_PROVIDER_ID) continue;
+    if (metadata.samlNameId !== nameId) continue;
+    if (sessionIndex && metadata.samlSessionIndex && metadata.samlSessionIndex !== sessionIndex) {
+      continue;
+    }
+    matches.push({ sessionId, tenantId: metadata.tenantId });
+  }
+  return matches;
 }
 
 export function deleteSsoSessionMetadata(sessionId: string, tenantId?: string | null): void {

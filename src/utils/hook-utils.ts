@@ -139,6 +139,11 @@ const PUBLIC_EXACT_ROUTES = new Set([
   "/api/security/csp-report",
   "/api/auth/saml/acs",
   "/api/auth/saml/login",
+  // Single Logout: the IdP drives these, so the CMS session (if any) is not a
+  // precondition. Both terminate nothing until the SAML message's signature
+  // verifies.
+  "/api/auth/saml/slo",
+  "/api/auth/saml/logout",
 ]);
 
 const PUBLIC_PREFIX_ROUTES = [
