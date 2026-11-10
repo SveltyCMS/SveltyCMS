@@ -300,28 +300,42 @@ function parseIpv4(ip: string): number | null {
 function parseIpv6(ip: string): bigint | null {
   const zone = ip.indexOf("%");
   const clean = zone === -1 ? ip : ip.slice(0, zone);
+  if (!clean.includes(":")) return null;
+
   const halves = clean.split("::");
-  if (halves.length > 2) return null;
+  if (halves.length > 2) return null; // more than one "::" is invalid
 
   const expand = (part: string): string[] | null => {
     if (!part) return [];
-    const groups = part.split(":");
-    for (const g of groups) if (g && !/^[0-9a-fA-F]{1,4}$/.test(g)) return null;
-    return groups.filter(Boolean);
+    const out: string[] = [];
+    for (const group of part.split(":")) {
+      // An empty group is a stray ":" — only "::" may omit groups.
+      if (group === "") return null;
+      if (!/^[0-9a-fA-F]{1,4}$/.test(group)) return null;
+      out.push(group);
+    }
+    return out;
   };
 
   const head = expand(halves[0]);
+  if (!head) return null;
   const tail = halves.length === 2 ? expand(halves[1]) : [];
-  if (!head || !tail) return null;
+  if (!tail) return null;
 
-  const groups =
-    halves.length === 2
-      ? [...head, ...Array(8 - head.length - tail.length).fill("0"), ...tail]
-      : head;
-  if (groups.length !== 8) return null;
+  let groups: string[];
+  if (halves.length === 2) {
+    // "::" must stand for at least one zero group: eight explicit groups plus "::"
+    // is not a valid address, and a negative fill count used to throw a RangeError.
+    const omitted = 8 - head.length - tail.length;
+    if (omitted < 1) return null;
+    groups = [...head, ...Array.from({ length: omitted }, () => "0"), ...tail];
+  } else {
+    if (head.length !== 8) return null;
+    groups = head;
+  }
 
   let out = 0n;
-  for (const g of groups) out = (out << 16n) | BigInt(parseInt(g || "0", 16));
+  for (const g of groups) out = (out << 16n) | BigInt(parseInt(g, 16));
   return out;
 }
 

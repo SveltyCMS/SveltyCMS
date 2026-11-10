@@ -147,6 +147,31 @@ function resolveScimAttribute(obj: Record<string, any>, attribute: string): unkn
 // ============================================================================
 
 /**
+ * Thrown when a SCIM attribute carries the wrong JSON type.
+ *
+ * RFC 7644 §3.5.2 types `active` as a boolean. Treating `"false"` (a string some IdPs
+ * send) as truthy-false-by-comparison would leave the account active while the caller
+ * believes it was deprovisioned, so wrong types are rejected instead of coerced.
+ */
+export class ScimValueError extends Error {
+  constructor(
+    public readonly attribute: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ScimValueError";
+  }
+}
+
+/** Validates a SCIM `active` value (boolean only) and returns it. */
+export function parseScimActive(value: unknown): boolean {
+  if (typeof value !== "boolean") {
+    throw new ScimValueError("active", `active must be a boolean, received ${typeof value}`);
+  }
+  return value;
+}
+
+/**
  * Applies SCIM PATCH operations to a target object.
  * Returns the set of database-level field updates.
  *
@@ -171,10 +196,15 @@ export function applyScimPatchOps(
         } else if (path) {
           const dbField = mapScimPathToDbField(path);
           if (dbField) {
-            updates[dbField] = op.value;
-            // The auth pipeline enforces `blocked`; `isActive` alone is only a label.
-            // An IdP deprovisioning a user (active:false) must cut access, so both move.
-            if (dbField === "isActive") updates.blocked = op.value === false;
+            if (dbField === "isActive") {
+              // The auth pipeline enforces `blocked`; `isActive` alone is only a label.
+              // An IdP deprovisioning a user (active:false) must cut access, so both move.
+              const active = parseScimActive(op.value);
+              updates.isActive = active;
+              updates.blocked = !active;
+            } else {
+              updates[dbField] = op.value;
+            }
           }
         }
         break;
@@ -229,9 +259,11 @@ function mapScimFieldsToDb(value: Record<string, any>): Record<string, any> {
 
   if ("userName" in value) result.email = value.userName;
   if ("active" in value) {
-    result.isActive = value.active;
-    // Same reason as in applyScimPatchOps: `blocked` is what authentication reads.
-    result.blocked = value.active === false;
+    // Same reason as in applyScimPatchOps: `blocked` is what authentication reads,
+    // and a non-boolean must not be silently coerced.
+    const active = parseScimActive(value.active);
+    result.isActive = active;
+    result.blocked = !active;
   }
   if ("displayName" in value) result.username = value.displayName;
   if ("name" in value && typeof value.name === "object") {
