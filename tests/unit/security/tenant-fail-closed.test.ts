@@ -229,7 +229,7 @@ describe("documented explicit global scope read is unchanged", () => {
     // Boundary gate is request-level only: the DB global scope must keep working
     // (global roles/collections, setup admin visiting public pages).
     expect(() => assertTenantContext({ tenantId: null }, "collections.list")).not.toThrow();
-    const scoped = safeQuery({}, null);
+    const scoped = safeQuery({}, null) as { tenantId: string | null; isDeleted: unknown };
     expect(scoped.tenantId).toBeNull();
     expect(scoped.isDeleted).toEqual({ $ne: true });
   });
@@ -242,6 +242,7 @@ describe("documented explicit global scope read is unchanged", () => {
   });
 
   it("keeps tenant-scoped reads scoped to the caller's tenant", () => {
-    expect(safeQuery({}, "tenant-a").tenantId).toBe("tenant-a");
+    const scopedA = safeQuery({}, "tenant-a") as { tenantId: string };
+    expect(scopedA.tenantId).toBe("tenant-a");
   });
 });

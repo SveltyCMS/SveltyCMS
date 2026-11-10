@@ -1117,7 +1117,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       assertTenantRequiredForApiPath(
         event.request.method,
         url.pathname,
-        (locals as any).tenantId ?? null,
+        (locals.tenantId as string | null | undefined) ?? null,
       );
       locals.dbAdapter = dbAdapter;
       (locals as any).dbAdapterUnscoped = dbAdapter;
@@ -1173,7 +1173,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       assertTenantRequiredForApiPath(
         event.request.method,
         url.pathname,
-        (locals as any).tenantId ?? null,
+        (locals.tenantId as string | null | undefined) ?? null,
       );
       locals.dbAdapter = dbAdapter;
       (locals as any).dbAdapterUnscoped = dbAdapter;

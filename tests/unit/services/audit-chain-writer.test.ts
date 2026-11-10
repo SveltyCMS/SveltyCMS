@@ -59,7 +59,7 @@ function installFakeStore(): FakeStore {
   db.crud.insertMany = vi.fn(async (_collection: string, entries: Row[]) => {
     for (const entry of entries) {
       // Copy like a real adapter round-trip would (no shared references).
-      store.rows.push({ ...entry, details: { ...(entry.details ?? {}) } });
+      store.rows.push({ ...entry, details: { ...entry.details } });
     }
     return { success: true, data: entries };
   });
