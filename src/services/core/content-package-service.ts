@@ -15,6 +15,8 @@
  * - SHA-256 checksum integrity verification
  * - Tenant-scoped isolation (tenant mismatch fails closed)
  * - Background job support for large imports via jobQueue
+ * - Publication gate: imports that land entries in a published state obey the
+ *   same workflow approval gate as a normal write (admins keep the override)
  * - Safety: never exports users, sessions, tokens, or secrets
  *
  * ### Package Format (.svelty-content-package):
@@ -33,12 +35,15 @@
  */
 
 import { dbAdapter } from "@src/databases/db";
-import type { IDBAdapter } from "@src/databases/db-interface";
+import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
+import type { User } from "@src/databases/auth/types";
 import type { Schema } from "@src/content/types";
 import { contentStore } from "@stores/content-registry.svelte";
 import { createChecksum } from "@utils/security/checksum";
 import { generateUUID } from "@utils/native-utils";
 import { jobQueue } from "@src/services/background/jobs/job-queue-service";
+import { workflowKnownAbsent } from "@src/services/background/workflow-presence";
+import { isPublishTransition } from "@src/services/sdk/namespaces/collections/bulk-validation";
 import { logger } from "@utils/logger";
 import { nowISODateString } from "@utils/date";
 
@@ -56,6 +61,16 @@ function loadEventBusModule(): Promise<
 let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
 function loadDbModule(): Promise<typeof import("@src/databases/db")> {
   return (dbModulePromise ??= import("@src/databases/db"));
+}
+
+/** Cached lazy handle to the workflow service — only loaded when a gate applies. */
+let workflowServiceModulePromise:
+  | Promise<typeof import("@src/services/background/workflow-service")>
+  | undefined;
+function loadWorkflowServiceModule(): Promise<
+  typeof import("@src/services/background/workflow-service")
+> {
+  return (workflowServiceModulePromise ??= import("@src/services/background/workflow-service"));
 }
 
 // ---------------------------------------------------------------------------
@@ -814,6 +829,36 @@ export class ContentPackageService {
       };
     }
 
+    const strategy = options.duplicateStrategy ?? plan.duplicateStrategy;
+    const shouldBackground = options.background ?? plan.background;
+
+    const adapter = dbAdapter as IDBAdapter | null;
+    if (!adapter) {
+      return { success: false, message: "Database adapter is not available." };
+    }
+
+    // 🚪 PUBLICATION GATE: imports write through the adapter directly, so they
+    // must pass the same review-workflow gate as a normal write. Checked before
+    // either lane starts (sync loop or dispatched job) so a rejected import
+    // never leaves a partially published package behind — and never announces
+    // a start it will not honour.
+    try {
+      const gate = await this.assertImportPublishAllowed(
+        plan,
+        targetTenant,
+        adapter,
+        options.userId ?? plan.userId,
+      );
+      if (!gate.ok) {
+        logger.warn(`[ContentPackage] Import blocked by the publication gate: ${gate.message}`);
+        return { success: false, message: `Import blocked: ${gate.message}` };
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.warn(`[ContentPackage] Import blocked by the publication gate: ${message}`);
+      return { success: false, message: `Import blocked: ${message}` };
+    }
+
     // Emit webhook event (best-effort, non-blocking)
     try {
       const { eventBus } = await loadEventBusModule();
@@ -832,9 +877,6 @@ export class ContentPackageService {
       /* event emission is best-effort */
     }
 
-    const strategy = options.duplicateStrategy ?? plan.duplicateStrategy;
-    const shouldBackground = options.background ?? plan.background;
-
     if (shouldBackground) {
       const jobId = await jobQueue.dispatch(
         "import-data",
@@ -842,7 +884,7 @@ export class ContentPackageService {
           planId,
           duplicateStrategy: strategy,
           tenantId: targetTenant,
-          userId: options.userId,
+          userId: options.userId ?? plan.userId,
           operations: plan.operations,
         },
         targetTenant,
@@ -857,11 +899,6 @@ export class ContentPackageService {
     }
 
     // Synchronous import
-    const adapter = dbAdapter as IDBAdapter | null;
-    if (!adapter) {
-      return { success: false, message: "Database adapter is not available." };
-    }
-
     let imported = 0;
     let skipped = 0;
     let errored = 0;
@@ -952,6 +989,78 @@ export class ContentPackageService {
       success: errored === 0,
       message: `Import complete: ${imported} imported, ${skipped} skipped, ${errored} errors.`,
     };
+  }
+
+  /**
+   * 🚪 Publication gate for an import plan.
+   *
+   * Import writes bypass every write lane that enforces the review workflow, so
+   * the plan's publishing operations are gated here instead: the same
+   * `assertPublishAllowed` call a normal create/update makes (admins and
+   * collections without `gatePublication` keep their existing behaviour).
+   *
+   * The actor is resolved lazily — only once, and only when a gate actually
+   * applies — and an unresolvable actor fails closed rather than skipping the
+   * gate. A collection whose workflow absence is already known short-circuits
+   * before the actor lookup and the workflow import.
+   *
+   * Returns a failure instead of throwing: the caller reports it as a rejected
+   * import (nothing written), which keeps this path off the direct-`AppError`
+   * ratchet that the handler layer owns.
+   */
+  private async assertImportPublishAllowed(
+    plan: ImportPlan,
+    tenantId: string | undefined,
+    adapter: IDBAdapter,
+    actorId: string | undefined,
+  ): Promise<{ ok: true } | { ok: false; message: string }> {
+    // Create: the incoming status is the one the entry lands in. Update: the
+    // incoming status is the one the entry transitions to. Same test either way.
+    const publishing = plan.operations.filter(
+      (op) => (op.action === "create" || op.action === "update") && isPublishTransition(op.entry),
+    );
+    if (publishing.length === 0) return { ok: true };
+
+    let actor: User | undefined;
+    const resolveActor = async (): Promise<{ user?: User; error?: string }> => {
+      if (actor) return { user: actor };
+      if (!actorId) {
+        return {
+          error:
+            "This import would publish content in a workflow-gated collection, but no importing user was provided",
+        };
+      }
+      const resolved = await adapter.auth.getUserById(actorId as DatabaseId, {
+        tenantId: tenantId as DatabaseId,
+      });
+      if (!resolved.success || !resolved.data) {
+        return {
+          error: `Import user "${actorId}" could not be resolved, so publishing into a workflow-gated collection cannot be authorized`,
+        };
+      }
+      actor = resolved.data;
+      return { user: actor };
+    };
+
+    for (const op of publishing) {
+      if (workflowKnownAbsent(op.collection, tenantId)) continue;
+      const { workflowService } = await loadWorkflowServiceModule();
+      const resolution = await resolveActor();
+      if (!resolution.user) {
+        return { ok: false, message: resolution.error ?? "Import actor unavailable" };
+      }
+      try {
+        await workflowService.assertPublishAllowed(
+          op.collection,
+          tenantId,
+          resolution.user,
+          op.action === "update" ? op.existingId : undefined,
+        );
+      } catch (err) {
+        return { ok: false, message: err instanceof Error ? err.message : String(err) };
+      }
+    }
+    return { ok: true };
   }
 
   // =========================================================================
