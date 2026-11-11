@@ -38,7 +38,7 @@
       ],
       "model": "docs/security/threat-models/auth-session.mdx",
       "reviewed_at": "2026-11-11",
-      "fingerprint": "20ce2eaaa52c1877c3aa4490c9ac9cf4243c8297969eaf06aef6a4d19eb034cc"
+      "fingerprint": "2410afd2fdeb45bd51d5fadaa451ac719cab25d476dde41d215bd02d87ef4f03"
     },
     {
       "id": "content-write",

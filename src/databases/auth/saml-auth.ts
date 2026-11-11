@@ -827,7 +827,8 @@ export async function handleSAMLLogoutRequest(params: {
   }
 
   const terminatedSessionIds: string[] = [];
-  for (const target of findSamlSessions(nameId, profile?.sessionIndex)) {
+  // Distributed lookup: the SAML session may have been created on another node.
+  for (const target of await findSamlSessions(nameId, profile?.sessionIndex, tenantId)) {
     await terminateSessionAndMetadata(target.sessionId, target.tenantId ?? tenantId);
     terminatedSessionIds.push(target.sessionId);
   }

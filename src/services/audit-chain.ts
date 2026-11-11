@@ -116,6 +116,20 @@ export interface ChainVerificationResult {
    * 0 for any chain written by the current code.
    */
   legacySecondPrecisionEntries?: number;
+  /**
+   * Persistence health of the checkpoint itself.
+   *
+   * A checkpoint that could not be written is not visible in the comparison
+   * above (there is nothing to compare against), so it is reported separately:
+   * `healthy: false` means the recorded head may lag the chain and a truncated
+   * tail could pass this verification.
+   */
+  checkpointPersistence?: {
+    healthy: boolean;
+    consecutiveFailures: number;
+    lastFailureAt: string | null;
+    lastMessage: string | null;
+  };
   details?: string[];
 }
 
@@ -258,6 +272,19 @@ export class AuditChainService {
   private readonly tenantLocks = new Map<string, Promise<void>>();
   /** Chained-entry count per tenant, so a flush does not need a read before its write. */
   private readonly countCache = new Map<string, number>();
+  /**
+   * Checkpoint write failures per tenant.
+   *
+   * The checkpoint is the only signal that makes a truncated tail visible, so a
+   * silent failure to persist it is a compliance event, not a log line: it is
+   * counted, logged at error level and reported by the admin verification
+   * result. It is never retried here — the next flush writes a fresh checkpoint
+   * that supersedes it (the count only rises after a successful write).
+   */
+  private readonly checkpointFailures = new Map<
+    string,
+    { consecutive: number; lastAt: string; message: string }
+  >();
 
   private static cacheKey(tenantId?: string | null): string {
     return chainHashScope(tenantId);
@@ -478,12 +505,42 @@ export class AuditChainService {
       { tenantId: (tenantId as string | null) ?? null, category: "audit" },
     );
     if (!result?.success) {
-      logger.warn(
-        `[AuditChain] Chain checkpoint not written (${entryCount} entries): ${result?.message ?? "unknown"}`,
+      const message = result?.message ?? "unknown";
+      const previousFailure = this.checkpointFailures.get(cacheKey);
+      this.checkpointFailures.set(cacheKey, {
+        consecutive: (previousFailure?.consecutive ?? 0) + 1,
+        lastAt: nowISODateString(),
+        message,
+      });
+      logger.error(
+        `[AuditChain] CHECKPOINT_WRITE_FAILED (${entryCount} entries, tenant ${chainHashScope(tenantId)}): ${message}`,
       );
       return;
     }
+    this.checkpointFailures.delete(cacheKey);
     this.countCache.set(cacheKey, entryCount);
+  }
+
+  /**
+   * Checkpoint persistence health for a tenant.
+   *
+   * `healthy: false` means at least one checkpoint write was rejected and no
+   * later write has succeeded, so the last checkpoint on record may lag the
+   * chain. The verifier reports the same state; a dashboard can alert on it.
+   */
+  getCheckpointStatus(tenantId?: string | null): {
+    healthy: boolean;
+    consecutiveFailures: number;
+    lastFailureAt: string | null;
+    lastMessage: string | null;
+  } {
+    const failure = this.checkpointFailures.get(AuditChainService.cacheKey(tenantId));
+    return {
+      healthy: !failure,
+      consecutiveFailures: failure?.consecutive ?? 0,
+      lastFailureAt: failure?.lastAt ?? null,
+      lastMessage: failure?.message ?? null,
+    };
   }
 
   /**
@@ -671,6 +728,7 @@ export class AuditChainService {
         unchainedPrefix,
         checkpoint: checkpointReport,
         legacySecondPrecisionEntries,
+        checkpointPersistence: this.getCheckpointStatus(tenantId),
         details: details.length > 0 ? details : undefined,
       };
     } catch (err) {

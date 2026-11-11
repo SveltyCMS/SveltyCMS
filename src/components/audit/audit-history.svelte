@@ -32,6 +32,13 @@
 		brokenAt: number | null;
 		totalEntries: number;
 		tamperedEntries: number;
+		/** Set by `verifyChain()` so a bare "valid" cannot hide a stale checkpoint. */
+		checkpointPersistence?: {
+			healthy: boolean;
+			consecutiveFailures: number;
+			lastFailureAt: string | null;
+			lastMessage: string | null;
+		};
 		details?: string[];
 	}
 
@@ -182,6 +189,24 @@
 					<span>✅</span>
 					Chain Valid — {verifyResult.totalEntries} entries verified
 				</div>
+				{#if verifyResult.checkpointPersistence && !verifyResult.checkpointPersistence.healthy}
+					<div
+						class="mt-1 flex flex-col gap-0.5 ps-4 text-[11px]"
+						data-testid="audit-checkpoint-warning"
+					>
+						<span class="font-semibold">
+							Checkpoint not persisted — tail truncation may go unnoticed
+						</span>
+						<span class="opacity-80">
+							{verifyResult.checkpointPersistence.consecutiveFailures} consecutive write failure(s){verifyResult
+								.checkpointPersistence.lastFailureAt
+								? `, last at ${verifyResult.checkpointPersistence.lastFailureAt}`
+								: ''}{verifyResult.checkpointPersistence.lastMessage
+								? `: ${verifyResult.checkpointPersistence.lastMessage}`
+								: ''}
+						</span>
+					</div>
+				{/if}
 			{:else}
 				<div class="flex flex-col gap-1">
 					<div class="flex items-center gap-1.5 font-semibold">

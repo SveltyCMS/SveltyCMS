@@ -180,16 +180,24 @@ Integrated via **@node-saml/node-saml (latest)**, a lightweight SAML SP implemen
 
 Full **authorization-code** relying-party flow plus **RP-Initiated Logout**, implemented in `src/databases/auth/sso-session.ts` and `handlers/auth.ts`.
 
-| Capability       | Detail                                                                                                 |
-| :--------------- | :----------------------------------------------------------------------------------------------------- |
-| **Login**        | `GET /api/auth/oidc-login?provider=` → 302 to OP authorize; HttpOnly `state`/`nonce` cookie            |
-| **Callback**     | `GET /api/auth/oidc-callback` — code exchange, **JWKS** id_token verify, local session                 |
-| **Logout**       | `GET\|POST /api/auth/oidc-logout` — local session clear + optional OP `end_session_endpoint`           |
-| **Discovery**    | `/.well-known/openid-configuration` (cached) fills authorize/token/jwks/logout endpoints               |
-| **Providers**    | Multi-provider registry via `SSO_PROVIDERS` setting (`SsoProviderConfig`)                              |
-| **Provisioning** | Email claim must match an **existing** local user (or invite flow) — no silent create on OIDC callback |
+| Capability              | Detail                                                                                                                                                             |
+| :---------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Login**               | `GET /api/auth/oidc-login?provider=` → 302 to OP authorize; HttpOnly `state`/`nonce` cookie                                                                        |
+| **Callback**            | `GET /api/auth/oidc-callback` — code exchange, **JWKS** id_token verify, local session                                                                             |
+| **Logout**              | `GET\|POST /api/auth/oidc-logout` — local session clear + optional OP `end_session_endpoint`                                                                       |
+| **OP-initiated logout** | Front- and back-channel messages terminate only the session they name, resolved through a shared index — a logout that lands on another node still finds the login |
+| **Discovery**           | `/.well-known/openid-configuration` (cached) fills authorize/token/jwks/logout endpoints                                                                           |
+| **Providers**           | Multi-provider registry via `SSO_PROVIDERS` setting (`SsoProviderConfig`)                                                                                          |
+| **Provisioning**        | Email claim must match an **existing** local user (or invite flow) — no silent create on OIDC callback                                                             |
 
 Also supports social OAuth-style providers (**Google**, **GitHub**) where configured as OIDC/OAuth clients in settings. See [Auth API — OIDC](../api/auth.mdx#4-oidc-sso-openid-connect) for request parameters and security notes.
+
+**Multi-node logout.** `sid`/`sub`/`NameID` are recorded at login and written to a shared index
+(`sso:index:{sid,sub,nameid}` → `sso:directory:<sessionId>`, `src/databases/auth/sso-session.ts`).
+Every logout lookup merges that index with the process-local map, so an IdP message routed to a
+different worker than the login still terminates the session. The residual caveat is a **warm**
+session cache on the peer (no revocation marker is published for a single-session logout) and the
+cache-down fallback, which degrades to the local map rather than failing the logout.
 
 ---
 

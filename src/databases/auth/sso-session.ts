@@ -200,6 +200,152 @@ function ssoMetaKey(sessionId: string): string {
   return `sso:session:${sessionId}`;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Distributed session directory                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Cache namespace that is *not* scoped to the session's tenant.
+ *
+ * Metadata is written twice on login: once under the session's tenant (the
+ * existing, tenant-scoped copy a tenant purge can clear) and once here. A
+ * logout message arrives on whichever node the load balancer picked and carries
+ * no tenant/cookie context, so the lookup surface has to be tenant-neutral.
+ */
+const SSO_SHARED_TENANT = "global";
+
+/** Directory entry: sessionId → metadata, readable from any node/tenant. */
+function ssoDirectoryKey(sessionId: string): string {
+  return `sso:directory:${sessionId}`;
+}
+
+/** The external identifier a logout message is keyed by. */
+type SsoIndexKind = "sid" | "sub" | "nameid";
+
+/**
+ * Index bucket key.
+ *
+ * Values (OP `sid`, `sub`, SAML `NameID`) are identifiers, not secrets, so they
+ * stay readable for diagnostics. `encodeURIComponent` keeps `:`/`@`/whitespace
+ * out of the key without hashing — a hash would make a collision silently sign
+ * out the wrong session.
+ */
+function ssoIndexKey(kind: SsoIndexKind, value: string): string {
+  return `sso:index:${kind}:${encodeURIComponent(value)}`;
+}
+
+/** Upper bound per bucket — a bucket that grows past this is a bug, not a workload. */
+const SSO_INDEX_MAX_IDS = 500;
+
+/** Every (kind, value) pair a session can be found by. */
+function ssoIndexEntries(metadata: SsoSessionMetadata): Array<[SsoIndexKind, string]> {
+  const entries: Array<[SsoIndexKind, string]> = [];
+  if (metadata.oidcSid) entries.push(["sid", metadata.oidcSid]);
+  if (metadata.oidcSubject) entries.push(["sub", metadata.oidcSubject]);
+  if (metadata.samlNameId) entries.push(["nameid", metadata.samlNameId]);
+  return entries;
+}
+
+function matchesIndexEntry(
+  metadata: SsoSessionMetadata,
+  [kind, value]: [SsoIndexKind, string],
+): boolean {
+  switch (kind) {
+    case "sid":
+      return metadata.oidcSid === value;
+    case "sub":
+      return metadata.oidcSubject === value;
+    case "nameid":
+      return metadata.samlNameId === value;
+  }
+}
+
+/** Append a session id to a bucket (best effort; a lost append degrades to "not found"). */
+async function addToSsoIndex(
+  [kind, value]: [SsoIndexKind, string],
+  sessionId: string,
+): Promise<void> {
+  const key = ssoIndexKey(kind, value);
+  const current =
+    (await cacheService.get<string[]>(key, SSO_SHARED_TENANT, CacheCategory.SESSION)) ?? [];
+  if (current.includes(sessionId)) return;
+  const next = [...current, sessionId].slice(-SSO_INDEX_MAX_IDS);
+  await cacheService.set(key, next, SSO_META_TTL_S, SSO_SHARED_TENANT, CacheCategory.SESSION);
+}
+
+/** Remove a session id from a bucket (best effort). */
+async function removeFromSsoIndex(
+  [kind, value]: [SsoIndexKind, string],
+  sessionId: string,
+): Promise<void> {
+  const key = ssoIndexKey(kind, value);
+  const current =
+    (await cacheService.get<string[]>(key, SSO_SHARED_TENANT, CacheCategory.SESSION)) ?? [];
+  if (!current.includes(sessionId)) return;
+  const next = current.filter((id) => id !== sessionId);
+  await cacheService.set(key, next, SSO_META_TTL_S, SSO_SHARED_TENANT, CacheCategory.SESSION);
+}
+
+/**
+ * Resolve every session a logout message can name, across nodes.
+ *
+ * Merges two sources so neither is a single point of failure:
+ * - the process-local map (fast path; also covers a failed index write)
+ * - the distributed index → directory (sessions created on another node)
+ *
+ * Stale ids (session already gone) are filtered out, not rewritten, so a
+ * concurrent reader can never delete a live entry.
+ */
+async function collectIndexedSsoSessions(
+  identifiers: Array<[SsoIndexKind, string]>,
+  tenantId?: string | null,
+): Promise<Array<{ sessionId: string; metadata: SsoSessionMetadata }>> {
+  if (identifiers.length === 0) return [];
+
+  const matches: Array<{ sessionId: string; metadata: SsoSessionMetadata }> = [];
+  const seen = new Set<string>();
+
+  for (const [sessionId, metadata] of ssoSessionMetadata) {
+    if (!identifiers.some((entry) => matchesIndexEntry(metadata, entry))) continue;
+    seen.add(sessionId);
+    matches.push({ sessionId, metadata });
+  }
+
+  try {
+    const ids = new Set<string>();
+    for (const entry of identifiers) {
+      const bucket =
+        (await cacheService.get<string[]>(
+          ssoIndexKey(entry[0], entry[1]),
+          SSO_SHARED_TENANT,
+          CacheCategory.SESSION,
+        )) ?? [];
+      for (const id of bucket) ids.add(id);
+    }
+    const missing = [...ids].filter((id) => !seen.has(id));
+    if (missing.length > 0) {
+      const stored = await cacheService.getMany<SsoSessionMetadata>(
+        missing.map(ssoDirectoryKey),
+        SSO_SHARED_TENANT,
+      );
+      missing.forEach((sessionId, index) => {
+        const metadata = stored[index];
+        if (!metadata?.provider) return;
+        // Warm the local map so a second lookup in this process stays a map hit.
+        ssoSessionMetadata.set(sessionId, metadata);
+        matches.push({ sessionId, metadata });
+      });
+    }
+  } catch (err) {
+    logger.debug(
+      `[SSO] Distributed session index unavailable, using local metadata only: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+
+  void tenantId; // tenant filtering stays in the callers, which own the provider registry
+  return matches;
+}
+
 // ─── Provider management ───────────────────────────────────────────────────
 
 export function registerSsoProvider(config: SsoProviderConfig, tenantId?: string | null): void {
@@ -342,7 +488,10 @@ export async function terminateSessionAndMetadata(
   sessionId: string,
   tenantId?: string | null,
 ): Promise<void> {
-  deleteSsoSessionMetadata(sessionId, tenantId);
+  // Read before delete so the distributed index can be pruned; the lookup falls
+  // back to the directory when this node never cached the metadata.
+  const metadata = await getSsoSessionMetadata(sessionId, tenantId);
+  deleteSsoSessionMetadata(sessionId, tenantId, metadata);
   try {
     const { getDb } = await import("@src/databases/db");
     const db = getDb();
@@ -389,19 +538,34 @@ export async function setSsoSessionMetadata(
   tenantId?: string | null,
 ): Promise<void> {
   ssoSessionMetadata.set(sessionId, metadata);
-  await cacheService
-    .set(
+  // Three writes on login, all best effort: the tenant-scoped copy, the
+  // tenant-neutral directory and one bucket per external identifier. Without
+  // them a logout delivered to another node could not find this session.
+  await Promise.allSettled([
+    cacheService.set(
       ssoMetaKey(sessionId),
       metadata,
       SSO_META_TTL_S,
       tenantId ?? "global",
       CacheCategory.SESSION,
-    )
-    .catch((err: unknown) => {
-      logger.warn(
-        `[SSO] Failed to persist session metadata: ${err instanceof Error ? err.message : String(err)}`,
-      );
-    });
+    ),
+    cacheService.set(
+      ssoDirectoryKey(sessionId),
+      metadata,
+      SSO_META_TTL_S,
+      SSO_SHARED_TENANT,
+      CacheCategory.SESSION,
+    ),
+    ...ssoIndexEntries(metadata).map((entry) => addToSsoIndex(entry, sessionId)),
+  ]).then((results) => {
+    for (const result of results) {
+      if (result.status === "rejected") {
+        logger.warn(
+          `[SSO] Failed to persist session metadata: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`,
+        );
+      }
+    }
+  });
 }
 
 export async function getSsoSessionMetadata(
@@ -434,13 +598,15 @@ export async function getSsoSessionMetadata(
  * recorded without one — matches on `NameID` alone: refusing to match would
  * leave the session alive, which is the failure this lookup exists to prevent.
  */
-export function findSamlSessions(
+export async function findSamlSessions(
   nameId: string,
   sessionIndex?: string,
-): Array<{ sessionId: string; tenantId?: string }> {
+  tenantId?: string | null,
+): Promise<Array<{ sessionId: string; tenantId?: string }>> {
   if (!nameId) return [];
+  const candidates = await collectIndexedSsoSessions([["nameid", nameId]], tenantId);
   const matches: Array<{ sessionId: string; tenantId?: string }> = [];
-  for (const [sessionId, metadata] of ssoSessionMetadata) {
+  for (const { sessionId, metadata } of candidates) {
     if (metadata.provider !== SAML_SSO_PROVIDER_ID) continue;
     if (metadata.samlNameId !== nameId) continue;
     if (sessionIndex && metadata.samlSessionIndex && metadata.samlSessionIndex !== sessionIndex) {
@@ -451,13 +617,43 @@ export function findSamlSessions(
   return matches;
 }
 
-export function deleteSsoSessionMetadata(sessionId: string, tenantId?: string | null): void {
+export function deleteSsoSessionMetadata(
+  sessionId: string,
+  tenantId?: string | null,
+  metadata?: SsoSessionMetadata,
+): void {
+  const known = metadata ?? ssoSessionMetadata.get(sessionId);
   ssoSessionMetadata.delete(sessionId);
   void cacheService.delete(ssoMetaKey(sessionId), tenantId ?? "global").catch((err: unknown) => {
     logger.debug(
       `[SSO] Failed to delete distributed session metadata: ${err instanceof Error ? err.message : String(err)}`,
     );
   });
+  void cacheService.delete(ssoDirectoryKey(sessionId), SSO_SHARED_TENANT).catch((err: unknown) => {
+    logger.debug(
+      `[SSO] Failed to delete session directory entry: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  });
+  // Pruning is best effort: a missed prune leaves a dead id behind, which the
+  // lookup filters out (the directory entry is already gone).
+  for (const entry of known ? ssoIndexEntries(known) : []) {
+    void removeFromSsoIndex(entry, sessionId).catch((err: unknown) => {
+      logger.debug(
+        `[SSO] Failed to prune session index entry: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    });
+  }
+}
+
+/**
+ * Drop every in-process SSO session metadata entry.
+ *
+ * Production code never calls this; it exists so a test can model a second
+ * application instance (one that has never cached the login) and prove the
+ * logout lookup still finds the session through the distributed index.
+ */
+export function resetSsoSessions(): void {
+  ssoSessionMetadata.clear();
 }
 
 // ─── Redirect URI validation ───────────────────────────────────────────────
@@ -1057,10 +1253,12 @@ export async function handleFrontChannelLogout(
 
   // Match the exact OP session id (recorded at login from the id_token `sid`).
   // No match — including sessions without a recorded sid — terminates nothing;
-  // the response is still a 200 so the OP iframe completes.
-  for (const [sessionId, metadata] of ssoSessionMetadata) {
+  // the response is still a 200 so the OP iframe completes. The lookup is
+  // distributed: the login may have happened on another node.
+  const candidates = sid ? await collectIndexedSsoSessions([["sid", sid]], tenantId) : [];
+  for (const { sessionId, metadata } of candidates) {
     if (!metadata.provider) continue;
-    if (!sid || metadata.oidcSid !== sid) continue;
+    if (metadata.oidcSid !== sid) continue;
     const provider = getSsoProvider(metadata.provider, metadata.tenantId ?? tenantId);
     if (provider?.issuer === issuer) {
       await terminateSessionAndMetadata(sessionId, metadata.tenantId ?? tenantId);
@@ -1204,7 +1402,16 @@ export async function handleBackChannelLogout(
     // provider in another tenant is never terminated by a token minted for this
     // issuer.
     let invalidated = 0;
-    for (const [sessionId, metadata] of ssoSessionMetadata) {
+    const identifiers: Array<["sid" | "sub", string]> =
+      logoutSid !== undefined
+        ? [["sid", logoutSid]]
+        : logoutSubject !== undefined
+          ? [["sub", logoutSubject]]
+          : [];
+    // Distributed: the session may have been created on another node, so the
+    // local map is only one of two sources (see collectIndexedSsoSessions).
+    const logoutCandidates = await collectIndexedSsoSessions(identifiers, tenantId);
+    for (const { sessionId, metadata } of logoutCandidates) {
       if (metadata.provider !== matchedProvider.id) continue;
       if (logoutSid !== undefined) {
         if (metadata.oidcSid !== logoutSid) continue;
