@@ -14,6 +14,7 @@
 import { logger } from "@utils/logger";
 import { registerContentTools } from "./tools/content";
 import { registerNavigationTools } from "./tools/navigation";
+import { registerPreviewTools } from "./tools/preview";
 import { registerVirtualCollectionTools } from "./tools/virtual-collections";
 import { registerBuilderTools } from "./tools/builder";
 
@@ -34,6 +35,7 @@ export async function initWebMCP(): Promise<void> {
     registerNavigationTools();
     registerVirtualCollectionTools();
     registerBuilderTools();
+    registerPreviewTools();
     logger.info("[WebMCP] Client-side AI tools registered successfully.");
   } catch (err) {
     logger.error("[WebMCP] Failed to register client tools", { error: err });

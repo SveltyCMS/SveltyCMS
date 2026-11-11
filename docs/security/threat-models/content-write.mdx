@@ -6,7 +6,7 @@ order: 72
 icon: "mdi:shield-search"
 author: "SveltyCMS Team"
 created: "2026-11-05"
-updated: "2026-11-09"
+updated: "2026-11-11"
 tags:
   - "security"
   - "threat-model"
@@ -35,6 +35,7 @@ under `src/routes/(site)/**`, the collection/content handlers in
 
 | **Information disclosure** — list and point reads disagree on tenant scope | `src/services/sdk/namespaces/collections-namespace.ts`, `src/hooks/handle-collection-read-lane.ts` | Content rows are stored as `"global"` (SQL) or `null` (Mongo) when tenancy is off; the namespace and the read lane treat a null request tenant as unscoped (no tenant filter), so a point read sees the same rows the list returned on both adapter families. System tables keep the `IS NULL` scope in `getEffectiveTenantId`. | Callers that bypass the namespace/lane and pass a raw null tenant to the adapter get the system-scope (`IS NULL`) semantics. |
 | **Information disclosure** — a cached list survives a write | `src/services/sdk/namespaces/collections/post-write.ts`, `src/services/cache/response-cache.ts` | Every write (single-entry or bulk) bumps the collection epoch and evicts the collection's list + GraphQL bodies from L1 and shared L2; the point tier is narrowed to the written ids so sibling point reads stay warm. There is no list-preserving write: `entryIds` only scopes the point drop, because the caller cannot know which list bodies embed a field it writes. | A process crash between the durable write and the microtask flush can leave a body until its TTL; a mis-scoped collection name would miss the target list (tenant scope is still enforced by the cache key). |
+| **Tampering / information disclosure** — many-to-many edges cross a tenant or survive a delete | `src/services/core/relation-link-service.ts`, `src/services/sdk/namespaces/collections/junction-fields.ts` | A `ManyToMany` field is stripped from the document and stored as one edge row per link through the same tenant-scoped `crud` surface. Edge ids are deterministic (`sha256` of tenant + source + field + sourceId + targetId), so a retry converges and cannot duplicate. The target collection comes from the admin-authored schema, never from request input; edge reads, writes and deletes all carry the request tenant; deletes cascade on both sides (target-side cleanup uses a process-local target registry, so a cold process may leave reverse edges until that source field is written again). | Bulk create/update/delete and the background import lane do not sync edges yet (recorded in the widget doc); a custom `through` collection must expose the junction columns; a link write that fails after a non-transactional content write returns an error with the row already durable (an idempotent retry repairs the edges). |
 
 ## Assumptions
 

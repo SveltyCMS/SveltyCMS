@@ -334,6 +334,33 @@ async function assertJobPublishAllowed(
 }
 
 /**
+ * 🚪 Publication gate for a synchronous (in-request) collection import.
+ *
+ * The background lane re-gates in the worker because a job can be replayed. A
+ * ≤50-row / non-async import writes immediately, but it is still a publish
+ * transition, so it must honour the same rule: skipping this call let a small
+ * `status: "publish"` batch write straight past the review workflow while the
+ * identical 51-row batch was rejected. The caller resolves the actor from its
+ * SDK options (`resolveActorId`); a missing or unresolvable actor fails closed
+ * before any write, exactly as the worker does.
+ */
+export async function assertCollectionImportPublishAllowed(
+  adapter: IDBAdapter,
+  collectionName: string,
+  data: readonly Record<string, unknown>[],
+  mode: BulkImportMode,
+  tenantId: string | undefined,
+  userId: string | undefined,
+): Promise<void> {
+  await assertJobPublishAllowed(
+    adapter,
+    gateRowsForCollection(collectionName, data, mode),
+    tenantId,
+    userId,
+  );
+}
+
+/**
  * Gate rows for the direct-import lane: the payload rows are the write rows.
  * Skip-mode rows are gated too — the gate describes what the payload asks for,
  * and re-reading which rows already exist would add a second findByIds.

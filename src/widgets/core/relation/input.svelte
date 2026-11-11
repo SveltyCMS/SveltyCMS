@@ -38,7 +38,7 @@ Interactive selector with "Select" button and clear functionality
 
 	let {
 		field,
-		value,
+		value = $bindable(),
 		error
 	}: {
 		field: FieldType;

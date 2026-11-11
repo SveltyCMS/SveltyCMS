@@ -264,6 +264,44 @@ export const contentRevisions = pgTable(
   }),
 );
 
+// Content Relations Table (generic many-to-many junction)
+export const contentRelations = pgTable(
+  "content_relations",
+  {
+    _id: varchar("_id", { length: 36 })
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    tenantId: tenantField(),
+    sourceCollection: varchar("sourceCollection", { length: 255 }).notNull(),
+    sourceId: varchar("sourceId", { length: 255 }).notNull(),
+    fieldName: varchar("fieldName", { length: 255 }).notNull(),
+    targetCollection: varchar("targetCollection", { length: 255 }).notNull(),
+    targetId: varchar("targetId", { length: 255 }).notNull(),
+    sortOrder: integer("sortOrder").notNull().default(0),
+    metadata: jsonb("metadata"),
+    ...timestamps,
+  },
+  (table) => ({
+    uniqueEdge: unique("content_relations_unique").on(
+      table.tenantId,
+      table.sourceCollection,
+      table.fieldName,
+      table.sourceId,
+      table.targetId,
+    ),
+    sourceIdx: index("content_relations_source_idx").on(
+      table.tenantId,
+      table.sourceCollection,
+      table.sourceId,
+    ),
+    targetIdx: index("content_relations_target_idx").on(
+      table.tenantId,
+      table.targetCollection,
+      table.targetId,
+    ),
+  }),
+);
+
 // Themes Table
 export const themes = pgTable(
   "themes",
@@ -799,6 +837,7 @@ export const schema = {
   contentNodes,
   contentDrafts,
   contentRevisions,
+  contentRelations,
   themes,
   widgets,
   mediaItems,

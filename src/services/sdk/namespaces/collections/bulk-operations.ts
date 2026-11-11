@@ -40,6 +40,7 @@ import {
   type BulkRejection,
 } from "./bulk-validation";
 import { applyWidgetPipeline, encryptWritePayload, prepareWritePayload } from "./write-pipeline";
+import { assertBulkSupportsJunctionFields, deleteJunctionLinksForEntry } from "./junction-fields";
 import { fieldEncryptionContext, readEncryptionContext, presentRead } from "./read-pipeline";
 import { ensureSchemaHotFlags, type SchemaHotFlags } from "./schema-store";
 import { shouldSkipWriteSideEffects, invalidateCache } from "./post-write";
@@ -215,6 +216,7 @@ export async function executeBulkCreate(
   if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
   const schema = await ctx.schemaOf(collectionId, tenantId);
   const hot = ensureSchemaHotFlags(schema);
+  assertBulkSupportsJunctionFields(schema, data, "create");
 
   const effectiveUser = system ? { _id: "system", role: "admin" } : user;
 
@@ -354,6 +356,11 @@ export async function executeBulkUpdate(
   if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
   const schema = await ctx.schemaOf(collectionId, tenantId);
   const hot = ensureSchemaHotFlags(schema);
+  assertBulkSupportsJunctionFields(
+    schema,
+    updates.map((update) => update.data),
+    "update",
+  );
 
   const scope = ownershipFilter(schema, user, system);
   if (scope === null) throw new AppError("Entry not found", 404, "NOT_FOUND");
@@ -546,6 +553,12 @@ export async function executeBulkDelete(
 
   if (result.success && !shouldSkipWriteSideEffects(options)) {
     invalidateCache(schema, tenantId, { writtenIds: ids });
+  }
+
+  if (result.success) {
+    for (const id of ids) {
+      await deleteJunctionLinksForEntry(ctx._dbAdapter, schema, id, tenantId);
+    }
   }
 
   return result;

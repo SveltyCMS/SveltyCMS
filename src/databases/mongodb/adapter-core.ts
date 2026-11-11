@@ -232,6 +232,7 @@ export abstract class MongoAdapterCore extends BaseAdapter {
 
       await registerSystemModels(this._connection);
       await this.ensureAuditChainForkGuard();
+      await this.ensureContentRelationIndexes();
 
       logger.info("Connected to MongoDB");
       return { success: true, data: undefined };
@@ -288,6 +289,44 @@ export abstract class MongoAdapterCore extends BaseAdapter {
     } catch (err) {
       logger.warn(
         "[MongoDB] Could not create the audit chain fork-guard index — concurrent writers may fork the chain",
+        err,
+      );
+    }
+  }
+
+  /**
+   * Index guards for the `content_relations` junction table.
+   *
+   * PostgreSQL, MariaDB and SQLite get these from the `SYSTEM_SCHEMA` index specs;
+   * MongoDB has no spec-driven index path for schemaless system collections, so it
+   * is created here on connect. A unique compound index treats a missing field as
+   * NULL, so a missing tenantId still collides with other missing tenantIds —
+   * acceptable for the single-tenant case.
+   *
+   * Idempotent (same key + options = no-op) and non-fatal: a duplicate edge must
+   * surface as a warning, not as a CMS that cannot boot.
+   */
+  private async ensureContentRelationIndexes(): Promise<void> {
+    try {
+      // Must use the SAME name resolution the CRUD path uses (`normalizeCollectionName`),
+      // otherwise the indexes land on a differently named collection that never receives
+      // a row and the guards silently do nothing.
+      const model = this._getOrCreateModel(normalizeCollectionName("contentRelations"));
+      await model.collection.createIndex(
+        { tenantId: 1, sourceCollection: 1, fieldName: 1, sourceId: 1, targetId: 1 },
+        { name: "content_relations_unique", unique: true },
+      );
+      await model.collection.createIndex(
+        { tenantId: 1, targetCollection: 1, targetId: 1 },
+        { name: "content_relations_target_idx" },
+      );
+      await model.collection.createIndex(
+        { tenantId: 1, sourceCollection: 1, sourceId: 1 },
+        { name: "content_relations_source_idx" },
+      );
+    } catch (err) {
+      logger.warn(
+        "[MongoDB] Could not create the content relations indexes — relation queries may scan the collection",
         err,
       );
     }

@@ -155,9 +155,21 @@ function makeValidation(): BackupValidation {
   };
 }
 
-/** The namespace only stores the adapter; the background lane never reads it. */
+/** The namespace stores the adapter; the synchronous lane reads `crud` + `auth`. */
 function makeAdapter(): IDBAdapter {
-  return {} as unknown as IDBAdapter;
+  return {
+    type: "sqlite",
+    crud: {
+      findByIds: mocks.findByIds,
+      insertMany: mocks.insertMany,
+      upsertMany: mocks.upsertMany,
+      deleteMany: mocks.deleteMany,
+      findMany: mocks.findMany,
+      insert: mocks.insert,
+      update: mocks.update,
+    },
+    auth: { getUserById: mocks.getUserById },
+  } as unknown as IDBAdapter;
 }
 
 describe("import lane gaps", () => {
@@ -316,6 +328,54 @@ describe("import lane gaps", () => {
     expect(mocks.getUserById).not.toHaveBeenCalled();
     expect(restore).not.toHaveBeenCalled();
     expect(mocks.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("gates the synchronous import lane instead of writing a small publishing batch", async () => {
+    const importer = new ImporterNamespace(makeAdapter());
+
+    // ≤50 rows and no `async` means the request writes immediately — but it is
+    // still a publish transition and must pass the same review gate.
+    await expect(
+      importer.importData(
+        {
+          collectionName: "posts",
+          data: [
+            { title: "Small 1", status: "publish" },
+            { title: "Small 2", status: "publish" },
+          ],
+        },
+        { tenantId: TENANT as DatabaseId, user: { _id: "u-editor" } },
+      ),
+    ).rejects.toThrow(/PERMANENT_FAILURE/);
+
+    expect(mocks.assertPublishAllowed).toHaveBeenCalledWith(
+      "posts",
+      TENANT,
+      expect.objectContaining({ _id: "u-editor", role: "editor" }),
+      undefined,
+    );
+    // The gate runs before the write, so a rejected import inserts nothing.
+    expect(mocks.insertMany).not.toHaveBeenCalled();
+    expect(mocks.upsertMany).not.toHaveBeenCalled();
+  });
+
+  it("lets an admin publish through the synchronous lane", async () => {
+    mocks.getUserById.mockResolvedValue({ success: true, data: ADMIN });
+    const importer = new ImporterNamespace(makeAdapter());
+
+    const result = await importer.importData(
+      { collectionName: "posts", data: [{ title: "Small", status: "publish" }] },
+      { tenantId: TENANT as DatabaseId, user: { _id: "u-admin" } },
+    );
+
+    expect(result).toMatchObject({ status: "completed", imported: 1 });
+    expect(mocks.assertPublishAllowed).toHaveBeenCalledWith(
+      "posts",
+      TENANT,
+      expect.objectContaining({ _id: "u-admin", role: "admin" }),
+      undefined,
+    );
+    expect(mocks.insertMany).toHaveBeenCalledTimes(1);
   });
 
   it('aborts permanently on a "fail"-strategy conflict and names it', async () => {

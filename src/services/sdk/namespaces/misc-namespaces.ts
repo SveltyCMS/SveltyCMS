@@ -30,7 +30,10 @@ import type { DatabaseId, IDBAdapter, ISODateString } from "@src/databases/db-in
 import { collectionTableName } from "@src/databases/core/collection-name";
 import { MediaService } from "@utils/media/media-service.server";
 import { type LocalApiOptions, type TokenOptions } from "./types";
-import { bulkImportCollectionDocuments } from "@src/services/background/jobs/import-jobs";
+import {
+  assertCollectionImportPublishAllowed,
+  bulkImportCollectionDocuments,
+} from "@src/services/background/jobs/import-jobs";
 import type { ImportJobPayload } from "@src/services/background/jobs/import-jobs";
 import { lazyModule } from "@src/utils/lazy-module";
 import { nowISODateString } from "@utils/date";
@@ -298,6 +301,18 @@ export class ImporterNamespace {
         status: "pending",
       };
     }
+    const actorId = ImporterNamespace.resolveActorId(options);
+    // The synchronous lane writes in-request, but a ≤50-row import is still a
+    // publish transition: run the same gate the worker runs so a small batch
+    // cannot write past a review workflow that a large batch is held to.
+    await assertCollectionImportPublishAllowed(
+      this._dbAdapter,
+      collectionName,
+      data,
+      mode,
+      (tenantId || undefined) as string | undefined,
+      actorId,
+    );
     const tally = await bulkImportCollectionDocuments(this._dbAdapter, {
       collectionName,
       data,

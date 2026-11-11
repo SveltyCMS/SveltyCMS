@@ -5,6 +5,7 @@
 
 import CtaNode from "@components/site/svedit/cta-node.svelte";
 import HeroNode from "@components/site/svedit/hero-node.svelte";
+import ImageNode from "@components/site/svedit/image-node.svelte";
 import Overlays from "@components/site/svedit/overlays.svelte";
 import PageNode from "@components/site/svedit/page-node.svelte";
 import ParagraphNode from "@components/site/svedit/paragraph-node.svelte";
@@ -52,6 +53,7 @@ const sessionConfig = {
     page: PageNode,
     hero: HeroNode,
     paragraph: ParagraphNode,
+    image: ImageNode,
     cta: CtaNode,
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

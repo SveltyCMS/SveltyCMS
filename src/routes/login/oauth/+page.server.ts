@@ -513,7 +513,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
           headers: { Authorization: `Bearer ${tokenData.access_token}` },
         });
         const emails = await emailResponse.json();
-        const primaryEmail = emails.find((e: any) => e.primary)?.email || emails[0]?.email;
+        // GitHub returns an error envelope (not an array) when the token lacks
+        // `user:email`; treat that as "no additional emails" instead of a 500.
+        const emailList = Array.isArray(emails) ? emails : [];
+        const primaryEmail = emailList.find((e: any) => e.primary)?.email || emailList[0]?.email;
 
         googleUser = {
           email: primaryEmail,

@@ -1509,6 +1509,68 @@ export const SYSTEM_SCHEMA: SchemaItem[] = [
     ],
   },
 
+  // ── Content relations ───────────────────────────────────────────────────────
+  {
+    kind: "table",
+    name: "content_relations",
+    comment: "Content relations",
+    columns: [
+      pkId(),
+      { name: "tenantId", type: varchar(36) },
+      { name: "sourceCollection", type: varchar(255), notNull: true },
+      { name: "sourceId", type: varchar(255), notNull: true },
+      { name: "fieldName", type: varchar(255), notNull: true },
+      { name: "targetCollection", type: varchar(255), notNull: true },
+      { name: "targetId", type: varchar(255), notNull: true },
+      { name: "sortOrder", type: intCol(), notNull: true, default: dInt(0) },
+      { name: "metadata", type: jsonCol() },
+      ...timestamps(),
+    ],
+    indexes: [
+      {
+        name: {
+          postgresql: "content_relations_unique",
+          mariadb: "content_relations_unique",
+          sqlite: "content_relations_unique",
+        },
+        columns: {
+          postgresql: ["tenantId", "sourceCollection", "fieldName", "sourceId", "targetId"],
+          mariadb: ["tenantId", "sourceCollection", "fieldName", "sourceId", "targetId"],
+          sqlite: ["tenantId", "sourceCollection", "fieldName", "sourceId", "targetId"],
+        },
+        unique: true,
+        sqliteAfterTable: true,
+        sqliteNoGapBefore: true,
+      },
+      {
+        name: {
+          postgresql: "content_relations_source_idx",
+          mariadb: "content_relations_source_idx",
+          sqlite: "idx_content_relations_source",
+        },
+        columns: {
+          postgresql: ["tenantId", "sourceCollection", "sourceId"],
+          mariadb: ["tenantId", "sourceCollection", "sourceId"],
+          sqlite: ["tenantId", "sourceCollection", "sourceId"],
+        },
+        sqliteAfterTable: true,
+      },
+      {
+        name: {
+          postgresql: "content_relations_target_idx",
+          mariadb: "content_relations_target_idx",
+          sqlite: "idx_content_relations_target",
+        },
+        columns: {
+          postgresql: ["tenantId", "targetCollection", "targetId"],
+          mariadb: ["tenantId", "targetCollection", "targetId"],
+          sqlite: ["tenantId", "targetCollection", "targetId"],
+        },
+        sqliteAfterTable: true,
+      },
+    ],
+  },
+
   // ── 404 Logs ───────────────────────────────────────────────────────────────
   {
     kind: "table",

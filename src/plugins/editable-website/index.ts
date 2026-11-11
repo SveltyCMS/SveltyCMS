@@ -42,7 +42,7 @@ export const editableWebsitePlugin = definePlugin({
   metadata: {
     id: "editable-website",
     name: "Editable Website & Live Preview",
-    version: "1.2.0",
+    version: "1.3.0",
     description:
       "Bidirectional live preview bridge: iframe sync, click-to-edit, and Svedit inline editing in the CMS. Site rendering stays free.",
     icon: "mdi:web",
@@ -61,4 +61,37 @@ export const editableWebsitePlugin = definePlugin({
       ],
     },
   },
+  parts: [
+    {
+      type: "page",
+      pages: [
+        {
+          id: "editable-website:overview",
+          path: "editable-website",
+          title: "Live Preview Overview",
+          component: () => import("./preview-overview.svelte"),
+          requiredCapabilities: [],
+          nav: {
+            group: "Editing",
+            label: "Preview Overview",
+            icon: "mdi:eye-settings",
+            order: 10,
+          },
+        },
+        {
+          id: "editable-website:competitive",
+          path: "editable-website/competitive",
+          title: "Live Preview Competitive",
+          component: () => import("./preview-competitive.svelte"),
+          requiredCapabilities: [],
+          nav: {
+            group: "Editing",
+            label: "Preview Competitive",
+            icon: "mdi:chart-bar",
+            order: 11,
+          },
+        },
+      ],
+    },
+  ],
 });

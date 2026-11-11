@@ -343,6 +343,7 @@ export async function cloneEntries(rawEntries: Record<string, unknown>[], onSucc
 export async function saveEntry(
   entryData: Record<string, unknown>,
   publish = false,
+  options: { silent?: boolean } = {},
 ): Promise<boolean> {
   const collId = collections.active?._id;
   if (!collId) {
@@ -368,7 +369,8 @@ export async function saveEntry(
     : await createEntry(collId, payload);
 
   if (result.success) {
-    toast.success("Entry saved");
+    // Preview autosave passes `silent` so a debounced save does not spam toasts.
+    if (!options.silent) toast.success("Entry saved");
     if (result.data) {
       setCollectionValue(result.data as Record<string, unknown>);
     }

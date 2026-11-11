@@ -210,17 +210,23 @@ async function handleScimUsers(
     const updated = await dbAuth.getUserById(resourceId as DatabaseId, {
       tenantId,
     });
-    return json(buildScimUser(updated!, baseUrl));
+    // The user can disappear between the update and the re-read (concurrent
+    // DELETE); SCIM answers 404, not a 500 from a null dereference.
+    if (!updated) return scimError(404, "User not found");
+    return json(buildScimUser(updated, baseUrl));
   }
 
   // PUT /Users/{id} — full replace
   if (request.method === "PUT" && resourceId) {
     const body = await request.json();
 
-    const updates: Record<string, unknown> = {
-      username: body.displayName || body.name?.givenName,
-      lastName: body.name?.familyName,
-    };
+    const updates: Record<string, unknown> = {};
+    // RFC 7644 §3.3: a field that the request omits is not written as
+    // `undefined` (which would blank the column); a field it supplies replaces
+    // the stored value.
+    const displayName = body.displayName || body.name?.givenName;
+    if (displayName !== undefined) updates.username = displayName;
+    if (body.name?.familyName !== undefined) updates.lastName = body.name.familyName;
 
     // RFC 7644 §3.3: `active` is the deprovisioning switch of a full replace. It was
     // ignored here, so an IdP PUT with active:false left the account fully usable.
@@ -240,7 +246,8 @@ async function handleScimUsers(
     const updated = await dbAuth.getUserById(resourceId as DatabaseId, {
       tenantId,
     });
-    return json(buildScimUser(updated!, baseUrl));
+    if (!updated) return scimError(404, "User not found");
+    return json(buildScimUser(updated, baseUrl));
   }
 
   // DELETE /Users/{id} — soft-delete (deactivate per SCIM best practice)
@@ -296,15 +303,25 @@ async function handleScimGroups(
     if (!role.success || !role.data) return scimError(404, "Group not found");
 
     const body = await request.json();
-    for (const op of body.Operations) {
+    const operations = Array.isArray(body.Operations) ? body.Operations : [];
+    for (const op of operations) {
       if (op.op.toLowerCase() === "add" && op.path === "members") {
-        const userIds = op.value.map((v: any) => v.value);
-        await cms.db.crud.updateMany(
-          "users",
-          { _id: { $in: userIds } },
-          { role: role.data.name } as any,
-          { tenantId },
-        );
+        // RFC 7644 §3.5.2 allows `value` to be a single object or an array of
+        // objects; a missing value is a no-op rather than a 500.
+        const members = Array.isArray(op.value) ? op.value : op.value ? [op.value] : [];
+        const userIds = members
+          .map((member: unknown) =>
+            member && typeof member === "object" ? (member as { value?: unknown }).value : member,
+          )
+          .filter((id: unknown): id is string => typeof id === "string" && id.length > 0);
+        if (userIds.length > 0) {
+          await cms.db.crud.updateMany(
+            "users",
+            { _id: { $in: userIds } },
+            { role: role.data.name } as any,
+            { tenantId },
+          );
+        }
       }
     }
     const updated = await cms.db.auth!.getRoleById(resourceId as DatabaseId, {

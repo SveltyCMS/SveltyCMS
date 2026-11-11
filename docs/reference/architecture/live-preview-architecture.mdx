@@ -6,7 +6,7 @@ order: 11
 icon: "mdi:eye-refresh-outline"
 author: "SveltyCMS Team"
 created: "2025-02-02"
-updated: "2026-10-29"
+updated: "2026-11-11"
 tags:
   - "guide"
   - "preview"
@@ -225,6 +225,7 @@ After SSR load, the frontend and CMS communicate via `postMessage`. Types live i
 | `svelty:save`            | Frontend → CMS | Merge visual edits into entry form   |
 | `svelty:document:update` | Frontend → CMS | Targeted field update (svedit-ready) |
 | `svelty:edit-mode`       | CMS → Frontend | Toggle visual editing                |
+| `svelty:navigate`        | Frontend → CMS | Link click inside the preview        |
 
 ### Frontend helper (framework-agnostic)
 
@@ -241,6 +242,51 @@ const { destroy } = createLivePreviewListener({
 ```
 
 Mark editable elements with `data-svelty-field="fieldName"` matching CMS `db_fieldName` values.
+
+### Bridge hardening (2026-11)
+
+The preview tab now behaves like a production editing surface, not a demo:
+
+| Behaviour                 | What changed                                                                                                                                                                                                                        |
+| :------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Split Canvas sync**     | Both iframes (desktop + mobile) receive every `svelty:update` / `svelty:edit-mode`. Previously only the desktop frame was posted to.                                                                                                |
+| **Coalesced pushes**      | Form edits are pushed once per 60 ms burst (trailing) instead of once per keystroke; a pending push is flushed on unmount.                                                                                                          |
+| **Reverse highlighting**  | Focusing a CMS field posts `svelty:field:select`; the frontend scrolls to and highlights the matching `[data-svelty-field]` (the site bridge already handled it).                                                                   |
+| **Locale/target refresh** | Changing the content language, `livePreview` pattern or tenant re-authorizes the preview URL; previously only `_id`/`slug` changes did.                                                                                             |
+| **Protocol check**        | A major-version mismatch between site bridge and CMS raises a warning toast; legacy bridges without a version are accepted.                                                                                                         |
+| **Recovery**              | Authorization failures show a retry panel with the HTTP status instead of an endless spinner.                                                                                                                                       |
+| **Origin hardening**      | `localhost` origins are accepted only in dev; `postMessage` never falls back to `"*"`.                                                                                                                                              |
+| **Navigation feedback**   | A preview link click (`svelty:navigate`) answers with a toast instead of failing silently.                                                                                                                                          |
+| **Autosave / publish**    | Preview edits can auto-save (debounced 900 ms) or publish in one click. Both call the normal `saveEntry` lane, so the publication workflow, required-field checks and audit hooks still run.                                        |
+| **Block palette**         | In preview the site starter shows a Blocks toolbar: add hero / paragraph / CTA / image, move a block up or down, delete it, and flip paragraph ↔ hero ↔ CTA. Changes go through the same document update and autosave/publish path. |
+| **Media on page**         | An image block accepts a drag-drop or file-picker upload (through `/api/media/upload`, so variants and thumbnails still run server-side) and stores a focal point applied with `object-position` — set by click or arrow keys.      |
+| **Mobile edit mode**      | A bottom pill toggles the preview between editing and read-only; hold it (600 ms) to switch without an accidental tap. Read-only frames still receive document updates.                                                             |
+| **Draft-scoped AI loop**  | WebMCP `get_live_preview_url` mints the same signed URL the preview tab uses, so an agent can write a draft (`update_entry`, draft-forced) and inspect the rendered result without a rebuild.                                       |
+
+### Where this sits against the market
+
+The dashboard at `/plugin/editable-website/competitive` renders this same matrix from
+`src/plugins/editable-website/capabilities.ts` (weighted bars: yes = 1, partial = 0.5,
+n/a excluded), so the docs and the UI cannot drift apart.
+
+| Capability                                   | SveltyCMS                                   | Payload / Directus / Strapi | Editable.website |
+| :------------------------------------------- | :------------------------------------------ | :-------------------------- | :--------------- |
+| Signed preview token + draft SSR             | Yes                                         | Yes                         | n/a (no admin)   |
+| Bidirectional field focus / highlight        | Yes                                         | Partial                     | Yes              |
+| On-page inline editing                       | Yes — Svedit (site starter)                 | Yes (visual editor)         | Yes (core)       |
+| Desktop / tablet / mobile / split canvas     | Yes                                         | Yes                         | Yes              |
+| Instant publish without a rebuild            | Yes — one-click Publish (autosave optional) | No                          | Yes              |
+| Block insert / reorder / layout flip on page | Yes                                         | Yes                         | Yes              |
+| Drag-drop media + focal point on page        | Yes                                         | Partial                     | Yes              |
+| Mobile drag-hold edit mode                   | Yes                                         | n/a                         | Yes              |
+| MCP / AI editing of the live page            | Yes — draft-only writes + signed draft URL  | Partial                     | Yes              |
+
+> Comparisons reflect each vendor's public documentation as of November 2026; re-check the current release before citing them externally.
+
+**Still open (honest list):** free-text caret editing outside a structured block, inline
+editing inside the split-canvas mobile frame (it is a preview surface), and a per-tool
+AI diff/undo trail. Every one of these is listed in `OPEN_GAPS` and rendered by the
+overview dashboard.
 
 ---
 

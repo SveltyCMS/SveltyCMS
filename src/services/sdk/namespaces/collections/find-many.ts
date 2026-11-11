@@ -41,6 +41,7 @@ import type {
 import type { RevisionData, Schema } from "@src/content/types";
 import type { LocalApiOptions } from "../types";
 import { resolvePopulatedRelations } from "../populate-resolver";
+import { hydrateJunctionFields } from "./junction-fields";
 import {
   decodePageCursor,
   defaultListSortOption,
@@ -906,6 +907,14 @@ export async function executeFind(
     }
 
     if (res.success && data.length > 0) {
+      // 🔗 Junction (many-to-many) fields: one batched query per field, before
+      // the widget pipeline and the list cache write.
+      await hydrateJunctionFields(
+        ctx._dbAdapter,
+        schema,
+        data as Array<Record<string, unknown>>,
+        tenantId,
+      );
       if (hot._hasActiveWidgets) {
         await applyWidgetPipeline(schema, data as EntryData[], {
           dbAdapter: ctx._dbAdapter,

@@ -91,6 +91,7 @@ import {
   writeTouchesActiveWidgets,
 } from "./collections/write-pipeline";
 import { compileRelationFilters } from "./collections/relation-filter";
+import { collectJunctionPayload, syncJunctionLinks } from "./collections/junction-fields";
 import { ownershipFilter, ownerValue, stripUnownedRows } from "./collections/access-filter";
 export { ownershipFilter, ownerValue, stripUnownedRows };
 import {
@@ -1024,6 +1025,11 @@ export class CollectionsNamespace {
     m2?.();
     markWritePhase(options, "prep", tPrep);
 
+    // 🔗 Junction (many-to-many) fields: extract the desired edges and keep them
+    // out of the row. The edges are written after the row is durable.
+    const junction = collectJunctionPayload(schema, finalData as Record<string, unknown>);
+    if (junction.present.length > 0) finalData = junction.stripped;
+
     const collectionName = this.getCollectionName(schema._id as string);
     const encCtx = plan.hasEncryption
       ? fieldEncryptionContext(schema, tenantId)
@@ -1067,6 +1073,39 @@ export class CollectionsNamespace {
       options.skipReturning || !plan.hasEncryption
         ? result
         : decryptReadResult(result, hot, encCtx, DECRYPT_CLONE_OPTIONS);
+
+    // 🔗 Persist the junction edges for this row. Idempotent (deterministic edge
+    // ids), so a retry after a partial failure converges.
+    if (junction.present.length > 0 && result?.success) {
+      const createdId = String(
+        (result.data as { _id?: unknown } | null)?._id ??
+          (finalData as { _id?: unknown })._id ??
+          "",
+      );
+      if (createdId) {
+        await syncJunctionLinks(this._dbAdapter, {
+          tenantId,
+          sourceCollection: String(schema._id),
+          sourceId: createdId,
+          links: junction.present,
+          transaction,
+        });
+        // Return the values the caller sent (the row itself no longer holds them).
+        for (const link of junction.present) {
+          const ids = link.desired.map((entry) => entry.id);
+          if (result.data && typeof result.data === "object") {
+            (result.data as Record<string, unknown>)[link.fieldName] = ids;
+          }
+          if (decryptedCreate?.data && typeof decryptedCreate.data === "object") {
+            (decryptedCreate.data as Record<string, unknown>)[link.fieldName] = ids;
+          }
+        }
+      } else {
+        logger.warn(
+          `[collections] Cannot link many-to-many field(s) on ${String(schema._id)}: the adapter returned no _id (skipReturning).`,
+        );
+      }
+    }
     if (result && result.success && result.data) {
       const createdId = result.data!._id as string;
       // Resolved once — the three side-effect schedules below shared the same
@@ -1293,6 +1332,11 @@ export class CollectionsNamespace {
     m2u?.();
     markWritePhase(options, "prep", tPrep);
 
+    // 🔗 Junction fields present in this request are extracted and stripped; an
+    // omitted field leaves its existing edges untouched.
+    const junction = collectJunctionPayload(schema, finalData as Record<string, unknown>);
+    if (junction.present.length > 0) finalData = junction.stripped;
+
     // 🛡️ REVISION TRACKING: for revision-enabled collections, snapshot the entry
     // BEFORE the write so the update can persist the previous version. Best-effort
     // — a failed snapshot must never fail the update itself.
@@ -1435,6 +1479,26 @@ export class CollectionsNamespace {
       options.skipReturning || !plan.hasEncryption
         ? result
         : decryptReadResult(result, hot, encCtx, DECRYPT_CLONE_OPTIONS);
+
+    // 🔗 Sync the junction edges the request supplied.
+    if (junction.present.length > 0 && result?.success) {
+      await syncJunctionLinks(this._dbAdapter, {
+        tenantId,
+        sourceCollection: String(schema._id),
+        sourceId: entryId,
+        links: junction.present,
+        transaction,
+      });
+      for (const link of junction.present) {
+        const ids = link.desired.map((entry) => entry.id);
+        if (result.data && typeof result.data === "object") {
+          (result.data as Record<string, unknown>)[link.fieldName] = ids;
+        }
+        if (decryptedUpdate?.data && typeof decryptedUpdate.data === "object") {
+          (decryptedUpdate.data as Record<string, unknown>)[link.fieldName] = ids;
+        }
+      }
+    }
     if (result && result.success && result.data) {
       // 🛡️ REVISION TRACKING: persist the pre-write snapshot before the request
       // returns. The write itself is already durable, but a fire-and-forget call
