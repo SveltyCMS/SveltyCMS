@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-11-08"
+updated: "2026-11-11"
 tags:
   - "roadmap"
   - "backlog"
@@ -338,7 +338,7 @@ Shortlisted differentiators that are **not** scheduled. Each is recorded here wi
 
 - **Temporal reads (as-of revision)** — read an entry as it existed at a revision or timestamp, reusing `content_revisions` and the existing projections. Buyers in regulated segments ask for this in place of full database PITR.
   - _Acceptance:_ `GET /api/collections/:c/:id?asOf=<revision|ISO>` returns the historical row, tenant-scoped, with normal projection/access rules; pinned by unit + integration tests on SQLite and PostgreSQL.
-- **Audit-chain external anchoring** — periodically anchor the SHA-256 chain head with an RFC 3161 timestamp authority (and optionally a public transparency log), plus a verification endpoint. Moves the audit trail from self-attested to third-party-witnessed.
+- **Audit-chain external anchoring** — periodically anchor the SHA-256 chain head with an RFC 3161 timestamp authority (and optionally a public transparency log), plus a verification endpoint. Moves the audit trail from self-attested to third-party-witnessed. _The internal tail checkpoint and fork guard shipped (2026-11-11, [achievements 3.76](./achievements-2026.mdx)); external witnessing is still open._
   - _Acceptance:_ `security:assurance` verifies an anchored head; editing a cloned ledger row fails verification.
 - **Agent write-approval lane** — WebMCP/agent tokens may propose mutations but not commit them; a human approves a diff and the approval (actor, hash, timestamp) joins the audit chain. Extends the agent surface without widening its blast radius.
   - _Acceptance:_ an agent token can create a proposal and cannot write a live row; the approval endpoint requires a human session; both events appear in the audit chain.

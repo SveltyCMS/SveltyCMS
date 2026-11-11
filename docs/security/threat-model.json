@@ -15,7 +15,7 @@
       ],
       "model": "docs/security/threat-models/api-dispatch.mdx",
       "reviewed_at": "2026-11-11",
-      "fingerprint": "ae2af106aefeae4b91edc9fff86805bf696c5d89449d764573663bb646e5f7ed"
+      "fingerprint": "02a7f14c35d2052b727592d25c59f9108a9f87474d730667980ba9c3aa6df693"
     },
     {
       "id": "auth-session",
@@ -37,8 +37,8 @@
         "src/routes/api/[...path]/handlers/scim.ts"
       ],
       "model": "docs/security/threat-models/auth-session.mdx",
-      "reviewed_at": "2026-11-10",
-      "fingerprint": "ede7ad0713677d8d231ec4f413073841119b22aa1ad64ae84d140e9a5a8d2e5c"
+      "reviewed_at": "2026-11-11",
+      "fingerprint": "8c154c87597ba8c4c937defbe07189c0ed2e7140bc070b31d75a6375a16291b6"
     },
     {
       "id": "content-write",

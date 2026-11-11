@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:chart-box-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-11-08"
+updated: "2026-11-11"
 tags:
   - "achievements"
   - "log"
@@ -945,7 +945,7 @@ Selected 2025–2026 engineering milestones. Metrics are self-measured unless no
 
 - **Enterprise Smart Diff View**: Hardened `diff-utils` implementation performing recursive zero-latency change analysis, protected against circular DOSt vulnerabilities and optimized with Svelte 5 `$derived` metrics.
 - **Multi-Tenant Hardening (July 2026)**: Production-hardened isolation across all layers:
-  - **PostgreSQL Row-Level Security**: Database-level `enforceTenantPolicy()` with `CREATE POLICY tenant_isolation` and per-request `SET SESSION app.tenant_id`. Defense-in-depth below the application layer.
+  - **PostgreSQL Row-Level Security**: Opt-in `enforceTenantPolicy()` with `CREATE POLICY tenant_isolation` and `set_config('app.tenant_id', …, true)` on a transaction-scoped handle or a dedicated tenant pool. It is **not wired into the request path** — request isolation is the application-level `"tenantId"` predicate — and the method now fails closed when the policy cannot filter. See [multi-tenancy](../reference/architecture/multi-tenancy.mdx).
   - **Signed Media URLs**: HMAC-SHA256 time-limited file access with `crypto.timingSafeEqual` validation. Opt-in via `MEDIA_SIGNED_URL_ENABLED`.
   - **Per-Tenant Rate Limiting**: Two-tier token bucket system (per-IP + per-tenant) with independent budgets, preventing noisy tenants from starving neighbors.
   - **Tenant Analytics Dashboard**: Per-tenant usage widget showing storage, users, collections, entries, and 24h activity — scoped by `locals.tenantId`.
@@ -2378,6 +2378,12 @@ Consolidated the database CRUD access layers across all four production engines 
 - **Chain reads are deterministic.** `nowISODateString()` is cached per millisecond, so a write burst shares one timestamp and a timestamp-only `ORDER BY` may return an earlier entry of that millisecond as the chain head. Both the head read and the verification walk now break ties on `_id` (UUIDv7 = write order).
 - **Verified on all four adapters:** new `tests/integration/databases/audit-chain-integrity.test.ts` (7 tests: GENESIS/linkage, same-millisecond burst, modified entry, deleted middle entry, independent tenant chains, checkpoint written, truncated tail) passes on SQLite, PostgreSQL, MariaDB and MongoDB. `bun run test:unit` 893 files / 8,368 tests green.
 - **Concurrent writers can no longer fork the chain.** Every row carries `chainScope` (`tenantId ?? "__global__"`) and a unique `(chainScope, previousHash)` index rejects a second child of the same head — including the NULL-tenant global chain, which a plain composite index would leave unconstrained. On rejection the flush re-reads the winning head, re-stamps and re-chains the batch, and retries up to three times, so the entry is kept instead of lost. MariaDB rendered indexes only inline in `CREATE TABLE`, so the DDL pass now also emits idempotent standalone `CREATE … INDEX IF NOT EXISTS` statements and existing tables gain the constraint on upgrade. MongoDB has no spec-driven index path for schemaless system collections, so the adapter creates the same index on connect (`ensureAuditChainForkGuard`) as a `partialFilterExpression` index — a unique compound index treats a missing field as NULL, so pre-`chainScope` rows would otherwise collide and the index would never build. All four adapters are covered. Truncation is signalled by the checkpoint head hash rather than its entry count: the count is a per-writer lower bound (every process adds its own flush), so deriving "found < expected" from it raised false alarms on MongoDB. Coverage: `tests/integration/databases/audit-chain-fork-guard.test.ts` (3 guards/re-chain tests on SQLite, PostgreSQL and MariaDB).
+
+### 3.77 November 2026 — Scoped OP-initiated logout, SAML SLO, SCIM deprovisioning (2026-11-11)
+
+- **Front- and back-channel logout terminate only the session they name.** Both OIDC paths previously matched on the provider (front) or provider registration (back), so a logout for one user signed out everyone on that provider. The id token's `sid`/`sub` are now stored on the session at login (`oidcSid`, `oidcSubject`), front-channel matches the OP `sid`, back-channel narrows by `sid` then `sub`, and a message that matches no local session terminates nothing. All paths delete the session row through `terminateSessionAndMetadata()`, not just the metadata. Pinned by `tests/unit/auth/sso-logout-scoping.test.ts` and `tests/unit/auth/sso-logout-revocation.test.ts`. Residual: the session lookup is in-process, so a logout delivered to another node can miss sessions created there.
+- **SAML IdP-initiated login and Single Logout.** Unsolicited ACS responses are accepted only when `SAML_ALLOW_IDP_INITIATED` is on (default off, and a response carrying `InResponseTo` is never treated as unsolicited); SLO handles IdP-initiated LogoutRequest over both bindings and the LogoutResponse for our own SP-initiated logout, destroying the session by `NameID`/`SessionIndex`. Pinned by `tests/unit/auth/saml-slo.test.ts`. Residual: `findSamlSessions()` is in-process only, a signed LogoutResponse requires `SAML_SP_PRIVATE_KEY`, and `at_hash` is still not validated.
+- **SCIM `active:false` now locks the account.** PATCH, PUT and POST set both `isActive` and `blocked` (the field authentication enforces), and non-boolean values are rejected with 400 instead of coerced. Pinned by `tests/unit/api/scim-deprovisioning.test.ts` and `tests/unit/api/scim-put-endpoint.test.ts`. Residual: no session row is deleted and no audit record is written.
 
 ## Related
 
