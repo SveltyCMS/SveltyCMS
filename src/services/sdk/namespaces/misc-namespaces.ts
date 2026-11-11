@@ -31,6 +31,7 @@ import { collectionTableName } from "@src/databases/core/collection-name";
 import { MediaService } from "@utils/media/media-service.server";
 import { type LocalApiOptions, type TokenOptions } from "./types";
 import { bulkImportCollectionDocuments } from "@src/services/background/jobs/import-jobs";
+import type { ImportJobPayload } from "@src/services/background/jobs/import-jobs";
 import { lazyModule } from "@src/utils/lazy-module";
 import { nowISODateString } from "@utils/date";
 
@@ -228,7 +229,37 @@ function resolveDrupalTermName(
  */
 export class ImporterNamespace {
   constructor(private _dbAdapter: IDBAdapter) {}
-  async importData(body: any, options: LocalApiOptions = {}) {
+
+  /**
+   * Resolve the actor a background import runs as.
+   *
+   * The worker's publication gate authorizes every publish transition, and a
+   * queued job has no session of its own, so the dispatch has to name the
+   * caller. `LocalApiOptions` is where the SDK lane receives that identity (the
+   * collection write lane reads the same field); `userId` stays available for
+   * callers that already hold a serialized id. There is deliberately no
+   * `"system"` fallback — the sentinel is not a resolvable user, so defaulting
+   * to it would turn a clear "no importing user" rejection into a confusing
+   * "could not be resolved" one.
+   */
+  private static resolveActorId(
+    options: LocalApiOptions & { userId?: string },
+  ): string | undefined {
+    const explicit = options.userId;
+    if (typeof explicit === "string" && explicit.trim().length > 0 && explicit !== "system") {
+      return explicit.trim();
+    }
+
+    const user = options.user as { _id?: unknown; id?: unknown } | undefined;
+    for (const candidate of [user?._id, user?.id]) {
+      if (typeof candidate === "string" && candidate.trim().length > 0 && candidate !== "system") {
+        return candidate.trim();
+      }
+    }
+    return undefined;
+  }
+
+  async importData(body: any, options: LocalApiOptions & { userId?: string } = {}) {
     const { tenantId } = options;
     const {
       collectionName,
@@ -241,12 +272,14 @@ export class ImporterNamespace {
     if (!Array.isArray(data)) throw new AppError("Data must be an array", 422);
     const shouldProcessInBackground = async || data.length > 50;
     if (shouldProcessInBackground) {
-      let jobPayload: any = {
+      const jobPayload: ImportJobPayload = {
         collectionName,
         mode,
         duplicateStrategy,
-        tenantId,
+        tenantId: (tenantId || undefined) as string | undefined,
       };
+      const userId = ImporterNamespace.resolveActorId(options);
+      if (userId) jobPayload.userId = userId;
       if (data.length > 1000) {
         jobPayload.tempPayloadId = await saveTempPayload(data);
       } else {

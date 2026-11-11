@@ -33,7 +33,9 @@ export async function handleImporterRoutes(
       );
     if (action === "scaffold")
       return successResponse(event, await cms.system.importer.scaffold(body));
-    return successResponse(event, await cms.system.importer.importData(body, { tenantId }));
+    // The identity travels with the job: a publishing background import must be
+    // attributable once it runs, and the worker fails closed without it.
+    return successResponse(event, await cms.system.importer.importData(body, { user, tenantId }));
   }
   throw new AppError(`Importer route not implemented`, 404);
 }

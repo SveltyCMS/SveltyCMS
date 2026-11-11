@@ -878,11 +878,14 @@ export class ContentPackageService {
     }
 
     if (shouldBackground) {
+      // The worker applies the plan's pre-resolved operations: duplicate
+      // handling is already baked into each operation's action, so the
+      // dispatch carries no bulk-import strategy (a `skip` there would drop
+      // the plan's updates instead of applying them).
       const jobId = await jobQueue.dispatch(
         "import-data",
         {
           planId,
-          duplicateStrategy: strategy,
           tenantId: targetTenant,
           userId: options.userId ?? plan.userId,
           operations: plan.operations,
