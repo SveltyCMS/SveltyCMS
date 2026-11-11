@@ -17,12 +17,12 @@
  * - a flush whose entries lost the race retries and keeps every entry
  * - `chainScope` is persisted, so the guard covers the NULL-tenant (global) chain too
  *
- * ### MongoDB is not covered (documented gap, skipped with a reason)
- * The fork guard is a unique `(chainScope, previousHash)` index created from
- * `SYSTEM_SCHEMA`. MongoDB has no spec-driven index path for system collections
- * (indexes are created per user-collection model), so on MongoDB the constraint does
- * not exist: the retry is a no-op and a fork is still only *detected*, not prevented.
- * Fixing that needs an explicit `createIndex` in the MongoDB adapter's boot.
+ * ### MongoDB
+ * MongoDB has no `SYSTEM_SCHEMA`-driven index for schemaless system collections, so the
+ * guard index is created by the adapter on connect (`ensureAuditChainForkGuard`). It is a
+ * `partialFilterExpression` index: a unique compound index treats a missing field as NULL,
+ * so rows written before `chainScope` existed would otherwise collide and the index would
+ * never build. These tests therefore run on all four adapters.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
@@ -45,14 +45,7 @@ const TENANT = `fork-guard-${RUN}`;
 const TENANT_FLUSH = `fork-flush-${RUN}`;
 const tenants = [TENANT, TENANT_FLUSH];
 
-/** The unique index comes from `SYSTEM_SCHEMA` — SQL adapters only (see the header). */
-const DB_TYPE = (process.env.DB_TYPE || "sqlite").toLowerCase();
-const HAS_FORK_INDEX = !DB_TYPE.startsWith("mongo");
-if (!HAS_FORK_INDEX) {
-  console.warn(
-    "[audit-chain-fork-guard] guard tests skipped: MongoDB has no spec-driven index for system collections yet — fork prevention is not covered there",
-  );
-}
+/** The guard index exists on every adapter (SQL via SYSTEM_SCHEMA, MongoDB on connect). */
 
 let db: any = null;
 
@@ -139,83 +132,75 @@ describe("Audit chain fork guard", () => {
     expect(rows[0].chainScope).toBe(chainHashScope(TENANT));
   }, 120_000);
 
-  it.skipIf(!HAS_FORK_INDEX)(
-    "rejects a second child of a head that another writer already extended",
-    async () => {
-      const rows = await chainRows(TENANT);
-      const staleHead = rows[rows.length - 1].chainHash;
+  it("rejects a second child of a head that another writer already extended", async () => {
+    const rows = await chainRows(TENANT);
+    const staleHead = rows[rows.length - 1].chainHash;
 
-      // A second process computed this child from `staleHead`…
-      const staleEntry = stubEntry(TENANT, staleHead, "stale-child");
+    // A second process computed this child from `staleHead`…
+    const staleEntry = stubEntry(TENANT, staleHead, "stale-child");
 
-      // …meanwhile the chain advanced: its previousHash now belongs to a stored row.
-      await writeBurst(TENANT, 1);
+    // …meanwhile the chain advanced: its previousHash now belongs to a stored row.
+    await writeBurst(TENANT, 1);
 
-      const rejected = await db.crud.insert(
-        "auditLogs",
-        { ...staleEntry, _id: generateUUID() },
-        { tenantId: TENANT },
-      );
-      expect(rejected.success, "the fork guard must reject a duplicate (scope, previousHash)").toBe(
-        false,
-      );
+    const rejected = await db.crud.insert(
+      "auditLogs",
+      { ...staleEntry, _id: generateUUID() },
+      { tenantId: TENANT },
+    );
+    expect(rejected.success, "the fork guard must reject a duplicate (scope, previousHash)").toBe(
+      false,
+    );
 
-      // Recovery: re-chain onto the head that won, then store.
-      const [rechained] = await auditChainService.rechain([staleEntry]);
-      expect(rechained.previousHash).not.toBe(staleHead);
-      const accepted = await db.crud.insert(
-        "auditLogs",
-        { ...rechained, _id: generateUUID() },
-        { tenantId: TENANT },
-      );
-      expect(accepted.success, JSON.stringify(accepted).slice(0, 200)).toBe(true);
+    // Recovery: re-chain onto the head that won, then store.
+    const [rechained] = await auditChainService.rechain([staleEntry]);
+    expect(rechained.previousHash).not.toBe(staleHead);
+    const accepted = await db.crud.insert(
+      "auditLogs",
+      { ...rechained, _id: generateUUID() },
+      { tenantId: TENANT },
+    );
+    expect(accepted.success, JSON.stringify(accepted).slice(0, 200)).toBe(true);
 
-      const result = await auditChainService.verifyChain(TENANT);
-      expect(result.valid, JSON.stringify(result)).toBe(true);
-      expect(result.totalEntries).toBe(4);
-    },
-    120_000,
-  );
+    const result = await auditChainService.verifyChain(TENANT);
+    expect(result.valid, JSON.stringify(result)).toBe(true);
+    expect(result.totalEntries).toBe(4);
+  }, 120_000);
 
-  it.skipIf(!HAS_FORK_INDEX)(
-    "retries a flush whose entries lost the race and keeps every entry",
-    async () => {
-      await writeBurst(TENANT_FLUSH, 1);
-      const before = await chainRows(TENANT_FLUSH);
+  it("retries a flush whose entries lost the race and keeps every entry", async () => {
+    await writeBurst(TENANT_FLUSH, 1);
+    const before = await chainRows(TENANT_FLUSH);
 
-      // Buffer one entry (hashed onto the current head)…
-      await auditService.log(
-        "raced-entry",
-        { id: null, email: "probe@svelty.cms", role: "system" },
-        { type: "fork_probe", id: null },
-        AuditEventType.USER_UPDATED,
-        "low",
-        { raced: true },
-        TENANT_FLUSH as DatabaseId,
-      );
+    // Buffer one entry (hashed onto the current head)…
+    await auditService.log(
+      "raced-entry",
+      { id: null, email: "probe@svelty.cms", role: "system" },
+      { type: "fork_probe", id: null },
+      AuditEventType.USER_UPDATED,
+      "low",
+      { raced: true },
+      TENANT_FLUSH as DatabaseId,
+    );
 
-      // …then let another writer take that head before the flush runs. The winner is
-      // built from the head read BEFORE the buffered entry, i.e. exactly what a second
-      // process computed: using `append()` here would chain after the still-buffered
-      // entry (shared in-process cache) and never produce the race.
-      const head = before[before.length - 1].chainHash;
-      const winner = stubEntry(TENANT_FLUSH, head, "winner");
-      const stored = await db.crud.insert(
-        "auditLogs",
-        { ...winner, _id: generateUUID() },
-        { tenantId: TENANT_FLUSH },
-      );
-      expect(stored.success, JSON.stringify(stored).slice(0, 200)).toBe(true);
+    // …then let another writer take that head before the flush runs. The winner is
+    // built from the head read BEFORE the buffered entry, i.e. exactly what a second
+    // process computed: using `append()` here would chain after the still-buffered
+    // entry (shared in-process cache) and never produce the race.
+    const head = before[before.length - 1].chainHash;
+    const winner = stubEntry(TENANT_FLUSH, head, "winner");
+    const stored = await db.crud.insert(
+      "auditLogs",
+      { ...winner, _id: generateUUID() },
+      { tenantId: TENANT_FLUSH },
+    );
+    expect(stored.success, JSON.stringify(stored).slice(0, 200)).toBe(true);
 
-      // The flush now hits the unique index, re-chains, and succeeds.
-      await auditService.flush();
+    // The flush now hits the unique index, re-chains, and succeeds.
+    await auditService.flush();
 
-      const rows = await chainRows(TENANT_FLUSH);
-      expect(rows.map((r) => r.action)).toContain("raced-entry");
-      expect(rows.length).toBe(3);
-      const result = await auditChainService.verifyChain(TENANT_FLUSH);
-      expect(result.valid, JSON.stringify(result)).toBe(true);
-    },
-    120_000,
-  );
+    const rows = await chainRows(TENANT_FLUSH);
+    expect(rows.map((r) => r.action)).toContain("raced-entry");
+    expect(rows.length).toBe(3);
+    const result = await auditChainService.verifyChain(TENANT_FLUSH);
+    expect(result.valid, JSON.stringify(result)).toBe(true);
+  }, 120_000);
 });

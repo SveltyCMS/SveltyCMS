@@ -26,6 +26,7 @@ import {
   chainHashScope,
   type ChainedAuditEntry,
 } from "@src/services/audit-chain";
+import { generateUUID } from "@utils/native-utils";
 
 /**
  * Bounded re-chain attempts after the fork guard rejects a batch.
@@ -357,6 +358,15 @@ export class AuditService {
         // past the head this batch was chained onto, another writer won the race and
         // re-chaining will succeed. Anything else falls through to the fallback.
         if (attempt < MAX_CHAIN_ATTEMPTS && (await this.chainHeadAdvanced(batch))) {
+          // MongoDB applies a rejected bulk write with `ordered: false`, so part of the
+          // batch may have landed. Keep only what is still missing.
+          const attempted = batch;
+          const remaining = await this.dropAlreadyStored(attempted);
+          if (remaining.length === 0) {
+            // Every row landed despite the error; only the checkpoint is missing.
+            await this.commitCheckpoints(attempted);
+            return true;
+          }
           // Another process appended first and the unique (chainScope, previousHash)
           // index rejected our children of the same head. Re-chain onto the winner
           // and retry. Bounded on purpose: a conflict that keeps recurring must
@@ -369,7 +379,7 @@ export class AuditService {
           // object is identical (the chain fields are the only difference and both
           // types declare them).
           batch = (await auditChainService.rechain(
-            batch as ChainedAuditEntry[],
+            remaining as ChainedAuditEntry[],
           )) as BufferedAuditEntry[];
           continue;
         }
@@ -404,6 +414,42 @@ export class AuditService {
       this.buffer = combined;
     }
     return false;
+  }
+
+  /**
+   * Ids from `entries` that are now in the store, or `null` when it could not be determined.
+   * Only called once per flush, so one indexed `_id $in` query is acceptable; it replaces a
+   * counter that silently drifted whenever a write was partially applied.
+   */
+  private async storedIdsOf(entries: BufferedAuditEntry[]): Promise<Set<string> | null> {
+    const ids = entries.map((entry) => entry._id).filter((id): id is DatabaseId => Boolean(id));
+    if (!dbAdapterInstance || ids.length === 0) return null;
+    try {
+      const found = await dbAdapterInstance.crud.findMany(
+        this.collectionName,
+        { _id: { $in: ids } } as any,
+        { ...withSystemScope("audit-flush"), limit: ids.length } as any,
+      );
+      if (!found?.success) return null;
+      return new Set((found.data ?? []).map((row: any) => String(row._id)));
+    } catch (err) {
+      logger.debug("[Audit] Could not verify which entries landed; using the batch count", err);
+      return null;
+    }
+  }
+
+  /**
+   * Returns the batch entries the store does not already hold, matched by `_id`.
+   *
+   * Only reachable after a failed insert, so it is not on any hot path. It exists because
+   * a rejected bulk write is not necessarily atomic: MongoDB runs `bulkWrite` with
+   * `ordered: false` and leaves the already-written rows in place, so re-inserting the
+   * whole batch would collide on `_id` on every attempt.
+   */
+  private async dropAlreadyStored(batch: BufferedAuditEntry[]): Promise<BufferedAuditEntry[]> {
+    const stored = await this.storedIdsOf(batch);
+    if (!stored) return batch;
+    return batch.filter((entry) => !stored.has(String(entry._id)));
   }
 
   /**
@@ -474,13 +520,22 @@ export class AuditService {
    *
    * Per-tenant, in batch order: the last entry of a tenant wins, so the checkpoint
    * always names the newest committed entry of that tenant.
+   *
+   * The increment is counted from the STORE, not from the batch length. A rejected bulk
+   * write is not necessarily atomic (MongoDB runs `bulkWrite` with `ordered: false`), so
+   * an accumulated counter drifts and a drifted counter makes truncation detection raise
+   * false alarms. Counting the batch's own ids is one query and exact.
    */
   private async commitCheckpoints(entries: BufferedAuditEntry[]): Promise<void> {
     if (entries.length === 0) return;
+    const stored = await this.storedIdsOf(entries);
     const tails = new Map<string | null, { count: number; headHash: string }>();
     for (const entry of entries) {
       const headHash = entry.chainHash as string | undefined;
       if (!headHash) continue;
+      // `stored === null` means the verification query was unavailable — fall back to
+      // the batch itself, which is correct whenever the write was atomic.
+      if (stored && !stored.has(String(entry._id))) continue;
       const tenantId = (entry.tenantId as string | null | undefined) ?? null;
       const tail = tails.get(tenantId);
       tails.set(tenantId, { count: (tail?.count ?? 0) + 1, headHash });
@@ -621,7 +676,11 @@ export class AuditService {
         // Zero-allocation cached timestamp (per-ms reuse) — this runs on every
         // write in the crypto chain, the documented create/update bottleneck.
         const timestamp = nowISODateString();
-        const entry: Omit<AuditLogEntry, "_id"> = {
+        const entry: Omit<AuditLogEntry, "_id"> & { _id: DatabaseId } = {
+          // Stable id assigned at buffer time: a retry after a partially applied
+          // batch (MongoDB `bulkWrite` runs `ordered: false`) must collide on `_id`
+          // rather than duplicate the audit row.
+          _id: generateUUID() as DatabaseId,
           action,
           actorId: actor.id,
           actorEmail: actor.email,
