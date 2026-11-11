@@ -377,7 +377,14 @@ export class AuditService {
     }
   }
 
-  /** Append-only fallback sink, used only when the DB write is unavailable. */
+  /**
+   * Append-only fallback sink, used only when the DB write is unavailable.
+   *
+   * Entries are serialised here rather than at log() time: the DB path never reads
+   * `rawJson`, so building it eagerly cost one `JSON.stringify` + one large string
+   * per buffered entry on every audited mutation. `rawJson` is still honoured when a
+   * caller supplies a pre-serialised entry.
+   */
   private appendEntriesToFile(entries: BufferedAuditEntry[]): Promise<void> {
     const logData = entries.map((e) => e.rawJson ?? JSON.stringify(e)).join("\n") + "\n";
     return fsPromises.appendFile(this.logFile, logData);
@@ -522,15 +529,17 @@ export class AuditService {
 
         // `hash` is kept as an alias for callers written before `chainHash`.
         // codeql[js/insufficient-password-hash]
-        const persisted = {
+        const persisted: BufferedAuditEntry = {
           ...entry,
           previousHash: chained.previousHash,
           chainHash,
           hash: chainHash,
         };
-        // Serialise once for the file fallback (the DB path drops rawJson);
-        // built from `persisted` so the fallback line has no rawJson key.
-        const fullEntry: BufferedAuditEntry = { ...persisted, rawJson: JSON.stringify(persisted) };
+
+        // 🚀 HOT PATH: no eager `JSON.stringify`. The persisted row is serialised
+        // only by `appendEntriesToFile()` — the fallback sink used when the DB
+        // write fails — so the per-mutation cost of the audit trail is one object
+        // spread and one hash, not a full serialisation that the DB path discards.
 
         // 🛡️ BOUNDED BUFFER: drop the OLDEST entries beyond the hard cap and
         // count them — unbounded growth is a memory leak, silent loss is worse.
@@ -539,7 +548,7 @@ export class AuditService {
           this.buffer.splice(0, overflow);
           this.recordDroppedEntries(overflow, "buffer full (oldest entries evicted)");
         }
-        this.buffer.push(fullEntry);
+        this.buffer.push(persisted);
         // 🛡️ ENTERPRISE MODE: AUDIT_CHAIN_SYNC awaits persistence before returning,
         // guaranteeing the entry survives even if the process dies mid-request.
         // Uses coalesced inFlightFlush to prevent single-row transaction thrashing.

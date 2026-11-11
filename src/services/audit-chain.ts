@@ -271,10 +271,12 @@ export class AuditChainService {
       }
 
       const result = await dbAdapterInstance.crud.findMany(this.collectionName, filter as any, {
-        // Untenanted writes share the `__global__` chain, but an unfiltered
-        // "latest row" could belong to a tenant and fork that chain. Read a
-        // small window and pick the first untenanted row instead.
-        limit: tenantId ? 1 : 25,
+        // One row is enough for both scopes. `tenantId: null` is the explicit
+        // *global* scope (`tenantId IS NULL`, see `getTenantCondition` in
+        // `relational-utils` and the documented explicit global scope in
+        // safe-query) — it is not "unfiltered" — so the head read cannot land on
+        // a tenant's row and no defensive window scan is needed.
+        limit: 1,
         sort: { timestamp: "desc" } as any,
         tenantId: tenantId as any,
       });
@@ -282,9 +284,7 @@ export class AuditChainService {
       const rows = (result.success && result.data
         ? result.data
         : []) as unknown as ChainedAuditEntry[];
-      const lastEntry = tenantId
-        ? rows[0]
-        : rows.find((row) => row.tenantId === null || row.tenantId === undefined);
+      const lastEntry = rows[0];
 
       if (lastEntry) {
         const hash = lastEntry.chainHash ?? lastEntry.previousHash ?? GENESIS_HASH;
