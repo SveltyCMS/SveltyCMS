@@ -262,7 +262,16 @@ async function applyTenantIsolationGuards(adapter: IDBAdapter): Promise<void> {
     const { createCountCachedCrud } = await import("./core/cache-module");
     const originalCrud = adapter.crud;
     // Tenant guard first (fail-closed), then short-lived count cache (equal on all DBs).
-    (adapter as any).crud = createCountCachedCrud(createTenantGuardedCrud(originalCrud, "reject"));
+    let composedCrud = createCountCachedCrud(createTenantGuardedCrud(originalCrud, "reject"));
+
+    // Opt-in PostgreSQL RLS: tenant-scoped CRUD calls run inside a transaction
+    // that binds `app.tenant_id`, which is what a FORCE policy needs to filter.
+    // A no-op in the default mode and on every other adapter (see tenant-rls.ts).
+    if ((adapter as { type?: string }).type === "postgresql") {
+      const { createRlsScopedCrud } = await import("./core/rls-scoped-crud");
+      composedCrud = createRlsScopedCrud(composedCrud, adapter as never);
+    }
+    (adapter as any).crud = composedCrud;
 
     for (const ns of ["auth", "content", "media", "collection", "system"] as const) {
       const original = (adapter as any)[ns];

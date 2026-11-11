@@ -651,42 +651,54 @@ This ensures DB records stay linked across renames — no orphaned content.
 
 ### PostgreSQL Row-Level Security (RLS)
 
-> [!WARNING]
-> RLS is an **opt-in, unwired primitive** in this release — **not a supported tenant-isolation guarantee**. The request path isolates tenants with the application-level `"tenantId"` predicate. The shared pool never sets `app.tenant_id`, and `enforceTenantPolicy()` has **no production caller**. Do not rely on RLS for isolation today; the section below describes what exists and exactly why it does not protect the request path.
+> [!IMPORTANT]
+> RLS is **opt-in and off by default**. Request isolation is always the application-level `"tenantId"` predicate. Set `TENANT_RLS_ENABLED=true` (or the `TENANT_RLS_ENABLED` System Setting) to add a **database-enforced** boundary on top of it — and read the prerequisites below first, because a forced policy hides every row when the context is not bound.
 
-Request isolation is the `WHERE "tenantId" = ?` predicate every tenant-owned query carries. That is proven adversarially on a **pool of one** (a single reused connection, with a stale session `app.tenant_id`) across IDOR read/write and concurrency in `tests/integration/databases/tenant-pool-isolation.test.ts`. PostgreSQL RLS is not enabled on those tables.
+Request isolation is the `WHERE "tenantId" = ?` predicate every tenant-owned query carries, proven adversarially on a **pool of one** (a single reused connection, with a stale session `app.tenant_id`) across IDOR read/write and concurrency in `tests/integration/databases/tenant-pool-isolation.test.ts`.
+
+#### What `TENANT_RLS_ENABLED=true` changes
+
+| Layer                   | Behaviour with the flag on                                                                                                                                                                                                                                                                                                                               |
+| :---------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Collection provisioning | `createModel()` runs `ENABLE` **and** `FORCE ROW LEVEL SECURITY` and installs `tenant_isolation` (`"tenantId" = current_setting('app.tenant_id', true)`) in the same step as the DDL, so a table cannot exist without the policy. Failure throws instead of leaving RLS half-applied.                                                                    |
+| Request path            | Tenant-scoped `db.crud.*` calls (`findMany`, `findById`, `count`, `insert`, `update`, `delete`, …) run inside a transaction whose first statement is `set_config('app.tenant_id', $1, true)`. The tenant is passed **per call** to `transaction({ tenantId })`, not read from process state, so two concurrent tenants cannot bind each other's context. |
+| System paths            | Calls without a `tenantId` (setup, migrations, audit flush, cache warming) are **not** wrapped. With `FORCE`, they must connect with a role carrying `BYPASSRLS` (or a role that is not subject to the policy). This is deliberate: scoping a migration to an arbitrary tenant would be worse than leaving it to the operator.                           |
+| Streams                 | `streamMany` and the wire-stream methods are not wrapped — their result is consumed after the call returns, so the transaction would close too early. They keep the predicate.                                                                                                                                                                           |
+
+#### Prerequisites before you enable it
+
+1. **Connect as a non-owner role.** A table owner bypasses policies unless `FORCE` is set; with `FORCE`, superusers still bypass them. Production should use a dedicated role with DML grants only, which is the shape the integration suite exercises.
+2. **A `BYPASSRLS` role (or elevated pool) for system work.** Setup, migrations and background jobs do not carry a tenant.
+3. **Budget the transaction.** Each wrapped operation is `BEGIN … set_config … COMMIT` — correct and leak-proof, but measurably heavier than a bare statement. For high-throughput tenants, a dedicated DSN pool (`setTenantPool()`) gives isolation without per-statement transactions.
+
+Verified by `tests/integration/databases/tenant-rls-request-path.test.ts`: policy provisioning, a non-owner role bound to one tenant (unbound → zero rows), cross-tenant writes rejected by `WITH CHECK`, one connection reused across tenants, and concurrent tenants that never cross scopes.
 
 ```mermaid
 graph TB
-    subgraph App["Application layer — the actual guarantee"]
+    subgraph App["Application layer — always on"]
         API[API Handlers]
         CRUD["CRUD Guard Proxy<br/>injects tenantId"]
     end
-    subgraph DB["PostgreSQL"]
-        SHARED["Shared pool<br/>app.tenant_id never set<br/>WHERE tenantId = ? filters rows"]
-        OPT["Opt-in only:<br/>dedicated tenant pool OR explicit transaction<br/>set_config('app.tenant_id', …, true)"]
+    subgraph DB["PostgreSQL — TENANT_RLS_ENABLED=true"]
+        TX["Tenant-scoped crud call<br/>BEGIN; set_config(app.tenant_id, …, true); …; COMMIT"]
+        POL["tenant_isolation policy<br/>FORCE ROW LEVEL SECURITY"]
+        SYS["System path (no tenantId)<br/>unwrapped — needs BYPASSRLS role"]
     end
     API --> CRUD
-    CRUD --> SHARED
-    CRUD -.->|only with a bound connection| OPT
+    CRUD --> TX
+    TX --> POL
+    CRUD -.-> SYS
 ```
 
-**Adapter methods** (`src/databases/postgresql/adapter-core.ts`):
+**Adapter methods** (`src/databases/postgresql/adapter-core.ts`, `src/databases/core/rls-scoped-crud.ts`):
 
-| Method                                      | Status                                           | Purpose                                                                                                                                                                                                                                                                                                                                                                                                   |
-| ------------------------------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `setTenantContext(tenantId, sql?)`          | Present; the request path passes no bound handle | Records the active tenant; writes `app.tenant_id` **only** on a transaction-scoped handle (`set_config(…, true)`) or a dedicated per-tenant pool. On the shared pool it returns before `set_config` — a session GUC on a pooled socket would leak to the next request anyway.                                                                                                                             |
-| `enforceTenantPolicy(collection, tenantId)` | Present; **no production caller**                | Runs `ALTER TABLE … ENABLE ROW LEVEL SECURITY` + `CREATE POLICY tenant_isolation`, then reads back `relrowsecurity` / `relforcerowsecurity` / ownership. It **fails closed**: it refuses to report success when RLS did not enable, or when the connecting role owns the table without `FORCE` (Postgres ignores RLS for a table owner) — the two ways a policy can look enabled while filtering nothing. |
-| `getTenantContext()`                        | Diagnostics                                      | Returns the current session's `app.tenant_id` setting.                                                                                                                                                                                                                                                                                                                                                    |
-
-**Why the policy is not a request-path guarantee:**
-
-1. **No caller.** In production code, `enforceTenantPolicy` appears only in the `IDBAdapter` declaration (`src/databases/db-interface.ts`) and the PostgreSQL implementation. No collection provisioning, migration or setup path enables RLS, so no table carries the policy.
-2. **No bound connection on the shared pool.** `setTenantContext` reaches `set_config` only for a transaction-scoped client (`is_local = true`) or a dedicated pool registered via `setTenantPool()` — which no boot path calls. An ordinary request runs on the shared pool, where the GUC stays unset.
-3. **Owner bypass.** `ENABLE` (not `FORCE`) does not apply policies to the table owner — the role the CMS normally connects as. `enforceTenantPolicy` now detects this after the DDL and fails instead of returning a false success.
-4. **Unset GUC hides everything.** `current_setting('app.tenant_id', true)` is `NULL` when no context was bound, and `"tenantId" = NULL` is never true; a `FORCE`d policy without per-request binding would therefore make every row disappear. Binding it safely requires the transaction-scoped path (`src/databases/postgresql/transaction-module.ts` sets `app.tenant_id` with `is_local = true`).
-
-**To use RLS deliberately** (not the default): connect as a non-owner role (or set `FORCE ROW LEVEL SECURITY`), call `enforceTenantPolicy()` from your own provisioning path, and bind `app.tenant_id` transaction-locally on every request. Until those three are wired, per-request isolation remains the application predicate.
+| Method / module                             | Purpose                                                                                                                                                                                                                                       |
+| :------------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `enforceTenantPolicy(collection, tenantId)` | `ENABLE` (+ `FORCE` in RLS mode) + `CREATE POLICY tenant_isolation`, then reads back `relrowsecurity` / `relforcerowsecurity` / ownership from `pg_class`. Fails closed: it refuses to report success when the policy cannot actually filter. |
+| `setTenantContext(tenantId, sql?)`          | Writes `app.tenant_id` only on a transaction-scoped handle (`set_config(…, true)`) or a dedicated per-tenant pool. On the shared pool it returns before `set_config` — a session GUC on a pooled socket would leak to the next request.       |
+| `transaction(fn, { tenantId })`             | Binds `app.tenant_id` transaction-locally. An explicit tenant wins over the process-global "current tenant".                                                                                                                                  |
+| `createRlsScopedCrud(crud, adapter)`        | The wrapper composed onto `db.crud` at boot (PostgreSQL only). Synchronous mode check on the hot path; a stale memo refreshes in the background.                                                                                              |
+| `getTenantContext()`                        | Diagnostics: the current session's `app.tenant_id`.                                                                                                                                                                                           |
 
 > **Note**: RLS is PostgreSQL-specific. MariaDB uses `WHERE` clause injection via the CRUD guard. MongoDB uses partial filter expressions. The `IDBAdapter` interface defines `enforceTenantPolicy?()` and `getTenantContext?()` as optional methods — adapters that don't support RLS simply don't implement them.
 

@@ -2161,6 +2161,20 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       schemaData,
       force,
     );
+
+    // Opt-in database-enforced isolation: a new collection table gets ENABLE +
+    // FORCE + the `tenant_isolation` policy in the same provisioning step, so a
+    // table can never exist in RLS mode without the boundary. Off by default —
+    // see `tenant-rls.ts` for why the predicate stays the default guarantee.
+    const { getTenantRlsMode } = await import("@src/databases/tenant-rls");
+    if ((await getTenantRlsMode()) === "enforce") {
+      const result = await this.enforceTenantPolicy(tableName, "system");
+      if (!result.success) {
+        throw new Error(
+          `RLS is enabled (TENANT_RLS_ENABLED) but could not be applied to "${tableName}": ${result.message ?? result.error?.code ?? "unknown error"}`,
+        );
+      }
+    }
   }
 
   // --------------------------------------------------------------------------
@@ -2241,12 +2255,18 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         }
         const physicalName = getTableName(table as any);
 
-        // ENABLE (not FORCE): the CMS typically connects as table owner, so
-        // FORCE without a reserved per-request connection would hide every
-        // row when app.tenant_id is unset on a pooled socket. App-level
-        // WHERE tenantId=? remains the request-path isolator; RLS + GUC
-        // apply inside transactions / dedicated tenant pools.
+        // `TENANT_RLS_ENABLED` decides whether the policy is FORCEd. Forced means
+        // the table owner is filtered too, which is the only way RLS is a real
+        // boundary when the CMS connects as the schema owner. It also means every
+        // statement on this table must run with `app.tenant_id` bound (or on a
+        // `BYPASSRLS` role): an unbound context hides EVERY row.
+        const { getTenantRlsMode } = await import("@src/databases/tenant-rls");
+        const forceRls = (await getTenantRlsMode()) === "enforce";
+
         await this.raw.execute(`ALTER TABLE "${physicalName}" ENABLE ROW LEVEL SECURITY`);
+        if (forceRls) {
+          await this.raw.execute(`ALTER TABLE "${physicalName}" FORCE ROW LEVEL SECURITY`);
+        }
 
         // Create or replace the tenant isolation policy.
         // The USING clause compares the table's double-quoted "tenantId" column
