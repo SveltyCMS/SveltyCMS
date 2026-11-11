@@ -50,6 +50,9 @@ describe("SSO logout destroys the CMS session", () => {
     await setSsoSessionMetadata("sess-front", {
       provider: "op-front",
       createdAt: new Date().toISOString(),
+      // The OP names the session by `sid`; metadata without it cannot be targeted
+      // and is deliberately left alive (see sso-logout-scoping.test.ts).
+      oidcSid: "sid-front",
     });
 
     await handleFrontChannelLogout("https://issuer.example", "sid-front");

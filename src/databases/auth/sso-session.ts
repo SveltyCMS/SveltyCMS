@@ -157,6 +157,17 @@ export interface SsoSessionMetadata {
   samlNameId?: string;
   /** SAML `AuthnStatement/@SessionIndex` recorded at login. */
   samlSessionIndex?: string;
+  /**
+   * OIDC `sid` claim of the ID token that created this session.
+   *
+   * An OP-initiated front- or back-channel logout message identifies the
+   * session by `sid` (or, as a fallback, `sub`) — never by our session cookie —
+   * so this is the only link back to the CMS session that has to be destroyed.
+   * Absent when the OP does not mint a `sid`.
+   */
+  oidcSid?: string;
+  /** OIDC `sub` claim of the ID token that created this session (fallback logout key). */
+  oidcSubject?: string;
   /** State parameter for CSRF protection during logout redirect */
   logoutState?: string;
 }
@@ -1031,7 +1042,9 @@ export async function exchangeOidcCode(
  * at the RP's frontchannel_logout_uri. The RP clears the session and
  * returns 200 with cache-prevention headers.
  *
- * Query params: `iss` (issuer) and `sid` (session ID).
+ * Query params: `iss` (issuer) and `sid` (session ID). Only the session(s)
+ * whose recorded `oidcSid` equals `sid` are terminated: the OP names one login
+ * session, so a logout must not sign out every user on the same provider.
  *
  * @see https://openid.net/specs/openid-connect-frontchannel-1_0.html
  */
@@ -1042,10 +1055,12 @@ export async function handleFrontChannelLogout(
 ): Promise<Response> {
   logger.info(`[SSO] Front-channel logout: issuer=${issuer}, sid=${sid.slice(0, 8)}...`);
 
-  // Clear sessions associated with this sid
-  // In a production implementation, this would use a sid→sessionId reverse index
+  // Match the exact OP session id (recorded at login from the id_token `sid`).
+  // No match — including sessions without a recorded sid — terminates nothing;
+  // the response is still a 200 so the OP iframe completes.
   for (const [sessionId, metadata] of ssoSessionMetadata) {
     if (!metadata.provider) continue;
+    if (!sid || metadata.oidcSid !== sid) continue;
     const provider = getSsoProvider(metadata.provider, metadata.tenantId ?? tenantId);
     if (provider?.issuer === issuer) {
       await terminateSessionAndMetadata(sessionId, metadata.tenantId ?? tenantId);
@@ -1085,8 +1100,9 @@ interface LogoutTokenClaims {
  * Handles OpenID Connect Back-Channel Logout 1.0.
  *
  * The OP sends a POST with a signed JWT `logout_token` to the RP's
- * backchannel_logout_uri. The RP validates the token and terminates
- * all sessions for the identified user.
+ * backchannel_logout_uri. The RP validates the token and terminates the
+ * sessions it identifies: by `sid` when present, otherwise by `sub`. Sessions
+ * the token does not name are never touched (spec §2.6 / §2.7).
  *
  * Token validation (per spec §2.6):
  * - Must be signed with OP's public key
@@ -1177,12 +1193,26 @@ export async function handleBackChannelLogout(
       };
     }
 
-    // Invalidate all SSO sessions for this exact provider registration. Resolve
-    // each session's own tenant provider so an identically named provider in
-    // another tenant is never terminated by a token minted for this issuer.
+    // A logout token names one login session (`sid`) or, when the OP does not
+    // send one, the user (`sub`). Only those sessions may be terminated: per
+    // OIDC Back-Channel Logout 1.0 an RP must not sign out unrelated sessions.
+    const logoutSid = typeof payload.sid === "string" && payload.sid ? payload.sid : undefined;
+    const logoutSubject = typeof payload.sub === "string" && payload.sub ? payload.sub : undefined;
+
+    // Invalidate the matching SSO sessions for this exact provider registration.
+    // Resolve each session's own tenant provider so an identically named
+    // provider in another tenant is never terminated by a token minted for this
+    // issuer.
     let invalidated = 0;
     for (const [sessionId, metadata] of ssoSessionMetadata) {
       if (metadata.provider !== matchedProvider.id) continue;
+      if (logoutSid !== undefined) {
+        if (metadata.oidcSid !== logoutSid) continue;
+      } else if (logoutSubject !== undefined) {
+        if (metadata.oidcSubject !== logoutSubject) continue;
+      } else {
+        continue;
+      }
       const sessionProvider = getSsoProvider(metadata.provider, metadata.tenantId ?? tenantId);
       if (sessionProvider) {
         // Object identity distinguishes tenant registrations with the same id.

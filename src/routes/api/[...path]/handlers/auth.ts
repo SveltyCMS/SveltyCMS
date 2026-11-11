@@ -893,6 +893,14 @@ export async function handleOidcLoginCallback(
 
   if (exchanged.idToken) {
     try {
+      // The id_token payload is already verified by exchangeOidcCode. Record the
+      // OP's `sid`/`sub` so a later front-/back-channel logout message — which
+      // carries only those claims, never our cookie — can identify this exact
+      // session. Tokens without them behave exactly as before.
+      const oidcSid =
+        typeof exchanged.payload?.sid === "string" ? exchanged.payload.sid : undefined;
+      const oidcSubject =
+        typeof exchanged.payload?.sub === "string" ? exchanged.payload.sub : undefined;
       await setSsoSessionMetadata(
         sessionId,
         {
@@ -900,6 +908,8 @@ export async function handleOidcLoginCallback(
           tenantId: tenantId ? String(tenantId) : undefined,
           idTokenHint: exchanged.idToken,
           createdAt: nowISODateString(),
+          oidcSid,
+          oidcSubject,
         },
         tenantId,
       );
