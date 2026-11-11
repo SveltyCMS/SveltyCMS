@@ -348,8 +348,8 @@ function resolveGraphQLTenant(
   sessionTenantId: string | undefined | null,
   ctx: GraphQLContext,
 ): string | undefined {
-  const session = sessionTenantId ? String(sessionTenantId) : "";
-  const requested = argTenantId ? String(argTenantId) : "";
+  const session = sessionTenantId ?? "";
+  const requested = argTenantId ?? "";
 
   if (!session) {
     if (isMultiTenantEnabled()) throw new Error("Tenant context required");
@@ -357,7 +357,9 @@ function resolveGraphQLTenant(
   }
 
   if (requested && requested !== session) {
-    if (String(ctx.user?.role ?? "").toLowerCase() === "super-admin") return requested;
+    // `toLowerCase()` only on the rare cross-tenant attempt, never on the hot
+    // same-tenant path (which returns the session tenant above).
+    if ((ctx.user?.role ?? "").toLowerCase() === "super-admin") return requested;
     throw new Error("Forbidden: Cannot access other tenants");
   }
 
