@@ -14,8 +14,8 @@
         "src/databases/auth/permission-catalog.ts"
       ],
       "model": "docs/security/threat-models/api-dispatch.mdx",
-      "reviewed_at": "2026-11-09",
-      "fingerprint": "3c1c8e65a17cbe65b56a04366ba75d315a13210a5a37510354309a92a534ded7"
+      "reviewed_at": "2026-11-11",
+      "fingerprint": "ae2af106aefeae4b91edc9fff86805bf696c5d89449d764573663bb646e5f7ed"
     },
     {
       "id": "auth-session",
@@ -37,8 +37,8 @@
         "src/routes/api/[...path]/handlers/scim.ts"
       ],
       "model": "docs/security/threat-models/auth-session.mdx",
-      "reviewed_at": "2026-11-09",
-      "fingerprint": "d9c8a78ad395978dcf22c201a6d3786c41f473d590297313bdc3c5ba057886e5"
+      "reviewed_at": "2026-11-10",
+      "fingerprint": "ede7ad0713677d8d231ec4f413073841119b22aa1ad64ae84d140e9a5a8d2e5c"
     },
     {
       "id": "content-write",
@@ -57,8 +57,8 @@
         "src/hooks/handle-collection-write-lane.ts"
       ],
       "model": "docs/security/threat-models/content-write.mdx",
-      "reviewed_at": "2026-11-09",
-      "fingerprint": "0e021c5a7948d477e9be07d3b6ea133bbdb502393c86a0c13d2e176bdd5964b1"
+      "reviewed_at": "2026-11-10",
+      "fingerprint": "2b6660a0ecd92ecf6074721e5e13016d4f52de1d39bb05ce29e8cdeddc4389ee"
     },
     {
       "id": "media-files",

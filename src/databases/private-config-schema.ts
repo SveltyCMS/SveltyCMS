@@ -172,6 +172,13 @@ export const privateConfigSchema = object({
   SAML_ISSUER: optional(string()),
   SAML_AUDIENCE: optional(string()),
   SAML_SP_ENTITY_ID: optional(string()),
+  // Accept unsolicited (IdP-initiated) SAMLResponses at the ACS. Off by default:
+  // an unsolicited response is not bound to any login this browser started.
+  SAML_ALLOW_IDP_INITIATED: optional(coercedBoolean),
+  // IdP Single Logout endpoint (defaults to SAML_ENTRY_POINT) and the SP key
+  // used to sign LogoutRequest / LogoutResponse messages.
+  SAML_LOGOUT_URL: optional(string()),
+  SAML_SP_PRIVATE_KEY: optional(string()),
   SAML_CLIENT_SECRET_VERIFIER: optional(string()),
   SAML_ENCRYPTION_KEY: optional(string()),
   SAML_JWT_SIGNING_PRIVATE_KEY: optional(string()),

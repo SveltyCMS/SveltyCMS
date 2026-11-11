@@ -635,6 +635,7 @@ export const auditLogs = pgTable(
     tenantId: tenantField(),
     previousHash: varchar("previousHash", { length: 64 }),
     chainHash: varchar("chainHash", { length: 64 }),
+    chainScope: varchar("chainScope", { length: 36 }),
     ...timestamps,
   },
   (table) => ({

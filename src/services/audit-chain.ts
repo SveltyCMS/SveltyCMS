@@ -6,18 +6,64 @@
  * enabling detection of tampering, deletion, or reordering of entries.
  *
  * Features:
- * - SHA-256 cryptographic chaining (CSPRNG-compliant via globalThis.crypto.subtle)
+ * - SHA-256 cryptographic chaining (`node:crypto`, synchronous, ~2µs/entry)
  * - Genesis hash constant for first entry anchoring
  * - Tenant-keyed in-memory last-hash cache to avoid DB lookups on every write
+ * - Per-tenant in-process mutex so concurrent writers cannot fork the chain
+ * - ONE canonical payload function shared by writer and verifier
+ * - Tail checkpoint (head hash + entry count) outside the audit table, so a
+ *   deleted tail is detectable — a hash chain alone cannot see its own end
  * - Full chain verification with tamper detection
- * - Multi-tenant aware (optional tenantId scoping)
+ * - Multi-tenant aware (tenantId scoping; untenanted writes share `__global__`)
+ *
+ * ### Multi-process deployments
+ * `withTenantLock` only serialises writers inside *this* process. A deployment
+ * that runs several Node processes against one database (cluster mode, PM2,
+ * more than one container) can still have two processes read the same
+ * predecessor hash and fork the chain. Such deployments need a DB-level guard —
+ * e.g. `SELECT ... FOR UPDATE` on the tenant's chain head inside the same
+ * transaction that inserts the new entry, or a unique index on
+ * `(tenantId, previousHash)`. The single-process guarantee here is documented,
+ * not assumed silently.
  */
 
+import { createHash } from "node:crypto";
 import { dbAdapter as dbAdapterInstance } from "@src/databases/db";
 import { logger } from "@utils/logger";
+import { nowISODateString } from "@utils/date";
 
 /** Genesis hash: 64 zero-hex characters, the anchor for the first entry in the chain */
 export const GENESIS_HASH = "0000000000000000000000000000000000000000000000000000000000000000";
+
+/**
+ * Preference key holding the per-tenant chain checkpoint.
+ *
+ * Deliberately outside the `auditLogs` table: truncation removes the tail, so a
+ * marker stored in that table would be removed with it. `systemPreferences` is the
+ * existing tenant-scoped KV (unique on `(key, tenantId)`), which keeps the
+ * checkpoint working on every adapter with no migration.
+ */
+export const AUDIT_CHECKPOINT_KEY = "audit_chain_checkpoint";
+
+/**
+ * Chain scope written to `audit_logs.chainScope`.
+ *
+ * The fork-guard index is `(chainScope, previousHash)`. A composite index treats NULLs
+ * as distinct, so a NULL tenant (the default single-tenant chain) would be exempt from
+ * the constraint on every dialect — the sentinel makes the scope explicit instead.
+ */
+export function chainHashScope(tenantId?: string | null): string {
+  return tenantId || "__global__";
+}
+
+/** Tail of a tenant's chain as of its last flush. */
+export interface AuditChainCheckpoint {
+  /** Hash of the newest chained entry the writer had committed. */
+  headHash: string;
+  /** Number of chained entries committed at that point. */
+  entryCount: number;
+  updatedAt?: string;
+}
 
 /** Interface for an audit log entry with chain fields */
 export interface ChainedAuditEntry {
@@ -28,9 +74,17 @@ export interface ChainedAuditEntry {
   actorRole?: string;
   tenantId?: string | null;
   timestamp?: string;
+  severity?: string;
+  result?: string;
+  targetId?: string | null;
+  targetType?: string | null;
   details?: Record<string, unknown>;
   previousHash?: string;
   chainHash?: string;
+  /** `tenantId ?? "__global__"` — the fork-guard index key (see `chainHashScope`). */
+  chainScope?: string;
+  /** Legacy alias kept for rows written before `chainHash` existed. */
+  hash?: string;
   eventType?: string;
   createdAt?: unknown;
   updatedAt?: unknown;
@@ -43,18 +97,156 @@ export interface ChainVerificationResult {
   brokenAt: number | null;
   totalEntries: number;
   tamperedEntries: number;
+  /** Leading rows written before the chain existed (skipped, not tampered). */
+  unchainedPrefix?: number;
+  /**
+   * Checkpoint comparison (tail truncation). `null` when the tenant has no
+   * checkpoint yet — a pre-upgrade or never-flushed chain.
+   */
+  checkpoint?: {
+    expectedEntries: number;
+    foundEntries: number;
+    expectedHead: string;
+    foundHead: string;
+    matched: boolean;
+  } | null;
+  /**
+   * Entries that only matched after truncating the timestamp to whole seconds —
+   * rows written before the MariaDB `timestamp` column kept milliseconds.
+   * 0 for any chain written by the current code.
+   */
+  legacySecondPrecisionEntries?: number;
   details?: string[];
 }
 
 /**
- * Converts a string to a SHA-256 hex digest using the Web Crypto API.
- * Uses globalThis.crypto.subtle for CSPRNG-compliant hashing.
+ * The fields covered by the chain hash, in the order they are committed to.
+ * The list is used by the writer, the verifier and the Merkle helpers — a
+ * writer/verifier field mismatch is the classic way a hash chain becomes
+ * permanently "tampered", so both sides call `canonicalAuditPayload()`.
  */
-async function sha256(data: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const hashBuffer = await globalThis.crypto.subtle.digest("SHA-256", encoder.encode(data));
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+export const AUDIT_CHAIN_FIELDS = [
+  "action",
+  "actorEmail",
+  "actorId",
+  "actorRole",
+  "eventType",
+  "severity",
+  "result",
+  "targetId",
+  "targetType",
+  "timestamp",
+  "details",
+  "tenantId",
+] as const;
+
+/**
+ * JSON with object keys sorted at every level.
+ *
+ * Determinism matters twice: the writer and the verifier must serialise the
+ * same object identically, and some backends (MariaDB/MySQL JSON) reorder
+ * object keys on storage. Sorting makes the payload independent of both.
+ */
+function stableStringify(value: unknown): string {
+  if (value === undefined) return "null";
+  if (value === null) return "null";
+  if (typeof value === "number") return Number.isFinite(value) ? String(value) : "null";
+  if (typeof value !== "object") return JSON.stringify(value) as string;
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableStringify(item)).join(",")}]`;
+  }
+  const obj = value as Record<string, unknown>;
+  const keys = Object.keys(obj)
+    .filter((k) => obj[k] !== undefined)
+    .sort();
+  return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(obj[k])}`).join(",")}}`;
+}
+
+/** Ids round-trip through VARCHAR columns, so always compare them as strings. */
+function normalizeScalar(value: unknown): string | null {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}
+
+/** Timestamps are hashed exactly as written; Date instances are normalised to ISO. */
+function normalizeTimestamp(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === "string") return value;
+  if (typeof value === "number") return new Date(value).toISOString();
+  return String(value);
+}
+
+/**
+ * The same timestamp truncated to whole seconds, or `null` when it already is.
+ *
+ * Exists for rows written before the MariaDB `audit_logs.timestamp` column was
+ * `DATETIME(3)`: the store dropped the milliseconds the writer had hashed, so those
+ * rows can never match the exact payload. Verification accepts the second-precision
+ * variant and counts it (see `legacySecondPrecisionEntries`).
+ */
+function toSecondPrecision(value: unknown): string | null {
+  const iso = normalizeTimestamp(value);
+  if (!iso) return null;
+  const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\.\d{1,3}Z$/.exec(iso);
+  return match ? `${match[1]}Z` : null;
+}
+
+/**
+ * `details` may come back from a backend as either a parsed object or the raw
+ * JSON text (SQLite TEXT column without a JSON parser). Both shapes must hash
+ * the same, so a string is parsed when possible.
+ */
+function normalizeDetails(value: unknown): Record<string, unknown> {
+  if (value === null || value === undefined) return {};
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
+    } catch {
+      return {};
+    }
+  }
+  return value as Record<string, unknown>;
+}
+
+/**
+ * The single canonical payload that the chain hash commits to.
+ * Writer (`append`) and verifier (`verifyChain`) both call this — never
+ * serialise the raw entry yourself.
+ *
+ * The top-level key order is fixed literals (alphabetical, matching
+ * `AUDIT_CHAIN_FIELDS`) rather than a per-call `Object.keys().sort()`: this
+ * runs on every audit write, and the key set is constant. `details` is
+ * free-form, so it alone goes through `stableStringify`.
+ */
+export function canonicalAuditPayload(entry: ChainedAuditEntry): string {
+  const action = entry.action ?? "";
+  return JSON.stringify({
+    action,
+    actorEmail: entry.actorEmail ?? null,
+    actorId: normalizeScalar(entry.actorId),
+    actorRole: entry.actorRole ?? null,
+    eventType: entry.eventType ?? action,
+    severity: entry.severity ?? null,
+    result: entry.result ?? null,
+    targetId: normalizeScalar(entry.targetId),
+    targetType: entry.targetType ?? null,
+    timestamp: normalizeTimestamp(entry.timestamp),
+    details: stableStringify(normalizeDetails(entry.details)),
+    tenantId: normalizeScalar(entry.tenantId),
+  });
+}
+
+/**
+ * chainHash = SHA-256(canonicalPayload + previousHash) as lowercase hex.
+ * Synchronous so the append hot path costs one hash, no event-loop hop.
+ */
+export function computeChainHash(entry: ChainedAuditEntry, previousHash: string): string {
+  return createHash("sha256")
+    .update(canonicalAuditPayload(entry) + previousHash)
+    .digest("hex");
 }
 
 export class AuditChainService {
@@ -62,50 +254,127 @@ export class AuditChainService {
   /** Last chained hash per tenant — a single shared slot would link one tenant's
    *  entry to another tenant's predecessor. `__global__` keys untenanted writes. */
   private readonly lastHashCache = new Map<string, string>();
+  /** Per-tenant tail of the write queue (in-process mutex, see file header). */
+  private readonly tenantLocks = new Map<string, Promise<void>>();
+  /** Chained-entry count per tenant, so a flush does not need a read before its write. */
+  private readonly countCache = new Map<string, number>();
 
   private static cacheKey(tenantId?: string | null): string {
-    return tenantId || "__global__";
+    return chainHashScope(tenantId);
+  }
+
+  /**
+   * Runs `fn` after every previously queued append for the same tenant.
+   * The tail never rejects, so one failed append cannot poison the queue.
+   */
+  private async withTenantLock<T>(
+    tenantId: string | null | undefined,
+    fn: () => Promise<T>,
+  ): Promise<T> {
+    const key = AuditChainService.cacheKey(tenantId);
+    const previous = this.tenantLocks.get(key) ?? Promise.resolve();
+    const run = previous.then(fn, fn);
+    const tail = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    this.tenantLocks.set(key, tail);
+    try {
+      return await run;
+    } finally {
+      // Drop the slot when this append is the last one queued, otherwise the
+      // map would grow one entry per tenant forever.
+      if (this.tenantLocks.get(key) === tail) {
+        this.tenantLocks.delete(key);
+      }
+    }
+  }
+
+  /**
+   * Chains one audit entry: reads the tenant's chain head, computes
+   * `previousHash` + `chainHash`, and advances the cached head — all under the
+   * per-tenant lock. O(1) on the hot path (one SHA-256, no DB round-trip once
+   * the tenant head is cached).
+   */
+  async append(entry: ChainedAuditEntry): Promise<ChainedAuditEntry> {
+    const tenantId = (entry.tenantId as string | null | undefined) ?? null;
+    const cacheKey = AuditChainService.cacheKey(tenantId);
+    return this.withTenantLock(tenantId, async () => {
+      // Steady state: the head is cached, so no DB round-trip and no extra
+      // async hop on the hot path (the async read happens once per tenant).
+      const previousHash = this.lastHashCache.get(cacheKey) ?? (await this.getLastHash(tenantId));
+      const chainHash = computeChainHash(entry, previousHash);
+      this.lastHashCache.set(cacheKey, chainHash);
+      return { ...entry, chainScope: chainHashScope(tenantId), previousHash, chainHash };
+    });
+  }
+
+  /**
+   * Reads the tenant's stored chain head, bypassing the in-memory cache.
+   *
+   * Used by the flush retry to decide whether a failed insert lost a race; the cache
+   * is exactly the stale value that caused it, so it must not be consulted.
+   */
+  async currentHead(tenantId?: string | null): Promise<string> {
+    this.lastHashCache.delete(AuditChainService.cacheKey(tenantId));
+    return this.getLastHash(tenantId);
+  }
+
+  /**
+   * Re-chains a batch onto the tenant's CURRENT head after the fork guard rejected it.
+   *
+   * Called when the unique `(chainScope, previousHash)` index refuses an insert because
+   * another process appended first. The cached head is exactly what lost the race, so it
+   * is dropped and re-read; every entry is then re-hashed in batch order, so the batch
+   * lands as a continuation of the chain that won instead of forking it.
+   *
+   * The timestamp is re-stamped to the commit time. `verifyChain` walks by
+   * `(timestamp, _id)`, so an entry that was buffered before the winner would otherwise
+   * sort *behind* the entry it now points at — the hash links and the walk order would
+   * disagree and the chain would read as broken. Re-stamping keeps one order: the chain
+   * records when an entry was committed, which is the time it is anchored at.
+   */
+  async rechain(entries: ChainedAuditEntry[]): Promise<ChainedAuditEntry[]> {
+    const heads = new Map<string, string>();
+    const out: ChainedAuditEntry[] = [];
+    for (const entry of entries) {
+      const tenantId = (entry.tenantId as string | null | undefined) ?? null;
+      const cacheKey = AuditChainService.cacheKey(tenantId);
+      let head = heads.get(cacheKey);
+      if (head === undefined) {
+        this.lastHashCache.delete(cacheKey);
+        this.countCache.delete(cacheKey);
+        head = await this.getLastHash(tenantId);
+      }
+      // Re-stamp FIRST, then hash — the hash covers the timestamp it is stored with.
+      const restamped: ChainedAuditEntry = {
+        ...entry,
+        timestamp: nowISODateString(),
+        chainScope: chainHashScope(tenantId),
+        previousHash: head,
+      };
+      const chainHash = computeChainHash(restamped, head);
+      const rehashed: ChainedAuditEntry = { ...restamped, chainHash };
+      this.lastHashCache.set(cacheKey, chainHash);
+      heads.set(cacheKey, chainHash);
+      out.push(rehashed);
+    }
+    return out;
   }
 
   /**
    * Creates a new audit log entry with cryptographic chain hashes.
-   * Automatically computes previousHash (SHA-256 of last entry) and
-   * chainHash (SHA-256 of current entry data concatenated with previousHash).
+   * Kept for API compatibility: identical to `append()`.
    */
   async createLog(entry: ChainedAuditEntry): Promise<ChainedAuditEntry> {
-    const previousHash = await this.getLastHash(entry.tenantId as string | undefined);
-
-    // Build the content to hash: serialize entry fields deterministically
-    const entryData = JSON.stringify({
-      action: entry.action,
-      actorEmail: entry.actorEmail,
-      actorId: entry.actorId,
-      actorRole: entry.actorRole,
-      eventType: entry.eventType ?? entry.action,
-      timestamp: entry.timestamp,
-      details: entry.details ?? {},
-      tenantId: entry.tenantId,
-    });
-
-    const chainHash = await sha256(entryData + previousHash);
-
-    const chainedEntry: ChainedAuditEntry = {
-      ...entry,
-      previousHash,
-      chainHash,
-    };
-
-    // Update in-memory cache (tenant-scoped)
-    this.lastHashCache.set(AuditChainService.cacheKey(entry.tenantId), chainHash);
-
-    return chainedEntry;
+    return this.append(entry);
   }
 
   /**
    * Retrieves the hash of the most recent audit log entry, or GENESIS_HASH if none exists.
    * Uses in-memory caching to avoid DB lookups on every write.
    */
-  private async getLastHash(tenantId?: string): Promise<string> {
+  private async getLastHash(tenantId?: string | null): Promise<string> {
     const cacheKey = AuditChainService.cacheKey(tenantId);
     // Return cached value if available and tenant matches
     const cached = this.lastHashCache.get(cacheKey);
@@ -124,13 +393,26 @@ export class AuditChainService {
       }
 
       const result = await dbAdapterInstance.crud.findMany(this.collectionName, filter as any, {
+        // One row is enough for both scopes. `tenantId: null` is the explicit
+        // *global* scope (`tenantId IS NULL`, see `getTenantCondition` in
+        // `relational-utils` and the documented explicit global scope in
+        // safe-query) — it is not "unfiltered" — so the head read cannot land on
+        // a tenant's row and no defensive window scan is needed.
         limit: 1,
-        sort: { timestamp: "desc" } as any,
+        // `_id` breaks timestamp ties: `nowISODateString()` is cached per
+        // millisecond, so a write burst shares one timestamp and a timestamp-only
+        // ORDER BY may hand back an earlier entry of that millisecond as the head.
+        // `_id` is UUIDv7 (write order), so the tiebreak is chronological.
+        sort: { timestamp: "desc", _id: "desc" } as any,
         tenantId: tenantId as any,
       });
 
-      if (result.success && result.data && result.data.length > 0) {
-        const lastEntry = result.data[0] as unknown as ChainedAuditEntry;
+      const rows = (result.success && result.data
+        ? result.data
+        : []) as unknown as ChainedAuditEntry[];
+      const lastEntry = rows[0];
+
+      if (lastEntry) {
         const hash = lastEntry.chainHash ?? lastEntry.previousHash ?? GENESIS_HASH;
         this.lastHashCache.set(cacheKey, hash);
         return hash;
@@ -143,9 +425,76 @@ export class AuditChainService {
   }
 
   /**
+   * Reads the tenant's chain checkpoint, or `null` when none was recorded.
+   * A checkpoint that cannot be parsed is treated as absent: verification must not
+   * fail because of a malformed side row, and the absence itself is reported.
+   */
+  async readCheckpoint(tenantId?: string | null): Promise<AuditChainCheckpoint | null> {
+    try {
+      const preferences = (dbAdapterInstance as any)?.system?.preferences;
+      if (!preferences) return null;
+      const result = await preferences.get(AUDIT_CHECKPOINT_KEY, {
+        tenantId: (tenantId ?? null) as any,
+      });
+      if (!result?.success || !result.data) return null;
+      const raw = result.data as unknown;
+      const parsed =
+        typeof raw === "string"
+          ? (JSON.parse(raw) as AuditChainCheckpoint)
+          : (raw as AuditChainCheckpoint);
+      return typeof parsed?.entryCount === "number" && typeof parsed?.headHash === "string"
+        ? parsed
+        : null;
+    } catch (err) {
+      logger.debug("[AuditChain] Could not read chain checkpoint", err);
+      return null;
+    }
+  }
+
+  /**
+   * Advances the tenant's checkpoint after a flush committed `appended` entries.
+   *
+   * Called once per flush, never per entry — the write path stays off the hot path.
+   * A failure is under-counting (the count is only raised after a successful write),
+   * which is the safe direction: verification treats more entries than recorded as a
+   * normal append, so a missed checkpoint can never produce a false truncation alarm.
+   */
+  async commitCheckpoint(
+    tenantId: string | null | undefined,
+    headHash: string,
+    appended: number,
+  ): Promise<void> {
+    if (!appended || !headHash) return;
+    const cacheKey = AuditChainService.cacheKey(tenantId);
+    const previous =
+      this.countCache.get(cacheKey) ?? (await this.readCheckpoint(tenantId))?.entryCount ?? 0;
+    const entryCount = previous + appended;
+    const preferences = (dbAdapterInstance as any)?.system?.preferences;
+    if (!preferences) return;
+
+    const result = await preferences.set(
+      AUDIT_CHECKPOINT_KEY,
+      { headHash, entryCount, updatedAt: nowISODateString() } satisfies AuditChainCheckpoint,
+      { tenantId: (tenantId as string | null) ?? null, category: "audit" },
+    );
+    if (!result?.success) {
+      logger.warn(
+        `[AuditChain] Chain checkpoint not written (${entryCount} entries): ${result?.message ?? "unknown"}`,
+      );
+      return;
+    }
+    this.countCache.set(cacheKey, entryCount);
+  }
+
+  /**
    * Verifies the entire audit chain for integrity.
    * Walks all entries sorted by timestamp, recomputing chainHash for each
-   * and comparing against the stored value. Detects any tampering.
+   * with the same canonical payload the writer used, and comparing against the
+   * stored value. Detects any tampering.
+   *
+   * Rows written before the chain existed (no chainHash/previousHash at all)
+   * are skipped only as a prefix: once the chain has started, a row without a
+   * chain hash is an integrity failure, not "legacy data".
    *
    * @param tenantId - Optional tenant scope for verification
    * @returns ChainVerificationResult with validity status and details
@@ -153,6 +502,10 @@ export class AuditChainService {
   async verifyChain(tenantId?: string): Promise<ChainVerificationResult> {
     const tamperedEntries: number[] = [];
     const details: string[] = [];
+    let unchainedPrefix = 0;
+    let legacySecondPrecisionEntries = 0;
+    /** Stored hashes of the chained entries, so the checkpoint head can be located. */
+    const storedHashes = new Set<string>();
 
     try {
       if (!dbAdapterInstance) {
@@ -171,8 +524,13 @@ export class AuditChainService {
         filter.tenantId = tenantId;
       }
 
+      // Walk in write order. `timestamp` alone is not enough: `nowISODateString()`
+      // is cached per millisecond, so a burst of entries carries the same timestamp
+      // and the tie order is adapter-defined — the walk would then differ from the
+      // write order and report a fork that never happened. `_id` (UUIDv7) is the
+      // chronological tiebreak.
       const result = await dbAdapterInstance.crud.findMany(this.collectionName, filter as any, {
-        sort: { timestamp: "asc" } as any,
+        sort: { timestamp: "asc", _id: "asc" } as any,
         limit: 10000, // Large batch for chain verification
         tenantId: tenantId as any,
       });
@@ -197,11 +555,29 @@ export class AuditChainService {
         };
       }
 
-      const entries = result.data as unknown as ChainedAuditEntry[];
+      const entries = (result.data as unknown as ChainedAuditEntry[]).filter(
+        // Chains are per tenant. An untenanted verification must not walk
+        // tenanted rows: the tenant boundary would read as a chain break.
+        (entry) => (entry.tenantId ?? null) === (tenantId ?? null),
+      ) as ChainedAuditEntry[];
       let expectedPreviousHash = GENESIS_HASH;
+      let sawChained = false;
 
       for (let i = 0; i < entries.length; i++) {
         const entry = entries[i];
+        const storedChainHash =
+          typeof entry.chainHash === "string" && entry.chainHash.length > 0
+            ? entry.chainHash
+            : typeof entry.hash === "string" && entry.hash.length > 0
+              ? entry.hash
+              : null;
+
+        // Pre-chain rows: only tolerable before the chain has started.
+        if (!sawChained && storedChainHash === null && !entry.previousHash) {
+          unchainedPrefix++;
+          continue;
+        }
+        sawChained = true;
 
         // Check that stored previousHash matches expected
         if (entry.previousHash !== expectedPreviousHash) {
@@ -213,21 +589,26 @@ export class AuditChainService {
           );
         }
 
-        // Recompute chainHash and compare
-        const entryData = JSON.stringify({
-          action: entry.action,
-          actorEmail: entry.actorEmail,
-          actorId: entry.actorId,
-          actorRole: entry.actorRole,
-          eventType: (entry as any).eventType ?? entry.action,
-          timestamp: entry.timestamp,
-          details: entry.details ?? {},
-          tenantId: entry.tenantId,
-        });
+        // Recompute chainHash with the shared canonical payload
+        let computedChainHash = computeChainHash(entry, entry.previousHash ?? GENESIS_HASH);
+        let legacySecondPrecision = false;
 
-        const computedChainHash = await sha256(entryData + (entry.previousHash ?? GENESIS_HASH));
+        if (storedChainHash !== computedChainHash) {
+          // Pre-fix MariaDB rows: the column was DATETIME(0), so the stored value
+          // lost the milliseconds the writer hashed and no row could ever verify.
+          // Accept a second-precision match for exactly those rows and report the
+          // count; new rows hash the stored value exactly, so this path stays cold.
+          const secondPrecision = toSecondPrecision(entry.timestamp);
+          if (secondPrecision !== null) {
+            computedChainHash = computeChainHash(
+              { ...entry, timestamp: secondPrecision },
+              entry.previousHash ?? GENESIS_HASH,
+            );
+            legacySecondPrecision = storedChainHash === computedChainHash;
+          }
+        }
 
-        if (entry.chainHash !== computedChainHash) {
+        if (storedChainHash !== computedChainHash) {
           if (!tamperedEntries.includes(i)) {
             tamperedEntries.push(i);
           }
@@ -236,20 +617,60 @@ export class AuditChainService {
               entry.timestamp ?? "unknown time"
             }): chainHash mismatch. Entry may have been modified.`,
           );
+        } else if (legacySecondPrecision) {
+          legacySecondPrecisionEntries++;
         }
 
         // Set expected previous hash for next iteration
-        expectedPreviousHash = entry.chainHash ?? entry.previousHash ?? GENESIS_HASH;
+        expectedPreviousHash = storedChainHash ?? entry.previousHash ?? GENESIS_HASH;
+        if (storedChainHash) storedHashes.add(storedChainHash);
       }
 
-      const valid = tamperedEntries.length === 0;
-      const brokenAt = tamperedEntries.length > 0 ? tamperedEntries[0] : null;
+      // 🔒 Tail-truncation check. Re-hashing proves nothing about rows deleted from
+      // the END of the chain: whatever prefix remains still verifies. The checkpoint
+      // (head hash + count, written once per flush) is what makes a shortened tail
+      // visible — and the signal is the HEAD HASH, not the count:
+      //   - the count is maintained per writer, so several processes under-count it
+      //     and a derived "found < expected" verdict produced false alarms;
+      //   - absence of the checkpoint head cannot be forged by an append, only by
+      //     removing the rows that carried it.
+      // The count is still reported, for an auditor reading the result.
+      //
+      // Residual gap (documented, not silently assumed): an actor who deletes the tail
+      // AND the checkpoint row leaves a shorter chain that still verifies. A checkpoint
+      // protected from that actor needs a store outside the CMS database.
+      const checkpoint = await this.readCheckpoint(tenantId);
+      const chainedEntries = entries.length - unchainedPrefix;
+      const truncated = checkpoint ? !storedHashes.has(checkpoint.headHash) : false;
+      const checkpointOk = !truncated;
+      let checkpointReport: ChainVerificationResult["checkpoint"] = null;
+      if (checkpoint) {
+        if (truncated) {
+          details.push(
+            `Tail truncated: the checkpoint head ${checkpoint.headHash.slice(0, 16)}... is no longer in the chain (${chainedEntries} entries found, ${checkpoint.entryCount} recorded when it was taken)`,
+          );
+        }
+        checkpointReport = {
+          expectedEntries: checkpoint.entryCount,
+          foundEntries: chainedEntries,
+          expectedHead: checkpoint.headHash,
+          foundHead: expectedPreviousHash,
+          matched: checkpointOk,
+        };
+      }
+
+      const valid = tamperedEntries.length === 0 && checkpointOk;
+      const brokenAt =
+        tamperedEntries.length > 0 ? tamperedEntries[0] : checkpointOk ? null : chainedEntries;
 
       return {
         valid,
         brokenAt: brokenAt !== null ? brokenAt + 1 : null, // 1-based for display
         totalEntries: entries.length,
         tamperedEntries: tamperedEntries.length,
+        unchainedPrefix,
+        checkpoint: checkpointReport,
+        legacySecondPrecisionEntries,
         details: details.length > 0 ? details : undefined,
       };
     } catch (err) {
@@ -287,18 +708,7 @@ export class AuditChainService {
 
     let level: string[] = [];
     for (const entry of entries) {
-      const entryData = JSON.stringify({
-        action: entry.action,
-        actorEmail: entry.actorEmail,
-        actorId: entry.actorId,
-        actorRole: entry.actorRole,
-        eventType: (entry as any).eventType ?? entry.action,
-        timestamp: entry.timestamp,
-        details: entry.details ?? {},
-        tenantId: entry.tenantId,
-      });
-      const leafHash = await sha256(entryData + (entry.previousHash ?? GENESIS_HASH));
-      level.push(leafHash);
+      level.push(computeChainHash(entry, entry.previousHash ?? GENESIS_HASH));
     }
 
     while (level.length > 1) {
@@ -306,8 +716,11 @@ export class AuditChainService {
       for (let i = 0; i < level.length; i += 2) {
         const left = level[i];
         const right = i + 1 < level.length ? level[i + 1] : left;
-        const combined = await sha256(left + right);
-        nextLevel.push(combined);
+        nextLevel.push(
+          createHash("sha256")
+            .update(left + right)
+            .digest("hex"),
+        );
       }
       level = nextLevel;
     }
@@ -329,18 +742,7 @@ export class AuditChainService {
     const proof: { position: "left" | "right"; hash: string }[] = [];
     let level: string[] = [];
     for (const entry of entries) {
-      const entryData = JSON.stringify({
-        action: entry.action,
-        actorEmail: entry.actorEmail,
-        actorId: entry.actorId,
-        actorRole: entry.actorRole,
-        eventType: (entry as any).eventType ?? entry.action,
-        timestamp: entry.timestamp,
-        details: entry.details ?? {},
-        tenantId: entry.tenantId,
-      });
-      const leafHash = await sha256(entryData + (entry.previousHash ?? GENESIS_HASH));
-      level.push(leafHash);
+      level.push(computeChainHash(entry, entry.previousHash ?? GENESIS_HASH));
     }
 
     let index = targetIndex;
@@ -360,8 +762,11 @@ export class AuditChainService {
       for (let i = 0; i < level.length; i += 2) {
         const left = level[i];
         const right = i + 1 < level.length ? level[i + 1] : left;
-        const combined = await sha256(left + right);
-        nextLevel.push(combined);
+        nextLevel.push(
+          createHash("sha256")
+            .update(left + right)
+            .digest("hex"),
+        );
       }
 
       level = nextLevel;

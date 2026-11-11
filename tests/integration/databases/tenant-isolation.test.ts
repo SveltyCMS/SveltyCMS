@@ -75,13 +75,43 @@ async function testing(action: string, body: Record<string, unknown>, tenant: st
   return { res, json };
 }
 
-function extractTitles(body: any): string[] {
+function extractRows(body: any): any[] {
   const items = body?.data?.items || body?.data || body?.items || body || [];
-  const arr = Array.isArray(items) ? items : [];
-  return arr.map((i: any) => i?.title).filter(Boolean);
+  return Array.isArray(items) ? items : [];
 }
 
-describe("Tenant isolation (A vs B) — authenticated HTTP", () => {
+function extractTitles(body: any): string[] {
+  return extractRows(body)
+    .map((i: any) => i?.title)
+    .filter(Boolean);
+}
+
+/**
+ * Explicit DB gate for the whole suite.
+ *
+ * A live server with no database connection cannot exercise isolation at all, so
+ * the suite skips (visibly) instead of failing inside the seed step or, worse,
+ * "passing" on an empty fixture. `/api/system/health` answers 533 when the DB is
+ * down and 200 + `database:true` when it is usable.
+ *
+ * The probe MUST resolve before the suite is registered:
+ * `tests/integration/**` runs under `bun test` (not Vitest), and Bun reads a second
+ * callback parameter as a Node-style *done* callback — `it(..., async (ctx) =>
+ * ctx.skip())` therefore waits for a callback that never fires and burns the full
+ * 300 s timeout instead of skipping. `describe.skipIf` is Bun-native and reports
+ * `(skip)` in the run summary, so the condition is evaluated once here.
+ */
+const dbReady = await fetch(`${API}/api/system/health`, { signal: AbortSignal.timeout(5_000) })
+  .then(async (res) => {
+    const body: any = await res.json().catch(() => ({}));
+    return res.status === 200 && body?.database !== false;
+  })
+  .catch(() => false);
+if (!dbReady) {
+  console.warn(`[tenant-isolation] skipped: database not connected (${API}/api/system/health)`);
+}
+
+describe.skipIf(!dbReady)("Tenant isolation (A vs B) — authenticated HTTP", () => {
   let adminCookie = "";
 
   beforeAll(async () => {
@@ -153,11 +183,29 @@ describe("Tenant isolation (A vs B) — authenticated HTTP", () => {
         headers: tenantHeaders(TENANT_B, adminCookie),
       },
     );
-    // Auth required path must accept 200 or 401 depending on tenant session binding
-    expect([200, 401]).toContain(listB.status);
+    // Cross-tenant read: the session was opened for tenant A and now asks for
+    // tenant B. Exactly two outcomes are legitimate and BOTH are asserted:
+    //   - rejected (401/403) → fail-closed, and the body carries no A data;
+    //   - 200 → served strictly inside tenant B, so A's marker is absent and no
+    //     returned row is owned by A. Nothing is seeded for B, so B's slice must
+    //     be empty.
+    // The previous `expect([200, 401])` + assert-only-when-200 shape accepted any
+    // leaking 200 body, i.e. it could never fail on a real cross-tenant leak.
+    const bodyB = await listB.json().catch(() => ({}));
     if (listB.status === 200) {
-      const bodyB = await listB.json().catch(() => ({}));
-      expect(extractTitles(bodyB)).not.toContain(marker);
+      const rowsB = extractRows(bodyB);
+      expect(extractTitles(bodyB), "tenant B list leaked tenant A's marker").not.toContain(marker);
+      for (const row of rowsB) {
+        if (row && typeof row === "object" && "tenantId" in row) {
+          expect(row.tenantId, "tenant B list returned a row owned by A").not.toBe(TENANT_A);
+        }
+      }
+      expect(rowsB.length, "tenant B has no fixtures, so its slice must be empty").toBe(0);
+    } else {
+      expect([401, 403], `cross-tenant list must be rejected, got ${listB.status}`).toContain(
+        listB.status,
+      );
+      expect(extractTitles(bodyB), "rejection body leaked tenant A's marker").not.toContain(marker);
     }
 
     const listA = await fetch(
@@ -181,7 +229,10 @@ describe("Tenant isolation (A vs B) — authenticated HTTP", () => {
       headers: tenantHeaders(TENANT_B, adminCookie),
     });
     expect(resA.status).toBe(200);
-    expect([200, 401]).toContain(resB.status);
+    // Replaying an A-bound session against tenant B is either answered inside B or
+    // rejected fail-closed. Anything else (5xx, redirect, NAMESPACE_FORBIDDEN) is
+    // no longer tolerated silently.
+    expect([200, 401, 403], `cross-tenant /api/user got ${resB.status}`).toContain(resB.status);
     // Sanity: fixtures still valid
     expect(testFixtures.adminUser.email).toContain("@");
   });

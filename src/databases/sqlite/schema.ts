@@ -612,6 +612,7 @@ export const auditLogs = sqliteTable(
     tenantId: tenantField(),
     previousHash: text("previousHash"),
     chainHash: text("chainHash"),
+    chainScope: text("chainScope"),
     ...timestamps,
   },
   (table) => ({

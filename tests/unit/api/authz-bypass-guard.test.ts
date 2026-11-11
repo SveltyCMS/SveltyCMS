@@ -335,6 +335,17 @@ const PUBLIC_ROUTE_CONTRACT: readonly PublicRouteExpectation[] = [
     kind: "exact",
     reason: "SAML assertion consumer service (signature verified)",
   },
+  {
+    path: "/api/auth/saml/slo",
+    kind: "exact",
+    reason:
+      "SAML single logout (IdP-driven; the message signature is verified before a session dies)",
+  },
+  {
+    path: "/api/auth/saml/logout",
+    kind: "exact",
+    reason: "SAML SP-initiated logout (falls back to the ordinary local logout)",
+  },
   { path: "/api/preview", kind: "exact", reason: "draft preview token flow" },
   { path: "/api/media/share", kind: "exact", reason: "public share-link media read" },
   {

@@ -6,13 +6,15 @@ order: 98
 icon: "mdi:server-plus"
 author: "SveltyCMS Team"
 created: "2026-08-25"
-updated: "2026-08-25"
+updated: "2026-11-10"
 tags:
   - "database"
   - "write-path"
   - "cold-start"
   - "prewarm"
   - "verification"
+  - "durability"
+  - "latency"
 ---
 
 # Write Path: Cold vs. Warm
@@ -113,6 +115,33 @@ The prewarm (`src/content/prewarm.ts`) moves all three initialisations to **boot
 **Atomicity:** single-statement `INSERT` / `UPDATE` / `DELETE` are natively atomic — no `BEGIN`/`COMMIT` wrapper is needed on that path (`post-write.ts:357-361`). There is no verified "write-then-detect-failure" compensation loop; the DB statement either fully applies (and `RETURNING` returns the row) or `wrap()` returns `success: false`.
 
 **Net:** SveltyCMS does **not** silently accept a write. The production path returns the persisted row via `RETURNING`, and any DB-level failure is propagated as `success: false`. The only read-back reconstruction is a seed-only optimization, explicitly out of the production path.
+
+---
+
+## 4. Where write latency actually goes (measured)
+
+> [!NOTE]
+> **Self-measured, 2026-11-10.** Harness: 10-op mixed cycle (4× random `findById`, 2× GraphQL, 1× `listFilterSort`, 1× `listLarge`, 1× `create`, 1× `update`), 8 concurrent workers, 100k seeded rows in `collection_Articles`, PostgreSQL 18.6 in Docker on Windows, 24-core host, 13 indexes. Per-phase values are the product's own `x-srv-split` marks (`SVELTY_SRV_SPLIT=1`); the driver floor was measured separately with `postgres.js` against the same table. Median of each op; not a headline benchmark.
+
+The write path's cost is **one durable SQL statement**, not the invalidation around it:
+
+| Op               | Share of cycle | Server p50 | What it is                                  |
+| :--------------- | :------------- | :--------- | :------------------------------------------ |
+| `findByIdRandom` | 40 %           | 0.01 ms    | turbo cache hit (74 %)                      |
+| `graphql`        | 20 %           | 0.56 ms    | cached body (53 % hit)                      |
+| `listFilterSort` | 10 %           | 0.97 ms    | `db` 0.86 ms (rebuild after a write)        |
+| `listLarge`      | 10 %           | 2.11 ms    | `db` 1.76 ms + `cachewrite` 0.22 ms         |
+| `create`         | 10 %           | 3.39 ms    | **`dbwrite` 3.28 ms · `postwrite` 0.01 ms** |
+| `update`         | 10 %           | 3.20 ms    | **`dbwrite` 3.11 ms · `postwrite` 0.01 ms** |
+
+Three conclusions, each measured rather than inferred:
+
+1. **The invalidation path is off the critical path already.** `postwrite` (L1 evict, epoch bump, tag clear, turbo eviction, outbox scheduling) is **0.01 ms**; a warm list is **0.02 ms**. In this cycle the two writes carry ~60 % of the server time — all of it the statement, none of it cache work.
+2. **A post-write list rebuild costs 0.5–0.8 ms, not tens of milliseconds.** Measured after a write: **0.795 ms p50** server (`db` 0.525 ms), 4.97 ms p95 on the first reader; with eight clients racing the same list, the first rebuilds and the other seven hit it (42 turbo hits / 6 misses). The covering index on the default list order is what keeps the rebuild at index-scan cost.
+3. **The remaining write cost is commit durability (`fsync`).** A bare driver single-row `UPDATE` on the same table with `synchronous_commit=on` costs **1.63 ms p50 at one writer, 2.44 ms at eight**; with `synchronous_commit=off` the same statement is **0.54 ms** (≈4.5× throughput). That durability wait — not adapter code, not invalidation — is the floor the write path sits on, and the reason a write-heavy profile is dominated by `dbwrite`.
+
+> [!IMPORTANT]
+> **Do not tune the invalidation path to chase write latency.** The measured headroom there is 0.01 ms. If a deployment is write-bound, the lever is durability, and SveltyCMS already exposes it: `PG_SYNCHRONOUS_COMMIT` (default `on`; accepts `off` or `local`). Set it only for import/seed/dev sessions — `off` trades a crash window of up to 3× `wal_writer_delay` (≈600 ms at the 200 ms default) for the ~4.5× write gain, and it is never an appropriate production default. Full knob table and trade-off: [Performance Architecture → PostgreSQL tuning](./performance-architecture.mdx).
 
 ---
 

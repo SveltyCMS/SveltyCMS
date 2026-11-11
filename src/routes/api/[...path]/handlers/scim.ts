@@ -23,6 +23,8 @@ import {
   buildScimGroup,
   buildScimListResponse,
   applyScimPatchOps,
+  parseScimActive,
+  ScimValueError,
   parseScimFilter,
   matchesScimFilter,
 } from "@src/utils/scim-utils";
@@ -159,6 +161,17 @@ async function handleScimUsers(
     const existing = await dbAuth.checkUser({ email: body.userName, tenantId });
     if (existing) return scimError(409, "User already exists");
 
+    // A create with active:false provisions an already-deactivated account.
+    let createActive = true;
+    if ("active" in body) {
+      try {
+        createActive = parseScimActive(body.active);
+      } catch (err) {
+        if (err instanceof ScimValueError) return scimError(400, err.message);
+        throw err;
+      }
+    }
+
     const newUser = await dbAuth.createUser({
       email: body.userName,
       username: body.displayName || body.name?.givenName || body.userName.split("@")[0],
@@ -166,6 +179,15 @@ async function handleScimUsers(
       role: "user", // SCIM provisions regular users; RBAC grants roles separately
       tenantId,
     });
+    if (!createActive) {
+      await dbAuth.updateUser(
+        newUser._id as DatabaseId,
+        { isActive: false, blocked: true },
+        { tenantId },
+      );
+      const deactivated = await dbAuth.getUserById(newUser._id as DatabaseId, { tenantId });
+      return json(buildScimUser(deactivated ?? newUser, baseUrl), { status: 201 });
+    }
     return json(buildScimUser(newUser, baseUrl), { status: 201 });
   }
 
@@ -177,7 +199,13 @@ async function handleScimUsers(
     if (!user) return scimError(404, "User not found");
 
     const body = await request.json();
-    const updates = applyScimPatchOps(user, body.Operations);
+    let updates: Record<string, unknown>;
+    try {
+      updates = applyScimPatchOps(user, body.Operations);
+    } catch (err) {
+      if (err instanceof ScimValueError) return scimError(400, err.message);
+      throw err;
+    }
     await dbAuth.updateUser(resourceId as DatabaseId, updates, { tenantId });
     const updated = await dbAuth.getUserById(resourceId as DatabaseId, {
       tenantId,
@@ -188,14 +216,27 @@ async function handleScimUsers(
   // PUT /Users/{id} — full replace
   if (request.method === "PUT" && resourceId) {
     const body = await request.json();
-    await dbAuth.updateUser(
-      resourceId as DatabaseId,
-      {
-        username: body.displayName || body.name?.givenName,
-        lastName: body.name?.familyName,
-      },
-      { tenantId },
-    );
+
+    const updates: Record<string, unknown> = {
+      username: body.displayName || body.name?.givenName,
+      lastName: body.name?.familyName,
+    };
+
+    // RFC 7644 §3.3: `active` is the deprovisioning switch of a full replace. It was
+    // ignored here, so an IdP PUT with active:false left the account fully usable.
+    // Wrong types are rejected rather than coerced (see parseScimActive).
+    if ("active" in body) {
+      try {
+        const active = parseScimActive(body.active);
+        updates.isActive = active;
+        updates.blocked = !active;
+      } catch (err) {
+        if (err instanceof ScimValueError) return scimError(400, err.message);
+        throw err;
+      }
+    }
+
+    await dbAuth.updateUser(resourceId as DatabaseId, updates, { tenantId });
     const updated = await dbAuth.getUserById(resourceId as DatabaseId, {
       tenantId,
     });

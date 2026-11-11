@@ -147,6 +147,16 @@ export interface SsoSessionMetadata {
   postLogoutRedirectUri?: string;
   /** When the SSO session was created */
   createdAt: string;
+  /**
+   * SAML `NameID` of the assertion that created this session.
+   *
+   * An IdP-initiated `LogoutRequest` carries only a `NameID` (and optionally a
+   * `SessionIndex`) — never our session cookie — so this is the only link back
+   * to the CMS session that has to be destroyed.
+   */
+  samlNameId?: string;
+  /** SAML `AuthnStatement/@SessionIndex` recorded at login. */
+  samlSessionIndex?: string;
   /** State parameter for CSRF protection during logout redirect */
   logoutState?: string;
 }
@@ -165,6 +175,9 @@ const ssoProviders = new Map<string, SsoProviderConfig>();
 function providerKey(id: string, tenantId?: string | null): string {
   return `${tenantId ?? "global"}:${id}`;
 }
+
+/** Provider id under which SAML sessions are recorded. */
+export const SAML_SSO_PROVIDER_ID = "saml";
 
 /** Session → SSO metadata mapping (in-memory, keyed by sessionId). */
 const ssoSessionMetadata = new Map<string, SsoSessionMetadata>();
@@ -306,6 +319,40 @@ export async function saveSsoProviders(
 }
 
 /**
+ * Destroys the CMS session behind an SSO logout, then drops its SSO metadata.
+ *
+ * Deleting the metadata alone (the previous behaviour at all three logout paths) left
+ * the session row valid, so an IdP-driven logout terminated nothing: the user stayed
+ * signed in until the session expired. The adapter call is used — not a process-local
+ * set — so a second node sees the deletion too, and the in-process session cache is
+ * invalidated so the same node stops serving the cached entry as well.
+ */
+export async function terminateSessionAndMetadata(
+  sessionId: string,
+  tenantId?: string | null,
+): Promise<void> {
+  deleteSsoSessionMetadata(sessionId, tenantId);
+  try {
+    const { getDb } = await import("@src/databases/db");
+    const db = getDb();
+    if (db?.auth?.deleteSession) {
+      // BaseQueryOptions.tenantId is a branded id type; the value comes from session
+      // metadata, which is a plain string there.
+      await db.auth.deleteSession(
+        sessionId as DatabaseId,
+        tenantId ? ({ tenantId } as never) : undefined,
+      );
+    }
+    const { invalidateSessionCache } = await import("@src/hooks/handle-authentication");
+    invalidateSessionCache(sessionId, (tenantId ?? null) as DatabaseId | null);
+  } catch (err) {
+    logger.warn(
+      `[SSO] Session ${sessionId.slice(0, 8)}... could not be destroyed: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+}
+
+/**
  * Clear in-memory registered providers.
  * With a tenant id only that tenant is cleared; without, the whole registry
  * (useful in tests).
@@ -366,6 +413,31 @@ export async function getSsoSessionMetadata(
     logger.debug("[SSO] Distributed session metadata unavailable", err);
   }
   return undefined;
+}
+
+/**
+ * Finds the SSO sessions created by a SAML assertion.
+ *
+ * IdP-initiated `LogoutRequest` messages identify the session by `NameID` and,
+ * optionally, `SessionIndex`. A request without a `SessionIndex` — or a session
+ * recorded without one — matches on `NameID` alone: refusing to match would
+ * leave the session alive, which is the failure this lookup exists to prevent.
+ */
+export function findSamlSessions(
+  nameId: string,
+  sessionIndex?: string,
+): Array<{ sessionId: string; tenantId?: string }> {
+  if (!nameId) return [];
+  const matches: Array<{ sessionId: string; tenantId?: string }> = [];
+  for (const [sessionId, metadata] of ssoSessionMetadata) {
+    if (metadata.provider !== SAML_SSO_PROVIDER_ID) continue;
+    if (metadata.samlNameId !== nameId) continue;
+    if (sessionIndex && metadata.samlSessionIndex && metadata.samlSessionIndex !== sessionIndex) {
+      continue;
+    }
+    matches.push({ sessionId, tenantId: metadata.tenantId });
+  }
+  return matches;
 }
 
 export function deleteSsoSessionMetadata(sessionId: string, tenantId?: string | null): void {
@@ -486,8 +558,8 @@ export async function performRpInitiatedLogout(
     };
   }
 
-  // 3. Clean up local SSO metadata
-  deleteSsoSessionMetadata(sessionId, metadata.tenantId ?? _tenantId);
+  // 3. Destroy the CMS session and its SSO metadata (metadata alone left it valid)
+  await terminateSessionAndMetadata(sessionId, metadata.tenantId ?? _tenantId);
 
   // 4. Resolve end_session_endpoint (manual config or auto-discovery)
   let endSessionEndpoint = provider?.endSessionEndpoint;
@@ -976,7 +1048,7 @@ export async function handleFrontChannelLogout(
     if (!metadata.provider) continue;
     const provider = getSsoProvider(metadata.provider, metadata.tenantId ?? tenantId);
     if (provider?.issuer === issuer) {
-      deleteSsoSessionMetadata(sessionId, metadata.tenantId ?? tenantId);
+      await terminateSessionAndMetadata(sessionId, metadata.tenantId ?? tenantId);
     }
   }
 
@@ -1119,7 +1191,7 @@ export async function handleBackChannelLogout(
         // A tenant-scoped session must resolve its own provider — fail closed.
         continue;
       }
-      deleteSsoSessionMetadata(sessionId, metadata.tenantId ?? tenantId);
+      await terminateSessionAndMetadata(sessionId, metadata.tenantId ?? tenantId);
       invalidated++;
     }
 

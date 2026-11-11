@@ -230,6 +230,8 @@ export function buildIntegrationServerEnv(
 ): Record<string, string> {
   const { port, apiBaseUrl, dbType, dbName, secrets } = ctx;
   const creds = getDockerDefaultDbCredentials(dbType);
+  /** Documented app ceiling; the transport ceiling below is derived from it. */
+  const apiMaxBodySizeMb = process.env.API_MAX_BODY_SIZE_MB || "15";
   return {
     ...process.env,
     PORT: port,
@@ -255,7 +257,16 @@ export function buildIntegrationServerEnv(
     // `tests/integration/api/user-extended.test.ts` asserts the 413 on a
     // declared oversize body, so the harness pins the documented 15 MB contract
     // instead of leaving the acceptance boundary machine-dependent.
-    API_MAX_BODY_SIZE_MB: process.env.API_MAX_BODY_SIZE_MB || "15",
+    API_MAX_BODY_SIZE_MB: apiMaxBodySizeMb,
+    // Second half of the same contract: the harness spawns `build/index.js`
+    // directly, so the root entry (`index.cjs`, which derives `BODY_SIZE_LIMIT`
+    // from the hardware profile) never runs and adapter-node's own built-in
+    // default applies instead. Unpinned, a body below the app ceiling (e.g. the
+    // 513 KB avatar fixture) is rejected *at the transport* with a 500 that the
+    // dispatcher never sees — a machine-dependent result for a fixed payload.
+    // Pinned to the dispatcher's value: transport ≥ app, so the app guard (413)
+    // stays the observable boundary.
+    BODY_SIZE_LIMIT: process.env.BODY_SIZE_LIMIT || String(Number(apiMaxBodySizeMb) * 1024 * 1024),
     JWT_SECRET_KEY: secrets.jwt,
     ENCRYPTION_KEY: secrets.encryption,
     TEST_API_SECRET: secrets.testApiSecret,

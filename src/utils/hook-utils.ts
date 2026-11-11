@@ -139,6 +139,11 @@ const PUBLIC_EXACT_ROUTES = new Set([
   "/api/security/csp-report",
   "/api/auth/saml/acs",
   "/api/auth/saml/login",
+  // Single Logout: the IdP drives these, so the CMS session (if any) is not a
+  // precondition. Both terminate nothing until the SAML message's signature
+  // verifies.
+  "/api/auth/saml/slo",
+  "/api/auth/saml/logout",
 ]);
 
 const PUBLIC_PREFIX_ROUTES = [
@@ -256,13 +261,183 @@ export function isApiLike(pathname: string): boolean {
 
 export { isAdmin } from "@src/databases/auth/constants";
 
+type ProxyRule =
+  | { kind: "exact"; value: string }
+  | { kind: "v4"; base: number; mask: number }
+  | { kind: "v6"; base: bigint; prefix: number };
+
+/** Compiled rules per cached allowlist array — the array identity is stable per config stamp. */
+interface CompiledProxyRules {
+  rules: ProxyRule[];
+  /** False when every entry is an exact address — then no IP parsing is needed at all. */
+  hasCidr: boolean;
+}
+const compiledProxyRules = new WeakMap<string[], CompiledProxyRules>();
+
+function parseIpv4(ip: string): number | null {
+  // Allocation-free scan: this runs for every request whose direct peer is checked,
+  // and the split()+regex version alone cost ~100 ns per call in the measurement.
+  let out = 0;
+  let part = 0;
+  let digits = 0;
+  let parts = 0;
+
+  for (let i = 0; i < ip.length; i++) {
+    const c = ip.charCodeAt(i);
+    if (c === 46) {
+      if (digits === 0) return null;
+      out = ((out << 8) | part) >>> 0;
+      part = 0;
+      digits = 0;
+      parts++;
+      continue;
+    }
+    if (c < 48 || c > 57) return null;
+    part = part * 10 + (c - 48);
+    digits++;
+    if (digits > 3 || part > 255) return null;
+  }
+
+  if (digits === 0 || parts !== 3) return null;
+  return ((out << 8) | part) >>> 0;
+}
+
+function parseIpv6(ip: string): bigint | null {
+  const zone = ip.indexOf("%");
+  const clean = zone === -1 ? ip : ip.slice(0, zone);
+  if (!clean.includes(":")) return null;
+
+  const halves = clean.split("::");
+  if (halves.length > 2) return null; // more than one "::" is invalid
+
+  const expand = (part: string): string[] | null => {
+    if (!part) return [];
+    const out: string[] = [];
+    for (const group of part.split(":")) {
+      // An empty group is a stray ":" — only "::" may omit groups.
+      if (group === "") return null;
+      if (!/^[0-9a-fA-F]{1,4}$/.test(group)) return null;
+      out.push(group);
+    }
+    return out;
+  };
+
+  const head = expand(halves[0]);
+  if (!head) return null;
+  const tail = halves.length === 2 ? expand(halves[1]) : [];
+  if (!tail) return null;
+
+  let groups: string[];
+  if (halves.length === 2) {
+    // "::" must stand for at least one zero group: eight explicit groups plus "::"
+    // is not a valid address, and a negative fill count used to throw a RangeError.
+    const omitted = 8 - head.length - tail.length;
+    if (omitted < 1) return null;
+    groups = [...head, ...Array.from({ length: omitted }, () => "0"), ...tail];
+  } else {
+    if (head.length !== 8) return null;
+    groups = head;
+  }
+
+  let out = 0n;
+  for (const g of groups) out = (out << 16n) | BigInt(parseInt(g, 16));
+  return out;
+}
+
+/** Normalises an IPv4-mapped IPv6 address (`::ffff:10.0.0.5`) to plain IPv4. */
+function normaliseIp(ip: string): string {
+  const lower = ip.toLowerCase();
+  if (lower.startsWith("::ffff:") && lower.includes(".")) return lower.slice(7);
+  return lower;
+}
+
+function parseProxyRule(entry: string): ProxyRule {
+  const value = entry.trim().toLowerCase();
+  const slash = value.indexOf("/");
+  if (slash === -1) return { kind: "exact", value: normaliseIp(value) };
+
+  let address = value.slice(0, slash);
+  const prefix = Number(value.slice(slash + 1));
+  let v4Prefix = prefix;
+
+  // `::ffff:a.b.c.d/N` — an IPv4 block written in mapped-IPv6 form.
+  if (address.startsWith("::ffff:") && address.includes(".")) {
+    address = address.slice(7);
+    v4Prefix = prefix - 96;
+  }
+
+  const v4 = parseIpv4(address);
+  if (v4 !== null) {
+    if (!Number.isInteger(v4Prefix) || v4Prefix < 0 || v4Prefix > 32) {
+      return { kind: "exact", value };
+    }
+    const mask = v4Prefix === 0 ? 0 : (0xffffffff << (32 - v4Prefix)) >>> 0;
+    // `v4 & mask` is a signed int32; keep the comparison unsigned or every
+    // address with the high bit set (172.x, 192.x) fails to match.
+    return { kind: "v4", base: (v4 & mask) >>> 0, mask };
+  }
+
+  const v6 = parseIpv6(address);
+  if (v6 !== null) {
+    if (!Number.isInteger(prefix) || prefix < 0 || prefix > 128) return { kind: "exact", value };
+    return { kind: "v6", base: v6, prefix };
+  }
+
+  return { kind: "exact", value };
+}
+
+/**
+ * True when `ip` matches the proxy allowlist. Entries are exact addresses or CIDR
+ * blocks — the documented contract. The previous implementation used
+ * `list.includes(ip)`, so `TRUSTED_PROXIES=10.0.0.0/8` (or any `172.16.0.0/12`)
+ * silently trusted nothing and every request fell back to the socket address.
+ */
+export function isTrustedProxyIp(ip: string, list: string[] | "all"): boolean {
+  if (list === "all") return true;
+  if (list.length === 0) return false;
+
+  const candidate = normaliseIp(ip);
+  let compiled = compiledProxyRules.get(list);
+  if (!compiled) {
+    const rules = list.map(parseProxyRule);
+    compiled = { rules, hasCidr: rules.some((r) => r.kind !== "exact") };
+    compiledProxyRules.set(list, compiled);
+  }
+
+  // Common deployment: an explicit list of proxy addresses. String comparison only.
+  if (!compiled.hasCidr) {
+    for (const rule of compiled.rules) {
+      if (rule.kind === "exact" && rule.value === candidate) return true;
+    }
+    return false;
+  }
+
+  const v4 = parseIpv4(candidate);
+  const v6 = v4 === null ? parseIpv6(candidate) : null;
+
+  for (const rule of compiled.rules) {
+    if (rule.kind === "exact") {
+      if (rule.value === candidate) return true;
+      continue;
+    }
+    if (rule.kind === "v4") {
+      if (v4 !== null && (v4 & rule.mask) >>> 0 === rule.base) return true;
+      continue;
+    }
+    if (v6 !== null) {
+      const shift = BigInt(128 - rule.prefix);
+      if (v6 >> shift === rule.base >> shift) return true;
+    }
+  }
+
+  return false;
+}
+
 function isProxyTrusted(ip: string): boolean {
   // getTrustedProxies() caches the parsed allowlist against the config stamp
   // (config-state), so a changed TRUSTED_PROXIES setting takes effect without
   // a restart. The previous module-level Set here was never invalidated.
-  const list = getTrustedProxies();
-  if (list === "all") return true;
-  return list.includes(ip);
+  return isTrustedProxyIp(ip, getTrustedProxies());
 }
 
 /**

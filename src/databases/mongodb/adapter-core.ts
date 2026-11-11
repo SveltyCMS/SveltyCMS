@@ -231,6 +231,7 @@ export abstract class MongoAdapterCore extends BaseAdapter {
       this.connected = true;
 
       await registerSystemModels(this._connection);
+      await this.ensureAuditChainForkGuard();
 
       logger.info("Connected to MongoDB");
       return { success: true, data: undefined };
@@ -252,6 +253,43 @@ export abstract class MongoAdapterCore extends BaseAdapter {
       return { success: true, data: undefined };
     } catch (err: any) {
       return this.handleError(err, "DB_DISCONNECT_FAILED");
+    }
+  }
+
+  /**
+   * 🔒 Fork guard for the audit hash chain.
+   *
+   * Two writers that read the same chain head must not both be able to insert a child of
+   * it. PostgreSQL, MariaDB and SQLite get this from the `SYSTEM_SCHEMA` unique index on
+   * `(chainScope, previousHash)`; MongoDB has no spec-driven index path for schemaless
+   * system collections, so it is created here on connect.
+   *
+   * `partialFilterExpression` is required, not cosmetic: a unique compound index treats a
+   * missing field as NULL, so every row written before `chainScope` existed would collide
+   * with the others and the index would never build.
+   *
+   * Idempotent (same key + options = no-op) and non-fatal: a pre-existing fork must surface
+   * as a warning, not as a CMS that cannot boot.
+   */
+  private async ensureAuditChainForkGuard(): Promise<void> {
+    try {
+      // Must use the SAME name resolution the CRUD path uses (`normalizeCollectionName`),
+      // otherwise the index lands on a differently named collection that never receives
+      // a row and the guard silently does nothing.
+      const model = this._getOrCreateModel(normalizeCollectionName("auditLogs"));
+      await model.collection.createIndex(
+        { chainScope: 1, previousHash: 1 },
+        {
+          unique: true,
+          name: "audit_logs_chain_unique",
+          partialFilterExpression: { chainScope: { $exists: true } },
+        },
+      );
+    } catch (err) {
+      logger.warn(
+        "[MongoDB] Could not create the audit chain fork-guard index — concurrent writers may fork the chain",
+        err,
+      );
     }
   }
 

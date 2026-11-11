@@ -3,7 +3,6 @@
  * @description Unified Audit Service providing high-integrity, multi-tenant audit logging.
  */
 
-import { createHash } from "node:crypto";
 import fsPromises from "node:fs/promises";
 import path from "node:path";
 import { dbAdapter as dbAdapterInstance } from "@src/databases/db";
@@ -21,6 +20,22 @@ import {
   getAuditFlagsSync,
   isAuditDisabledByEnv,
 } from "@utils/security/audit-flags";
+import {
+  auditChainService,
+  AUDIT_CHECKPOINT_KEY,
+  chainHashScope,
+  type ChainedAuditEntry,
+} from "@src/services/audit-chain";
+import { generateUUID } from "@utils/native-utils";
+
+/**
+ * Bounded re-chain attempts after the fork guard rejects a batch.
+ *
+ * Three is enough for a handful of instances writing one tenant: each retry re-reads
+ * the head that won, so a persistent conflict is a real problem and must fall back
+ * instead of spinning.
+ */
+const MAX_CHAIN_ATTEMPTS = 3;
 
 export type AuditSeverity = "low" | "medium" | "high" | "critical";
 
@@ -100,30 +115,134 @@ export interface AuditLogEntry extends BaseEntity {
   result: "success" | "failure" | "partial";
   hash?: string;
   previousHash?: string;
+  /** `tenantId ?? "__global__"` — chain scope, and the fork-guard index key. */
+  chainScope?: string;
+  /** SHA-256 of the canonical payload + previousHash — see `audit-chain.ts`. */
+  chainHash?: string;
   rawJson?: string;
 }
 
 export type BufferedAuditEntry = Omit<AuditLogEntry, "_id"> & { _id?: DatabaseId };
 
+/** Tunables, overridable in tests. Defaults are the production values. */
+export interface AuditServiceOptions {
+  /** Sustained-stream flush threshold (entries). */
+  maxBufferSize?: number;
+  /** Hard cap on buffered entries; the OLDEST are dropped and counted beyond it. */
+  maxTotalBuffer?: number;
+  /** Periodic flush interval. */
+  flushIntervalMs?: number;
+  /** Trailing idle window that coalesces write bursts. */
+  microBatchMs?: number;
+}
+
+/**
+ * Live instances, so the SIGTERM/SIGINT hook can flush every buffer (the module
+ * singleton in production, individual instances in tests).
+ */
+const liveAuditServices = new Set<AuditService>();
+
+/** Adapters that already have the audit hook registered (see `registerHooks`). */
+const registeredAuditAdapters = new WeakSet<object>();
+
+/**
+ * Flush every buffered audit entry before the process dies.
+ *
+ * Without this, up to `maxTotalBuffer` entries — the entries an operator most
+ * wants after a crash — are lost on every deploy/restart. Bounded by a 2s
+ * deadline so a wedged database cannot hang shutdown forever.
+ */
+export async function flushAuditBuffersOnShutdown(): Promise<void> {
+  const pending = [...liveAuditServices].map((service) => service.flush().catch(() => {}));
+  if (pending.length === 0) return;
+  await Promise.race([
+    Promise.all(pending).then(() => undefined),
+    new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, 2000);
+      (timer as { unref?: () => void }).unref?.();
+    }),
+  ]);
+}
+
+function installShutdownHooks(): void {
+  type SignalHost = typeof globalThis & { __sveltyAuditShutdownHooks?: boolean };
+  const host = globalThis as SignalHost;
+  // HMR re-evaluates this module; install the handlers once per process.
+  if (host.__sveltyAuditShutdownHooks) return;
+  host.__sveltyAuditShutdownHooks = true;
+
+  const onSignal = (code: number) => {
+    void flushAuditBuffersOnShutdown().finally(() => process.exit(code));
+  };
+  process.once("SIGTERM", () => onSignal(143));
+  process.once("SIGINT", () => onSignal(130));
+}
+
 export class AuditService {
   private readonly collectionName = "auditLogs";
   private readonly logFile = path.join(process.cwd(), "logs", "audit.log");
-  private lastHash: string = "0000000000000000000000000000000000000000000000000000000000000000";
   private buffer: BufferedAuditEntry[] = [];
-  private flushTimer: any = null;
+  private flushTimer: ReturnType<typeof setInterval> | null = null;
   private microBatchTimer: NodeJS.Timeout | null = null;
   private inFlightFlush: Promise<void> | null = null;
   /** Serializes `flush()` itself so interval/micro-batch/size/chainSync callers cannot interleave buffer swaps. */
   private flushInFlight: Promise<void> | null = null;
-  private readonly MAX_BUFFER_SIZE = 50; // Sustained-stream flush threshold (burst tails use the debounced timer)
-  private readonly MICRO_BATCH_MS = 15; // 🚀 Trailing idle window to coalesce write bursts
-  private readonly MAX_TOTAL_BUFFER = 200; // 🛡️ HARD CAP: Lowered from 500 to 200 for stability
-  private readonly FLUSH_INTERVAL_MS = 5000;
+  /** Entries discarded because the buffer was full — surfaced, never silent. */
+  private droppedEntries = 0;
+  private lastDropWarnAt = 0;
+  private readonly maxBufferSize: number;
+  private readonly maxTotalBuffer: number;
+  private readonly microBatchMs: number;
+  private readonly flushIntervalMs: number;
   private initialized = false;
 
-  constructor() {
+  constructor(options: AuditServiceOptions = {}) {
+    this.maxBufferSize = options.maxBufferSize ?? 50;
+    this.maxTotalBuffer = options.maxTotalBuffer ?? 200;
+    this.microBatchMs = options.microBatchMs ?? 15;
+    this.flushIntervalMs = options.flushIntervalMs ?? 5000;
+
+    liveAuditServices.add(this);
+    installShutdownHooks();
+
     this.init().catch((err) => logger.error("AuditService init failed", err));
     this.startFlushTimer();
+  }
+
+  /** Number of buffered entries discarded since start (0 = no audit loss). */
+  public getDroppedEntryCount(): number {
+    return this.droppedEntries;
+  }
+
+  /** Stops the timers and unregisters the instance (tests / graceful teardown). */
+  public async shutdown(): Promise<void> {
+    if (this.flushTimer) {
+      clearInterval(this.flushTimer);
+      this.flushTimer = null;
+    }
+    if (this.microBatchTimer) {
+      clearTimeout(this.microBatchTimer);
+      this.microBatchTimer = null;
+    }
+    liveAuditServices.delete(this);
+    await this.flush().catch(() => {});
+  }
+
+  /**
+   * Counts dropped entries and warns loudly. Audit loss must never be silent:
+   * the warning is throttled to one per second but the cumulative total is
+   * always included, and `getDroppedEntryCount()` exposes it to health checks.
+   */
+  private recordDroppedEntries(count: number, reason: string): void {
+    if (count <= 0) return;
+    this.droppedEntries += count;
+    const now = Date.now();
+    if (this.droppedEntries === count || now - this.lastDropWarnAt >= 1000) {
+      this.lastDropWarnAt = now;
+      logger.warn(
+        `[Audit] Dropped ${count} audit entr${count === 1 ? "y" : "ies"} (${reason}); ${this.droppedEntries} dropped in total — the audit trail is INCOMPLETE`,
+      );
+    }
   }
 
   private startFlushTimer() {
@@ -141,7 +260,7 @@ export class AuditService {
     }
     // 🧪 PERFORMANCE: During benchmarks, we don't even need the timer if logs are disabled
     if (isAuditDisabledByEnv()) return;
-    const timer = setInterval(() => this.flush(), this.FLUSH_INTERVAL_MS);
+    const timer = setInterval(() => this.flush(), this.flushIntervalMs);
     (timer as { unref?: () => void }).unref?.();
     this.flushTimer = timer;
     host.__sveltyAuditInterval = timer;
@@ -223,56 +342,233 @@ export class AuditService {
       return false;
     }
 
-    const entriesToFlush = [...this.buffer];
+    let batch = [...this.buffer];
     this.buffer = [];
 
-    try {
-      if (dbAdapterInstance) {
-        // Bulk insert if supported, otherwise loop. skipReturning: the flushed
-        // entries are already in memory — no RETURNING read-back needed.
-        if (dbAdapterInstance.crud?.insertMany) {
-          await dbAdapterInstance.crud.insertMany(
-            this.collectionName,
-            entriesToFlush as any[],
-            { ...withSystemScope("audit-flush"), skipReturning: true } as any,
-          );
-        } else if (dbAdapterInstance.batch?.bulkInsert) {
-          await dbAdapterInstance.batch.bulkInsert(this.collectionName, entriesToFlush);
-        } else {
-          for (const entry of entriesToFlush) {
-            await dbAdapterInstance.crud.insert(this.collectionName, entry);
+    let lastError: unknown = null;
+    // The checkpoint must cover every row this flush attempted, including a prefix that a
+    // non-atomic (MongoDB) bulk write already stored before it rejected the rest.
+    let checkpointBatch = batch;
+    for (let attempt = 1; attempt <= MAX_CHAIN_ATTEMPTS; attempt++) {
+      try {
+        await this.insertBatch(batch);
+        // 🔒 The entries are durable; now advance the per-tenant tail checkpoint. It
+        // is the only thing that makes a *truncated* tail detectable (a hash chain
+        // cannot see its own end). Once per flush, never per entry, and a failure
+        // here must not fail the flush — the count only goes up after a write.
+        await this.commitCheckpoints(checkpointBatch);
+        return true;
+      } catch (error) {
+        lastError = error;
+        // Only the fork guard is recoverable here: if the tenant's stored head moved
+        // past the head this batch was chained onto, another writer won the race and
+        // re-chaining will succeed. Anything else falls through to the fallback.
+        if (attempt < MAX_CHAIN_ATTEMPTS && (await this.chainHeadAdvanced(batch))) {
+          // MongoDB applies a rejected bulk write with `ordered: false`, so part of the
+          // batch may have landed. Keep only what is still missing.
+          const attempted = batch;
+          const remaining = await this.dropAlreadyStored(attempted);
+          if (remaining.length === 0) {
+            // Every row landed despite the error; only the checkpoint is missing.
+            await this.commitCheckpoints(attempted);
+            return true;
           }
+          // Another process appended first and the unique (chainScope, previousHash)
+          // index rejected our children of the same head. Re-chain onto the winner
+          // and retry. Bounded on purpose: a conflict that keeps recurring must
+          // surface as a failure, not spin.
+          logger.warn(
+            `[Audit] Chain head advanced concurrently (attempt ${attempt}/${MAX_CHAIN_ATTEMPTS}); re-chaining ${remaining.length} entr${remaining.length === 1 ? "y" : "ies"}`,
+          );
+          // Same view of the row in both directions: `rechain` speaks
+          // `ChainedAuditEntry`, the buffer holds `BufferedAuditEntry`; the runtime
+          // object is identical (the chain fields are the only difference and both
+          // types declare them).
+          const rehashed = (await auditChainService.rechain(
+            remaining as ChainedAuditEntry[],
+          )) as BufferedAuditEntry[];
+          // Checkpoint the WHOLE attempt: rows that already landed keep their stored
+          // hashes, the rest take the re-chained ones, and the tail stays last.
+          const rehashedById = new Map(rehashed.map((entry) => [String(entry._id), entry]));
+          checkpointBatch = [
+            ...attempted.filter((entry) => !rehashedById.has(String(entry._id))),
+            ...rehashed,
+          ];
+          batch = rehashed;
+          continue;
         }
-      } else {
-        // No DB adapter — the append-only log file is the only sink.
-        await this.appendEntriesToFile(entriesToFlush);
+        break;
       }
-      return true;
-    } catch (error) {
-      if (this.isMissingAuditStoreError(error)) {
-        logger.warn("[Audit] Audit store unavailable during flush; dropping buffered entries");
-        await this.appendEntriesToFile(entriesToFlush).catch(() => {});
-        return false;
-      }
+    }
 
-      // DB write failed — fall back to the append-only log file.
-      await this.appendEntriesToFile(entriesToFlush).catch(() => {});
-      logger.error("[Audit] Flush failed, restoring buffer", error);
-      // 🛡️ MEMORY LEAK FIX: Cap the restoration to prevent unbounded growth
-      const combined = [...entriesToFlush, ...this.buffer];
-      if (combined.length > this.MAX_TOTAL_BUFFER) {
-        logger.warn(
-          `[Audit] Buffer overflow, dropping ${combined.length - this.MAX_TOTAL_BUFFER} logs`,
-        );
-        this.buffer = combined.slice(-this.MAX_TOTAL_BUFFER);
-      } else {
-        this.buffer = combined;
+    const error = lastError;
+    if (this.isMissingAuditStoreError(error)) {
+      // The fallback file keeps the forensics, but these rows will never be
+      // in the chain — count them so the gap is explicit.
+      this.recordDroppedEntries(
+        batch.length,
+        "audit store unavailable during flush (file fallback only)",
+      );
+      await this.appendEntriesToFile(batch).catch(() => {});
+      return false;
+    }
+
+    // DB write failed — fall back to the append-only log file.
+    await this.appendEntriesToFile(batch).catch(() => {});
+    logger.error("[Audit] Flush failed, restoring buffer", error);
+    // 🛡️ MEMORY LEAK FIX: Cap the restoration to prevent unbounded growth
+    const combined = [...batch, ...this.buffer];
+    if (combined.length > this.maxTotalBuffer) {
+      this.recordDroppedEntries(
+        combined.length - this.maxTotalBuffer,
+        "retry buffer overflow after failed flush",
+      );
+      this.buffer = combined.slice(-this.maxTotalBuffer);
+    } else {
+      this.buffer = combined;
+    }
+    return false;
+  }
+
+  /**
+   * Ids from `entries` that are now in the store, or `null` when it could not be determined.
+   * Only called once per flush, so one indexed `_id $in` query is acceptable; it replaces a
+   * counter that silently drifted whenever a write was partially applied.
+   */
+  private async storedIdsOf(entries: BufferedAuditEntry[]): Promise<Set<string> | null> {
+    const ids = entries.map((entry) => entry._id).filter((id): id is DatabaseId => Boolean(id));
+    if (!dbAdapterInstance || ids.length === 0) return null;
+    try {
+      const found = await dbAdapterInstance.crud.findMany(
+        this.collectionName,
+        { _id: { $in: ids } } as any,
+        { ...withSystemScope("audit-flush"), limit: ids.length } as any,
+      );
+      if (!found?.success) return null;
+      return new Set((found.data ?? []).map((row: { _id?: unknown }) => String(row._id)));
+    } catch (err) {
+      logger.debug("[Audit] Could not verify which entries landed; using the batch count", err);
+      return null;
+    }
+  }
+
+  /**
+   * Returns the batch entries the store does not already hold, matched by `_id`.
+   *
+   * Only reachable after a failed insert, so it is not on any hot path. It exists because
+   * a rejected bulk write is not necessarily atomic: MongoDB runs `bulkWrite` with
+   * `ordered: false` and leaves the already-written rows in place, so re-inserting the
+   * whole batch would collide on `_id` on every attempt.
+   */
+  private async dropAlreadyStored(batch: BufferedAuditEntry[]): Promise<BufferedAuditEntry[]> {
+    const stored = await this.storedIdsOf(batch);
+    if (!stored) return batch;
+    return batch.filter((entry) => !stored.has(String(entry._id)));
+  }
+
+  /**
+   * Writes one batch to the audit store and fails loudly when the store rejects it.
+   *
+   * The result MUST be inspected: `crud.insertMany` resolves with a failure envelope
+   * instead of throwing, so the previous `await`-and-ignore dropped the whole batch
+   * while the flush reported success.
+   */
+  private async insertBatch(batch: BufferedAuditEntry[]): Promise<void> {
+    if (!dbAdapterInstance) {
+      // No DB adapter — the append-only log file is the only sink.
+      await this.appendEntriesToFile(batch);
+      return;
+    }
+    if (dbAdapterInstance.crud?.insertMany) {
+      // skipReturning: the flushed entries are already in memory.
+      const result = await dbAdapterInstance.crud.insertMany(
+        this.collectionName,
+        batch as any[],
+        {
+          ...withSystemScope("audit-flush"),
+          skipReturning: true,
+        } as any,
+      );
+      if (!result?.success) {
+        throw new Error(`audit insertMany failed: ${result?.message ?? "unknown error"}`);
       }
+      return;
+    }
+    if (dbAdapterInstance.batch?.bulkInsert) {
+      const result = await dbAdapterInstance.batch.bulkInsert(this.collectionName, batch);
+      if (result && result.success === false) {
+        throw new Error(`audit bulkInsert failed: ${result.message ?? "unknown error"}`);
+      }
+      return;
+    }
+    for (const entry of batch) {
+      const result = await dbAdapterInstance.crud.insert(this.collectionName, entry);
+      if (!result?.success) {
+        throw new Error(`audit insert failed: ${result?.message ?? "unknown error"}`);
+      }
+    }
+  }
+
+  /**
+   * Whether another writer advanced the chain past the head this batch was built on.
+   *
+   * Asked only after a failed insert, so it is off the hot path. A store that cannot
+   * answer (the database is down) returns false: the caller then takes the normal
+   * fallback instead of re-chaining against an unreachable store.
+   */
+  private async chainHeadAdvanced(batch: BufferedAuditEntry[]): Promise<boolean> {
+    const expectedHead = batch[0]?.previousHash;
+    if (!expectedHead) return false;
+    const tenantId = (batch[0].tenantId as string | null | undefined) ?? null;
+    try {
+      const head = await auditChainService.currentHead(tenantId);
+      return head !== expectedHead;
+    } catch (err) {
+      logger.debug("[Audit] Could not read the chain head after a failed flush", err);
       return false;
     }
   }
 
-  /** Append-only fallback sink, used only when the DB write is unavailable. */
+  /**
+   * Advances each touched tenant's chain checkpoint to the tail of this batch.
+   *
+   * Per-tenant, in batch order: the last entry of a tenant wins, so the checkpoint
+   * always names the newest committed entry of that tenant.
+   *
+   * The increment is counted from the STORE, not from the batch length. A rejected bulk
+   * write is not necessarily atomic (MongoDB runs `bulkWrite` with `ordered: false`), so
+   * an accumulated counter drifts and a drifted counter makes truncation detection raise
+   * false alarms. Counting the batch's own ids is one query and exact.
+   */
+  private async commitCheckpoints(entries: BufferedAuditEntry[]): Promise<void> {
+    if (entries.length === 0) return;
+    const stored = await this.storedIdsOf(entries);
+    const tails = new Map<string | null, { count: number; headHash: string }>();
+    for (const entry of entries) {
+      const headHash = entry.chainHash as string | undefined;
+      if (!headHash) continue;
+      // `stored === null` means the verification query was unavailable — fall back to
+      // the batch itself, which is correct whenever the write was atomic.
+      if (stored && !stored.has(String(entry._id))) continue;
+      const tenantId = (entry.tenantId as string | null | undefined) ?? null;
+      const tail = tails.get(tenantId);
+      tails.set(tenantId, { count: (tail?.count ?? 0) + 1, headHash });
+    }
+    for (const [tenantId, tail] of tails) {
+      await auditChainService
+        .commitCheckpoint(tenantId, tail.headHash, tail.count)
+        .catch((err) => logger.warn("[Audit] Chain checkpoint failed:", err));
+    }
+  }
+
+  /**
+   * Append-only fallback sink, used only when the DB write is unavailable.
+   *
+   * Entries are serialised here rather than at log() time: the DB path never reads
+   * `rawJson`, so building it eagerly cost one `JSON.stringify` + one large string
+   * per buffered entry on every audited mutation. `rawJson` is still honoured when a
+   * caller supplies a pre-serialised entry.
+   */
   private appendEntriesToFile(entries: BufferedAuditEntry[]): Promise<void> {
     const logData = entries.map((e) => e.rawJson ?? JSON.stringify(e)).join("\n") + "\n";
     return fsPromises.appendFile(this.logFile, logData);
@@ -288,9 +584,10 @@ export class AuditService {
       return;
     }
 
-    // 🚀 PERFORMANCE: Use a flag to prevent multiple registrations
-    if ((adapter as any).__auditHookRegistered) return;
-    (adapter as any).__auditHookRegistered = true;
+    // 🚀 PERFORMANCE: register once per adapter. A module-level WeakSet keeps this
+    // off the adapter object (no `as any` property bag) and cannot leak entries.
+    if (registeredAuditAdapters.has(adapter)) return;
+    registeredAuditAdapters.add(adapter);
 
     adapter.registerHook({
       id: "global-audit",
@@ -303,6 +600,10 @@ export class AuditService {
         // 1000-entry audit flushes on the content-write path.
         if (collection === this.collectionName) return;
         if (collection === OUTBOX_COLLECTION) return;
+        // The chain checkpoint lives in `systemPreferences`; auditing it would make
+        // every flush emit an audit entry, which in turn writes a checkpoint.
+        if (collection === "systemPreferences" && (data as any)?.key === AUDIT_CHECKPOINT_KEY)
+          return;
 
         // The HTTP mutation audit (`handle-audit-logging.ts`, one entry per
         // request: method/path/user/status/ip) already covers interactive
@@ -390,7 +691,11 @@ export class AuditService {
         // Zero-allocation cached timestamp (per-ms reuse) — this runs on every
         // write in the crypto chain, the documented create/update bottleneck.
         const timestamp = nowISODateString();
-        const entry: Omit<AuditLogEntry, "_id"> = {
+        const entry: Omit<AuditLogEntry, "_id"> & { _id: DatabaseId } = {
+          // Stable id assigned at buffer time: a retry after a partially applied
+          // batch (MongoDB `bulkWrite` runs `ordered: false`) must collide on `_id`
+          // rather than duplicate the audit row.
+          _id: generateUUID() as DatabaseId,
           action,
           actorId: actor.id,
           actorEmail: actor.email,
@@ -402,23 +707,42 @@ export class AuditService {
           severity,
           details: redactSensitiveDetails(details),
           tenantId,
+          chainScope: chainHashScope(tenantId as string | null | undefined),
           result,
           timestamp,
           createdAt: timestamp as any,
           updatedAt: timestamp as any,
-          previousHash: this.lastHash,
         };
 
-        // Tamper-evident audit chain (SHA-256 of the entry JSON), not a password KDF.
-        // codeql[js/insufficient-password-hash]
-        const serialized = JSON.stringify(entry);
-        const hash = createHash("sha256").update(serialized).digest("hex");
-        // Pre-serialize full entry sharing base serialized attributes to eliminate double JSON.stringify on flush
-        const fullSerialized = `${serialized.slice(0, -1)},"hash":${JSON.stringify(hash)}}`;
-        const fullEntry: BufferedAuditEntry = { ...entry, hash, rawJson: fullSerialized };
-        this.lastHash = hash;
+        // Tamper-evident audit chain: `AuditChainService` reads the tenant's
+        // chain head under a per-tenant lock and hashes the canonical payload
+        // (the same one `verifyChain()` uses). `createHash` here was a private
+        // scheme the verifier could never reproduce — every row looked tampered.
+        const chained = await auditChainService.append(entry as ChainedAuditEntry);
+        const chainHash = chained.chainHash as string;
 
-        this.buffer.push(fullEntry);
+        // `hash` is kept as an alias for callers written before `chainHash`.
+        // codeql[js/insufficient-password-hash]
+        const persisted: BufferedAuditEntry = {
+          ...entry,
+          previousHash: chained.previousHash,
+          chainHash,
+          hash: chainHash,
+        };
+
+        // 🚀 HOT PATH: no eager `JSON.stringify`. The persisted row is serialised
+        // only by `appendEntriesToFile()` — the fallback sink used when the DB
+        // write fails — so the per-mutation cost of the audit trail is one object
+        // spread and one hash, not a full serialisation that the DB path discards.
+
+        // 🛡️ BOUNDED BUFFER: drop the OLDEST entries beyond the hard cap and
+        // count them — unbounded growth is a memory leak, silent loss is worse.
+        if (this.buffer.length >= this.maxTotalBuffer) {
+          const overflow = this.buffer.length - this.maxTotalBuffer + 1;
+          this.buffer.splice(0, overflow);
+          this.recordDroppedEntries(overflow, "buffer full (oldest entries evicted)");
+        }
+        this.buffer.push(persisted);
         // 🛡️ ENTERPRISE MODE: AUDIT_CHAIN_SYNC awaits persistence before returning,
         // guaranteeing the entry survives even if the process dies mid-request.
         // Uses coalesced inFlightFlush to prevent single-row transaction thrashing.
@@ -443,7 +767,7 @@ export class AuditService {
               );
             }
           }
-        } else if (this.buffer.length >= this.MAX_BUFFER_SIZE) {
+        } else if (this.buffer.length >= this.maxBufferSize) {
           if (this.microBatchTimer) {
             clearTimeout(this.microBatchTimer);
             this.microBatchTimer = null;
@@ -459,7 +783,7 @@ export class AuditService {
           // commit — the measured +1.8ms-per-create regression. A resetting
           // timer only fires MICRO_BATCH_MS after the stream goes quiet (the
           // documented "trailing idle window" intent), so sustained streams
-          // flush at MAX_BUFFER_SIZE instead of on the timer.
+          // flush at maxBufferSize instead of on the timer.
           if (this.microBatchTimer) {
             clearTimeout(this.microBatchTimer);
           }
@@ -468,7 +792,7 @@ export class AuditService {
             void this.flush().catch((err) =>
               logger.error("[AuditService] Failed to flush micro-batch audit logs:", err),
             );
-          }, this.MICRO_BATCH_MS);
+          }, this.microBatchMs);
         }
       })
       .catch((err) => logger.warn("[AuditService] Chain lock error:", err));

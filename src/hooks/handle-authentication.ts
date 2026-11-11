@@ -160,6 +160,7 @@ import { getClientIp, getRequestFlags } from "@utils/hook-utils";
 import { getPrivateSettingSync, getPublicSettingSync } from "@src/services/core/settings-service";
 import { getTenantIdFromHostname } from "@utils/tenant";
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
+import { assertTenantRequiredForApiPath } from "@utils/security/tenant-required.server";
 import { dev } from "$app/env";
 import { runWithContext } from "@src/utils/context";
 import {
@@ -1058,6 +1059,10 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     (locals as any).dbAdapterUnscoped = dbAdapter;
     const tenantP = applyAdapterTenantContext(dbAdapter, locals.tenantId ?? null);
     if (tenantP) await tenantP;
+    // 🔒 Tenant fail-closed: this path is pre-authenticated, so a tenant-owned API
+    // namespace must not be served when the injected context carries no tenant
+    // (MULTI_TENANT on, tenantless request → the handler would read the global layer).
+    assertTenantRequiredForApiPath(event.request.method, url.pathname, locals.tenantId ?? null);
     return resolve(event);
   }
 
@@ -1105,6 +1110,14 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
         multiTenant || isDemoMode || testMode
           ? (turboCtx.tenantId ?? locals.tenantId ?? turboCtx.user.tenantId ?? null)
           : null,
+      );
+      // 🔒 Tenant fail-closed: this fast path skips session validation, so a
+      // tenant-required API path is rejected here when the cached context carries
+      // no tenant (MULTI_TENANT on, tenantless request).
+      assertTenantRequiredForApiPath(
+        event.request.method,
+        url.pathname,
+        (locals.tenantId as string | null | undefined) ?? null,
       );
       locals.dbAdapter = dbAdapter;
       (locals as any).dbAdapterUnscoped = dbAdapter;
@@ -1154,6 +1167,14 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
           ? (turboCtx.tenantId ?? locals.tenantId ?? turboCtx.user.tenantId ?? null)
           : null,
       );
+      // 🔒 Tenant fail-closed: this fast path skips session validation, so a
+      // tenant-required API path is rejected here when the cached context carries
+      // no tenant (MULTI_TENANT on, tenantless request).
+      assertTenantRequiredForApiPath(
+        event.request.method,
+        url.pathname,
+        (locals.tenantId as string | null | undefined) ?? null,
+      );
       locals.dbAdapter = dbAdapter;
       (locals as any).dbAdapterUnscoped = dbAdapter;
       (locals as any).__turboAuth = true;
@@ -1180,6 +1201,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     if (!(locals as any).roles) {
       (locals as any).roles = [(locals.user as any).role || "user"];
     }
+    // 🔒 Tenant fail-closed: user is already validated upstream, but the tenant
+    // may still be unresolved — never serve a tenant-owned namespace without one.
+    assertTenantRequiredForApiPath(event.request.method, url.pathname, locals.tenantId ?? null);
     locals.dbAdapter = dbAdapter;
     (locals as any).dbAdapterUnscoped = dbAdapter;
     return await resolve(event);
@@ -1794,6 +1818,17 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
         ];
       }
     }
+
+    // 🔒 Tenant fail-closed (session-validation boundary): a valid session that
+    // resolved no tenant must not serve a tenant-owned API namespace while
+    // MULTI_TENANT is on — the handler would query the global layer. Single-tenant
+    // mode, non-/api paths, OPTIONS preflight and the global/system namespaces are
+    // unaffected (one cached-flag read, no allocation).
+    assertTenantRequiredForApiPath(
+      event.request.method,
+      url.pathname,
+      locals.tenantId as string | null,
+    );
 
     return await runWithContext(
       {
