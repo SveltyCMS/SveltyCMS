@@ -15,7 +15,7 @@
       ],
       "model": "docs/security/threat-models/api-dispatch.mdx",
       "reviewed_at": "2026-11-11",
-      "fingerprint": "02a7f14c35d2052b727592d25c59f9108a9f87474d730667980ba9c3aa6df693"
+      "fingerprint": "bb4692f4f02a81ab53b271d30a21f8896b1dd5f29427b497c4b4c5c3d74c27ae"
     },
     {
       "id": "auth-session",
@@ -38,7 +38,7 @@
       ],
       "model": "docs/security/threat-models/auth-session.mdx",
       "reviewed_at": "2026-11-11",
-      "fingerprint": "8c154c87597ba8c4c937defbe07189c0ed2e7140bc070b31d75a6375a16291b6"
+      "fingerprint": "deec8768a6ab49080089c2658faafcd60187aebe427ec647b8661bf04885e995"
     },
     {
       "id": "content-write",
@@ -131,8 +131,8 @@
         "src/utils/test-bypass.server.ts"
       ],
       "model": "docs/security/threat-models/system-ops.mdx",
-      "reviewed_at": "2026-11-09",
-      "fingerprint": "20e3a8ca9a8f903c9b378727a105163818affeca3208fdeca9ac7555f59f7eeb"
+      "reviewed_at": "2026-11-11",
+      "fingerprint": "4efdd2df736033409c78ed07442b1df9875fe840a21d71faf9154be23c667596"
     }
   ]
 }
