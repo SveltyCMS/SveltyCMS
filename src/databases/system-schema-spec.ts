@@ -1296,6 +1296,13 @@ export const SYSTEM_SCHEMA: SchemaItem[] = [
       ...timestamps(),
       { name: "previousHash", type: varchar(64) },
       { name: "chainHash", type: varchar(64) },
+      // Chain scope for the fork guard: `tenantId ?? "__global__"`. A unique index
+      // needs a NOT-NULL-distinct key, and a plain (tenantId, previousHash) index
+      // leaves NULL-tenant rows (the default single-tenant chain) unconstrained on
+      // every dialect. Writing the scope explicitly keeps one uniform index on
+      // PostgreSQL, MariaDB and SQLite — no COALESCE expression index, no MariaDB
+      // generated column. Legacy rows stay NULL, so they never collide.
+      { name: "chainScope", type: varchar(36) },
     ],
     extensions: {
       postgresql: [
@@ -1305,6 +1312,11 @@ export const SYSTEM_SCHEMA: SchemaItem[] = [
         // a btree's footprint. Tenant-scoped pagination uses the
         // (tenantId, timestamp DESC) btree instead.
         "DROP INDEX IF EXISTS audit_logs_timestamp_idx",
+      ],
+      mariadb: [
+        // MariaDB renders its indexes inside CREATE TABLE; the DDL pass now also emits
+        // idempotent standalone index statements for existing tables (see
+        // `mariaIndexStatement`), so nothing table-specific is needed here.
       ],
     },
     indexes: [
@@ -1338,6 +1350,24 @@ export const SYSTEM_SCHEMA: SchemaItem[] = [
       {
         name: { postgresql: "audit_logs_tenant_idx", mariadb: "tenant_idx" },
         columns: { postgresql: ["tenantId"], mariadb: ["tenantId"] },
+      },
+      {
+        // 🛡️ FORK GUARD: two writers that both read the same chain head would both
+        // insert a child of it, forking the chain. This index makes the second
+        // insert fail instead, so the writer re-chains onto the head that won
+        // (`AuditChainService.rechain` + a bounded retry in the flush).
+        // Legacy rows have a NULL chainScope and are not constrained by it.
+        name: {
+          postgresql: "audit_logs_chain_unique",
+          mariadb: "chain_unique",
+          sqlite: "idx_audit_logs_chain_unique",
+        },
+        columns: {
+          postgresql: ["chainScope", "previousHash"],
+          mariadb: ["chainScope", "previousHash"],
+          sqlite: ["chainScope", "previousHash"],
+        },
+        unique: true,
       },
     ],
   },

@@ -45,6 +45,17 @@ export const GENESIS_HASH = "000000000000000000000000000000000000000000000000000
  */
 export const AUDIT_CHECKPOINT_KEY = "audit_chain_checkpoint";
 
+/**
+ * Chain scope written to `audit_logs.chainScope`.
+ *
+ * The fork-guard index is `(chainScope, previousHash)`. A composite index treats NULLs
+ * as distinct, so a NULL tenant (the default single-tenant chain) would be exempt from
+ * the constraint on every dialect — the sentinel makes the scope explicit instead.
+ */
+export function chainHashScope(tenantId?: string | null): string {
+  return tenantId || "__global__";
+}
+
 /** Tail of a tenant's chain as of its last flush. */
 export interface AuditChainCheckpoint {
   /** Hash of the newest chained entry the writer had committed. */
@@ -70,6 +81,8 @@ export interface ChainedAuditEntry {
   details?: Record<string, unknown>;
   previousHash?: string;
   chainHash?: string;
+  /** `tenantId ?? "__global__"` — the fork-guard index key (see `chainHashScope`). */
+  chainScope?: string;
   /** Legacy alias kept for rows written before `chainHash` existed. */
   hash?: string;
   eventType?: string;
@@ -247,7 +260,7 @@ export class AuditChainService {
   private readonly countCache = new Map<string, number>();
 
   private static cacheKey(tenantId?: string | null): string {
-    return tenantId || "__global__";
+    return chainHashScope(tenantId);
   }
 
   /**
@@ -292,8 +305,61 @@ export class AuditChainService {
       const previousHash = this.lastHashCache.get(cacheKey) ?? (await this.getLastHash(tenantId));
       const chainHash = computeChainHash(entry, previousHash);
       this.lastHashCache.set(cacheKey, chainHash);
-      return { ...entry, previousHash, chainHash };
+      return { ...entry, chainScope: chainHashScope(tenantId), previousHash, chainHash };
     });
+  }
+
+  /**
+   * Reads the tenant's stored chain head, bypassing the in-memory cache.
+   *
+   * Used by the flush retry to decide whether a failed insert lost a race; the cache
+   * is exactly the stale value that caused it, so it must not be consulted.
+   */
+  async currentHead(tenantId?: string | null): Promise<string> {
+    this.lastHashCache.delete(AuditChainService.cacheKey(tenantId));
+    return this.getLastHash(tenantId);
+  }
+
+  /**
+   * Re-chains a batch onto the tenant's CURRENT head after the fork guard rejected it.
+   *
+   * Called when the unique `(chainScope, previousHash)` index refuses an insert because
+   * another process appended first. The cached head is exactly what lost the race, so it
+   * is dropped and re-read; every entry is then re-hashed in batch order, so the batch
+   * lands as a continuation of the chain that won instead of forking it.
+   *
+   * The timestamp is re-stamped to the commit time. `verifyChain` walks by
+   * `(timestamp, _id)`, so an entry that was buffered before the winner would otherwise
+   * sort *behind* the entry it now points at — the hash links and the walk order would
+   * disagree and the chain would read as broken. Re-stamping keeps one order: the chain
+   * records when an entry was committed, which is the time it is anchored at.
+   */
+  async rechain(entries: ChainedAuditEntry[]): Promise<ChainedAuditEntry[]> {
+    const heads = new Map<string, string>();
+    const out: ChainedAuditEntry[] = [];
+    for (const entry of entries) {
+      const tenantId = (entry.tenantId as string | null | undefined) ?? null;
+      const cacheKey = AuditChainService.cacheKey(tenantId);
+      let head = heads.get(cacheKey);
+      if (head === undefined) {
+        this.lastHashCache.delete(cacheKey);
+        this.countCache.delete(cacheKey);
+        head = await this.getLastHash(tenantId);
+      }
+      // Re-stamp FIRST, then hash — the hash covers the timestamp it is stored with.
+      const restamped: ChainedAuditEntry = {
+        ...entry,
+        timestamp: nowISODateString(),
+        chainScope: chainHashScope(tenantId),
+        previousHash: head,
+      };
+      const chainHash = computeChainHash(restamped, head);
+      const rehashed: ChainedAuditEntry = { ...restamped, chainHash };
+      this.lastHashCache.set(cacheKey, chainHash);
+      heads.set(cacheKey, chainHash);
+      out.push(rehashed);
+    }
+    return out;
   }
 
   /**

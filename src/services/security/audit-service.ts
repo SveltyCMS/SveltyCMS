@@ -23,8 +23,18 @@ import {
 import {
   auditChainService,
   AUDIT_CHECKPOINT_KEY,
+  chainHashScope,
   type ChainedAuditEntry,
 } from "@src/services/audit-chain";
+
+/**
+ * Bounded re-chain attempts after the fork guard rejects a batch.
+ *
+ * Three is enough for a handful of instances writing one tenant: each retry re-reads
+ * the head that won, so a persistent conflict is a real problem and must fall back
+ * instead of spinning.
+ */
+const MAX_CHAIN_ATTEMPTS = 3;
 
 export type AuditSeverity = "low" | "medium" | "high" | "critical";
 
@@ -104,6 +114,8 @@ export interface AuditLogEntry extends BaseEntity {
   result: "success" | "failure" | "partial";
   hash?: string;
   previousHash?: string;
+  /** `tenantId ?? "__global__"` — chain scope, and the fork-guard index key. */
+  chainScope?: string;
   /** SHA-256 of the canonical payload + previousHash — see `audit-chain.ts`. */
   chainHash?: string;
   rawJson?: string;
@@ -326,62 +338,133 @@ export class AuditService {
       return false;
     }
 
-    const entriesToFlush = [...this.buffer];
+    let batch = [...this.buffer];
     this.buffer = [];
 
-    try {
-      if (dbAdapterInstance) {
-        // Bulk insert if supported, otherwise loop. skipReturning: the flushed
-        // entries are already in memory — no RETURNING read-back needed.
-        if (dbAdapterInstance.crud?.insertMany) {
-          await dbAdapterInstance.crud.insertMany(
-            this.collectionName,
-            entriesToFlush as any[],
-            { ...withSystemScope("audit-flush"), skipReturning: true } as any,
+    let lastError: unknown = null;
+    for (let attempt = 1; attempt <= MAX_CHAIN_ATTEMPTS; attempt++) {
+      try {
+        await this.insertBatch(batch);
+        // 🔒 The entries are durable; now advance the per-tenant tail checkpoint. It
+        // is the only thing that makes a *truncated* tail detectable (a hash chain
+        // cannot see its own end). Once per flush, never per entry, and a failure
+        // here must not fail the flush — the count only goes up after a write.
+        await this.commitCheckpoints(batch);
+        return true;
+      } catch (error) {
+        lastError = error;
+        // Only the fork guard is recoverable here: if the tenant's stored head moved
+        // past the head this batch was chained onto, another writer won the race and
+        // re-chaining will succeed. Anything else falls through to the fallback.
+        if (attempt < MAX_CHAIN_ATTEMPTS && (await this.chainHeadAdvanced(batch))) {
+          // Another process appended first and the unique (chainScope, previousHash)
+          // index rejected our children of the same head. Re-chain onto the winner
+          // and retry. Bounded on purpose: a conflict that keeps recurring must
+          // surface as a failure, not spin.
+          logger.warn(
+            `[Audit] Chain head advanced concurrently (attempt ${attempt}/${MAX_CHAIN_ATTEMPTS}); re-chaining ${batch.length} entr${batch.length === 1 ? "y" : "ies"}`,
           );
-        } else if (dbAdapterInstance.batch?.bulkInsert) {
-          await dbAdapterInstance.batch.bulkInsert(this.collectionName, entriesToFlush);
-        } else {
-          for (const entry of entriesToFlush) {
-            await dbAdapterInstance.crud.insert(this.collectionName, entry);
-          }
+          // Same view of the row in both directions: `rechain` speaks
+          // `ChainedAuditEntry`, the buffer holds `BufferedAuditEntry`; the runtime
+          // object is identical (the chain fields are the only difference and both
+          // types declare them).
+          batch = (await auditChainService.rechain(
+            batch as ChainedAuditEntry[],
+          )) as BufferedAuditEntry[];
+          continue;
         }
-      } else {
-        // No DB adapter — the append-only log file is the only sink.
-        await this.appendEntriesToFile(entriesToFlush);
+        break;
       }
-      // 🔒 The entries are durable; now advance the per-tenant tail checkpoint. It
-      // is the only thing that makes a *truncated* tail detectable (a hash chain
-      // cannot see its own end). Once per flush, never per entry, and a failure here
-      // must not fail the flush — the count only goes up after a successful write.
-      await this.commitCheckpoints(entriesToFlush);
-      return true;
-    } catch (error) {
-      if (this.isMissingAuditStoreError(error)) {
-        // The fallback file keeps the forensics, but these rows will never be
-        // in the chain — count them so the gap is explicit.
-        this.recordDroppedEntries(
-          entriesToFlush.length,
-          "audit store unavailable during flush (file fallback only)",
-        );
-        await this.appendEntriesToFile(entriesToFlush).catch(() => {});
-        return false;
-      }
+    }
 
-      // DB write failed — fall back to the append-only log file.
-      await this.appendEntriesToFile(entriesToFlush).catch(() => {});
-      logger.error("[Audit] Flush failed, restoring buffer", error);
-      // 🛡️ MEMORY LEAK FIX: Cap the restoration to prevent unbounded growth
-      const combined = [...entriesToFlush, ...this.buffer];
-      if (combined.length > this.maxTotalBuffer) {
-        this.recordDroppedEntries(
-          combined.length - this.maxTotalBuffer,
-          "retry buffer overflow after failed flush",
-        );
-        this.buffer = combined.slice(-this.maxTotalBuffer);
-      } else {
-        this.buffer = combined;
+    const error = lastError;
+    if (this.isMissingAuditStoreError(error)) {
+      // The fallback file keeps the forensics, but these rows will never be
+      // in the chain — count them so the gap is explicit.
+      this.recordDroppedEntries(
+        batch.length,
+        "audit store unavailable during flush (file fallback only)",
+      );
+      await this.appendEntriesToFile(batch).catch(() => {});
+      return false;
+    }
+
+    // DB write failed — fall back to the append-only log file.
+    await this.appendEntriesToFile(batch).catch(() => {});
+    logger.error("[Audit] Flush failed, restoring buffer", error);
+    // 🛡️ MEMORY LEAK FIX: Cap the restoration to prevent unbounded growth
+    const combined = [...batch, ...this.buffer];
+    if (combined.length > this.maxTotalBuffer) {
+      this.recordDroppedEntries(
+        combined.length - this.maxTotalBuffer,
+        "retry buffer overflow after failed flush",
+      );
+      this.buffer = combined.slice(-this.maxTotalBuffer);
+    } else {
+      this.buffer = combined;
+    }
+    return false;
+  }
+
+  /**
+   * Writes one batch to the audit store and fails loudly when the store rejects it.
+   *
+   * The result MUST be inspected: `crud.insertMany` resolves with a failure envelope
+   * instead of throwing, so the previous `await`-and-ignore dropped the whole batch
+   * while the flush reported success.
+   */
+  private async insertBatch(batch: BufferedAuditEntry[]): Promise<void> {
+    if (!dbAdapterInstance) {
+      // No DB adapter — the append-only log file is the only sink.
+      await this.appendEntriesToFile(batch);
+      return;
+    }
+    if (dbAdapterInstance.crud?.insertMany) {
+      // skipReturning: the flushed entries are already in memory.
+      const result = await dbAdapterInstance.crud.insertMany(
+        this.collectionName,
+        batch as any[],
+        {
+          ...withSystemScope("audit-flush"),
+          skipReturning: true,
+        } as any,
+      );
+      if (!result?.success) {
+        throw new Error(`audit insertMany failed: ${result?.message ?? "unknown error"}`);
       }
+      return;
+    }
+    if (dbAdapterInstance.batch?.bulkInsert) {
+      const result = await dbAdapterInstance.batch.bulkInsert(this.collectionName, batch);
+      if (result && (result as any).success === false) {
+        throw new Error(`audit bulkInsert failed: ${(result as any).message ?? "unknown error"}`);
+      }
+      return;
+    }
+    for (const entry of batch) {
+      const result = await dbAdapterInstance.crud.insert(this.collectionName, entry);
+      if (!result?.success) {
+        throw new Error(`audit insert failed: ${result?.message ?? "unknown error"}`);
+      }
+    }
+  }
+
+  /**
+   * Whether another writer advanced the chain past the head this batch was built on.
+   *
+   * Asked only after a failed insert, so it is off the hot path. A store that cannot
+   * answer (the database is down) returns false: the caller then takes the normal
+   * fallback instead of re-chaining against an unreachable store.
+   */
+  private async chainHeadAdvanced(batch: BufferedAuditEntry[]): Promise<boolean> {
+    const expectedHead = batch[0]?.previousHash;
+    if (!expectedHead) return false;
+    const tenantId = (batch[0].tenantId as string | null | undefined) ?? null;
+    try {
+      const head = await auditChainService.currentHead(tenantId);
+      return head !== expectedHead;
+    } catch (err) {
+      logger.debug("[Audit] Could not read the chain head after a failed flush", err);
       return false;
     }
   }
@@ -550,6 +633,7 @@ export class AuditService {
           severity,
           details: redactSensitiveDetails(details),
           tenantId,
+          chainScope: chainHashScope(tenantId as string | null | undefined),
           result,
           timestamp,
           createdAt: timestamp as any,

@@ -209,6 +209,22 @@ function sqliteIndexStatement(idx: IndexSpec, table: string): string {
   )} (${cols})${where};`;
 }
 
+/**
+ * A standalone, idempotent MariaDB index statement.
+ *
+ * Mirrors `mariaInlineIndexes` (same columns and uniqueness) so a fresh install and an
+ * upgraded one end up with the same definition; the inline copy satisfies it on a new
+ * table and `IF NOT EXISTS` makes the standalone one a no-op there.
+ */
+function mariaIndexStatement(idx: IndexSpec, table: TableSpec): string {
+  const cols = (idx.columns.mariadb ?? [])
+    .map((c) => mariaColumn(c, idx.mariadbQuotedColumns?.includes(c) ?? false))
+    .join(", ");
+  const uniq = isUniqueFor(idx, "mariadb") ? "UNIQUE " : "";
+  const tableName = table.mariadbQuotedTable ? quoteIdentifier(table.name, "mariadb") : table.name;
+  return `CREATE ${uniq}INDEX IF NOT EXISTS ${idx.name.mariadb} ON ${tableName} (${cols})`;
+}
+
 function mariaInlineIndexes(t: TableSpec): string[] {
   const lines: string[] = [];
   for (const idx of t.indexes ?? []) {
@@ -262,7 +278,14 @@ export function renderBootstrapStatements(dialect: "postgresql" | "mariadb"): st
       statements.push(...(item.extensions?.postgresql ?? []));
     }
     for (const idx of item.indexes ?? []) {
-      if (dialect === "mariadb") continue; // inline in the CREATE TABLE above
+      if (dialect === "mariadb") {
+        // MariaDB renders indexes inline in CREATE TABLE, so an EXISTING table never
+        // received a newly declared one (an upgrade silently lacked the constraint).
+        // `IF NOT EXISTS` keeps the fresh-install path a no-op and makes the DDL pass
+        // add missing indexes on upgrade.
+        if (idx.name.mariadb) statements.push(mariaIndexStatement(idx, item));
+        continue;
+      }
       if (!idx.name.postgresql) continue;
       statements.push(pgIndexStatement(idx, item.name));
     }

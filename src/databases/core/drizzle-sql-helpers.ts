@@ -813,6 +813,8 @@ export const SYSTEM_LITERAL_COLUMNS: Record<string, string[]> = {
     // with no previousHash/chainHash and verification can never succeed.
     "previousHash",
     "chainHash",
+    // Chain scope (`tenantId ?? "__global__"`) — the fork-guard index key.
+    "chainScope",
   ],
   fourOhFourLogs: [
     "_id",
