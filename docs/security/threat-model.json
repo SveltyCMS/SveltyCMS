@@ -14,8 +14,8 @@
         "src/databases/auth/permission-catalog.ts"
       ],
       "model": "docs/security/threat-models/api-dispatch.mdx",
-      "reviewed_at": "2026-11-10",
-      "fingerprint": "caabf98e86b79103c6e23de71a5e446bb27832d3a4bb96f1d20511db4a303968"
+      "reviewed_at": "2026-11-11",
+      "fingerprint": "ae2af106aefeae4b91edc9fff86805bf696c5d89449d764573663bb646e5f7ed"
     },
     {
       "id": "auth-session",
