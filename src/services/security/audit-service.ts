@@ -20,7 +20,11 @@ import {
   getAuditFlagsSync,
   isAuditDisabledByEnv,
 } from "@utils/security/audit-flags";
-import { auditChainService, type ChainedAuditEntry } from "@src/services/audit-chain";
+import {
+  auditChainService,
+  AUDIT_CHECKPOINT_KEY,
+  type ChainedAuditEntry,
+} from "@src/services/audit-chain";
 
 export type AuditSeverity = "low" | "medium" | "high" | "critical";
 
@@ -346,6 +350,11 @@ export class AuditService {
         // No DB adapter — the append-only log file is the only sink.
         await this.appendEntriesToFile(entriesToFlush);
       }
+      // 🔒 The entries are durable; now advance the per-tenant tail checkpoint. It
+      // is the only thing that makes a *truncated* tail detectable (a hash chain
+      // cannot see its own end). Once per flush, never per entry, and a failure here
+      // must not fail the flush — the count only goes up after a successful write.
+      await this.commitCheckpoints(entriesToFlush);
       return true;
     } catch (error) {
       if (this.isMissingAuditStoreError(error)) {
@@ -374,6 +383,29 @@ export class AuditService {
         this.buffer = combined;
       }
       return false;
+    }
+  }
+
+  /**
+   * Advances each touched tenant's chain checkpoint to the tail of this batch.
+   *
+   * Per-tenant, in batch order: the last entry of a tenant wins, so the checkpoint
+   * always names the newest committed entry of that tenant.
+   */
+  private async commitCheckpoints(entries: BufferedAuditEntry[]): Promise<void> {
+    if (entries.length === 0) return;
+    const tails = new Map<string | null, { count: number; headHash: string }>();
+    for (const entry of entries) {
+      const headHash = entry.chainHash as string | undefined;
+      if (!headHash) continue;
+      const tenantId = (entry.tenantId as string | null | undefined) ?? null;
+      const tail = tails.get(tenantId);
+      tails.set(tenantId, { count: (tail?.count ?? 0) + 1, headHash });
+    }
+    for (const [tenantId, tail] of tails) {
+      await auditChainService
+        .commitCheckpoint(tenantId, tail.headHash, tail.count)
+        .catch((err) => logger.warn("[Audit] Chain checkpoint failed:", err));
     }
   }
 
@@ -415,6 +447,10 @@ export class AuditService {
         // 1000-entry audit flushes on the content-write path.
         if (collection === this.collectionName) return;
         if (collection === OUTBOX_COLLECTION) return;
+        // The chain checkpoint lives in `systemPreferences`; auditing it would make
+        // every flush emit an audit entry, which in turn writes a checkpoint.
+        if (collection === "systemPreferences" && (data as any)?.key === AUDIT_CHECKPOINT_KEY)
+          return;
 
         // The HTTP mutation audit (`handle-audit-logging.ts`, one entry per
         // request: method/path/user/status/ip) already covers interactive

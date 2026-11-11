@@ -11,6 +11,8 @@
  * - Tenant-keyed in-memory last-hash cache to avoid DB lookups on every write
  * - Per-tenant in-process mutex so concurrent writers cannot fork the chain
  * - ONE canonical payload function shared by writer and verifier
+ * - Tail checkpoint (head hash + entry count) outside the audit table, so a
+ *   deleted tail is detectable — a hash chain alone cannot see its own end
  * - Full chain verification with tamper detection
  * - Multi-tenant aware (tenantId scoping; untenanted writes share `__global__`)
  *
@@ -28,9 +30,29 @@
 import { createHash } from "node:crypto";
 import { dbAdapter as dbAdapterInstance } from "@src/databases/db";
 import { logger } from "@utils/logger";
+import { nowISODateString } from "@utils/date";
 
 /** Genesis hash: 64 zero-hex characters, the anchor for the first entry in the chain */
 export const GENESIS_HASH = "0000000000000000000000000000000000000000000000000000000000000000";
+
+/**
+ * Preference key holding the per-tenant chain checkpoint.
+ *
+ * Deliberately outside the `auditLogs` table: truncation removes the tail, so a
+ * marker stored in that table would be removed with it. `systemPreferences` is the
+ * existing tenant-scoped KV (unique on `(key, tenantId)`), which keeps the
+ * checkpoint working on every adapter with no migration.
+ */
+export const AUDIT_CHECKPOINT_KEY = "audit_chain_checkpoint";
+
+/** Tail of a tenant's chain as of its last flush. */
+export interface AuditChainCheckpoint {
+  /** Hash of the newest chained entry the writer had committed. */
+  headHash: string;
+  /** Number of chained entries committed at that point. */
+  entryCount: number;
+  updatedAt?: string;
+}
 
 /** Interface for an audit log entry with chain fields */
 export interface ChainedAuditEntry {
@@ -64,6 +86,23 @@ export interface ChainVerificationResult {
   tamperedEntries: number;
   /** Leading rows written before the chain existed (skipped, not tampered). */
   unchainedPrefix?: number;
+  /**
+   * Checkpoint comparison (tail truncation). `null` when the tenant has no
+   * checkpoint yet — a pre-upgrade or never-flushed chain.
+   */
+  checkpoint?: {
+    expectedEntries: number;
+    foundEntries: number;
+    expectedHead: string;
+    foundHead: string;
+    matched: boolean;
+  } | null;
+  /**
+   * Entries that only matched after truncating the timestamp to whole seconds —
+   * rows written before the MariaDB `timestamp` column kept milliseconds.
+   * 0 for any chain written by the current code.
+   */
+  legacySecondPrecisionEntries?: number;
   details?: string[];
 }
 
@@ -124,6 +163,21 @@ function normalizeTimestamp(value: unknown): string | null {
   if (typeof value === "string") return value;
   if (typeof value === "number") return new Date(value).toISOString();
   return String(value);
+}
+
+/**
+ * The same timestamp truncated to whole seconds, or `null` when it already is.
+ *
+ * Exists for rows written before the MariaDB `audit_logs.timestamp` column was
+ * `DATETIME(3)`: the store dropped the milliseconds the writer had hashed, so those
+ * rows can never match the exact payload. Verification accepts the second-precision
+ * variant and counts it (see `legacySecondPrecisionEntries`).
+ */
+function toSecondPrecision(value: unknown): string | null {
+  const iso = normalizeTimestamp(value);
+  if (!iso) return null;
+  const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\.\d{1,3}Z$/.exec(iso);
+  return match ? `${match[1]}Z` : null;
 }
 
 /**
@@ -189,6 +243,8 @@ export class AuditChainService {
   private readonly lastHashCache = new Map<string, string>();
   /** Per-tenant tail of the write queue (in-process mutex, see file header). */
   private readonly tenantLocks = new Map<string, Promise<void>>();
+  /** Chained-entry count per tenant, so a flush does not need a read before its write. */
+  private readonly countCache = new Map<string, number>();
 
   private static cacheKey(tenantId?: string | null): string {
     return tenantId || "__global__";
@@ -303,6 +359,68 @@ export class AuditChainService {
   }
 
   /**
+   * Reads the tenant's chain checkpoint, or `null` when none was recorded.
+   * A checkpoint that cannot be parsed is treated as absent: verification must not
+   * fail because of a malformed side row, and the absence itself is reported.
+   */
+  async readCheckpoint(tenantId?: string | null): Promise<AuditChainCheckpoint | null> {
+    try {
+      const preferences = (dbAdapterInstance as any)?.system?.preferences;
+      if (!preferences) return null;
+      const result = await preferences.get(AUDIT_CHECKPOINT_KEY, {
+        tenantId: (tenantId ?? null) as any,
+      });
+      if (!result?.success || !result.data) return null;
+      const raw = result.data as unknown;
+      const parsed =
+        typeof raw === "string"
+          ? (JSON.parse(raw) as AuditChainCheckpoint)
+          : (raw as AuditChainCheckpoint);
+      return typeof parsed?.entryCount === "number" && typeof parsed?.headHash === "string"
+        ? parsed
+        : null;
+    } catch (err) {
+      logger.debug("[AuditChain] Could not read chain checkpoint", err);
+      return null;
+    }
+  }
+
+  /**
+   * Advances the tenant's checkpoint after a flush committed `appended` entries.
+   *
+   * Called once per flush, never per entry — the write path stays off the hot path.
+   * A failure is under-counting (the count is only raised after a successful write),
+   * which is the safe direction: verification treats more entries than recorded as a
+   * normal append, so a missed checkpoint can never produce a false truncation alarm.
+   */
+  async commitCheckpoint(
+    tenantId: string | null | undefined,
+    headHash: string,
+    appended: number,
+  ): Promise<void> {
+    if (!appended || !headHash) return;
+    const cacheKey = AuditChainService.cacheKey(tenantId);
+    const previous =
+      this.countCache.get(cacheKey) ?? (await this.readCheckpoint(tenantId))?.entryCount ?? 0;
+    const entryCount = previous + appended;
+    const preferences = (dbAdapterInstance as any)?.system?.preferences;
+    if (!preferences) return;
+
+    const result = await preferences.set(
+      AUDIT_CHECKPOINT_KEY,
+      { headHash, entryCount, updatedAt: nowISODateString() } satisfies AuditChainCheckpoint,
+      { tenantId: (tenantId as string | null) ?? null, category: "audit" },
+    );
+    if (!result?.success) {
+      logger.warn(
+        `[AuditChain] Chain checkpoint not written (${entryCount} entries): ${result?.message ?? "unknown"}`,
+      );
+      return;
+    }
+    this.countCache.set(cacheKey, entryCount);
+  }
+
+  /**
    * Verifies the entire audit chain for integrity.
    * Walks all entries sorted by timestamp, recomputing chainHash for each
    * with the same canonical payload the writer used, and comparing against the
@@ -319,6 +437,7 @@ export class AuditChainService {
     const tamperedEntries: number[] = [];
     const details: string[] = [];
     let unchainedPrefix = 0;
+    let legacySecondPrecisionEntries = 0;
 
     try {
       if (!dbAdapterInstance) {
@@ -403,7 +522,23 @@ export class AuditChainService {
         }
 
         // Recompute chainHash with the shared canonical payload
-        const computedChainHash = computeChainHash(entry, entry.previousHash ?? GENESIS_HASH);
+        let computedChainHash = computeChainHash(entry, entry.previousHash ?? GENESIS_HASH);
+        let legacySecondPrecision = false;
+
+        if (storedChainHash !== computedChainHash) {
+          // Pre-fix MariaDB rows: the column was DATETIME(0), so the stored value
+          // lost the milliseconds the writer hashed and no row could ever verify.
+          // Accept a second-precision match for exactly those rows and report the
+          // count; new rows hash the stored value exactly, so this path stays cold.
+          const secondPrecision = toSecondPrecision(entry.timestamp);
+          if (secondPrecision !== null) {
+            computedChainHash = computeChainHash(
+              { ...entry, timestamp: secondPrecision },
+              entry.previousHash ?? GENESIS_HASH,
+            );
+            legacySecondPrecision = storedChainHash === computedChainHash;
+          }
+        }
 
         if (storedChainHash !== computedChainHash) {
           if (!tamperedEntries.includes(i)) {
@@ -414,14 +549,52 @@ export class AuditChainService {
               entry.timestamp ?? "unknown time"
             }): chainHash mismatch. Entry may have been modified.`,
           );
+        } else if (legacySecondPrecision) {
+          legacySecondPrecisionEntries++;
         }
 
         // Set expected previous hash for next iteration
         expectedPreviousHash = storedChainHash ?? entry.previousHash ?? GENESIS_HASH;
       }
 
-      const valid = tamperedEntries.length === 0;
-      const brokenAt = tamperedEntries.length > 0 ? tamperedEntries[0] : null;
+      // 🔒 Tail-truncation check. Re-hashing proves nothing about rows deleted from
+      // the END of the chain: whatever prefix remains still verifies. The checkpoint
+      // (head hash + count, written once per flush) is the only thing that makes a
+      // shortened tail visible. It lags by design, so FEWER entries than recorded is
+      // truncation and a different head at the SAME count is a rewrite; more entries
+      // than recorded is simply “written since the last flush”.
+      //
+      // Residual gap (documented, not silently assumed): an actor who deletes the
+      // tail AND the checkpoint row leaves a shorter chain that still verifies. A
+      // checkpoint protected from that actor needs a store outside the CMS database.
+      const checkpoint = await this.readCheckpoint(tenantId);
+      const chainedEntries = entries.length - unchainedPrefix;
+      let checkpointOk = true;
+      let checkpointReport: ChainVerificationResult["checkpoint"] = null;
+      if (checkpoint) {
+        const truncated = chainedEntries < checkpoint.entryCount;
+        const rewritten =
+          chainedEntries === checkpoint.entryCount && expectedPreviousHash !== checkpoint.headHash;
+        checkpointOk = !truncated && !rewritten;
+        if (!checkpointOk) {
+          details.push(
+            truncated
+              ? `Tail truncated: checkpoint recorded ${checkpoint.entryCount} entries, ${chainedEntries} found`
+              : `Tail rewritten: checkpoint head ${checkpoint.headHash.slice(0, 16)}..., found ${expectedPreviousHash.slice(0, 16)}...`,
+          );
+        }
+        checkpointReport = {
+          expectedEntries: checkpoint.entryCount,
+          foundEntries: chainedEntries,
+          expectedHead: checkpoint.headHash,
+          foundHead: expectedPreviousHash,
+          matched: checkpointOk,
+        };
+      }
+
+      const valid = tamperedEntries.length === 0 && checkpointOk;
+      const brokenAt =
+        tamperedEntries.length > 0 ? tamperedEntries[0] : checkpointOk ? null : chainedEntries;
 
       return {
         valid,
@@ -429,6 +602,8 @@ export class AuditChainService {
         totalEntries: entries.length,
         tamperedEntries: tamperedEntries.length,
         unchainedPrefix,
+        checkpoint: checkpointReport,
+        legacySecondPrecisionEntries,
         details: details.length > 0 ? details : undefined,
       };
     } catch (err) {

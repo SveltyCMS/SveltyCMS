@@ -20,7 +20,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { ensureFullInitialization, getDb } from "@src/databases/db";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { auditService, AuditEventType } from "@src/services/security/audit-service";
-import { auditChainService, GENESIS_HASH } from "@src/services/audit-chain";
+import { auditChainService, AUDIT_CHECKPOINT_KEY, GENESIS_HASH } from "@src/services/audit-chain";
 import type { DatabaseId } from "@src/databases/db-interface";
 import { generateUUID } from "@utils/native-utils";
 
@@ -28,7 +28,8 @@ const RUN = generateUUID().slice(0, 8);
 const TENANT_LINEAR = `chain-linear-${RUN}`;
 const TENANT_TAMPER = `chain-tamper-${RUN}`;
 const TENANT_DELETE = `chain-delete-${RUN}`;
-const tenants = [TENANT_LINEAR, TENANT_TAMPER, TENANT_DELETE];
+const TENANT_TRUNCATE = `chain-truncate-${RUN}`;
+const tenants = [TENANT_LINEAR, TENANT_TAMPER, TENANT_DELETE, TENANT_TRUNCATE];
 
 let db: any = null;
 
@@ -47,6 +48,13 @@ afterAll(async () => {
       ?.deleteMany(
         "auditLogs",
         { tenantId },
+        withSystemScope("testing", { permanent: true, confirmWipe: true }),
+      )
+      .catch(() => {});
+    await db?.crud
+      ?.deleteMany(
+        "systemPreferences",
+        { key: AUDIT_CHECKPOINT_KEY, tenantId },
         withSystemScope("testing", { permanent: true, confirmWipe: true }),
       )
       .catch(() => {});
@@ -151,5 +159,41 @@ describe("Audit chain on real storage", () => {
     // Tampering in one tenant must not invalidate another tenant's chain.
     const linearResult = await auditChainService.verifyChain(TENANT_LINEAR);
     expect(linearResult.valid, JSON.stringify(linearResult)).toBe(true);
+  }, 120_000);
+
+  it("records a tail checkpoint per tenant after a flush", async () => {
+    const rows = await chainRows(TENANT_LINEAR);
+    const checkpoint = await auditChainService.readCheckpoint(TENANT_LINEAR);
+    expect(checkpoint, "no checkpoint was written by the flush").not.toBeNull();
+    expect(checkpoint?.entryCount).toBeGreaterThanOrEqual(rows.length);
+    expect(checkpoint?.headHash).toBe(rows[rows.length - 1].chainHash);
+
+    const result = await auditChainService.verifyChain(TENANT_LINEAR);
+    expect(result.checkpoint?.matched, JSON.stringify(result)).toBe(true);
+  }, 120_000);
+
+  it("detects a truncated tail (newest entries deleted)", async () => {
+    await writeBurst(TENANT_TRUNCATE, 5);
+    const rows = await chainRows(TENANT_TRUNCATE);
+    expect(rows.length).toBe(5);
+
+    const clean = await auditChainService.verifyChain(TENANT_TRUNCATE);
+    expect(clean.valid, JSON.stringify(clean)).toBe(true);
+
+    // Deleting from the END leaves a prefix that re-hashes perfectly: without the
+    // checkpoint this was undetectable.
+    const removed = await db.crud.deleteMany(
+      "auditLogs",
+      { _id: rows[rows.length - 1]._id },
+      { tenantId: TENANT_TRUNCATE },
+    );
+    expect(removed.success, JSON.stringify(removed).slice(0, 200)).toBe(true);
+
+    const truncated = await auditChainService.verifyChain(TENANT_TRUNCATE);
+    expect(truncated.valid, JSON.stringify(truncated)).toBe(false);
+    expect(truncated.checkpoint?.matched, JSON.stringify(truncated)).toBe(false);
+    expect(truncated.checkpoint?.foundEntries).toBe(4);
+    expect(truncated.checkpoint?.expectedEntries).toBe(5);
+    expect((truncated.details ?? []).join(" ")).toContain("Tail truncated");
   }, 120_000);
 });

@@ -2371,6 +2371,13 @@ Consolidated the database CRUD access layers across all four production engines 
   - HTTP Seed Burst: **12,406 docs/s** (500 docs in 40 ms).
 - **Verified 2026-11-08:** `bun run check` clean, `bun run test:unit` passing, `bun run lint:docs` 0 errors.
 
+### 3.76 November 2026 — Audit-chain tail checkpoints & MariaDB hash parity (2026-11-11)
+
+- **Truncation is now detectable.** A hash chain cannot see its own end: deleting the newest entries leaves a prefix that re-hashes perfectly. Each flush now writes a per-tenant checkpoint (head hash + chained-entry count) to `systemPreferences` — outside `audit_logs`, so it survives a table truncation — and `verifyChain()` reports `checkpoint.matched: false` plus a `Tail truncated` detail when fewer entries exist than recorded. Once per flush, never per entry (no write-path cost). Residual gap, documented in the module: an actor who deletes the tail **and** the checkpoint row is still invisible; that needs a store outside the CMS database.
+- **MariaDB chains verify again.** `audit_logs.timestamp` was `DATETIME` (precision 0), so MariaDB dropped the milliseconds the writer had hashed and **every** row failed its own `chainHash` — the whole trail read as tampered. The column is now `DATETIME(3)`, matching `createdAt`/`updatedAt`. Rows written before the fix still verify through a second-precision tolerance, reported as `legacySecondPrecisionEntries`.
+- **Chain reads are deterministic.** `nowISODateString()` is cached per millisecond, so a write burst shares one timestamp and a timestamp-only `ORDER BY` may return an earlier entry of that millisecond as the chain head. Both the head read and the verification walk now break ties on `_id` (UUIDv7 = write order).
+- **Verified on all four adapters:** new `tests/integration/databases/audit-chain-integrity.test.ts` (7 tests: GENESIS/linkage, same-millisecond burst, modified entry, deleted middle entry, independent tenant chains, checkpoint written, truncated tail) passes on SQLite, PostgreSQL, MariaDB and MongoDB. `bun run test:unit` 893 files / 8,368 tests green.
+
 ## Related
 
 - [Project Roadmap](./roadmap-2026.mdx)
