@@ -381,9 +381,9 @@ export const auditLogs = mysqlTable(
     severity: varchar("severity", { length: 20 }).notNull(),
     targetId: varchar("targetId", { length: 255 }),
     targetType: varchar("targetType", { length: 100 }),
-    timestamp: datetime("timestamp")
+    timestamp: datetime("timestamp", { fsp: 3 })
       .notNull()
-      .default(sql`CURRENT_TIMESTAMP`),
+      .default(sql`CURRENT_TIMESTAMP(3)`),
     userAgent: text("userAgent"),
     tenantId: tenantField(),
     previousHash: varchar("previousHash", { length: 64 }),

@@ -1282,7 +1282,12 @@ export const SYSTEM_SCHEMA: SchemaItem[] = [
       { name: "targetType", type: varchar(100) },
       {
         name: "timestamp",
-        type: tsCol(),
+        // Millisecond precision on purpose: this column is one of the fields the
+        // audit chain commits to. MariaDB's default DATETIME(0) truncates the
+        // milliseconds the writer hashed, so every row read back failed its own
+        // chainHash and the whole trail looked tampered. `createdAt`/`updatedAt`
+        // already use fsp 3; this column was the outlier.
+        type: tsCol(3),
         notNull: true,
         default: { postgresql: "CURRENT_TIMESTAMP", mariadb: "CURRENT_TIMESTAMP" },
       },
