@@ -142,6 +142,9 @@ export interface AuditServiceOptions {
  */
 const liveAuditServices = new Set<AuditService>();
 
+/** Adapters that already have the audit hook registered (see `registerHooks`). */
+const registeredAuditAdapters = new WeakSet<object>();
+
 /**
  * Flush every buffered audit entry before the process dies.
  *
@@ -179,7 +182,7 @@ export class AuditService {
   private readonly collectionName = "auditLogs";
   private readonly logFile = path.join(process.cwd(), "logs", "audit.log");
   private buffer: BufferedAuditEntry[] = [];
-  private flushTimer: any = null;
+  private flushTimer: ReturnType<typeof setInterval> | null = null;
   private microBatchTimer: NodeJS.Timeout | null = null;
   private inFlightFlush: Promise<void> | null = null;
   /** Serializes `flush()` itself so interval/micro-batch/size/chainSync callers cannot interleave buffer swaps. */
@@ -442,7 +445,7 @@ export class AuditService {
         { ...withSystemScope("audit-flush"), limit: ids.length } as any,
       );
       if (!found?.success) return null;
-      return new Set((found.data ?? []).map((row: any) => String(row._id)));
+      return new Set((found.data ?? []).map((row: { _id?: unknown }) => String(row._id)));
     } catch (err) {
       logger.debug("[Audit] Could not verify which entries landed; using the batch count", err);
       return null;
@@ -493,8 +496,8 @@ export class AuditService {
     }
     if (dbAdapterInstance.batch?.bulkInsert) {
       const result = await dbAdapterInstance.batch.bulkInsert(this.collectionName, batch);
-      if (result && (result as any).success === false) {
-        throw new Error(`audit bulkInsert failed: ${(result as any).message ?? "unknown error"}`);
+      if (result && result.success === false) {
+        throw new Error(`audit bulkInsert failed: ${result.message ?? "unknown error"}`);
       }
       return;
     }
@@ -581,9 +584,10 @@ export class AuditService {
       return;
     }
 
-    // 🚀 PERFORMANCE: Use a flag to prevent multiple registrations
-    if ((adapter as any).__auditHookRegistered) return;
-    (adapter as any).__auditHookRegistered = true;
+    // 🚀 PERFORMANCE: register once per adapter. A module-level WeakSet keeps this
+    // off the adapter object (no `as any` property bag) and cannot leak entries.
+    if (registeredAuditAdapters.has(adapter)) return;
+    registeredAuditAdapters.add(adapter);
 
     adapter.registerHook({
       id: "global-audit",
