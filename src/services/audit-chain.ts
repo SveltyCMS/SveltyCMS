@@ -277,7 +277,11 @@ export class AuditChainService {
         // safe-query) — it is not "unfiltered" — so the head read cannot land on
         // a tenant's row and no defensive window scan is needed.
         limit: 1,
-        sort: { timestamp: "desc" } as any,
+        // `_id` breaks timestamp ties: `nowISODateString()` is cached per
+        // millisecond, so a write burst shares one timestamp and a timestamp-only
+        // ORDER BY may hand back an earlier entry of that millisecond as the head.
+        // `_id` is UUIDv7 (write order), so the tiebreak is chronological.
+        sort: { timestamp: "desc", _id: "desc" } as any,
         tenantId: tenantId as any,
       });
 
@@ -333,8 +337,13 @@ export class AuditChainService {
         filter.tenantId = tenantId;
       }
 
+      // Walk in write order. `timestamp` alone is not enough: `nowISODateString()`
+      // is cached per millisecond, so a burst of entries carries the same timestamp
+      // and the tie order is adapter-defined — the walk would then differ from the
+      // write order and report a fork that never happened. `_id` (UUIDv7) is the
+      // chronological tiebreak.
       const result = await dbAdapterInstance.crud.findMany(this.collectionName, filter as any, {
-        sort: { timestamp: "asc" } as any,
+        sort: { timestamp: "asc", _id: "asc" } as any,
         limit: 10000, // Large batch for chain verification
         tenantId: tenantId as any,
       });
