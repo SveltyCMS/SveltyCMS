@@ -10,6 +10,12 @@
  * - Tenant epoch: per-tenant revocation map for instant tenant lockout / plan termination
  * - User epoch: per-user revocation map for instant logout on all devices after password reset
  * - Bounded LRU/pruning on user/tenant maps to avoid memory leaks
+ *
+ * This module is intentionally dependency-free: it is the hot in-process path.
+ * Cross-node propagation lives in `revocation-publish.server.ts` —
+ * `publishGlobalRevocation()` / `publishTenantRevocation()` / `publishUserRevocation()`
+ * write the shared-cache markers, and `getDistributedRevocationEpoch(scope, id)`
+ * reads them (memoized) on a node that never saw the revoke.
  */
 
 let globalRevocationEpoch = 0;
@@ -44,6 +50,9 @@ function pruneOldEpochs(map: Map<string, number>, now: number): void {
 /**
  * Revokes all sessions across the entire system.
  * Any session issued before this call becomes instantly invalid.
+ *
+ * This only covers the current process; call `publishGlobalRevocation()`
+ * (`revocation-publish.server.ts`) to also mark other nodes.
  */
 export function revokeAllSessions(): number {
   globalRevocationEpoch = Date.now();
@@ -52,6 +61,9 @@ export function revokeAllSessions(): number {
 
 /**
  * Revokes all sessions belonging to a specific tenant.
+ *
+ * Process-local; call `publishTenantRevocation(tenantId)`
+ * (`revocation-publish.server.ts`) for cross-node propagation.
  */
 export function revokeTenantSessions(tenantId: string): number {
   if (!tenantId) return 0;
