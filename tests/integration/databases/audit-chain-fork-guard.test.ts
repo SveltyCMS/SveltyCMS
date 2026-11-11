@@ -202,5 +202,8 @@ describe("Audit chain fork guard", () => {
     expect(rows.length).toBe(3);
     const result = await auditChainService.verifyChain(TENANT_FLUSH);
     expect(result.valid, JSON.stringify(result)).toBe(true);
+    // Truncation is signalled by the checkpoint HEAD, not the count: the count is a
+    // per-writer lower bound (each writer adds its own flush), so it may lag.
+    expect(result.checkpoint?.matched, JSON.stringify(result)).toBe(true);
   }, 120_000);
 });

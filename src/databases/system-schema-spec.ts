@@ -1313,11 +1313,7 @@ export const SYSTEM_SCHEMA: SchemaItem[] = [
         // (tenantId, timestamp DESC) btree instead.
         "DROP INDEX IF EXISTS audit_logs_timestamp_idx",
       ],
-      mariadb: [
-        // MariaDB renders its indexes inside CREATE TABLE; the DDL pass now also emits
-        // idempotent standalone index statements for existing tables (see
-        // `mariaIndexStatement`), so nothing table-specific is needed here.
-      ],
+      mariadb: [],
     },
     indexes: [
       {

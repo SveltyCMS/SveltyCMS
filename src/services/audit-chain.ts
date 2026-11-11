@@ -504,6 +504,8 @@ export class AuditChainService {
     const details: string[] = [];
     let unchainedPrefix = 0;
     let legacySecondPrecisionEntries = 0;
+    /** Stored hashes of the chained entries, so the checkpoint head can be located. */
+    const storedHashes = new Set<string>();
 
     try {
       if (!dbAdapterInstance) {
@@ -621,32 +623,31 @@ export class AuditChainService {
 
         // Set expected previous hash for next iteration
         expectedPreviousHash = storedChainHash ?? entry.previousHash ?? GENESIS_HASH;
+        if (storedChainHash) storedHashes.add(storedChainHash);
       }
 
       // 🔒 Tail-truncation check. Re-hashing proves nothing about rows deleted from
       // the END of the chain: whatever prefix remains still verifies. The checkpoint
-      // (head hash + count, written once per flush) is the only thing that makes a
-      // shortened tail visible. It lags by design, so FEWER entries than recorded is
-      // truncation and a different head at the SAME count is a rewrite; more entries
-      // than recorded is simply “written since the last flush”.
+      // (head hash + count, written once per flush) is what makes a shortened tail
+      // visible — and the signal is the HEAD HASH, not the count:
+      //   - the count is maintained per writer, so several processes under-count it
+      //     and a derived "found < expected" verdict produced false alarms;
+      //   - absence of the checkpoint head cannot be forged by an append, only by
+      //     removing the rows that carried it.
+      // The count is still reported, for an auditor reading the result.
       //
-      // Residual gap (documented, not silently assumed): an actor who deletes the
-      // tail AND the checkpoint row leaves a shorter chain that still verifies. A
-      // checkpoint protected from that actor needs a store outside the CMS database.
+      // Residual gap (documented, not silently assumed): an actor who deletes the tail
+      // AND the checkpoint row leaves a shorter chain that still verifies. A checkpoint
+      // protected from that actor needs a store outside the CMS database.
       const checkpoint = await this.readCheckpoint(tenantId);
       const chainedEntries = entries.length - unchainedPrefix;
-      let checkpointOk = true;
+      const truncated = checkpoint ? !storedHashes.has(checkpoint.headHash) : false;
+      const checkpointOk = !truncated;
       let checkpointReport: ChainVerificationResult["checkpoint"] = null;
       if (checkpoint) {
-        const truncated = chainedEntries < checkpoint.entryCount;
-        const rewritten =
-          chainedEntries === checkpoint.entryCount && expectedPreviousHash !== checkpoint.headHash;
-        checkpointOk = !truncated && !rewritten;
-        if (!checkpointOk) {
+        if (truncated) {
           details.push(
-            truncated
-              ? `Tail truncated: checkpoint recorded ${checkpoint.entryCount} entries, ${chainedEntries} found`
-              : `Tail rewritten: checkpoint head ${checkpoint.headHash.slice(0, 16)}..., found ${expectedPreviousHash.slice(0, 16)}...`,
+            `Tail truncated: the checkpoint head ${checkpoint.headHash.slice(0, 16)}... is no longer in the chain (${chainedEntries} entries found, ${checkpoint.entryCount} recorded when it was taken)`,
           );
         }
         checkpointReport = {

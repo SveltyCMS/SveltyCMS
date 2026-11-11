@@ -271,6 +271,9 @@ export function renderBootstrapStatements(dialect: "postgresql" | "mariadb"): st
           ",\n",
         )}\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
       );
+      // `extensions.mariadb` used to be DROPPED here: only the postgresql branch pushed
+      // extensions, so MariaDB DDL declared in the spec silently never ran.
+      statements.push(...(item.extensions?.mariadb ?? []));
     } else {
       statements.push(
         `CREATE TABLE IF NOT EXISTS ${pgTableName(item.name)} (\n${cols.join(",\n")}\n)`,

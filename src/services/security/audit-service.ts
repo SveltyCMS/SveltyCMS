@@ -343,6 +343,9 @@ export class AuditService {
     this.buffer = [];
 
     let lastError: unknown = null;
+    // The checkpoint must cover every row this flush attempted, including a prefix that a
+    // non-atomic (MongoDB) bulk write already stored before it rejected the rest.
+    let checkpointBatch = batch;
     for (let attempt = 1; attempt <= MAX_CHAIN_ATTEMPTS; attempt++) {
       try {
         await this.insertBatch(batch);
@@ -350,7 +353,7 @@ export class AuditService {
         // is the only thing that makes a *truncated* tail detectable (a hash chain
         // cannot see its own end). Once per flush, never per entry, and a failure
         // here must not fail the flush — the count only goes up after a write.
-        await this.commitCheckpoints(batch);
+        await this.commitCheckpoints(checkpointBatch);
         return true;
       } catch (error) {
         lastError = error;
@@ -372,15 +375,23 @@ export class AuditService {
           // and retry. Bounded on purpose: a conflict that keeps recurring must
           // surface as a failure, not spin.
           logger.warn(
-            `[Audit] Chain head advanced concurrently (attempt ${attempt}/${MAX_CHAIN_ATTEMPTS}); re-chaining ${batch.length} entr${batch.length === 1 ? "y" : "ies"}`,
+            `[Audit] Chain head advanced concurrently (attempt ${attempt}/${MAX_CHAIN_ATTEMPTS}); re-chaining ${remaining.length} entr${remaining.length === 1 ? "y" : "ies"}`,
           );
           // Same view of the row in both directions: `rechain` speaks
           // `ChainedAuditEntry`, the buffer holds `BufferedAuditEntry`; the runtime
           // object is identical (the chain fields are the only difference and both
           // types declare them).
-          batch = (await auditChainService.rechain(
+          const rehashed = (await auditChainService.rechain(
             remaining as ChainedAuditEntry[],
           )) as BufferedAuditEntry[];
+          // Checkpoint the WHOLE attempt: rows that already landed keep their stored
+          // hashes, the rest take the re-chained ones, and the tail stays last.
+          const rehashedById = new Map(rehashed.map((entry) => [String(entry._id), entry]));
+          checkpointBatch = [
+            ...attempted.filter((entry) => !rehashedById.has(String(entry._id))),
+            ...rehashed,
+          ];
+          batch = rehashed;
           continue;
         }
         break;
