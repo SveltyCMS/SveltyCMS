@@ -14,6 +14,9 @@
  * - Automatic fallback from Redis to in-memory storage
  * - Simple interface for session management
  * - Compatible with the new simplified auth system
+ * - Cross-node revocation: every read also honours the distributed tenant/global
+ *   markers (`revocation-publish.server.ts`), so a revoke on another worker is
+ *   visible without a DB round-trip
  */
 
 // Auth
@@ -24,6 +27,7 @@ import { logger } from "@utils/logger";
 import type { SessionStore, SessionMetadata, SessionData } from "./types";
 import { toSafeSessionUser } from "./session-user";
 import { isSessionRevoked } from "./revocation-epoch";
+import { getDistributedRevocationEpoch } from "./revocation-publish.server";
 
 // Redis client interface to avoid direct dependency on a specific Redis library
 interface RedisLike {
@@ -32,6 +36,31 @@ interface RedisLike {
   keys(pattern: string): Promise<string[]>;
   quit?(): Promise<void>;
   setex(key: string, seconds: number, value: string): Promise<void>;
+}
+
+/**
+ * Cross-node revocation: the in-process epoch only knows about revokes THIS
+ * process observed. A tenant lockout or a logout-everywhere published by another
+ * worker lives in the shared cache (`auth:revoke:tenant:<id>` /
+ * `auth:revoke:global`) and must be compared against the session's issued-at time
+ * before the session is handed back.
+ *
+ * Cost: one memoized cache read per scope per 5s window (`getDistributedRevocationEpoch`),
+ * and no round-trip at all for the tenant scope when the session carries no
+ * tenant id. A cache failure is fail-open (the read resolves to 0) — callers run
+ * the in-process check first, which stays authoritative for local revokes.
+ */
+async function isRevokedDistributed(
+  issuedAtMs: number,
+  tenantId?: string | null,
+): Promise<boolean> {
+  const [tenantEpoch, globalEpoch] = await Promise.all([
+    tenantId ? getDistributedRevocationEpoch("tenant", tenantId) : Promise.resolve(0),
+    getDistributedRevocationEpoch("global"),
+  ]);
+  return (
+    (tenantEpoch > 0 && issuedAtMs < tenantEpoch) || (globalEpoch > 0 && issuedAtMs < globalEpoch)
+  );
 }
 
 // In-memory session storage as fallback
@@ -61,8 +90,10 @@ class InMemorySessionManager implements SessionStore {
       return null;
     }
 
+    const tenantId = session.user.tenantId ?? null;
     if (
-      isSessionRevoked(session.issuedAtMs, session.user._id, (session.user as any).tenantId ?? null)
+      isSessionRevoked(session.issuedAtMs, session.user._id, tenantId) ||
+      (await isRevokedDistributed(session.issuedAtMs, tenantId))
     ) {
       this.sessions.delete(sessionId);
       return null;
@@ -82,8 +113,10 @@ class InMemorySessionManager implements SessionStore {
       return null;
     }
 
+    const tenantId = session.user.tenantId ?? null;
     if (
-      isSessionRevoked(session.issuedAtMs, session.user._id, (session.user as any).tenantId ?? null)
+      isSessionRevoked(session.issuedAtMs, session.user._id, tenantId) ||
+      (await isRevokedDistributed(session.issuedAtMs, tenantId))
     ) {
       this.sessions.delete(sessionId);
       return null;
@@ -246,7 +279,11 @@ class RedisSessionManager implements SessionStore {
               : typeof parsed.expiresAt === "number"
                 ? parsed.expiresAt - 30 * 24 * 60 * 60 * 1000
                 : Date.now();
-          if (isSessionRevoked(issuedAtMs, parsed.user?._id, parsed.user?.tenantId ?? null)) {
+          const tenantId = parsed.user?.tenantId ?? null;
+          if (
+            isSessionRevoked(issuedAtMs, parsed.user?._id, tenantId) ||
+            (await isRevokedDistributed(issuedAtMs, tenantId))
+          ) {
             await this.redisClient.del(sessionId);
             return null;
           }
@@ -280,7 +317,11 @@ class RedisSessionManager implements SessionStore {
               : typeof parsed.expiresAt === "number"
                 ? parsed.expiresAt - 30 * 24 * 60 * 60 * 1000
                 : Date.now();
-          if (isSessionRevoked(issuedAtMs, parsed.user?._id, parsed.user?.tenantId ?? null)) {
+          const tenantId = parsed.user?.tenantId ?? null;
+          if (
+            isSessionRevoked(issuedAtMs, parsed.user?._id, tenantId) ||
+            (await isRevokedDistributed(issuedAtMs, tenantId))
+          ) {
             await this.redisClient.del(sessionId);
             return null;
           }

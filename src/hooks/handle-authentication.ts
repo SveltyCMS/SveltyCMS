@@ -40,6 +40,7 @@ import { isValidApiKeyFormat, hashApiKey } from "@src/databases/auth/api-keys";
 import { recordApiKeyUsage } from "@src/databases/auth/api-key-usage-accumulator";
 import { validateSessionMfaRequirement } from "@src/databases/auth/permissions";
 import { isSessionRevoked } from "@src/databases/auth/revocation-epoch";
+import { getDistributedRevocationEpoch } from "@src/databases/auth/revocation-publish.server";
 import {
   getApiKeyAuthCacheSync,
   getWebsiteTokenAuthCacheSync,
@@ -289,41 +290,61 @@ const lastRotationAttempt = new Map<string, number>();
 
 /**
  * Distributed revocation markers: the in-process epoch only covers sessions
- * handled by THIS process. A privilege change/block on worker A is published to
- * the shared cache so a warm LRU snapshot on worker B stops authorizing.
- * Memoized per user for a few seconds — one cache read per user per window, not
- * per request.
+ * handled by THIS process. A user logout, a tenant lockout, or a
+ * logout-everywhere published on worker A lands in the shared cache
+ * (`revocation-publish.server.ts`), so a warm LRU snapshot on worker B cannot
+ * outlive the change either.
+ *
+ * All three scopes are compared against the session's issued-at time. The read
+ * memo now lives inside `getDistributedRevocationEpoch()` (one cache read per
+ * scope per 5s window) — this module keeps no memo of its own. A scope that
+ * needs an id the session does not carry costs no round-trip; a cache failure
+ * is fail-open (the in-process epoch and the session rows still apply), but a
+ * positive marker is never ignored.
  */
-const USER_REVOKE_CACHE_PREFIX = "auth:revoke:user:";
-const DISTRIBUTED_REVOKE_MEMO_MS = 5_000;
-const distributedRevocations = new Map<string, { checkedAt: number; epoch: number }>();
-
 async function isRevokedDistributed(
-  userId: string | undefined,
+  userId: string | null | undefined,
   issuedAtMs: number | undefined,
   tenantId?: string | null,
 ): Promise<boolean> {
-  if (!userId || !issuedAtMs) return false;
-  const now = Date.now();
-  const memo = distributedRevocations.get(userId);
-  let epoch: number;
-  if (memo && now - memo.checkedAt < DISTRIBUTED_REVOKE_MEMO_MS) {
-    epoch = memo.epoch;
-  } else {
-    epoch = 0;
-    try {
-      const marker = await cacheService.get<number>(
-        `${USER_REVOKE_CACHE_PREFIX}${userId}`,
-        tenantId ?? undefined,
-      );
-      epoch = typeof marker === "number" ? marker : Number(marker) || 0;
-    } catch {
-      // Distributed cache unavailable — the in-process epoch still applies.
-    }
-    if (distributedRevocations.size > MAX_SESSION_CACHE) distributedRevocations.clear();
-    distributedRevocations.set(userId, { checkedAt: now, epoch });
-  }
-  return epoch > 0 && issuedAtMs < epoch;
+  if (!issuedAtMs) return false;
+  const [userEpoch, tenantEpoch, globalEpoch] = await Promise.all([
+    userId ? getDistributedRevocationEpoch("user", userId, tenantId) : Promise.resolve(0),
+    tenantId ? getDistributedRevocationEpoch("tenant", tenantId) : Promise.resolve(0),
+    getDistributedRevocationEpoch("global"),
+  ]);
+  return (
+    (userEpoch > 0 && issuedAtMs < userEpoch) ||
+    (tenantEpoch > 0 && issuedAtMs < tenantEpoch) ||
+    (globalEpoch > 0 && issuedAtMs < globalEpoch)
+  );
+}
+
+/**
+ * The one revocation gate every session read path shares (warm LRU snapshot,
+ * session-store entry, distributed `session:<tenant>:<id>` snapshot).
+ *
+ * Order is deliberate — local, then distributed:
+ * 1. `isSessionRevoked()` reads the in-process global/tenant/user epochs with no
+ *    I/O (~10-30ns), so a revoke this worker already observed short-circuits
+ *    here and never pays a cache round-trip.
+ * 2. Only when the local check passes are the distributed markers read
+ *    (`isRevokedDistributed`, memoized to one read per scope per 5s). The read
+ *    is fail-open (`0`), so an unreadable cache never revokes a session; a
+ *    positive marker always wins. Both compare against the session's issue time,
+ *    so a session issued after the marker survives.
+ *
+ * No issue time means nothing to compare → not revoked. The hot path allocates
+ * only the promise this `async` call already returns.
+ */
+async function isSessionRevokedEverywhere(
+  issuedAtMs: number | undefined,
+  userId?: string | null,
+  tenantId?: string | null,
+): Promise<boolean> {
+  if (!issuedAtMs) return false;
+  if (isSessionRevoked(issuedAtMs, userId ?? undefined, tenantId)) return true;
+  return isRevokedDistributed(userId, issuedAtMs, tenantId);
 }
 
 /** Best-effort creation time for a stored session row (falls back to "now"). */
@@ -586,15 +607,10 @@ async function getUserFromSession(
     memCached.timestamp = now;
     // A warm snapshot must respect revocation: a logout-everywhere, tenant
     // lockout, or privilege change after this session was issued invalidates it
-    // even when the store/DB layers are not consulted on this request.
-    if (
-      isSessionRevoked(memCached.issuedAtMs, memCached.user?._id, tenantId) ||
-      (await isRevokedDistributed(
-        String(memCached.user?._id ?? ""),
-        memCached.issuedAtMs,
-        tenantId,
-      ))
-    ) {
+    // even when the store/DB layers are not consulted on this request. The
+    // shared gate keeps the ordering local → distributed (see its doc): a
+    // locally-known revoke never pays a cache read.
+    if (await isSessionRevokedEverywhere(memCached.issuedAtMs, memCached.user?._id, tenantId)) {
       invalidateSessionCache(sessionId, tenantId);
       addNegativeSessionHit(sessionId);
       return { status: "invalid" };
@@ -625,10 +641,20 @@ async function getUserFromSession(
         const safeStoredUser = toSafeSessionUser(storedData.user);
         const permMask =
           storedData.permMask !== undefined ? BigInt(storedData.permMask) : undefined;
+        const issuedAtMs = storedData.issuedAtMs ?? now;
+        // The store's own read already applies the local + tenant/global markers
+        // (session-manager); this adds the distributed USER marker (and re-reads
+        // the other scopes, which the 5s memo makes free) so a password reset or
+        // logout-everywhere on another worker is honoured here too.
+        if (await isSessionRevokedEverywhere(issuedAtMs, safeStoredUser?._id, tenantId)) {
+          invalidateSessionCache(sessionId, tenantId);
+          addNegativeSessionHit(sessionId);
+          return { status: "invalid" };
+        }
         setSessionInCache(sessionId, {
           user: safeStoredUser,
           timestamp: now,
-          issuedAtMs: storedData.issuedAtMs ?? now,
+          issuedAtMs,
           amr: storedData.amr,
           mfaVerifiedAt: storedData.mfaVerifiedAt,
           permMask,
@@ -645,7 +671,24 @@ async function getUserFromSession(
       const storedUser = await store.get(sessionId as DatabaseId);
       if (storedUser) {
         const safeStoredUser = toSafeSessionUser(storedUser);
-        setSessionInCache(sessionId, { user: safeStoredUser, timestamp: now });
+        // A `get`-only store hands back a bare `User`, which carries no session
+        // issue time — a marker cannot be ordered against it, so the gate is a
+        // no-op unless the store also attaches `issuedAtMs`. That store's own
+        // read already applies the local + tenant/global markers.
+        const storeIssuedAt = (storedUser as { issuedAtMs?: unknown }).issuedAtMs;
+        const issuedAtMs =
+          typeof storeIssuedAt === "number" && Number.isFinite(storeIssuedAt)
+            ? storeIssuedAt
+            : undefined;
+        if (
+          issuedAtMs !== undefined &&
+          (await isSessionRevokedEverywhere(issuedAtMs, safeStoredUser?._id, tenantId))
+        ) {
+          invalidateSessionCache(sessionId, tenantId);
+          addNegativeSessionHit(sessionId);
+          return { status: "invalid" };
+        }
+        setSessionInCache(sessionId, { user: safeStoredUser, timestamp: now, issuedAtMs });
         return { status: "ok", user: safeStoredUser };
       }
     }
@@ -663,12 +706,23 @@ async function getUserFromSession(
         addNegativeSessionHit(sessionId);
         return { status: "invalid" };
       }
+      // A distributed snapshot is the same trust level as the warm LRU: a
+      // logout-everywhere, tenant lockout, or user revoke published after it was
+      // written (possibly on another worker) must not be served from here. Same
+      // shared gate — local epochs first (no I/O), then the distributed markers.
+      const snapshotUser = toSafeSessionUser(redisCached.user);
+      const snapshotIssuedAt = redisCached.issuedAtMs ?? now;
+      if (await isSessionRevokedEverywhere(snapshotIssuedAt, snapshotUser?._id, tenantId)) {
+        invalidateSessionCache(sessionId, tenantId);
+        addNegativeSessionHit(sessionId);
+        return { status: "invalid" };
+      }
       setSessionInCache(sessionId, {
-        user: toSafeSessionUser(redisCached.user),
+        user: snapshotUser,
         timestamp: now,
-        issuedAtMs: (redisCached as SessionCacheEntry).issuedAtMs ?? now,
+        issuedAtMs: snapshotIssuedAt,
       });
-      return { status: "ok", user: toSafeSessionUser(redisCached.user) };
+      return { status: "ok", user: snapshotUser };
     }
   } catch (err: any) {
     logger.warn(`Redis session read failed: ${err.message}`);
