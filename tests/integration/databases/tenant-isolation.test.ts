@@ -86,26 +86,36 @@ function extractTitles(body: any): string[] {
     .filter(Boolean);
 }
 
-describe("Tenant isolation (A vs B) — authenticated HTTP", () => {
+/**
+ * Explicit DB gate for the whole suite.
+ *
+ * A live server with no database connection cannot exercise isolation at all, so
+ * the suite skips (visibly) instead of failing inside the seed step or, worse,
+ * "passing" on an empty fixture. `/api/system/health` answers 533 when the DB is
+ * down and 200 + `database:true` when it is usable.
+ *
+ * The probe MUST resolve before the suite is registered:
+ * `tests/integration/**` runs under `bun test` (not Vitest), and Bun reads a second
+ * callback parameter as a Node-style *done* callback — `it(..., async (ctx) =>
+ * ctx.skip())` therefore waits for a callback that never fires and burns the full
+ * 300 s timeout instead of skipping. `describe.skipIf` is Bun-native and reports
+ * `(skip)` in the run summary, so the condition is evaluated once here.
+ */
+const dbReady = await fetch(`${API}/api/system/health`, { signal: AbortSignal.timeout(5_000) })
+  .then(async (res) => {
+    const body: any = await res.json().catch(() => ({}));
+    return res.status === 200 && body?.database !== false;
+  })
+  .catch(() => false);
+if (!dbReady) {
+  console.warn(`[tenant-isolation] skipped: database not connected (${API}/api/system/health)`);
+}
+
+describe.skipIf(!dbReady)("Tenant isolation (A vs B) — authenticated HTTP", () => {
   let adminCookie = "";
-  /**
-   * Explicit DB gate. A live server with no database connection cannot exercise
-   * isolation at all, so every test skips (visibly) instead of failing inside the
-   * seed step or, worse, "passing" on an empty fixture. `/api/system/health`
-   * answers 533 when the DB is down and 200 + database:true when it is usable.
-   */
-  let dbReady = false;
-  let skipReason = "database not connected";
 
   beforeAll(async () => {
     await waitForServer();
-    const health = await fetch(`${API}/api/system/health`).catch(() => null);
-    const healthBody: any = health ? await health.json().catch(() => ({})) : {};
-    dbReady = health?.status === 200 && healthBody?.database !== false;
-    if (!dbReady) {
-      skipReason = `database not connected (health ${health?.status ?? "unreachable"})`;
-      return;
-    }
     await cleanupTestDatabase().catch(() => {});
     adminCookie = await prepareAuthenticatedContext();
     expect(adminCookie.length).toBeGreaterThan(0);
@@ -128,11 +138,10 @@ describe("Tenant isolation (A vs B) — authenticated HTTP", () => {
   }, 180_000);
 
   afterAll(async () => {
-    if (dbReady) await cleanupTestDatabase().catch(() => {});
+    await cleanupTestDatabase().catch(() => {});
   });
 
-  it("health accepts x-test-tenant-id for A and B", async (ctx) => {
-    if (!dbReady) return ctx.skip(skipReason);
+  it("health accepts x-test-tenant-id for A and B", async () => {
     for (const t of [TENANT_A, TENANT_B]) {
       const res = await fetch(`${API}/api/system/health`, { headers: tenantHeaders(t) });
       // 200 = healthy, 533 = reachable but DB not connected (api/[...path]).
@@ -141,8 +150,7 @@ describe("Tenant isolation (A vs B) — authenticated HTTP", () => {
     }
   });
 
-  it("authenticated list as B never returns tenant A marker", async (ctx) => {
-    if (!dbReady) return ctx.skip(skipReason);
+  it("authenticated list as B never returns tenant A marker", async () => {
     const marker = `iso-marker-${Date.now()}`;
     const entryId = generateUUID();
 
@@ -213,8 +221,7 @@ describe("Tenant isolation (A vs B) — authenticated HTTP", () => {
     expect(titlesA).toContain(marker);
   });
 
-  it("admin session is reusable across tenant headers", async (ctx) => {
-    if (!dbReady) return ctx.skip(skipReason);
+  it("admin session is reusable across tenant headers", async () => {
     const resA = await fetch(`${API}/api/user?raw=true`, {
       headers: tenantHeaders(TENANT_A, adminCookie),
     });
