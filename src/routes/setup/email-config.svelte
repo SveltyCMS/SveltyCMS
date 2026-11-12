@@ -707,7 +707,7 @@
 				bind:value={wizard.emailSettings.user}
 				placeholder={setup_email_user_placeholder()}
 				required
-				autocomplete="username"
+				autocomplete="off"
 				onblur={() => {
 					const trimmed = wizard.emailSettings.user.trim();
 					if (trimmed !== wizard.emailSettings.user) {
@@ -739,13 +739,14 @@
 					<HelpIcon ariaLabel={setup_email_aria_help_password()} />
 				</SystemTooltip>
 			</div>
+			<!-- Autofill hint: never reuse the CMS login credentials here. -->
 			<Input
 				id="smtp-password"
 				type={showPassword ? 'text' : 'password'}
 				bind:value={wizard.emailSettings.password}
 				placeholder={setup_email_password_placeholder()}
 				required
-				autocomplete="current-password"
+				autocomplete="new-password"
 				onblur={() => {
 					const trimmed = wizard.emailSettings.password.trim();
 					if (trimmed !== wizard.emailSettings.password) {

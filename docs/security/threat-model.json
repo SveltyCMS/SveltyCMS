@@ -37,8 +37,8 @@
         "src/routes/api/[...path]/handlers/scim.ts"
       ],
       "model": "docs/security/threat-models/auth-session.mdx",
-      "reviewed_at": "2026-11-11",
-      "fingerprint": "0eec9ef60f0d552f90f8d12fcfb771af10996516f099c51ad4e6fc37d50dc1ab"
+      "reviewed_at": "2026-11-12",
+      "fingerprint": "c9287d0e12a3f6602e5e54a38f22e691e782b5bc59d343a8271f8ba16ae5a8e5"
     },
     {
       "id": "content-write",
@@ -131,8 +131,8 @@
         "src/utils/test-bypass.server.ts"
       ],
       "model": "docs/security/threat-models/system-ops.mdx",
-      "reviewed_at": "2026-11-11",
-      "fingerprint": "4efdd2df736033409c78ed07442b1df9875fe840a21d71faf9154be23c667596"
+      "reviewed_at": "2026-11-12",
+      "fingerprint": "b55dd36d614a8968c17bc3fabd96816bb9fffee1c66060d130111b28fb84eb51"
     }
   ]
 }

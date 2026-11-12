@@ -16,9 +16,15 @@ It handles token creation, updates, and deletion with proper validation and erro
 - `token` {string} - Existing token (default: '')
 - `user_id` {string} - User ID (default: '')
 - `email` {string} - Associated email (default: '')
-- `role` {string} - Token role (default: 'admin')
+- `role` {string} - Token role (default: the least-privileged available role)
 - `expires` {string} - Expiration date (default: '2 days')
 
+### Features:
+- Seeded form state with legacy expiration format conversion
+- Token creation with copyable invitation link and raw token fallback
+- Token update and deletion with CSRF protection
+- Least-privilege default role for new invitations (never Administrator unless
+  Administrator is the only role)
 -->
 
 <script lang="ts">
@@ -101,18 +107,53 @@ It handles token creation, updates, and deletion with proper validation and erro
 		token = '',
 		user_id = '',
 		email = '',
-		role = 'admin',
+		role = '',
 		expires = '',
 		roles = page.data.roles,
 		close
 	}: Props = $props();
+
+	type RoleOption = { _id: string; name: string };
+
+	/** Preference order for the least-privileged default (most useful non-admin first). */
+	const PREFERRED_NON_ADMIN_ROLES = ['editor', 'user', 'viewer'];
+
+	function isAdminRole(entry: RoleOption): boolean {
+		return (
+			/^(admin|administrator)$/i.test(entry._id) || /^(admin|administrator)$/i.test(entry.name)
+		);
+	}
+
+	/**
+	 * Least-privilege default for a NEW invitation token.
+	 *
+	 * Minting an invite pre-selected as Administrator grants the most privileged
+	 * account in the CMS by accident. Prefer a non-admin role (`editor` → `user`
+	 * → `viewer` → first non-admin) and only fall back to `admin` when it is the
+	 * sole role. Editing an existing token passes its stored role, which wins.
+	 */
+	function resolveDefaultRole(availableRoles: RoleOption[]): string {
+		for (const preferred of PREFERRED_NON_ADMIN_ROLES) {
+			const match = availableRoles.find(
+				(entry) => entry._id.toLowerCase() === preferred || entry.name.toLowerCase() === preferred
+			);
+			if (match) return match._id;
+		}
+		const nonAdmin = availableRoles.find((entry) => !isAdminRole(entry));
+		return (nonAdmin ?? availableRoles[0])?._id ?? 'admin';
+	}
+
+	/** Explicit `role` prop wins (edit path); otherwise use the safest available role. */
+	function effectiveRole(): string {
+		return role || resolveDefaultRole(roles ?? []);
+	}
 
 	function resolveInitialValues() {
 		return {
 			user_id: user_id ?? '',
 			email: email ?? '',
 			token: token ?? '',
-			role: role || 'admin',
+			role: effectiveRole(),
 			expiresIn: !expires || expires === '' ? '2 days' : convertLegacyExpiresFormat(expires)
 		};
 	}

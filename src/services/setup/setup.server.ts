@@ -119,9 +119,11 @@ async function verifyDiskSpace() {
  * Error matcher for a target database/schema that simply does not exist yet.
  *
  * Kept deliberately narrower than `classifyDatabaseError`'s DB_NOT_FOUND bucket:
- * PostgreSQL/MySQL authenticate before resolving the database name, so this
- * message means "credentials are fine, the target is missing" — not an auth
- * failure. SQLite has no auth at all (the file check happens before connect).
+ * SQLite has no auth at all (the file check happens before connect), and the SQL
+ * engines authenticate before resolving the database name. A match is therefore a
+ * *candidate* for "target missing, credentials fine" — not proof. Callers must
+ * confirm the credentials against a maintenance database before treating it as one
+ * (see `proveCredentialsOnMaintenanceDatabase`).
  */
 function isMissingDatabaseError(err: unknown, type: string): boolean {
   const errObj = typeof err === "object" && err !== null ? (err as Record<string, unknown>) : null;
@@ -139,8 +141,99 @@ function isMissingDatabaseError(err: unknown, type: string): boolean {
 }
 
 /**
- * Probe a database connection **without mutating it**.
+ * Maintenance databases that exist in every fresh SQL server install.
  *
+ * "Database ... does not exist" only proves the target *name* was unresolved. Both
+ * engines authenticate before resolving it, but the probe has not verified that the
+ * supplied role/password are the ones that were accepted — QA reproduced a false
+ * "willCreate" success with a non-existent PostgreSQL role and a dummy password.
+ * Connecting to a database that always exists, with the SAME credentials, is proof.
+ */
+const MAINTENANCE_DATABASES = {
+  postgresql: ["template1", "postgres"],
+  mariadb: ["mysql"],
+} as const;
+
+type MaintenanceProbeEngine = keyof typeof MAINTENANCE_DATABASES;
+
+function isMaintenanceProbeEngine(type: string): type is MaintenanceProbeEngine {
+  return type === "postgresql" || type === "mariadb";
+}
+
+/** Strips the configured password out of any string bound for a log or a client payload. */
+function redactSecret(value: string, secret?: string): string {
+  if (!secret) return value;
+  return value.split(secret).join("[redacted]");
+}
+
+/**
+ * Redacts the password from a probe error, keeping it usable for classification.
+ *
+ * The error is returned unchanged when it cannot leak the secret, so the original
+ * `code` (3D000, 28P01, ER_ACCESS_DENIED_ERROR, …) still reaches the classifier.
+ */
+function sanitizeProbeError(err: unknown, password?: string): unknown {
+  const message = err instanceof Error ? err.message : String(err);
+  const redacted = redactSecret(message, password);
+  if (redacted === message) return err;
+
+  const sanitized = new Error(redacted);
+  sanitized.name = err instanceof Error ? err.name : "DatabaseProbeError";
+  if (typeof err === "object" && err !== null && "code" in err) {
+    (sanitized as Error & { code?: unknown }).code = (err as { code?: unknown }).code;
+  }
+  return sanitized;
+}
+
+/**
+ * Proves the supplied credentials by connecting to a maintenance database.
+ *
+ * Reuses the setup adapter factory with a target override (`name`), so the probe
+ * applies exactly the connection options a real connection uses (host, port, user,
+ * password, TLS/transport rules) and runs the adapter's own `SELECT 1` handshake —
+ * one short-lived connection, disconnected on every path, never provisioning.
+ */
+async function proveCredentialsOnMaintenanceDatabase(
+  dbConfig: DatabaseConfig,
+): Promise<{ ok: true } | { ok: false; error: unknown }> {
+  const targets = MAINTENANCE_DATABASES[dbConfig.type as MaintenanceProbeEngine];
+  const utils = await import("./setup-utils");
+  let firstError: unknown;
+
+  for (const name of targets) {
+    let dbAdapter: IDBAdapter | undefined;
+    try {
+      logger.debug(
+        `[Setup] Database "${dbConfig.name}" is missing; proving credentials against "${name}"`,
+      );
+      const connection = await utils.getSetupDatabaseAdapter(
+        { ...dbConfig, name },
+        {
+          createIfMissing: false, // a proof must never create anything
+          skipModuleInit: true,
+          readOnlyProbe: true, // skip connect-time schema bootstrap
+        },
+      );
+      dbAdapter = connection.dbAdapter;
+      const health = await dbAdapter.getConnectionHealth();
+      if (!health.success) throw new Error(health.message);
+      return { ok: true };
+    } catch (err) {
+      firstError ??= sanitizeProbeError(err, dbConfig.password);
+    } finally {
+      if (dbAdapter) {
+        await dbAdapter.disconnect().catch((disconnectErr: unknown) => {
+          logger.debug("[Setup] Maintenance probe disconnect failed", disconnectErr);
+        });
+      }
+    }
+  }
+
+  return { ok: false, error: firstError };
+}
+
+/**
+ * Probe a database connection **without mutating it**.
  * Validates connectivity/authentication and inspects whether the target is empty.
  * It never creates the database file/schema, never seeds system data and never
  * writes `config/private.ts` — those writes run on the wizard's explicit
@@ -232,15 +325,32 @@ export async function testDatabaseConnection(
       latencyMs: Math.round(performance.now() - start),
     };
   } catch (err) {
-    // A missing target is not an error: credentials were accepted and setup will
-    // create it at the explicit provisioning step.
+    // A missing target is not an error *if* the credentials are valid: setup will
+    // create it at the explicit provisioning step. "Database does not exist" alone
+    // is not that proof — with a non-existent role and a dummy password it still
+    // produced a false success — so the credentials are proven against a
+    // maintenance database before `willCreate` is promised. A failed proof reports
+    // the real error through the normal classification path.
     if (isMissingDatabaseError(err, dbConfig.type)) {
-      return {
-        success: true,
-        message: missingMessage,
-        willCreate: true,
-        latencyMs: Math.round(performance.now() - start),
-      };
+      const proof = isMaintenanceProbeEngine(dbConfig.type)
+        ? await proveCredentialsOnMaintenanceDatabase(dbConfig)
+        : ({ ok: true } as const);
+
+      if (proof.ok) {
+        return {
+          success: true,
+          message: missingMessage,
+          willCreate: true,
+          latencyMs: Math.round(performance.now() - start),
+        };
+      }
+
+      const { classifyDatabaseError, SetupDatabaseError } = await import("./error-classifier");
+      const proofError = proof.error ?? err;
+      return new SetupDatabaseError(
+        classifyDatabaseError(proofError, dbConfig.type, dbConfig),
+        proofError,
+      ).toClientPayload();
     }
     const { classifyDatabaseError, SetupDatabaseError } = await import("./error-classifier");
     return new SetupDatabaseError(

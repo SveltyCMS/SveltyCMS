@@ -607,7 +607,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						name="username"
 						bind:value={dbConfig.user}
 						type="text"
-						autocomplete="username"
+						autocomplete="off"
 						onchange={clearDbTestError}
 						onblur={() => {
 							const trimmed = dbConfig.user.trim();
@@ -635,6 +635,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					</label>
 
 					<div class="relative">
+						<!-- `new-password` stops browsers reusing the site login credentials. -->
 						<Input
 							id="db-password"
 							name="password"
@@ -648,7 +649,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 								handleBlur('password');
 							}}
 							type={showDbPassword ? 'text' : 'password'}
-							autocomplete="current-password"
+							autocomplete="new-password"
 							placeholder={setup_database_password_placeholder?.() || 'Leave blank if none'}
 							error={displayErrors.password}
 							inputClass="pe-10"

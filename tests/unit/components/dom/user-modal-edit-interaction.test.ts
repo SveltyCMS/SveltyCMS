@@ -263,6 +263,21 @@ describe("ModalEditForm (client interaction)", () => {
 });
 
 describe("ModalEditToken (client interaction)", () => {
+  it("defaults a new invitation to the least-privileged role instead of admin", () => {
+    const { target, cleanup } = renderComponent(ModalEditToken, {
+      roles: ROLES,
+      close: vi.fn(),
+    });
+
+    try {
+      const pressed = target.querySelector<HTMLButtonElement>('button[aria-pressed="true"]');
+      expect(pressed?.textContent?.trim().toLowerCase()).toContain("editor");
+      expect(pressed?.textContent?.trim().toLowerCase()).not.toContain("administrator");
+    } finally {
+      cleanup();
+    }
+  });
+
   it("edits an existing token with converted legacy expiry and invokes close({ success: true })", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(JSON.stringify({ success: true }), {

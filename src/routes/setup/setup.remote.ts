@@ -30,7 +30,10 @@ export const readSetupHints = query("unchecked", async (_payload?: {}) => {
   }
 });
 
-export const testDatabaseConnection = query(
+// `command` (POST body) — never `query` (GET). The payload carries the DB
+// password, and a GET would land it in access logs, browser history, and
+// devtools URLs. Both exports below mutate or probe with credentials.
+export const testDatabaseConnection = command(
   "unchecked",
   async ({
     configData,
@@ -48,7 +51,7 @@ export const testDatabaseConnection = query(
   },
 );
 
-export const seedDatabase = query(
+export const seedDatabase = command(
   "unchecked",
   async ({
     configData,
@@ -110,7 +113,7 @@ export const completeSetup = command(
   },
 );
 
-export const testEmailConnection = query(
+export const testEmailConnection = command(
   "unchecked",
   async (cfg: {
     host: string;
@@ -126,7 +129,7 @@ export const testEmailConnection = query(
   },
 );
 
-export const testRedisConnection = query(
+export const testRedisConnection = command(
   "unchecked",
   async ({
     host = "localhost",

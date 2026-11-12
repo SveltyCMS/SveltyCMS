@@ -866,11 +866,69 @@ export class AuditChainService {
       // Residual gap (documented, not silently assumed): an actor who deletes the tail
       // AND the checkpoint row leaves a shorter chain that still verifies. A checkpoint
       // protected from that actor needs a store outside the CMS database.
+      //
+      // The extreme form of that gap is explicit rather than silent below: with an
+      // EMPTY chain a stale checkpoint/anchor cannot be distinguished from a reset, so
+      // verification reports valid + an unmatched side record instead of tampering.
       const checkpoint = await this.readCheckpoint(tenantId);
       const anchor = await this.readAnchor(tenantId);
-      const anchorConfigured = (await getAuditAnchorPath()) !== null;
-      const anchorTruncated = Boolean(anchor && !storedHashes.has(anchor.headHash));
+      const anchorPath = await getAuditAnchorPath();
+      const anchorConfigured = anchorPath !== null;
       const chainedEntries = entries.length - unchainedPrefix;
+
+      // 🟢 Empty chain: there is nothing to re-hash and nothing to truncate.
+      // A checkpoint/anchor left behind by a chain that was reset (fresh install,
+      // dropped table, re-run setup) used to read as "Tail truncated" and the panel
+      // reported "Chain Broken at entry #1" on an install with no audit rows at all.
+      // The absence of rows cannot be verified — only reported — so the result stays
+      // valid and the side records are surfaced as unmatched, never as tampering.
+      if (entries.length === 0) {
+        const emptyDetails: string[] = [];
+        const checkpointReport: ChainVerificationResult["checkpoint"] = checkpoint
+          ? {
+              expectedEntries: checkpoint.entryCount,
+              foundEntries: 0,
+              expectedHead: checkpoint.headHash,
+              foundHead: GENESIS_HASH,
+              matched: false,
+            }
+          : null;
+
+        if (checkpoint) {
+          emptyDetails.push(
+            `No audit entries recorded: the chain is empty. A checkpoint for ${checkpoint.entryCount} entries is stored and cannot be verified against an empty chain.`,
+          );
+        }
+        if (anchor) {
+          emptyDetails.push(
+            `No audit entries recorded: the chain is empty. The anchor head ${anchor.headHash.slice(0, 16)}... (${anchor.entryCount} entries) cannot be matched against an empty chain.`,
+          );
+        }
+
+        return {
+          valid: true,
+          brokenAt: null,
+          totalEntries: 0,
+          tamperedEntries: 0,
+          unchainedPrefix,
+          checkpoint: checkpointReport,
+          legacySecondPrecisionEntries,
+          checkpointPersistence: this.getCheckpointStatus(tenantId),
+          anchor: {
+            configured: anchorConfigured,
+            path: anchorConfigured
+              ? anchorFileFor(anchorPath as string, chainHashScope(tenantId))
+              : null,
+            present: Boolean(anchor),
+            expectedHead: anchor?.headHash ?? null,
+            foundHead: GENESIS_HASH,
+            matched: false,
+          },
+          details: emptyDetails.length > 0 ? emptyDetails : undefined,
+        };
+      }
+
+      const anchorTruncated = Boolean(anchor && !storedHashes.has(anchor.headHash));
       const truncated = checkpoint ? !storedHashes.has(checkpoint.headHash) : false;
       const checkpointOk = !truncated;
       let checkpointReport: ChainVerificationResult["checkpoint"] = null;
@@ -915,7 +973,7 @@ export class AuditChainService {
         anchor: {
           configured: anchorConfigured,
           path: anchorConfigured
-            ? anchorFileFor((await getAuditAnchorPath()) as string, chainHashScope(tenantId))
+            ? anchorFileFor(anchorPath as string, chainHashScope(tenantId))
             : null,
           present: Boolean(anchor),
           expectedHead: anchor?.headHash ?? null,

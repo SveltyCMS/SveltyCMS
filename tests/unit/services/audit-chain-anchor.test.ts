@@ -116,15 +116,42 @@ describe("audit chain independent anchor", () => {
 
   it("fails verification when the chain was shortened and the DB checkpoint is gone", async () => {
     const service = new AuditChainService();
+    // One chained row survives, so the chain is NOT empty — the anchor is the only
+    // remaining evidence that more entries existed. (An empty chain is reported as
+    // empty rather than tampered: see the next test and
+    // `audit-chain-empty-chain.test.ts`.)
+    const surviving = await service.append({
+      action: "login",
+      tenantId: "tenant-a",
+      timestamp: "2026-01-01T00:00:00.000Z",
+    });
     await service.commitCheckpoint("tenant-a", HEAD, 9);
-    // The actor deleted the rows *and* the checkpoint row; the anchor survives.
+    // The actor deleted the newest rows *and* the checkpoint row; the anchor survives.
     db.system.preferences.get = vi.fn(async () => ({ success: true, data: null }));
-    installRows([]);
+    installRows([surviving]);
 
     const result = await service.verifyChain("tenant-a");
 
     expect(result.valid).toBe(false);
     expect(result.anchor).toMatchObject({ present: true, expectedHead: HEAD, matched: false });
     expect(result.details?.some((line) => line.includes("anchor head"))).toBe(true);
+  });
+
+  it("does not report tampering for an empty chain with a surviving anchor", async () => {
+    const service = new AuditChainService();
+    await service.commitCheckpoint("tenant-a", HEAD, 9);
+    // A reset (fresh database, same install directory) leaves the anchor behind.
+    installRows([]);
+
+    const result = await service.verifyChain("tenant-a");
+
+    expect(result.valid).toBe(true);
+    expect(result.totalEntries).toBe(0);
+    expect(result.brokenAt).toBeNull();
+    expect(result.anchor).toMatchObject({ present: true, expectedHead: HEAD, matched: false });
+    const details = (result.details ?? []).join(" ").toLowerCase();
+    expect(details).toContain("empty");
+    expect(details).not.toContain("tamper");
+    expect(details).not.toContain("truncat");
   });
 });
