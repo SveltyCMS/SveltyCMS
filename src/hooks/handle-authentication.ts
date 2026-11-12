@@ -247,6 +247,10 @@ export function prewarmAuthenticationHotPaths(): void {
 // --- IN-MEMORY SESSION CACHE WITH WEAKREF-BASED CLEANUP ---
 
 interface SessionCacheEntry {
+  /** Session id this entry belongs to — mirrors the map key's suffix. */
+  sessionId?: string;
+  /** Tenant namespace of this entry (the other half of the map key). */
+  tenantId?: string | null;
   timestamp: number;
   /**
    * Creation time of the underlying session row. Compared against the user /
@@ -284,6 +288,42 @@ export type SessionResolution =
   | { status: "transient" };
 
 const MAX_SESSION_CACHE = 10_000;
+/**
+ * Key for every in-memory, per-session structure.
+ *
+ * The session id is a client-supplied cookie value: two tenants can present the
+ * same string. Keying these maps by the bare id let a request in tenant B read
+ * the user snapshot cached for tenant A *before* the tenant-mismatch check ran.
+ * The distributed cache key already carried the tenant; the local tiers now do
+ * too.
+ */
+function memSessionKey(sessionId: string, tenantId?: string | null): string {
+  return `${tenantId ?? "global"}:${sessionId}`;
+}
+
+/**
+ * Delete one session id from a per-session map.
+ *
+ * With a tenant, the composite key is exact. Without one (SDK callers that only
+ * know the id), every namespace is dropped by suffix scan — the maps are bounded
+ * and invalidation is rare, whereas leaving a warm entry behind would keep
+ * serving a session the caller just revoked.
+ */
+function deleteSessionEntries<T>(
+  map: Map<string, T>,
+  sessionId: string,
+  tenantId?: string | null,
+): void {
+  if (tenantId) {
+    map.delete(memSessionKey(sessionId, tenantId));
+    return;
+  }
+  const suffix = `:${sessionId}`;
+  for (const key of map.keys()) {
+    if (key.endsWith(suffix)) map.delete(key);
+  }
+}
+
 const sessionCache = new Map<string, SessionCacheEntry>();
 const lastRefreshAttempt = new Map<string, number>();
 const lastRotationAttempt = new Map<string, number>();
@@ -391,22 +431,23 @@ const MAX_NEGATIVE_CACHE = 10_000;
 const NEGATIVE_CACHE_TTL_MS = 60_000; // 1 minute negative-hit TTL
 const negativeSessionCache = new Map<string, number>();
 
-function isNegativeSessionHit(sessionId: string): boolean {
-  const expiry = negativeSessionCache.get(sessionId);
+function isNegativeSessionHit(sessionId: string, tenantId?: string | null): boolean {
+  const key = memSessionKey(sessionId, tenantId);
+  const expiry = negativeSessionCache.get(key);
   if (!expiry) return false;
   if (Date.now() > expiry) {
-    negativeSessionCache.delete(sessionId);
+    negativeSessionCache.delete(key);
     return false;
   }
   return true;
 }
 
-function addNegativeSessionHit(sessionId: string): void {
+function addNegativeSessionHit(sessionId: string, tenantId?: string | null): void {
   if (negativeSessionCache.size >= MAX_NEGATIVE_CACHE) {
     const oldestKey = negativeSessionCache.keys().next().value;
     if (oldestKey) negativeSessionCache.delete(oldestKey);
   }
-  negativeSessionCache.set(sessionId, Date.now() + NEGATIVE_CACHE_TTL_MS);
+  negativeSessionCache.set(memSessionKey(sessionId, tenantId), Date.now() + NEGATIVE_CACHE_TTL_MS);
 }
 
 /**
@@ -420,35 +461,49 @@ const lastAnomalyLog = new Map<string, number>();
 /**
  * Gets a session from the cache (LRU eviction, no WeakRef).
  */
-function getSessionFromCache(sessionId: string): SessionCacheEntry | null {
+function getSessionFromCache(
+  sessionId: string,
+  tenantId?: string | null,
+): SessionCacheEntry | null {
   const now = Date.now();
-  const entry = sessionCache.get(sessionId);
+  const key = memSessionKey(sessionId, tenantId);
+  const entry = sessionCache.get(key);
   if (entry && now - entry.timestamp < SESSION_CACHE_TTL_MS) {
     // Only re-insert to track LRU order when cache is full/near capacity (>80%)
     if (sessionCache.size >= MAX_SESSION_CACHE * 0.8) {
-      sessionCache.delete(sessionId);
-      sessionCache.set(sessionId, entry);
+      sessionCache.delete(key);
+      sessionCache.set(key, entry);
     }
     return entry;
   }
   // Expired entry — drop it immediately
-  if (entry) sessionCache.delete(sessionId);
+  if (entry) sessionCache.delete(key);
   return null;
 }
 
-// 🚀 Zero-overhead sync session peeker hook for handleRateLimit adaptive user tiers
+// 🚀 Zero-overhead sync session peeker hook for handleRateLimit adaptive user tiers.
+// Tenant-aware: the caller supplies `event.locals.tenantId`, so the peek can only
+// ever read the entry for that tenant (an id without a tenant reads the `global`
+// namespace — never another tenant's snapshot).
 const SESSION_PEEKER_KEY = Symbol.for("svelty.session.peeker");
-(globalThis as any)[SESSION_PEEKER_KEY] = (sessionId: string) => {
-  const entry = getSessionFromCache(sessionId);
+(globalThis as any)[SESSION_PEEKER_KEY] = (sessionId: string, tenantId?: string | null) => {
+  const entry = getSessionFromCache(sessionId, tenantId);
   return entry?.user ?? null;
 };
 
 /**
  * Sets a session in the cache with LRU eviction.
  */
-function setSessionInCache(sessionId: string, entry: SessionCacheEntry): void {
-  if (sessionCache.has(sessionId)) sessionCache.delete(sessionId);
-  sessionCache.set(sessionId, entry);
+function setSessionInCache(
+  sessionId: string,
+  entry: SessionCacheEntry,
+  tenantId?: string | null,
+): void {
+  const key = memSessionKey(sessionId, tenantId);
+  entry.sessionId = sessionId;
+  entry.tenantId = tenantId ?? null;
+  if (sessionCache.has(key)) sessionCache.delete(key);
+  sessionCache.set(key, entry);
   if (sessionCache.size > MAX_SESSION_CACHE) {
     const firstKey = sessionCache.keys().next().value;
     if (firstKey) sessionCache.delete(firstKey);
@@ -509,6 +564,7 @@ function recordSessionAnomaly(
     ip?: string | null;
     userAgent?: string | null;
   } | null,
+  tenantId?: string | null,
 ): { action: SessionRiskAction; storedIp: string | null; storedUserAgent: string | null } {
   const record = sessionRecord ?? null;
   const storedIp = record?.ipAddress ?? record?.ip ?? null;
@@ -524,9 +580,10 @@ function recordSessionAnomaly(
   if (action === "allow") return { action, storedIp, storedUserAgent };
 
   const now = Date.now();
-  const last = lastAnomalyLog.get(sessionId);
+  const anomalyKey = memSessionKey(sessionId, tenantId);
+  const last = lastAnomalyLog.get(anomalyKey);
   if (!last || now - last >= SESSION_ANOMALY_LOG_COOLDOWN_MS) {
-    lastAnomalyLog.set(sessionId, now);
+    lastAnomalyLog.set(anomalyKey, now);
     logger.warn(
       `[Auth] Session context change (${action}): session=${sessionId.slice(0, 8)}...` +
         (action === "step-up" ? " user-agent changed" : " ip changed"),
@@ -561,7 +618,7 @@ export async function adoptSessionSurface(
   userAgent: string | null,
   tenantId?: string | null,
 ): Promise<void> {
-  const mem = getSessionFromCache(sessionId);
+  const mem = getSessionFromCache(sessionId, tenantId);
   if (mem) {
     mem.boundIp = ip;
     mem.boundUserAgent = userAgent;
@@ -591,16 +648,16 @@ async function getUserFromSession(
 ): Promise<SessionResolution> {
   // --- Performance Tweak: Negative Caching (deterministic Map, not Bloom) ---
   const isTestMode = process.env.TEST_MODE === "true";
-  if (!isTestMode && isNegativeSessionHit(sessionId)) return { status: "invalid" };
+  if (!isTestMode && isNegativeSessionHit(sessionId, tenantId)) return { status: "invalid" };
 
   const now = Date.now();
   const idleMs = getIdleWindowMs();
-  const memCached = getSessionFromCache(sessionId);
+  const memCached = getSessionFromCache(sessionId, tenantId);
   if (memCached) {
     // Idle timeout: the LRU entry timestamp is the sliding last-activity clock.
     if (idleMs > 0 && now - memCached.timestamp > idleMs) {
       invalidateSessionCache(sessionId, tenantId);
-      addNegativeSessionHit(sessionId);
+      addNegativeSessionHit(sessionId, tenantId);
       return { status: "invalid" };
     }
     // Slide the clock — the entry object is shared with the Map.
@@ -612,7 +669,7 @@ async function getUserFromSession(
     // locally-known revoke never pays a cache read.
     if (await isSessionRevokedEverywhere(memCached.issuedAtMs, memCached.user?._id, tenantId)) {
       invalidateSessionCache(sessionId, tenantId);
-      addNegativeSessionHit(sessionId);
+      addNegativeSessionHit(sessionId, tenantId);
       return { status: "invalid" };
     }
     // NOTE: cached users are snapshots — a NEW block is detected via cache
@@ -648,17 +705,21 @@ async function getUserFromSession(
         // logout-everywhere on another worker is honoured here too.
         if (await isSessionRevokedEverywhere(issuedAtMs, safeStoredUser?._id, tenantId)) {
           invalidateSessionCache(sessionId, tenantId);
-          addNegativeSessionHit(sessionId);
+          addNegativeSessionHit(sessionId, tenantId);
           return { status: "invalid" };
         }
-        setSessionInCache(sessionId, {
-          user: safeStoredUser,
-          timestamp: now,
-          issuedAtMs,
-          amr: storedData.amr,
-          mfaVerifiedAt: storedData.mfaVerifiedAt,
-          permMask,
-        });
+        setSessionInCache(
+          sessionId,
+          {
+            user: safeStoredUser,
+            timestamp: now,
+            issuedAtMs,
+            amr: storedData.amr,
+            mfaVerifiedAt: storedData.mfaVerifiedAt,
+            permMask,
+          },
+          tenantId,
+        );
         return {
           status: "ok",
           user: safeStoredUser,
@@ -685,10 +746,14 @@ async function getUserFromSession(
           (await isSessionRevokedEverywhere(issuedAtMs, safeStoredUser?._id, tenantId))
         ) {
           invalidateSessionCache(sessionId, tenantId);
-          addNegativeSessionHit(sessionId);
+          addNegativeSessionHit(sessionId, tenantId);
           return { status: "invalid" };
         }
-        setSessionInCache(sessionId, { user: safeStoredUser, timestamp: now, issuedAtMs });
+        setSessionInCache(
+          sessionId,
+          { user: safeStoredUser, timestamp: now, issuedAtMs },
+          tenantId,
+        );
         return { status: "ok", user: safeStoredUser };
       }
     }
@@ -703,7 +768,7 @@ async function getUserFromSession(
       // Idle timeout applies to distributed entries too.
       if (idleMs > 0 && now - redisCached.timestamp > idleMs) {
         invalidateSessionCache(sessionId, tenantId);
-        addNegativeSessionHit(sessionId);
+        addNegativeSessionHit(sessionId, tenantId);
         return { status: "invalid" };
       }
       // A distributed snapshot is the same trust level as the warm LRU: a
@@ -714,14 +779,14 @@ async function getUserFromSession(
       const snapshotIssuedAt = redisCached.issuedAtMs ?? now;
       if (await isSessionRevokedEverywhere(snapshotIssuedAt, snapshotUser?._id, tenantId)) {
         invalidateSessionCache(sessionId, tenantId);
-        addNegativeSessionHit(sessionId);
+        addNegativeSessionHit(sessionId, tenantId);
         return { status: "invalid" };
       }
-      setSessionInCache(sessionId, {
-        user: snapshotUser,
-        timestamp: now,
-        issuedAtMs: snapshotIssuedAt,
-      });
+      setSessionInCache(
+        sessionId,
+        { user: snapshotUser, timestamp: now, issuedAtMs: snapshotIssuedAt },
+        tenantId,
+      );
       return { status: "ok", user: snapshotUser };
     }
   } catch (err: any) {
@@ -731,10 +796,10 @@ async function getUserFromSession(
   // Single-flight: another request is already validating this session — await
   // its outcome instead of denying (denial used to delete the session cookie
   // and log users out on cold start / cache flush).
-  const inflight = inflightSessionChecks.get(sessionId);
+  const inflight = inflightSessionChecks.get(memSessionKey(sessionId, tenantId));
   if (inflight) return inflight;
 
-  const lastAttempt = lastRefreshAttempt.get(sessionId);
+  const lastAttempt = lastRefreshAttempt.get(memSessionKey(sessionId, tenantId));
   if (!isTestMode && lastAttempt && now - lastAttempt < 60_000) {
     // A previous validation completed recently but left no cache entry (e.g.
     // transient failure). Do not hammer the DB — stay unauthenticated for this
@@ -751,7 +816,7 @@ async function getUserFromSession(
   }
 
   // Use a short-lived pending marker to prevent stampedes while validating
-  lastRefreshAttempt.set(sessionId, now);
+  lastRefreshAttempt.set(memSessionKey(sessionId, tenantId), now);
 
   const work = (async (): Promise<SessionResolution> => {
     try {
@@ -760,7 +825,7 @@ async function getUserFromSession(
         const user = (valRes as any)?.success !== undefined ? (valRes as any).data : valRes;
         if (user && user._id) {
           if (user.blocked) {
-            addNegativeSessionHit(sessionId);
+            addNegativeSessionHit(sessionId, tenantId);
             return { status: "invalid" };
           }
           const safeUser = toSafeSessionUser(user);
@@ -769,20 +834,20 @@ async function getUserFromSession(
             timestamp: now,
             issuedAtMs: now,
           };
-          setSessionInCache(sessionId, sessionData);
+          setSessionInCache(sessionId, sessionData, tenantId);
           const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
           await cacheService
             .set(cacheKey, sessionData, Math.ceil(SESSION_CACHE_TTL_MS / 1000), tenantId as any)
             .catch(() => {});
           return { status: "ok", user: safeUser };
         } else if (user === null || (valRes as any)?.success === true) {
-          addNegativeSessionHit(sessionId);
+          addNegativeSessionHit(sessionId, tenantId);
           return { status: "invalid" };
         }
         // Adapter has validateSession but the lookup failed (transient). Do
         // not fall through to getSessionTokenData + getUserById — that is two
         // extra round-trips on a path that already joined session→user.
-        lastRefreshAttempt.delete(sessionId);
+        lastRefreshAttempt.delete(memSessionKey(sessionId, tenantId));
         return { status: "transient" };
       }
 
@@ -799,13 +864,13 @@ async function getUserFromSession(
         logger.debug(
           `[Auth] getSessionTokenData returned null data for sessionId=${sessionId.slice(0, 12)}...`,
         );
-        addNegativeSessionHit(sessionId);
+        addNegativeSessionHit(sessionId, tenantId);
         return { status: "invalid" };
       }
 
       const expiresAt = new Date(sessionResult.data.expiresAt).getTime();
       if (Number.isNaN(expiresAt) || expiresAt <= Date.now()) {
-        addNegativeSessionHit(sessionId);
+        addNegativeSessionHit(sessionId, tenantId);
         return { status: "invalid" };
       }
 
@@ -819,7 +884,7 @@ async function getUserFromSession(
           // 🛡️ Blocked users are cut off at DB re-validation time (not just
           // cached entries) — a block must take effect immediately.
           if (user.blocked) {
-            addNegativeSessionHit(sessionId);
+            addNegativeSessionHit(sessionId, tenantId);
             return { status: "invalid" };
           }
           const rawSession = sessionResult.data as {
@@ -843,10 +908,13 @@ async function getUserFromSession(
             logger.debug("[Auth] Session surface cache unavailable", err);
           }
           // IP change is logged. A new user-agent steps mutations up.
-          const risk = recordSessionAnomaly(sessionId, clientIp, userAgent, {
-            ipAddress: storedIp,
-            userAgent: storedUserAgent,
-          });
+          const risk = recordSessionAnomaly(
+            sessionId,
+            clientIp,
+            userAgent,
+            { ipAddress: storedIp, userAgent: storedUserAgent },
+            tenantId,
+          );
           logger.debug(
             `[Auth] Session validated: ${sessionId.slice(0, 8)}... → user ${maskEmail((user as any).email)}`,
           );
@@ -863,7 +931,7 @@ async function getUserFromSession(
             boundIp: risk.storedIp,
             boundUserAgent: risk.storedUserAgent,
           };
-          setSessionInCache(sessionId, sessionData);
+          setSessionInCache(sessionId, sessionData, tenantId);
           const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
           await cacheService
             .set(cacheKey, sessionData, Math.ceil(SESSION_CACHE_TTL_MS / 1000), tenantId as any)
@@ -880,29 +948,29 @@ async function getUserFromSession(
         } else {
           // Definitive: User not found in DB
           logger.debug(`[Auth] User not found in DB: ${sessionResult.data.user_id}`);
-          addNegativeSessionHit(sessionId);
+          addNegativeSessionHit(sessionId, tenantId);
           return { status: "invalid" };
         }
       } else {
         // Transient user lookup error or DB locked. Clear the cooldown to allow immediate retry on next request.
-        lastRefreshAttempt.delete(sessionId);
+        lastRefreshAttempt.delete(memSessionKey(sessionId, tenantId));
         logger.warn(
           `[Auth] Session validation error for ${sessionId.slice(0, 8)}...: ${userResult?.message || "Unknown"}`,
         );
         return { status: "transient" };
       }
     } catch (err: any) {
-      lastRefreshAttempt.delete(sessionId);
+      lastRefreshAttempt.delete(memSessionKey(sessionId, tenantId));
       logger.error(`Session validation crashed: ${err.message}`);
       return { status: "transient" };
     }
   })();
 
-  inflightSessionChecks.set(sessionId, work);
+  inflightSessionChecks.set(memSessionKey(sessionId, tenantId), work);
   try {
     return await work;
   } finally {
-    inflightSessionChecks.delete(sessionId);
+    inflightSessionChecks.delete(memSessionKey(sessionId, tenantId));
   }
 }
 
@@ -944,7 +1012,8 @@ async function handleSessionRotation(
 ): Promise<void> {
   const now = Date.now();
   if (process.env.TEST_MODE === "true") return; // Disable rotation in test mode to prevent cookie invalidation
-  const lastRotation = lastRotationAttempt.get(oldSessionId);
+  const rotationTenant = event.locals.tenantId as DatabaseId | null | undefined;
+  const lastRotation = lastRotationAttempt.get(memSessionKey(oldSessionId, rotationTenant));
   if (lastRotation && now - lastRotation < SESSION_ROTATION_INTERVAL_MS) return;
   // Two parallel requests (hover-preload + navigation) used to rotate the same
   // cookie twice: the second rotation's device-policy eviction deleted the
@@ -1019,8 +1088,8 @@ async function handleSessionRotation(
       // if the user's role changed since login, that snapshot would resurrect
       // the old role for the session lifetime. The next request hydrates the
       // LRU from the freshly created session instead.
-      lastRotationAttempt.set(oldSessionId, now);
-      lastRotationAttempt.set(newSessionId, now);
+      lastRotationAttempt.set(memSessionKey(oldSessionId, rotationTenant), now);
+      lastRotationAttempt.set(memSessionKey(newSessionId, rotationTenant), now);
       recentRotations.set(oldSessionId, { id: newSessionId, at: now });
       event.locals.session_id = newSessionId;
     }
@@ -1920,11 +1989,13 @@ function clearAllSessionCookies(event: RequestEvent) {
 }
 
 export function invalidateSessionCache(sessionId: string, tenantId?: DatabaseId | null): void {
-  sessionCache.delete(sessionId);
-  lastRefreshAttempt.delete(sessionId);
-  lastRotationAttempt.delete(sessionId);
-  lastAnomalyLog.delete(sessionId);
-  negativeSessionCache.delete(sessionId);
+  // Every in-memory tier is keyed by tenant + id; without a tenant the id is
+  // dropped from all namespaces (see `deleteSessionEntries`).
+  deleteSessionEntries(sessionCache, sessionId, tenantId);
+  deleteSessionEntries(lastRefreshAttempt, sessionId, tenantId);
+  deleteSessionEntries(lastRotationAttempt, sessionId, tenantId);
+  deleteSessionEntries(lastAnomalyLog, sessionId, tenantId);
+  deleteSessionEntries(negativeSessionCache, sessionId, tenantId);
 
   // 🚀 Turbo GET: Also invalidate the auth context cache so a revoked
   // session can't access cached API responses within the TTL window.
@@ -1968,17 +2039,18 @@ export function clearAllSessionCaches(): void {
  */
 export function invalidateUserSessionCaches(userId: string): void {
   const id = String(userId);
-  for (const [sessionId, entry] of sessionCache.entries()) {
-    if (String(entry.user?._id ?? entry.user?.id ?? "") === id) {
-      sessionCache.delete(sessionId);
-      lastRefreshAttempt.delete(sessionId);
-      lastRotationAttempt.delete(sessionId);
-      lastAnomalyLog.delete(sessionId);
-      negativeSessionCache.delete(sessionId);
-      // Turbo GET serves cached responses via the per-session auth context —
-      // drop it too or a warm context keeps serving the stale user.
-      invalidateTurboAuthContext(sessionId);
-    }
+  for (const [cacheKey, entry] of sessionCache.entries()) {
+    if (String(entry.user?._id ?? entry.user?.id ?? "") !== id) continue;
+    const sessionId = entry.sessionId ?? cacheKey.slice(cacheKey.indexOf(":") + 1);
+    const entryTenant = entry.tenantId ?? null;
+    sessionCache.delete(cacheKey);
+    deleteSessionEntries(lastRefreshAttempt, sessionId, entryTenant);
+    deleteSessionEntries(lastRotationAttempt, sessionId, entryTenant);
+    deleteSessionEntries(lastAnomalyLog, sessionId, entryTenant);
+    deleteSessionEntries(negativeSessionCache, sessionId, entryTenant);
+    // Turbo GET serves cached responses via the per-session auth context —
+    // drop it too or a warm context keeps serving the stale user.
+    invalidateTurboAuthContext(sessionId);
   }
 }
 
@@ -1997,9 +2069,10 @@ export function primeSessionMemoryCache(
   mfaVerifiedAt?: string,
   roles?: Role[],
 ): void {
+  const resolvedTenant = tenantId ?? (user as User).tenantId ?? null;
   // Targeted negative-entry removal (the session is now known-valid) — never
   // clear the whole negative cache for one session.
-  negativeSessionCache.delete(sessionId);
+  deleteSessionEntries(negativeSessionCache, sessionId, resolvedTenant);
   // Credential-free snapshot — the in-memory cache must never hold password
   // hashes, TOTP secrets, backup codes, or reset/refresh tokens.
   const safeUser = toSafeSessionUser(user);
@@ -2010,8 +2083,7 @@ export function primeSessionMemoryCache(
     amr,
     mfaVerifiedAt,
   };
-  setSessionInCache(sessionId, entry);
-  const resolvedTenant = tenantId ?? (safeUser as User).tenantId ?? null;
+  setSessionInCache(sessionId, entry, resolvedTenant);
   const safeRoles = roles ?? [];
   const userAdmin = isAdmin(safeUser) || (safeUser as { role?: string }).role === "admin";
   setTurboAuthContext(sessionId, safeUser, safeRoles, resolvedTenant, undefined, undefined, {

@@ -50,6 +50,15 @@ SveltyCMS uses high-entropy, cryptographically secure random tokens for session 
 - **Stored directly** in secure cookies and the database.
 - **Rotated automatically** on login and renewal. On password change or explicit logout, all active sessions across all devices are immediately invalidated.
 
+### Session caching is tenant-keyed
+
+The in-memory session tiers are keyed by `${tenantId ?? "global"}:${sessionId}`, matching the
+distributed cache. A session id is a client-supplied cookie value, so keying the local LRU by the
+bare id let a request in tenant B read the snapshot cached for tenant A before the tenant-mismatch
+check ran. Invalidation without a tenant drops the id from every namespace; the rate-limit adaptive
+tier peek is tenant-aware too (it returns `null` without a tenant rather than reading another
+tenant's entry). Pinned by `tests/unit/hooks/session-cache-tenant-key.test.ts`.
+
 ### Revocation Epoch (instant logout, zero DB lookups)
 
 `src/databases/auth/revocation-epoch.ts` keeps three process-local monotonic

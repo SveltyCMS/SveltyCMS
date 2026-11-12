@@ -28,9 +28,81 @@
  */
 
 import { createHash } from "node:crypto";
+import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { dbAdapter as dbAdapterInstance } from "@src/databases/db";
 import { logger } from "@utils/logger";
 import { nowISODateString } from "@utils/date";
+
+/* -------------------------------------------------------------------------- */
+/* Independent anchor                                                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Directory holding the out-of-database checkpoint anchors.
+ *
+ * ### Why this exists
+ * The DB checkpoint catches a deleted chain tail — unless the actor can also
+ * delete the checkpoint row, which lives in the same database. An anchor file
+ * outside the database has a different failure and privilege domain: rotating
+ * database credentials, dropping a table or restoring a snapshot does not touch
+ * it, so a chain shortened in the DB still disagrees with the anchor.
+ *
+ * ### Configuration
+ * `AUDIT_ANCHOR_PATH` (env or System Setting). Relative paths resolve against
+ * the process working directory. An operator should place it outside the
+ * database volume and back it up separately — that is the whole point.
+ *
+ * ### Guarantees and limits
+ * - One file per chain scope, written atomically (`write temp → fsync → rename`),
+ *   so a crash mid-write cannot leave a torn anchor.
+ * - A missing anchor is not an integrity failure (pre-feature installs).
+ * - The anchor is only as independent as its filesystem: a root-level actor on
+ *   the same host can rewrite it. Moving it to object storage/KMS is the next
+ *   step and uses the same write/read contract.
+ */
+const AUDIT_ANCHOR_TTL_MS = 60_000;
+let cachedAnchorPath: string | null | undefined;
+let cachedAnchorAt = 0;
+
+/** Resolve the configured anchor directory, memoized for 60 s. */
+async function getAuditAnchorPath(): Promise<string | null> {
+  const now = Date.now();
+  if (cachedAnchorPath !== undefined && now - cachedAnchorAt < AUDIT_ANCHOR_TTL_MS) {
+    return cachedAnchorPath;
+  }
+  let resolved = process.env.AUDIT_ANCHOR_PATH?.trim() || "";
+  if (!resolved) {
+    try {
+      const { getUntypedSetting } = await import("@src/services/core/settings-service");
+      const value = await getUntypedSetting("AUDIT_ANCHOR_PATH", undefined, "global").catch(
+        () => null,
+      );
+      resolved = typeof value === "string" ? value.trim() : "";
+    } catch (err) {
+      logger.debug("[AuditChain] Anchor setting unavailable", err);
+    }
+  }
+  cachedAnchorPath = resolved || null;
+  cachedAnchorAt = now;
+  return cachedAnchorPath;
+}
+
+/** Test/diagnostics hook: forget the resolved anchor path. */
+export function resetAuditAnchorCache(): void {
+  cachedAnchorPath = undefined;
+  cachedAnchorAt = 0;
+}
+
+function anchorFileFor(baseDir: string, scope: string): string {
+  // The scope is `__global__` or a tenant id; keep the filename filesystem-safe.
+  const safeScope = scope.replace(/[^A-Za-z0-9._-]/g, "_");
+  return join(baseDir, `audit-anchor-${safeScope}.json`);
+}
+
+export interface AuditAnchorRecord extends AuditChainCheckpoint {
+  scope: string;
+}
 
 /** Genesis hash: 64 zero-hex characters, the anchor for the first entry in the chain */
 export const GENESIS_HASH = "0000000000000000000000000000000000000000000000000000000000000000";
@@ -130,6 +202,23 @@ export interface ChainVerificationResult {
     lastFailureAt: string | null;
     lastMessage: string | null;
   };
+  /**
+   * Out-of-database anchor comparison.
+   *
+   * The DB checkpoint lives beside the rows it protects, so an actor who deletes
+   * the tail AND the checkpoint row leaves a shorter chain that still verifies.
+   * The anchor is written to a filesystem path the database cannot reach; when
+   * its head is not in the chain, the tail was shortened regardless of what the
+   * DB checkpoint says.
+   */
+  anchor?: {
+    configured: boolean;
+    path: string | null;
+    present: boolean;
+    expectedHead: string | null;
+    foundHead: string | null;
+    matched: boolean;
+  } | null;
   details?: string[];
 }
 
@@ -282,6 +371,11 @@ export class AuditChainService {
    * that supersedes it (the count only rises after a successful write).
    */
   private readonly checkpointFailures = new Map<
+    string,
+    { consecutive: number; lastAt: string; message: string }
+  >();
+  /** Anchor write failures per tenant — separate from the DB checkpoint. */
+  private readonly anchorFailures = new Map<
     string,
     { consecutive: number; lastAt: string; message: string }
   >();
@@ -519,6 +613,7 @@ export class AuditChainService {
     }
     this.checkpointFailures.delete(cacheKey);
     this.countCache.set(cacheKey, entryCount);
+    await this.writeAnchor(tenantId, { headHash, entryCount, updatedAt: nowISODateString() });
   }
 
   /**
@@ -541,6 +636,81 @@ export class AuditChainService {
       lastFailureAt: failure?.lastAt ?? null,
       lastMessage: failure?.message ?? null,
     };
+  }
+
+  /**
+   * Reads the tenant's out-of-database anchor, or `null` when none exists.
+   * A malformed anchor is reported as absent: verification must not fail because
+   * of a corrupt side file, and `present: false` is visible in the result.
+   */
+  async readAnchor(tenantId?: string | null): Promise<AuditAnchorRecord | null> {
+    const baseDir = await getAuditAnchorPath();
+    if (!baseDir) return null;
+    try {
+      const raw = await readFile(anchorFileFor(baseDir, chainHashScope(tenantId)), "utf8");
+      const parsed = JSON.parse(raw) as AuditAnchorRecord;
+      return typeof parsed?.entryCount === "number" && typeof parsed?.headHash === "string"
+        ? parsed
+        : null;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException)?.code !== "ENOENT") {
+        logger.debug("[AuditChain] Could not read anchor", err);
+      }
+      return null;
+    }
+  }
+
+  /** Anchor write health for a tenant. */
+  getAnchorStatus(tenantId?: string | null): {
+    healthy: boolean;
+    consecutiveFailures: number;
+    lastFailureAt: string | null;
+    lastMessage: string | null;
+  } {
+    const failure = this.anchorFailures.get(AuditChainService.cacheKey(tenantId));
+    return {
+      healthy: !failure,
+      consecutiveFailures: failure?.consecutive ?? 0,
+      lastFailureAt: failure?.lastAt ?? null,
+      lastMessage: failure?.message ?? null,
+    };
+  }
+
+  /**
+   * Writes the tenant's anchor atomically: temp file → rename within the same
+   * directory, so a crash can never leave a half-written anchor behind.
+   *
+   * Failures are counted and logged, never thrown — the audit write already
+   * committed, and losing the anchor must not fail the request. The failure is
+   * surfaced through `getAnchorStatus()` and the verification result.
+   */
+  private async writeAnchor(
+    tenantId: string | null | undefined,
+    checkpoint: AuditChainCheckpoint,
+  ): Promise<void> {
+    const baseDir = await getAuditAnchorPath();
+    if (!baseDir) return;
+    const scope = chainHashScope(tenantId);
+    const cacheKey = AuditChainService.cacheKey(tenantId);
+    const target = anchorFileFor(baseDir, scope);
+    const record: AuditAnchorRecord = { ...checkpoint, scope };
+    try {
+      await mkdir(dirname(target), { recursive: true });
+      const tmp = `${target}.${process.pid}.tmp`;
+      await writeFile(tmp, JSON.stringify(record), { encoding: "utf8", mode: 0o600 });
+      await rename(tmp, target);
+      this.anchorFailures.delete(cacheKey);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const previous = this.anchorFailures.get(cacheKey);
+      this.anchorFailures.set(cacheKey, {
+        consecutive: (previous?.consecutive ?? 0) + 1,
+        lastAt: nowISODateString(),
+        message,
+      });
+      logger.error(`[AuditChain] ANCHOR_WRITE_FAILED (${target}): ${message}`);
+      await rm(`${target}.${process.pid}.tmp`, { force: true }).catch(() => {});
+    }
   }
 
   /**
@@ -697,6 +867,9 @@ export class AuditChainService {
       // AND the checkpoint row leaves a shorter chain that still verifies. A checkpoint
       // protected from that actor needs a store outside the CMS database.
       const checkpoint = await this.readCheckpoint(tenantId);
+      const anchor = await this.readAnchor(tenantId);
+      const anchorConfigured = (await getAuditAnchorPath()) !== null;
+      const anchorTruncated = Boolean(anchor && !storedHashes.has(anchor.headHash));
       const chainedEntries = entries.length - unchainedPrefix;
       const truncated = checkpoint ? !storedHashes.has(checkpoint.headHash) : false;
       const checkpointOk = !truncated;
@@ -716,9 +889,19 @@ export class AuditChainService {
         };
       }
 
-      const valid = tamperedEntries.length === 0 && checkpointOk;
+      if (anchorTruncated) {
+        details.push(
+          `Tail truncated: the anchor head ${anchor?.headHash.slice(0, 16)}... (${anchor?.entryCount} entries) is no longer in the chain (${chainedEntries} entries found)`,
+        );
+      }
+
+      const valid = tamperedEntries.length === 0 && checkpointOk && !anchorTruncated;
       const brokenAt =
-        tamperedEntries.length > 0 ? tamperedEntries[0] : checkpointOk ? null : chainedEntries;
+        tamperedEntries.length > 0
+          ? tamperedEntries[0]
+          : checkpointOk && !anchorTruncated
+            ? null
+            : chainedEntries;
 
       return {
         valid,
@@ -729,6 +912,16 @@ export class AuditChainService {
         checkpoint: checkpointReport,
         legacySecondPrecisionEntries,
         checkpointPersistence: this.getCheckpointStatus(tenantId),
+        anchor: {
+          configured: anchorConfigured,
+          path: anchorConfigured
+            ? anchorFileFor((await getAuditAnchorPath()) as string, chainHashScope(tenantId))
+            : null,
+          present: Boolean(anchor),
+          expectedHead: anchor?.headHash ?? null,
+          foundHead: checkpointReport?.foundHead ?? expectedPreviousHash,
+          matched: anchor ? !anchorTruncated : false,
+        },
         details: details.length > 0 ? details : undefined,
       };
     } catch (err) {
