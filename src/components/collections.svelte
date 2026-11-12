@@ -317,9 +317,37 @@ Provides an organized interface for navigating hierarchical content structures.
 		const getEffectiveOrder = (node: ExtendedContentNode) =>
 			orderOverrides.get(node._id) ?? node.order ?? 0;
 
+		/**
+		 * Display label for a sidebar collection node.
+		 *
+		 * A collection that only exists as a physical table (no `content_nodes` row —
+		 * e.g. a table discovered while visiting a config page) is projected by
+		 * `collection-module.listSchemas`'s fallback as `name = collectionName`, i.e.
+		 * the bare lower-case DB identifier (`notifications`) with no translations or
+		 * icon. That fallback can win the merge tie in `refreshCollectionsCache`, so
+		 * the tree rendered a raw table name. Humanise it here (consumer side) instead
+		 * of leaking the identifier into the UI; real schemas keep their own name.
+		 */
+		function nodeLabel(node: ExtendedContentNode): string {
+			const translated = node.translations?.find(
+				(t) => t.languageTag === currentLanguage
+			)?.translationName;
+			if (translated) return translated;
+
+			const name = String(node.name ?? '');
+			const isPhysicalFallback =
+				!node.icon && !node.translations?.length && /^[a-z0-9_-]+$/.test(name);
+			if (!isPhysicalFallback) return name;
+
+			return name
+				.split(/[_-]+/)
+				.filter(Boolean)
+				.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+				.join(' ');
+		}
+
 		function mapToTreeNode(node: ExtendedContentNode, depth = 0): CollectionTreeNode {
-			const translation = node.translations?.find((t) => t.languageTag === currentLanguage);
-			const label = translation?.translationName || node.name;
+			const label = nodeLabel(node);
 			const isCategory = node.nodeType === 'category';
 			// Selection is deliberately NOT baked into the tree: `treeNodes` is the keyed
 			// list TreeView diffs, so reading `selectedId` here rebuilt every node object

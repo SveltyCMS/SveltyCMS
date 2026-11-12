@@ -4,6 +4,7 @@
 Provides DB type, host, port, name, user, password inputs, validation display, test button, and change warning.
 -->
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import Alert from '@components/ui/alert.svelte';
 	import HelpIcon from '@components/ui/help-icon.svelte';
 	import Badge from '@components/ui/badge.svelte';
@@ -21,6 +22,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		label_port,
 		label_user,
 		setup_button_test_connection,
+		setup_connection_ready,
 		setup_database_host,
 		setup_database_host_placeholder,
 		setup_database_intro,
@@ -52,7 +54,9 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		setup_help_database_port,
 		setup_help_database_type,
 		setup_help_database_user,
-		setup_label_database_type
+		setup_label_database_type,
+		setup_review_label_path,
+		setup_system_media_path_placeholder
 	} from '@src/paraglide/messages';
 	import type { ValidationErrors } from '@src/stores/setup-store.svelte';
 	import { setupStore } from '@src/stores/setup-store.svelte.ts';
@@ -98,6 +102,19 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	let showAdvanced = $state(false); // Collapsible Advanced options
 
 	import { SvelteSet } from 'svelte/reactivity';
+
+	// Engines whose adapters can route reads to regional read-only replicas.
+	const REPLICA_ENGINES = new Set(['postgresql', 'mongodb']);
+	const supportsReplicas = $derived(REPLICA_ENGINES.has(dbConfig.type));
+
+	// Drivers verified in this wizard session: the install command runs at most once per
+	// engine per session (SV-016). A failed attempt stays retryable.
+	const verifiedDrivers = new SvelteSet<string>();
+	// Not reactive: concurrent Test/Next clicks must not issue the same install twice.
+	const pendingDriverInstalls = new Set<string>();
+
+	// Flips once the operator edits the name, so the default is never reapplied mid-edit.
+	let nameTouched = false;
 
 	// Track which fields have been touched (blurred)
 	let touchedFields = $state(new SvelteSet<string>());
@@ -152,6 +169,69 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		touchedFields.add(fieldName);
 	}
 
+	interface EngineDefaults {
+		name: string;
+		host: string;
+		port: string;
+		user: string;
+		password: string;
+	}
+
+	/**
+	 * Connection defaults per engine. Applied on mount and on every engine change so no
+	 * value (custom name, Atlas host, credentials) leaks from the previously selected engine.
+	 */
+	function engineDefaults(type: string): EngineDefaults {
+		switch (type) {
+			case 'sqlite':
+				return { host: 'config/database', port: '', name: 'sveltycms.db', user: '', password: '' };
+			case 'mongodb':
+				return { host: 'localhost', port: '27017', name: 'sveltycms', user: '', password: '' };
+			case 'mongodb+srv':
+				return { host: '', port: '', name: 'sveltycms', user: '', password: '' };
+			case 'mariadb':
+				return { host: 'localhost', port: '3306', name: 'sveltycms', user: '', password: '' };
+			case 'postgresql':
+				return { host: 'localhost', port: '5432', name: 'sveltycms', user: '', password: '' };
+			default:
+				return { host: 'localhost', port: '', name: 'sveltycms', user: '', password: '' };
+		}
+	}
+
+	/**
+	 * Per-field assignment (never a whole-object replace) keeps the bound inputs from
+	 * re-rendering the untouched fields.
+	 */
+	function applyEngineDefaults(type: string) {
+		const defaults = engineDefaults(type);
+		dbConfig.host = defaults.host;
+		dbConfig.port = defaults.port;
+		dbConfig.name = defaults.name;
+		dbConfig.user = defaults.user;
+		dbConfig.password = defaults.password;
+	}
+
+	/**
+	 * Invalidate the last probe. A success only covers the exact configuration that was
+	 * tested, so any edit must close the Next gate (`dbTestPassed`) and drop the success
+	 * banner — the parent's `clearDbTestError` only resets the result and error text.
+	 * `lastTestFingerprint` is deliberately kept so the "settings changed" hint shows.
+	 */
+	function markDbConfigEdited() {
+		clearDbTestError();
+		wizard.dbTestPassed = false;
+		wizard.successMessage = '';
+	}
+
+	/**
+	 * Name edits mark the field as touched so the engine default is never reapplied
+	 * while the operator is typing (SV-009).
+	 */
+	function handleNameInput() {
+		nameTouched = true;
+		markDbConfigEdited();
+	}
+
 	// Handle paste event to detect connection strings
 	function handleHostPaste(event: ClipboardEvent) {
 		const pastedText = event.clipboardData?.getData('text') || '';
@@ -171,8 +251,15 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				dbConfig.port = Number(parsed.port);
 			}
 
-			// Clear any previous test errors
-			clearDbTestError();
+			// A pasted URI replaces every connection field: invalidate the probe and the
+			// driver state belonging to the previously selected engine.
+			markDbConfigEdited();
+			installSuccess = '';
+			installError = '';
+			if (!REPLICA_ENGINES.has(parsed.type)) {
+				dbConfig.replicaUrls = [];
+				showAdvanced = false;
+			}
 		}
 	}
 
@@ -183,6 +270,13 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			return;
 		}
 
+		// One install per engine per wizard session: the command is expensive and
+		// idempotent, and it used to run on every Test click and every Next.
+		if (verifiedDrivers.has(dbType) || pendingDriverInstalls.has(dbType)) {
+			return;
+		}
+
+		pendingDriverInstalls.add(dbType);
 		isInstallingDriver = true;
 		installError = '';
 		installSuccess = '';
@@ -190,18 +284,26 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		try {
 			const result = await installDbDriver(dbType);
 
-			if (result.success) {
-				if (result.alreadyInstalled) {
-					installSuccess = `Driver for ${dbType} is already installed`;
+			// The operator may have switched engines while the command ran — never show
+			// the previous engine's install banner on the current one.
+			if (dbConfig.type === dbType) {
+				if (result.success) {
+					verifiedDrivers.add(dbType);
+					if (result.alreadyInstalled) {
+						installSuccess = `Driver for ${dbType} is already installed`;
+					} else {
+						installSuccess = result.message || `Successfully installed driver for ${dbType}`;
+					}
 				} else {
-					installSuccess = result.message || `Successfully installed driver for ${dbType}`;
+					installError = result.error || `Failed to install driver for ${dbType}`;
 				}
-			} else {
-				installError = result.error || `Failed to install driver for ${dbType}`;
 			}
 		} catch (error) {
-			installError = `Network error while installing driver: ${error instanceof Error ? error.message : String(error)}`;
+			if (dbConfig.type === dbType) {
+				installError = `Network error while installing driver: ${error instanceof Error ? error.message : String(error)}`;
+			}
 		} finally {
+			pendingDriverInstalls.delete(dbType);
 			isInstallingDriver = false;
 		}
 	}
@@ -236,63 +338,38 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	}
 
 	function handleTypeChange() {
-		clearDbTestError();
+		markDbConfigEdited();
 
-		const isAtlas = dbConfig.type === 'mongodb+srv';
-
-		// Smart host selection
+		// Fresh engine ⇒ fresh connection defaults and fresh driver state. Resetting the
+		// name/host/port/credentials stops a custom name or an Atlas host leaking across
+		// engines; `installSuccess` must not survive a switch to MongoDB/SQLite.
+		applyEngineDefaults(dbConfig.type);
+		// SQLite is a local file: it has no credentials and no TCP port, so anything a
+		// previous engine left behind must not reach the Review step or the completion
+		// payload as "Username: …" (SV-044).
 		if (dbConfig.type === 'sqlite') {
-			dbConfig.host = 'config/database';
+			dbConfig.user = '';
+			dbConfig.password = '';
 			dbConfig.port = '';
-			if (
-				!dbConfig.name ||
-				dbConfig.name.toLowerCase() === 'sveltycms' ||
-				dbConfig.name.toLowerCase() === 'sveltycms.db'
-			) {
-				dbConfig.name = 'sveltycms.db';
-			}
-		} else {
-			// Non-SQLite database types
-			if (
-				dbConfig.host === 'config/database' ||
-				!dbConfig.host ||
-				(isAtlas && dbConfig.host === 'localhost')
-			) {
-				dbConfig.host = isAtlas ? '' : 'localhost';
-			}
-			if (
-				!dbConfig.name ||
-				dbConfig.name.toLowerCase() === 'sveltycms.db' ||
-				dbConfig.name.toLowerCase() === 'sveltycms'
-			) {
-				dbConfig.name = 'sveltycms';
-			}
 		}
+		nameTouched = false;
+		installSuccess = '';
+		installError = '';
+		isInstallingDriver = false;
 
-		// Smart port selection based on database type
-		switch (dbConfig.type) {
-			case 'mongodb':
-				dbConfig.port = '27017';
-				break;
-			case 'mariadb':
-				dbConfig.port = '3306';
-				break;
-			case 'postgresql':
-				dbConfig.port = '5432';
-				break;
-			case 'mongodb+srv':
-				dbConfig.port = '';
-				break;
+		// Replicas are a PostgreSQL/MongoDB feature — drop rows the new engine cannot use.
+		if (!REPLICA_ENGINES.has(dbConfig.type)) {
+			dbConfig.replicaUrls = [];
+			showAdvanced = false;
 		}
 	}
 
-	$effect(() => {
-		// Set default database name if empty
-		if (!dbConfig.name) {
-			dbConfig.name = 'sveltycms';
+	// Mount only: seed the engine default when the persisted config has no name yet
+	// (SV-009). Runs once — an operator edit is never overwritten while typing.
+	onMount(() => {
+		if (!nameTouched && !dbConfig.name) {
+			dbConfig.name = engineDefaults(dbConfig.type).name;
 		}
-
-		unsupportedDbSelected = false; // All database types are now supported
 	});
 
 	const dbTypeOptions = [
@@ -447,45 +524,20 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				/>
 			</div>
 
-			{#if isInstallingDriver}
-				<div
-					class="mt-2 flex items-center gap-2 text-sm text-tertiary-500 dark:text-primary-500"
-					role="status"
-				>
-					<iconify-icon icon="mdi:loading" class="animate-spin" width="16" aria-hidden="true"
-					></iconify-icon>
-					<span>Installing database driver...</span>
-				</div>
-			{/if}
-			{#if installSuccess}
-				<div
-					class="mt-2 flex items-center gap-2 text-sm text-tertiary-500 dark:text-primary-500"
-					role="status"
-				>
-					<iconify-icon icon="mdi:check-circle" width="16" aria-hidden="true"></iconify-icon>
-					<span>{installSuccess}</span>
-				</div>
-			{/if}
-			{#if installError}
-				<Alert variant="error" title="Driver Installation Failed" class="mt-2">
-					<p>{installError}</p>
-					<p class="mt-2 text-xs">
-						You can install the driver manually or continue with the setup (connection test will
-						show installation instructions).
-					</p>
-				</Alert>
-			{/if}
 			<div>
 				<label for="db-host" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon
-						icon="mdi:server-network"
+						icon={dbConfig.type === 'sqlite' ? 'mdi:folder-outline' : 'mdi:server-network'}
 						width="18"
 						class="text-tertiary-500 dark:text-primary-500"
 						aria-hidden="true"
 					></iconify-icon>
-					<span class="text-(--admin-text-body)"
-						>{isAtlas ? 'Atlas Cluster Host' : setup_database_host()}</span
-					>
+					<!-- SQLite stores a directory, not a network host (SV-014). -->
+					<span class="text-(--admin-text-body)">
+						{#if dbConfig.type === 'sqlite'}{setup_review_label_path()}
+						{:else if isAtlas}Atlas Cluster Host
+						{:else}{setup_database_host()}{/if}
+					</span>
 					<SystemTooltip title={setup_help_database_host()}>
 						<HelpIcon ariaLabel="Help: Host" />
 					</SystemTooltip>
@@ -495,7 +547,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					id="db-host"
 					bind:value={dbConfig.host}
 					type="text"
-					onchange={clearDbTestError}
+					oninput={markDbConfigEdited}
 					onblur={() => {
 						const trimmed = dbConfig.host.trim();
 						if (trimmed !== dbConfig.host) {
@@ -506,7 +558,9 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					onpaste={handleHostPaste}
 					placeholder={isAtlas
 						? 'cluster0.abcde.mongodb.net'
-						: setup_database_host_placeholder?.() || 'localhost'}
+						: dbConfig.type === 'sqlite'
+							? setup_system_media_path_placeholder()
+							: setup_database_host_placeholder?.() || 'localhost'}
 					error={displayErrors.host}
 					required
 				/>
@@ -548,7 +602,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						id="db-port"
 						bind:value={dbConfig.port}
 						type="text"
-						onchange={clearDbTestError}
+						oninput={markDbConfigEdited}
 						onblur={() => handleBlur('port')}
 						placeholder={setup_database_port_placeholder?.() || '27017'}
 						error={displayErrors.port}
@@ -574,7 +628,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					id="db-name"
 					bind:value={dbConfig.name}
 					type="text"
-					onchange={clearDbTestError}
+					oninput={handleNameInput}
 					onblur={() => {
 						const trimmed = dbConfig.name.trim();
 						if (trimmed !== dbConfig.name) {
@@ -608,7 +662,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						bind:value={dbConfig.user}
 						type="text"
 						autocomplete="off"
-						onchange={clearDbTestError}
+						oninput={markDbConfigEdited}
 						onblur={() => {
 							const trimmed = dbConfig.user.trim();
 							if (trimmed !== dbConfig.user) {
@@ -640,7 +694,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 							id="db-password"
 							name="password"
 							bind:value={dbConfig.password}
-							onchange={clearDbTestError}
+							oninput={markDbConfigEdited}
 							onblur={() => {
 								const trimmed = dbConfig.password.trim();
 								if (trimmed !== dbConfig.password) {
@@ -658,7 +712,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 							variant="ghost"
 							type="button"
 							onclick={toggleDbPassword}
-							class="absolute inset-e-0 top-0 min-w-10 p-0!"
+							class="absolute! inset-e-0 top-0 min-w-10 p-0!"
 							aria-label={showDbPassword ? 'Hide database password' : 'Show database password'}
 						>
 							<iconify-icon
@@ -672,32 +726,73 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				</div>
 			{/if}
 		</div>
-		<div class="mb-4 flex items-center gap-2">
-			<Button
-				variant="transparent"
-				type="button"
-				onclick={() => (showAdvanced = !showAdvanced)}
-				class="flex items-center gap-2 text-sm font-semibold! text-(--admin-text-muted) dark:text-primary-500 hover:text-tertiary-500 transition-colors p-0! h-auto! justify-start! min-w-0!"
-			>
-				<iconify-icon icon={showAdvanced ? 'mdi:chevron-up' : 'mdi:chevron-down'} width="18"
-				></iconify-icon>
-				Advanced Database Options (Clustering & Scaling)
-			</Button>
-			<SystemTooltip
-				title="Offload reads to regional read-only replicas (PostgreSQL/MongoDB). Writes always go to the primary. Add one connection string per replica; append ?region=code for geo routing. Optional — leave empty to use the primary only."
-			>
-				<HelpIcon ariaLabel="Help: Advanced database options (clustering and scaling)" />
-				{#snippet content()}
-					Offload reads to regional read-only replicas (PostgreSQL/MongoDB). Writes always go to the
-					primary. Add one connection string per replica; append
-					<code class="whitespace-nowrap">?region=code</code> for geo routing. Optional — leave empty
-					to use the primary only.
-				{/snippet}
-			</SystemTooltip>
+
+		<!-- Driver status lives outside the md:grid-cols-2 grid so a test result cannot
+		     shift Host/Port onto another row (SV-013). -->
+		{#if isInstallingDriver || installSuccess || installError}
+			<div class="space-y-2">
+				{#if isInstallingDriver}
+					<div
+						class="flex items-center gap-2 text-sm text-tertiary-500 dark:text-primary-500"
+						role="status"
+					>
+						<iconify-icon icon="mdi:loading" class="animate-spin" width="16" aria-hidden="true"
+						></iconify-icon>
+						<span>Installing database driver...</span>
+					</div>
+				{/if}
+				{#if installSuccess}
+					<div
+						class="flex items-center gap-2 text-sm text-tertiary-500 dark:text-primary-500"
+						role="status"
+					>
+						<iconify-icon icon="mdi:check-circle" width="16" aria-hidden="true"></iconify-icon>
+						<span>{installSuccess}</span>
+					</div>
+				{/if}
+				{#if installError}
+					<Alert variant="error" title="Driver Installation Failed">
+						<p>{installError}</p>
+						<p class="mt-2 text-xs">
+							You can install the driver manually or continue with the setup (connection test will
+							show installation instructions).
+						</p>
+					</Alert>
+				{/if}
+			</div>
+		{/if}
+
+		<!-- Header row holds only the toggle + help; the panel is a full-width block below
+		     it (SV-007). Replicas are a PostgreSQL/MongoDB feature only (SV-008). -->
+		{#if supportsReplicas}
+			<div class="mb-4 flex flex-wrap items-center gap-2">
+				<Button
+					variant="transparent"
+					type="button"
+					onclick={() => (showAdvanced = !showAdvanced)}
+					aria-expanded={showAdvanced}
+					class="flex items-center gap-2 text-sm font-semibold! text-(--admin-text-muted) dark:text-primary-500 hover:text-tertiary-500 transition-colors p-0! h-auto! justify-start! min-w-0!"
+				>
+					<iconify-icon icon={showAdvanced ? 'mdi:chevron-up' : 'mdi:chevron-down'} width="18"
+					></iconify-icon>
+					Advanced Database Options (Clustering & Scaling)
+				</Button>
+				<SystemTooltip
+					title="Offload reads to regional read-only replicas (PostgreSQL/MongoDB). Writes always go to the primary. Add one connection string per replica; append ?region=code for geo routing. Optional — leave empty to use the primary only."
+				>
+					<HelpIcon ariaLabel="Help: Advanced database options (clustering and scaling)" />
+					{#snippet content()}
+						Offload reads to regional read-only replicas (PostgreSQL/MongoDB). Writes always go to
+						the primary. Add one connection string per replica; append
+						<code class="whitespace-nowrap">?region=code</code> for geo routing. Optional — leave empty
+						to use the primary only.
+					{/snippet}
+				</SystemTooltip>
+			</div>
 
 			{#if showAdvanced}
 				<div
-					class="mt-4 space-y-4 rounded border border-(--admin-border-default) p-4 transition-all duration-300"
+					class="mb-4 space-y-4 rounded border border-(--admin-border-default) p-4 transition-all duration-300"
 				>
 					<div class="flex flex-col gap-2">
 						<label
@@ -720,7 +815,10 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 								<Input
 									type="text"
 									bind:value={dbConfig.replicaUrls[index]}
-									placeholder="postgresql://user:pass@replica-host:5432/db?region=us-east"
+									oninput={markDbConfigEdited}
+									placeholder={dbConfig.type === 'mongodb'
+										? 'mongodb://user:pass@replica-host:27017/db?region=us-east'
+										: 'postgresql://user:pass@replica-host:5432/db?region=us-east'}
 									class="flex-1"
 								/>
 								{#if dbConfig.replicaUrls.length > 1}
@@ -732,8 +830,9 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 											dbConfig.replicaUrls = dbConfig.replicaUrls.filter(
 												(_: string, i: number) => i !== index
 											);
+											markDbConfigEdited();
 										}}
-										class="p-0! min-w-0 rounded-full bg-error-500/10 text-error-500 hover:bg-error-500 hover:text-white transition-all"
+										class="p-0! min-w-10 rounded-full bg-error-500/10 text-error-500 hover:bg-error-500 hover:text-white transition-all"
 									>
 										<iconify-icon icon="mdi:close" width="16"></iconify-icon>
 									</Button>
@@ -748,6 +847,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 							class="w-fit mt-2"
 							onclick={() => {
 								dbConfig.replicaUrls = [...dbConfig.replicaUrls, ''];
+								markDbConfigEdited();
 							}}
 						>
 							<iconify-icon icon="mdi:plus" width="16"></iconify-icon>
@@ -756,7 +856,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					</div>
 				</div>
 			{/if}
-		</div>
+		{/if}
 
 		{#if !unsupportedDbSelected}
 			<Button
@@ -785,9 +885,9 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			</Button>
 		{/if}
 		{#if dbConfigChangedSinceTest}
+			<!-- Re-test hint, not the engine help text (SV-015). -->
 			<Alert variant="warning" class="mt-2 text-xs">
-				{setup_help_database_type?.() ||
-					'Database settings changed since last successful test. Please re-test to proceed.'}
+				{setup_connection_ready()}
 			</Alert>
 		{/if}
 	</form>

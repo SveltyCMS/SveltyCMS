@@ -231,14 +231,19 @@
 /* Specific Focus logic for raw form controls (native components bring their
    own ring via utilities; this is the baseline for untouched inputs).
    Placed in @layer base without !important so component classes and utilities
-   (like focus:ring-*, error states, etc.) can cleanly override them. */
+   (like focus:ring-*, error states, etc.) can cleanly override them.
+
+   The ring is an `outline`, never an inset `box-shadow`: components that also
+   set `focus:outline-*` then repaint the SAME ring, instead of stacking an
+   outline on top of a base inset shadow (that surfaced as a double
+   blue+green focus ring on the login inputs, SV-048). */
 @layer base {
   input:focus,
   textarea:focus,
   select:focus {
-    box-shadow: 0 0 0 1px inset var(--color-tertiary-500);
+    outline: 2px solid var(--color-tertiary-500);
+    outline-offset: 1px;
     border-color: var(--color-tertiary-500);
-    outline: none;
   }
 
   :where(.dark) input:focus,
@@ -246,7 +251,7 @@
   :where(.dark) select:focus {
     background-color: var(--color-surface-900);
     color: white;
-    box-shadow: 0 0 0 1px inset var(--color-primary-400);
+    outline-color: var(--color-primary-400);
     border-color: var(--color-primary-400);
   }
 }
@@ -370,6 +375,52 @@ html.dark [data-admin-theme] {
 
   /* Focus ring on dark surfaces — lighter accent keeps >=3:1 contrast */
   --admin-focus-ring: var(--color-primary-400);
+}
+
+/* ------------------------------------------------------------------ */
+/* High-Contrast Preference                                             */
+/*                                                                      */
+/* The (app) layout mirrors the merged user/tenant theme onto <html> as */
+/* `data-contrast="high"`. Only TOKENS are remapped here, so every      */
+/* consumer (cards, sidebar, modals, focus rings) strengthens at once.  */
+/* With the preference off the attribute is absent and :root stays as   */
+/* above — the default look is unchanged.                               */
+/* ------------------------------------------------------------------ */
+:root[data-contrast="high"],
+:root[data-contrast="high"] [data-admin-theme],
+:root[data-contrast="high"] .admin-theme-container {
+  --admin-border-width: 2px;
+  --admin-border-default: var(--color-surface-500);
+  --admin-border-subtle: var(--color-surface-400);
+  --admin-text-body: var(--color-surface-950);
+  --admin-text-muted: var(--color-surface-700);
+  /* tertiary-700 keeps >=4.5:1 against the light page surface */
+  --admin-focus-ring: var(--color-tertiary-700);
+}
+
+html.dark[data-contrast="high"],
+html.dark[data-contrast="high"] [data-admin-theme],
+html.dark[data-contrast="high"] .admin-theme-container {
+  --admin-border-default: var(--color-surface-300);
+  --admin-border-subtle: var(--color-surface-400);
+  --admin-text-body: var(--color-surface-50);
+  --admin-text-muted: var(--color-surface-200);
+  /* primary-300 keeps >=4.5:1 against the dark page surface */
+  --admin-focus-ring: var(--color-primary-300);
+}
+
+/* Thicker ring under the high-contrast preference (same tokens, more weight). */
+[data-contrast="high"] :focus-visible:not(input, textarea, select) {
+  outline-width: 3px;
+  outline-offset: 3px;
+}
+
+@layer base {
+  [data-contrast="high"] input:focus,
+  [data-contrast="high"] textarea:focus,
+  [data-contrast="high"] select:focus {
+    outline-width: 3px;
+  }
 }
 
 /* ------------------------------------------------------------------ */

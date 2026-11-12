@@ -113,7 +113,13 @@ describe("email-previews load", () => {
     expect(renderEmailToStringsMock).toHaveBeenCalledWith(
       template,
       "welcomeUser.svelte",
-      expect.objectContaining({ email: "preview@example.com", sitename: "SveltyCMS (Preview)" }),
+      expect.objectContaining({
+        email: "preview@example.com",
+        // The real configured site name, not a hardcoded preview placeholder.
+        sitename: "SveltyCMS Test",
+        // Representative content so the default `custom-email` preview is not empty.
+        body: expect.stringContaining("<h1>"),
+      }),
     );
   });
 

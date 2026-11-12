@@ -332,17 +332,27 @@ export class MediaNamespace {
     });
   }
 
+  /**
+   * Persist a media patch and return the stored record.
+   *
+   * The record (not `void`) is the contract: `PATCH /api/media/:id` serialises
+   * this envelope straight to the client, and a body that only carried
+   * `{ success: true }` was adopted by the details modal as the media record —
+   * blanking every field it renders.
+   */
   async update(
     mediaId: string,
     data: any,
     options: TenantOptions = {},
-  ): Promise<DatabaseResult<void>> {
+  ): Promise<DatabaseResult<MediaItem | null>> {
     return safeCall(async () => {
       if (!mediaId) throw new AppError("Media ID is required", 400);
 
       await this.mediaService.updateMedia(mediaId, data, options.tenantId as DatabaseId);
 
       this.invalidateCache(options.tenantId, mediaId);
+      const updated = await this.findById(mediaId, { tenantId: options.tenantId });
+      return updated.success ? (updated.data ?? null) : null;
     });
   }
 

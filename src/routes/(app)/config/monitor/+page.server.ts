@@ -1,6 +1,6 @@
 /**
  * @file src/routes/(app)/config/monitor/+page.server.ts
- * @description Server-side data loading for the Enterprise Monitor Dashboard.
+ * @description Server-side data loading for the System Monitor Dashboard.
  * Each data source is fetched independently — one failure won't block the rest —
  * but all five are awaited in parallel (they share no inputs beyond `tenantId`).
  *

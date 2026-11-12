@@ -228,6 +228,13 @@ This layout provides the administrative shell, including sidebars and header con
 		root.setAttribute('data-admin-theme', theme.themeName);
 		root.setAttribute('data-density', theme.density);
 		root.setAttribute('data-reduced-motion', theme.features.reducedMotion ? 'true' : 'false');
+		// High-contrast preference (SV-084): utilities.css maps the --admin-* tokens under
+		// [data-contrast="high"]. Only set when enabled, so the default look is untouched.
+		if (theme.features.highContrastMode) {
+			root.setAttribute('data-contrast', 'high');
+		} else {
+			root.removeAttribute('data-contrast');
+		}
 
 		return () => {
 			// Leaving the (app) group (e.g. logout → /login) must hand the document
@@ -237,6 +244,7 @@ This layout provides the administrative shell, including sidebars and header con
 			root.removeAttribute('data-admin-theme');
 			root.removeAttribute('data-density');
 			root.removeAttribute('data-reduced-motion');
+			root.removeAttribute('data-contrast');
 		};
 	});
 

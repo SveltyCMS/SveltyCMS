@@ -40,6 +40,7 @@
 		queue_clear_completed,
 		queue_clear_filter,
 		queue_completed,
+		queue_completed_at,
 		queue_created,
 		queue_delete_aria,
 		queue_delete_title,
@@ -197,6 +198,20 @@
 		} catch (_e) {
 			return 'Invalid Date';
 		}
+	}
+
+	/**
+	 * `nextRunAt` only exists for pending/failed jobs. Finished jobs kept the
+	 * timestamp of their last run, so the queue rendered "49 seconds ago" for
+	 * work that will never run again — show the completion time instead.
+	 */
+	function nextRunLabel(job: QueueJob): string {
+		if (job.status === 'completed') {
+			return job.updatedAt
+				? queue_completed_at({ when: formatDate(job.updatedAt) })
+				: queue_completed();
+		}
+		return formatDate(job.nextRunAt);
 	}
 
 	function getPaginationUrl(offset: number) {
@@ -697,7 +712,7 @@
 										{job.attempts} / {job.maxAttempts}
 									</td>
 									<td class={SMART_TABLE_TD}>
-										{formatDate(job.nextRunAt)}
+										{nextRunLabel(job)}
 									</td>
 									<td class="{SMART_TABLE_TD} text-(--admin-text-muted)">
 										{formatDate(job.createdAt)}
@@ -805,7 +820,13 @@
 					<dt class="text-surface-500">{queue_last_update()}</dt>
 					<dd title={isoTitle(selectedJob.updatedAt)}>{formatDate(selectedJob.updatedAt)}</dd>
 					<dt class="text-surface-500">{queue_next_run()}</dt>
-					<dd title={isoTitle(selectedJob.nextRunAt)}>{formatDate(selectedJob.nextRunAt)}</dd>
+					<dd
+						title={isoTitle(
+							selectedJob.status === 'completed' ? selectedJob.updatedAt : selectedJob.nextRunAt
+						)}
+					>
+						{nextRunLabel(selectedJob)}
+					</dd>
 					{#if selectedJob.tenantId}
 						<dt class="text-surface-500">{queue_tenant()}</dt>
 						<dd class="font-mono text-xs">{selectedJob.tenantId}</dd>

@@ -94,8 +94,11 @@
   --color-primary-300: oklch(84.14% 0.2 132.96deg);
   --color-primary-400: oklch(80.36% 0.22 135.49deg);
   /* Brand primary (green). 500-950 keep the bright brand-green lineage by
-     owner decision (reverted from the AA-darkened ramp) — white text on
-     primary is a known contrast trade-off (~1.94:1), accepted for branding. */
+     owner decision (reverted from the AA-darkened ramp). Because the fill is
+     intentionally bright, PRIMARY IS AN INK SURFACE, never a white-text one:
+     white on primary-500 is 1.94:1, surface-950 on it is 10:1 (SV-023).
+     `preset-filled-primary-*` below carries the ink; do not pair this ramp
+     with `text-white`. */
   --color-primary-500: oklch(76.87% 0.2296 137.58deg);
   --color-primary-600: oklch(69.97% 0.21 138.5deg);
   --color-primary-700: oklch(62.66% 0.19 139.5deg);
@@ -288,7 +291,9 @@
 }
 
 @utility preset-filled-primary-500 {
-  @apply bg-primary-500 text-white shadow-sm;
+  /* Ink, not white: white on the bright brand green is 1.94:1 (SV-023).
+     surface-950 on primary-500 measures 10:1. */
+  @apply bg-primary-500 text-surface-950 shadow-sm;
 }
 @utility preset-filled-secondary-500 {
   @apply bg-secondary-500 text-white;
@@ -309,7 +314,8 @@
   @apply bg-surface-600 text-white;
 }
 @utility preset-filled-primary-600 {
-  @apply bg-primary-600 text-white;
+  /* Same ink contract as 500 — white on primary-600 is 2.5:1. */
+  @apply bg-primary-600 text-surface-950;
 }
 @utility preset-filled-secondary-600 {
   @apply bg-secondary-600 text-white;
@@ -333,7 +339,7 @@
   @apply bg-surface-200 text-surface-900 dark:bg-surface-700 dark:text-surface-100;
 }
 @utility preset-filled-info-500 {
-  @apply bg-primary-500 text-white;
+  @apply bg-primary-500 text-surface-950;
 }
 
 /* --- tonal: 10% wash of the colour, used for passive/informational surfaces --- */
@@ -400,7 +406,8 @@
   @apply border border-error-500 text-error-500 bg-transparent dark:border-error-400 dark:text-error-300;
 }
 @utility preset-outlined-surface-500 {
-  @apply border border-surface-500 text-surface-500 bg-transparent dark:border-surface-400 dark:text-surface-300;
+  /* text-surface-500 is 4.45:1 on the light page surface — 600 clears AA. */
+  @apply border border-surface-500 text-surface-600 bg-transparent dark:border-surface-400 dark:text-surface-300;
 }
 
 /* --- ghost: no chrome until hover, used for icon buttons and toolbars --- */
@@ -429,6 +436,31 @@
 /* --- legacy alias kept for existing markup --- */
 @utility preset-soft-surface {
   @apply bg-surface-200/30 text-surface-700 dark:bg-surface-700/30 dark:text-surface-200;
+}
+
+/* ========================================================================
+   STEPPER CONTRAST REPAIR (SV-024)
+   ========================================================================
+   `src/components/ui/stepper.svelte` paints PENDING step labels and
+   descriptions with `text-surface-400 dark:text-surface-600`. On the light
+   page surface that measures 2.97:1 and on the dark surface 2.48:1 — both
+   under the WCAG AA 4.5:1 floor for normal text.
+
+   The repair lives here instead of in the component because darkening
+   `--color-surface-400` globally would collapse the surface ramp for every
+   other muted-text consumer. The rules are intentionally UNLAYERED: an
+   unlayered rule beats the layered `utilities` layer regardless of
+   specificity, which is what lets them override the `dark:` variant too.
+   surface-600 on surface-50 = 6.8:1, surface-400 on surface-900 = 5.7:1.
+   ======================================================================== */
+.stepper-container .text-surface-400,
+.stepper-container .text-surface-500 {
+  color: var(--color-surface-600);
+}
+
+.dark .stepper-container .text-surface-400,
+.dark .stepper-container .text-surface-500 {
+  color: var(--color-surface-400);
 }
 
 /* ========================================================================

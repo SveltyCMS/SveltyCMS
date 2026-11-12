@@ -21,8 +21,11 @@ vi.mock("@src/routes/(app)/config/redirects/redirects.remote", () => ({
 }));
 vi.mock("@src/components/system/admin-zone.svelte", () => ({ default: () => null }));
 
-function modalOrThrow(target: HTMLElement): HTMLElement {
-  const modal = target.querySelector<HTMLElement>("[data-testid='redirects-modal']");
+function modalOrThrow(): HTMLElement {
+  // The modal is the shared top-layer Modal component: it portals to
+  // `document.body`, so the dialog is a sibling of the mounted page, not a
+  // descendant of its container.
+  const modal = document.querySelector<HTMLElement>("[data-testid='redirects-modal']");
   if (!modal) throw new Error("redirect modal not rendered");
   return modal;
 }
@@ -32,7 +35,7 @@ describe("Redirect modal onboarding (client interaction)", () => {
     const rendered = renderPage(RedirectsPage, { redirects: [] });
     try {
       await click(rendered.target.querySelector("[data-testid='redirects-add']"));
-      const modal = modalOrThrow(rendered.target);
+      const modal = modalOrThrow();
 
       const help = modal.querySelector("[data-testid='redirects-help']");
       expect(help?.textContent).toContain("How redirects work");

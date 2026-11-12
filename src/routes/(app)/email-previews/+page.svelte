@@ -42,6 +42,16 @@ Previews and previously rendered as a bare standalone page.
 	);
 	const previewHtml = $derived(typeof data.previewHtml === 'string' ? data.previewHtml : null);
 	const previewError = $derived(typeof data.previewError === 'string' ? data.previewError : null);
+
+	/** `welcome-user` → "Welcome User"; the URL keeps the raw file name. */
+	function humanizeTemplate(file: string): string {
+		return file
+			.replace(/\.svelte$/, '')
+			.split(/[-_/]/)
+			.filter(Boolean)
+			.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+			.join(' ');
+	}
 </script>
 
 <svelte:head>
@@ -79,7 +89,7 @@ Previews and previously rendered as a bare standalone page.
 										? 'border-primary-500 bg-primary-500/10 font-medium text-primary-500 dark:text-primary-400'
 										: 'border-transparent text-(--admin-text-body) hover:bg-surface-500/10'}"
 								>
-									<span class="truncate text-start">{file}</span>
+									<span class="truncate text-start">{humanizeTemplate(file)}</span>
 								</a>
 							</li>
 						{/each}
@@ -93,7 +103,7 @@ Previews and previously rendered as a bare standalone page.
 			>
 				{#if previewHtml}
 					<iframe
-						title="Preview of {selectedEmail}"
+						title="Preview of {selectedEmail ? humanizeTemplate(selectedEmail) : 'template'}"
 						srcdoc={previewHtml}
 						sandbox=""
 						class="min-h-[70vh] w-full flex-1 border-0 bg-white lg:min-h-0"
@@ -101,7 +111,9 @@ Previews and previously rendered as a bare standalone page.
 				{:else if previewError}
 					<div class="p-4">
 						<div class="rounded-lg border border-error-500/30 bg-error-500/10 p-4 text-error-500">
-							<p class="font-medium">Failed to render {selectedEmail ?? 'the template'}</p>
+							<p class="font-medium">
+								Failed to render {selectedEmail ? humanizeTemplate(selectedEmail) : 'the template'}
+							</p>
 							<pre class="mt-2 text-xs whitespace-pre-wrap">{previewError}</pre>
 						</div>
 					</div>

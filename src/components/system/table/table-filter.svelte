@@ -16,13 +16,15 @@ It includes search, filter toggles, column visibility, and density controls, opt
 - `columnShow` {boolean}: Visibility of column controls (default: false)
 - `density` {string}: Table density ('compact', 'normal', 'comfortable') (default: 'normal')
 - `densityOptions` {string[]}: Custom density options (default: ['compact', 'normal', 'comfortable'])
-- `showDeleted` {boolean}: Whether to show deleted items (default: false)
+- `viewMode` {'table' | 'card'}: Current view mode, one-way — the toggle reports through `onViewModeChange`
+- `onViewModeChange` {(mode) => void}: Called with the requested mode when the view toggle is pressed
 
 ### Features
 - Provides a responsive layout for table filtering controls
 - Supports dynamic updates to filter and search criteria
 - Allows customization of table density and column visibility
 - Integrates with global search and filter states
+- Search opens alongside the toolbar instead of replacing it (filter/column/density stay mounted); `Escape` closes it and returns focus to the toggle
 - Optimized for performance with minimal re-renders
 -->
 
@@ -40,7 +42,9 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		table_filter_toggle,
 		table_search_aria,
 		table_search_placeholder,
-		table_search_toggle
+		table_search_toggle,
+		table_switch_to_card_view,
+		table_switch_to_table_view
 	} from '@src/paraglide/messages';
 	// Logger
 	import { logger } from '@utils/logger';
@@ -55,8 +59,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		columnShow = $bindable(false),
 		density = $bindable('normal'),
 		densityOptions = $bindable(['compact', 'normal', 'comfortable']),
-		showDeleted = $bindable(false),
-		viewMode = $bindable<'table' | 'card'>('table'),
+		viewMode = 'table',
 		showViewMode = false,
 		onViewModeChange
 	}: {
@@ -66,7 +69,6 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		columnShow?: boolean;
 		density?: string;
 		densityOptions?: string[];
-		showDeleted?: boolean;
 		viewMode?: 'table' | 'card';
 		showViewMode?: boolean;
 		onViewModeChange?: (mode: 'table' | 'card') => void;
@@ -133,6 +135,30 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		density = densityOptions[nextIndex];
 	}
 
+	/** Wrapper around the search toggle — the focus target after `Escape`. */
+	let searchToggleEl = $state<HTMLElement | null>(null);
+
+	/**
+	 * Close the search row and hand focus back to the toggle that opened it.
+	 *
+	 * The toggle stays mounted while search is open, so returning focus is a
+	 * single element lookup — no focus-loss when the input unmounts.
+	 */
+	function closeSearch(restoreFocus = true) {
+		searchShow = false;
+		if (restoreFocus) searchToggleEl?.querySelector('button')?.focus();
+	}
+
+	function handleSearchKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape') {
+			event.preventDefault();
+			event.stopPropagation();
+			closeSearch();
+			return;
+		}
+		if (event.key === 'Enter') closeSearch();
+	}
+
 	// Get density display name with first letter capitalized
 	function getDensityDisplayName() {
 		return density.charAt(0).toUpperCase() + density.slice(1);
@@ -161,7 +187,9 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		'h-10 w-10 p-0 flex items-center justify-center rounded-(--admin-radius-input) border border-primary-500/60 bg-primary-500/10 text-primary-500 dark:border-primary-500/50 dark:bg-primary-500/20 dark:text-primary-400 transition-colors';
 </script>
 
-<!-- Expanding Search -->
+<!-- Searching field. It renders ALONGSIDE the toolbar: the previous `{#if searchShow} … {:else} … {/if}`
+     branch unmounted the filter/column/density buttons the moment search opened, so the user lost
+     every other control (and the toggle that could close search again) while typing. -->
 {#if searchShow}
 	<div
 		class="grid grid-cols-[1fr_auto] h-10 w-full max-w-xs sm:max-w-sm transition-all duration-300 z-50"
@@ -172,19 +200,19 @@ It includes search, filter toggles, column visibility, and density controls, opt
 			label={table_search_placeholder()}
 			icon="material-symbols:search-rounded"
 			aria-label={table_search_aria()}
-			onkeydown={(e) => e.key === 'Enter' && closeOpenStates()}
+			onkeydown={handleSearchKeydown}
 			inputClass="h-full border-none bg-transparent dark:text-surface-50 dark:bg-surface-800"
 		/>
 		<Button
 			variant="ghost"
 			onclick={() => {
 				globalSearchValue = '';
-				searchShow = false;
+				closeSearch();
 			}}
 			onkeydown={(event: KeyboardEvent) => {
 				if (event.key === 'Enter' || event.key === ' ') {
 					globalSearchValue = '';
-					searchShow = false;
+					closeSearch();
 				}
 			}}
 			aria-label={table_clear_search()}
@@ -193,7 +221,9 @@ It includes search, filter toggles, column visibility, and density controls, opt
 			<iconify-icon icon="ic:outline-search-off" width={24}></iconify-icon>
 		</Button>
 	</div>
-{:else}
+{/if}
+
+<span class="contents" bind:this={searchToggleEl}>
 	<SystemTooltip title={table_search_toggle()}>
 		<Button
 			variant="ghost"
@@ -203,80 +233,82 @@ It includes search, filter toggles, column visibility, and density controls, opt
 				if (searchShow) closeOpenStates('search');
 			}}
 			aria-label={table_search_toggle()}
-			class={btnChrome}
+			aria-expanded={searchShow}
+			class={searchShow ? btnChromeActive : btnChrome}
 		>
 			<iconify-icon icon="material-symbols:search-rounded" width={24}></iconify-icon>
 		</Button>
 	</SystemTooltip>
+</span>
 
-	<!-- Filter -->
-	<SystemTooltip title={table_filter_toggle()}>
+<!-- Filter -->
+<SystemTooltip title={table_filter_toggle()}>
+	<Button
+		variant="ghost"
+		type="button"
+		onclick={() => {
+			filterShow = !filterShow;
+			if (filterShow) closeOpenStates('filter');
+		}}
+		aria-label={table_filter_toggle()}
+		class={filterShow ? btnChromeActive : btnChrome}
+	>
+		<iconify-icon icon="carbon:filter-edit" width={24}></iconify-icon>
+	</Button>
+</SystemTooltip>
+
+<!-- Column Order & Visibility -->
+<SystemTooltip title={table_column_toggle()}>
+	<Button
+		variant="ghost"
+		type="button"
+		onclick={() => {
+			columnShow = !columnShow;
+			if (columnShow) closeOpenStates('column');
+		}}
+		aria-label={table_column_toggle()}
+		class={columnShow ? btnChromeActive : btnChrome}
+	>
+		<iconify-icon icon="fluent:column-triple-edit-24-regular" width={24}></iconify-icon>
+	</Button>
+</SystemTooltip>
+
+<!-- Spacing/Density -->
+<SystemTooltip title={table_density_label({ density: getDensityDisplayName() })}>
+	<Button
+		variant="ghost"
+		type="button"
+		onclick={() => {
+			cycleDensity();
+			closeOpenStates('density');
+		}}
+		aria-label={table_density_toggle()}
+		class={btnChrome}
+	>
+		<iconify-icon icon={getDensityIcon()} width={24}></iconify-icon>
+	</Button>
+</SystemTooltip>
+
+<!-- View Mode (Table / Card) — reports through `onViewModeChange` only: the
+     controller owns `viewMode` (it persists the pref), so a local write plus a
+     callback wrote it twice, and a `bind:` against a getter-only accessor threw. -->
+{#if showViewMode}
+	<SystemTooltip
+		title={viewMode === 'table' ? table_switch_to_card_view() : table_switch_to_table_view()}
+	>
 		<Button
 			variant="ghost"
 			type="button"
-			onclick={() => {
-				filterShow = !filterShow;
-				if (filterShow) closeOpenStates('filter');
-			}}
-			aria-label={table_filter_toggle()}
-			class={filterShow ? btnChromeActive : btnChrome}
-		>
-			<iconify-icon icon="carbon:filter-edit" width={24}></iconify-icon>
-		</Button>
-	</SystemTooltip>
-
-	<!-- Column Order & Visibility -->
-	<SystemTooltip title={table_column_toggle()}>
-		<Button
-			variant="ghost"
-			type="button"
-			onclick={() => {
-				columnShow = !columnShow;
-				if (columnShow) closeOpenStates('column');
-			}}
-			aria-label={table_column_toggle()}
-			class={columnShow ? btnChromeActive : btnChrome}
-		>
-			<iconify-icon icon="fluent:column-triple-edit-24-regular" width={24}></iconify-icon>
-		</Button>
-	</SystemTooltip>
-
-	<!-- Spacing/Density -->
-	<SystemTooltip title={table_density_label({ density: getDensityDisplayName() })}>
-		<Button
-			variant="ghost"
-			type="button"
-			onclick={() => {
-				cycleDensity();
-				closeOpenStates('density');
-			}}
-			aria-label={table_density_toggle()}
+			onclick={() => onViewModeChange?.(viewMode === 'table' ? 'card' : 'table')}
+			aria-label={viewMode === 'table' ? table_switch_to_card_view() : table_switch_to_table_view()}
 			class={btnChrome}
 		>
-			<iconify-icon icon={getDensityIcon()} width={24}></iconify-icon>
+			<iconify-icon
+				icon={viewMode === 'table'
+					? 'material-symbols:grid-view-rounded'
+					: 'material-symbols:table-rows-rounded'}
+				width={24}
+			></iconify-icon>
 		</Button>
 	</SystemTooltip>
-
-	<!-- View Mode (Table / Card) -->
-	{#if showViewMode}
-		<SystemTooltip title={viewMode === 'table' ? 'Switch to Card View' : 'Switch to Table View'}>
-			<Button
-				variant="ghost"
-				type="button"
-				onclick={() => {
-					viewMode = viewMode === 'table' ? 'card' : 'table';
-					onViewModeChange?.(viewMode);
-				}}
-				aria-label={viewMode === 'table' ? 'Switch to Card View' : 'Switch to Table View'}
-				class={btnChrome}
-			>
-				<iconify-icon
-					icon={viewMode === 'table'
-						? 'material-symbols:grid-view-rounded'
-						: 'material-symbols:table-rows-rounded'}
-					width={24}
-				></iconify-icon>
-			</Button>
-		</SystemTooltip>
-	{/if}
 {/if}

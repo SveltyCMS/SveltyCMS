@@ -130,9 +130,18 @@ export function toTrashItem(raw: unknown, collectionId: string, collectionName: 
  * Legacy rows soft-deleted before the audit write path carry no actor. The old
  * label claimed "System" for those rows, which is a false attribution: a real
  * system actor is stored as `"system"`, while missing audit data is unknown.
+ *
+ * `deletedBy` stores a user id, so the caller resolves it to a display name and
+ * passes it as `displayName`; unresolved ids still fall back to the raw id
+ * instead of rendering nothing.
  */
-export function formatTrashActor(deletedBy: string | null | undefined): string {
+export function formatTrashActor(
+  deletedBy: string | null | undefined,
+  displayName?: string | null,
+): string {
   const actor = typeof deletedBy === "string" ? deletedBy.trim() : "";
+  const name = typeof displayName === "string" ? displayName.trim() : "";
+  if (name) return name;
   if (!actor) return "—";
   return actor.toLowerCase() === "system" ? "System" : actor;
 }

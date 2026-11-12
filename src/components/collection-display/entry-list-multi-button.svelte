@@ -17,14 +17,12 @@
 - `hasSelections` (Boolean): If true, enables bulk actions.
 - `selectedCount` (Number): Number of items currently selected.
 - `selectedItems` (Array): Raw entry data of selected items for status analysis.
-- `showDeleted` (Boolean, bindable): Toggles between active and archived views.
 - `create`, `publish`, `unpublish`, `draft`, `schedule`, `clone`, `delete`: Action callbacks.
 -->
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	// Components
-	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { StatusTypes } from '@src/content/status';
 	import {
 		button_delete,
@@ -35,12 +33,8 @@
 		entrylist_multibutton_limit_warning,
 		entrylist_multibutton_publish,
 		entrylist_multibutton_schedule,
-		entrylist_multibutton_show_active,
-		entrylist_multibutton_show_archived,
 		entrylist_multibutton_toggle_menu,
-		entrylist_multibutton_unpublish,
-		entrylist_multibutton_viewing_active,
-		entrylist_multibutton_viewing_archived
+		entrylist_multibutton_unpublish
 	} from '@src/paraglide/messages';
 	import { logger } from '@utils/logger';
 	import { toast } from '@src/stores/toast.svelte.ts';
@@ -89,7 +83,6 @@
 		schedule: (date: string, action: string) => void;
 		selectedCount?: number;
 		selectedItems?: any[];
-		showDeleted?: boolean;
 		unpublish: () => Promise<void> | void;
 	}
 
@@ -98,7 +91,6 @@
 		hasSelections = false,
 		selectedCount = 0,
 		selectedItems = [],
-		showDeleted = $bindable(false),
 		publish,
 		unpublish,
 		draft,
@@ -480,7 +472,7 @@
 					// Delete usually has its own confirmation in parent if triggering via deleteAction?
 					// If not, we should probably confirm. But user said "only DELETE need a confirmation modal".
 					// Assuming deleteAction triggers the modal logic or actual delete.
-					await deleteAction(showDeleted);
+					await deleteAction(false);
 					break;
 				case 'export':
 					if (exportSelection) await exportSelection();
@@ -517,31 +509,10 @@
 	}
 </script>
 
-<!-- Multi-button group -->
+<!-- Multi-button group — no archived/active view toggle: `showDeleted` never
+     reached the list query (the read model has no deleted filter), so the control
+     only flipped the delete-confirm wording while the table could not change. -->
 <div class="relative flex items-center gap-2" bind:this={dropdownRef}>
-	<!-- Archive Toggle -->
-	<SystemTooltip
-		title={showDeleted
-			? entrylist_multibutton_show_active()
-			: entrylist_multibutton_show_archived()}
-	>
-		<Button
-			variant="ghost"
-			type="button"
-			onclick={() => (showDeleted = !showDeleted)}
-			aria-label={showDeleted
-				? entrylist_multibutton_viewing_archived()
-				: entrylist_multibutton_viewing_active()}
-			aria-pressed={showDeleted}
-			class="h-10 w-10 p-0 flex items-center justify-center rounded-(--admin-radius-input) border transition-all active:scale-95 {!showDeleted
-				? 'border-(--admin-border-default) bg-(--admin-bg-card)/80 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700'
-				: 'border-error-500/80 bg-error-500/10 text-error-600 dark:text-error-400 ring-2 ring-error-500/30'}"
-		>
-			<iconify-icon icon={showDeleted ? 'ic:round-archive' : 'ic:round-unarchive'} width="20"
-			></iconify-icon>
-		</Button>
-	</SystemTooltip>
-
 	<!-- Main Action / Split Button Group -->
 	<div
 		class="relative flex items-center shadow-lg rounded-xl overflow-visible transition-all duration-200"

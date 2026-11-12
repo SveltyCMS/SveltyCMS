@@ -259,7 +259,10 @@ class JobQueueService {
       logger.debug(`[JobQueue] Executing job ${job._id} (${job.taskType})`);
       await handler(job.payload, job);
 
-      // Mark as completed
+      // Mark as completed. `nextRunAt` is intentionally left untouched: the
+      // column is NOT NULL on postgres/mariadb (schema default `now()`), so a
+      // completed row keeps its last scheduled time. The queue UI renders the
+      // completion timestamp for finished jobs instead of that stale value.
       await db.system.jobs.update(job._id, {
         status: "completed",
         progress: 100,

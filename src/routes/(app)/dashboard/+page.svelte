@@ -80,8 +80,10 @@
 		dashboard_layout_presets,
 		dashboard_license_all,
 		dashboard_no_widgets,
+		dashboard_preset_empty,
 		dashboard_preset_replace_body,
 		dashboard_preset_replace_title,
+		dashboard_preset_save_failed,
 		dashboard_presets_hint,
 		dashboard_refresh_all,
 		dashboard_remove_widget,
@@ -98,7 +100,7 @@
 	} from '@src/paraglide/messages';
 	import { page } from '$app/state';
 	import { dashboardEvents } from './widget-events.svelte';
-	import { DASHBOARD_PRESETS, buildPresetWidgets } from './widget-presets';
+	import { DASHBOARD_PRESETS, resolvePresetWidgets } from './widget-presets';
 	import type { DashboardWidgetCategory, DashboardWidgetLicense } from './widget-contract';
 
 	const { data }: { data: PageData } = $props();
@@ -165,6 +167,7 @@
 	let liveAnnouncement = $state<string>('');
 	let presetConfirmOpen = $state(false);
 	let pendingPresetId = $state<string | null>(null);
+	let presetNotice = $state<string>('');
 	const pendingPreset = $derived(
 		DASHBOARD_PRESETS.find((preset) => preset.id === pendingPresetId) ?? null
 	);
@@ -176,18 +179,38 @@
 		}, 50);
 	}
 
-	function applyPreset(presetId: string) {
+	async function applyPreset(presetId: string) {
 		const preset = DASHBOARD_PRESETS.find((p) => p.id === presetId);
 		if (!preset) return;
 		const installedNames = new Set(Object.keys(widgetRegistry));
-		const newWidgets = buildPresetWidgets(preset, installedNames);
-		systemPreferences.updateWidgets(newWidgets);
-		for (const w of newWidgets) {
-			void loadWidgetComponent(w.id, w.component);
-		}
+		const { widgets: newWidgets } = resolvePresetWidgets(preset, installedNames);
+
 		presetsOpen = false;
 		presetConfirmOpen = false;
 		pendingPresetId = null;
+
+		// An empty resolution means every package in the preset is gated for this
+		// account (RBAC or plugin). Persisting `[]` would look like a successful no-op
+		// and leave the dashboard untouched, so fail loudly instead.
+		if (newWidgets.length === 0) {
+			presetNotice = dashboard_preset_empty({ name: preset.name });
+			announce(presetNotice);
+			return;
+		}
+
+		try {
+			await systemPreferences.updateWidgets(newWidgets);
+		} catch (err) {
+			logger.error('Failed to persist dashboard preset layout', err);
+			presetNotice = dashboard_preset_save_failed();
+			announce(presetNotice);
+			return;
+		}
+
+		presetNotice = '';
+		for (const w of newWidgets) {
+			void loadWidgetComponent(w.id, w.component);
+		}
 		announce(`Applied ${preset.name} layout`);
 	}
 
@@ -204,6 +227,16 @@
 	const widgetRegistry = $derived(
 		pickerListToRegistry((data.availableWidgets ?? []) as DashboardWidgetPickerInfo[])
 	);
+
+	/** Widgets each preset can materialise for this account's registry (0 ⇒ gated). */
+	const presetAvailability = $derived.by(() => {
+		const registryKeys = new Set(Object.keys(widgetRegistry));
+		const counts = new Map<string, number>();
+		for (const preset of DASHBOARD_PRESETS) {
+			counts.set(preset.id, resolvePresetWidgets(preset, registryKeys).widgets.length);
+		}
+		return counts;
+	});
 
 	const categoryOptions = $derived.by(() => {
 		const categories = new Set<string>();
@@ -967,6 +1000,7 @@
 							{dashboard_layout_presets()}
 						</div>
 						{#each DASHBOARD_PRESETS as preset (preset.id)}
+							{@const presetCount = presetAvailability.get(preset.id) ?? 0}
 							<Button
 								variant="ghost"
 								role="menuitem"
@@ -981,7 +1015,11 @@
 								<div class="min-w-0 flex-1">
 									<div class="font-semibold text-(--admin-text-body)">{preset.name}</div>
 									<div class="truncate text-[11px] text-(--admin-text-muted)">
-										{preset.description}
+										{#if presetCount === 0}
+											{dashboard_preset_empty({ name: preset.name })}
+										{:else}
+											{preset.description}
+										{/if}
 									</div>
 								</div>
 							</Button>
@@ -1203,6 +1241,17 @@
 		style="touch-action: pan-y;"
 		data-testid="dashboard-main"
 	>
+		{#if presetNotice}
+			<div
+				class="mx-1 mt-2 flex items-start gap-2 rounded-(--admin-radius-card) border border-error-500/40 bg-error-500/10 px-3 py-2 text-sm text-error-500 dark:border-error-500/50"
+				role="alert"
+				data-testid="dashboard-preset-notice"
+			>
+				<iconify-icon icon="mdi:alert-circle-outline" width={18} class="mt-0.5 shrink-0"
+				></iconify-icon>
+				<span>{presetNotice}</span>
+			</div>
+		{/if}
 		<section class="w-full px-1 py-4" data-testid="dashboard-grid-section">
 			{#if hotCollectionLinks.length > 0}
 				<div class="w-full px-1 pb-1" data-testid="dashboard-hot-collections">

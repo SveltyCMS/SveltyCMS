@@ -96,6 +96,37 @@ export interface AdminUser {
   password: string;
 }
 
+/**
+ * Databases this setup session created and seeded (SV-003). Re-testing one of them
+ * must not be reported as a foreign, non-empty database that offers "PERMANENTLY
+ * DELETE" — the wizard's own system tables are what makes it non-empty.
+ *
+ * Fingerprints are config identity only (engine/host/port/name/user) — never a
+ * password — and live in process memory, so a restart simply falls back to the
+ * normal "database not empty" classification.
+ */
+const wizardOwnedDatabases = new Set<string>();
+
+/** Structural subset shared by the wizard payload and the parsed `databaseConfigSchema`. */
+interface DatabaseIdentity {
+  type: string;
+  host: string;
+  port?: number | string | null;
+  name: string;
+  user?: string;
+}
+
+function databaseFingerprint(dbConfig: DatabaseIdentity): string {
+  return [dbConfig.type, dbConfig.host, dbConfig.port, dbConfig.name, dbConfig.user ?? ""]
+    .map((part) => String(part ?? "").trim())
+    .join("|");
+}
+
+/** True when this setup session already created/seeded the exact target. */
+function isWizardOwnedDatabase(dbConfig: DatabaseIdentity): boolean {
+  return wizardOwnedDatabases.has(databaseFingerprint(dbConfig));
+}
+
 async function verifyDiskSpace() {
   try {
     const fs = await import("node:fs/promises");
@@ -268,9 +299,18 @@ export async function testDatabaseConnection(
 
   const start = performance.now();
   const missingMessage = `Database "${dbConfig.name}" does not exist yet. It will be created when you continue setup.`;
+  // The wizard's own database (created + seeded on the Next step) is expected to be
+  // non-empty on a re-test. Only a *foreign* non-empty target should trip the guard.
+  let wizardOwned = ownsDatabase || isWizardOwnedDatabase(dbConfig);
   try {
     const utils = await import("./setup-utils");
-    if (allowOverwrite) await dropDatabase(dbConfig);
+    if (allowOverwrite) {
+      await dropDatabase(dbConfig);
+      // The confirmed overwrite destroyed the previous contents — this session no
+      // longer owns a database whose system data is gone.
+      wizardOwnedDatabases.delete(databaseFingerprint(dbConfig));
+      wizardOwned = false;
+    }
 
     // SQLite: connecting creates the file, so check the target on disk first.
     // A missing file is a valid configuration — just not materialized yet.
@@ -299,7 +339,7 @@ export async function testDatabaseConnection(
     }
 
     const isEmptyRes = await dbAdapter.isEmpty();
-    if (isEmptyRes.success && !isEmptyRes.data && !allowOverwrite && !ownsDatabase) {
+    if (isEmptyRes.success && !isEmptyRes.data && !allowOverwrite && !wizardOwned) {
       // In test mode, the test harness resets the DB before each file — skip the
       // emptiness warning to avoid false positives from test collection seeding.
       const isTest = process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true";
@@ -320,8 +360,11 @@ export async function testDatabaseConnection(
       success: true,
       message: willCreate
         ? "Database connected. System tables and data will be initialized when you continue setup."
-        : "Database connected successfully!",
+        : wizardOwned
+          ? "Database connected — created by this setup session. Its tables hold your setup data."
+          : "Database connected successfully!",
       willCreate,
+      wizardOwned,
       latencyMs: Math.round(performance.now() - start),
     };
   } catch (err) {
@@ -414,6 +457,9 @@ export async function seedDatabase(configData: DbConfig, systemData: SystemSetti
         await dbAdapter.disconnect();
       });
     });
+    // This session created/seeded the target: a later re-test must not offer to
+    // permanently delete the wizard's own database (SV-003).
+    wizardOwnedDatabases.add(databaseFingerprint(dbConfig));
     return {
       success: true,
       message: "Database configuration saved. Seeding started!",
@@ -573,6 +619,23 @@ export async function completeSetup(
         legalSlug: market.legalSlug,
         legalBody: legalPageBody(system.siteName || "SveltyCMS", market.homeCountry),
       });
+
+      // The blueprint promises "taken to your new site", but a seeded `home` page
+      // only renders at `/` while the public site starter is on. `SITE_STARTER_ENABLED`
+      // defaults to false so headless presets stay headless (SV-046); write it through
+      // the normal settings writer so guests get the homepage instead of `/login`.
+      // `isSiteStarterEnabled()` reads the global scope (no tenant argument), so the
+      // flag is written there — a tenant-scoped row would never be consulted.
+      try {
+        const { setPublicSetting, invalidateSettingsCache } = await loadSettingsServiceModule();
+        await setPublicSetting("SITE_STARTER_ENABLED", true);
+        invalidateSettingsCache();
+      } catch (err) {
+        logger.warn(
+          "[Setup] Failed to enable the public site starter for the website preset:",
+          err,
+        );
+      }
     }
 
     if (system.preset === "ecommerce") {

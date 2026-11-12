@@ -58,7 +58,13 @@ export interface SmartTableApi<T extends Record<string, unknown> = Record<string
   /** Pinned column groups for sticky chrome */
   readonly pinned: PinnedColumnGroups<T>;
   readonly density: TableDensity;
-  readonly viewMode: TableViewMode;
+  /**
+   * Table ⇄ card view mode. Readable AND writable: components bind it
+   * (`bind:viewMode={table.viewMode}`), so a getter-only accessor threw
+   * "Cannot set property viewMode" the moment the view toggle was clicked.
+   * The setter funnels through `setViewMode`, which persists the pref.
+   */
+  viewMode: TableViewMode;
   readonly sort: SmartTableSort;
   readonly multiSort: ColumnSortDescriptor[];
   readonly pagination: SmartTablePagination;
@@ -636,6 +642,9 @@ export function createSmartTable<T extends Record<string, unknown> = Record<stri
     },
     get viewMode() {
       return viewMode;
+    },
+    set viewMode(next: TableViewMode) {
+      setViewMode(next);
     },
     get sort() {
       return sort;

@@ -15,7 +15,7 @@
       ],
       "model": "docs/security/threat-models/api-dispatch.mdx",
       "reviewed_at": "2026-11-12",
-      "fingerprint": "e9a0cd68fa79578416e80daf6c54d7e832db53ad050892e0236ea130125329b2"
+      "fingerprint": "b38e2a7bfb84c1cf4488b96ce01a2b295c7c26a25b6ddc14836b8156716a713f"
     },
     {
       "id": "auth-session",
@@ -38,7 +38,7 @@
       ],
       "model": "docs/security/threat-models/auth-session.mdx",
       "reviewed_at": "2026-11-12",
-      "fingerprint": "df324ba8399f23f3583329ebef748ef62e3edb7f6519d9e32c0b3201710c2016"
+      "fingerprint": "ba0af192e81b28c39b7701e7d29d962a496b014c135673442535bcf1b25cb4c8"
     },
     {
       "id": "content-write",
@@ -58,7 +58,7 @@
       ],
       "model": "docs/security/threat-models/content-write.mdx",
       "reviewed_at": "2026-11-12",
-      "fingerprint": "9a94aca4ac2e835cf7ca942f5d17526bb1294484616c29f2ee3a3ae4c83bfbae"
+      "fingerprint": "a74de95d8c46407e76c68384f9ca839f4e4478a34f239d57b88a4748ff8ea824"
     },
     {
       "id": "media-files",
@@ -75,7 +75,7 @@
       ],
       "model": "docs/security/threat-models/media-files.mdx",
       "reviewed_at": "2026-11-12",
-      "fingerprint": "45082cac737a4623adfdd156d6c8b91333a4831be551f75af716de50eebbd9a1"
+      "fingerprint": "e3476dffc416981dbd7dfd80028d5204070cb613d84c692395477282222c76bb"
     },
     {
       "id": "admin-pages",
@@ -91,7 +91,7 @@
       ],
       "model": "docs/security/threat-models/admin-pages.mdx",
       "reviewed_at": "2026-11-12",
-      "fingerprint": "bd258f6ac76f4e1206454f3c28ac5b10cbd17b4cca201c193ba4780c4b83bb5d"
+      "fingerprint": "009445b9e15930dae11fd60a587287d7c464bd6fd612bc8e5750c1951689d65c"
     },
     {
       "id": "system-ops",
@@ -132,7 +132,7 @@
       ],
       "model": "docs/security/threat-models/system-ops.mdx",
       "reviewed_at": "2026-11-12",
-      "fingerprint": "b55dd36d614a8968c17bc3fabd96816bb9fffee1c66060d130111b28fb84eb51"
+      "fingerprint": "566a091f48074f30014ab10b3cb5988e641fb96dd0e54aa65607d3b0450c99fe"
     }
   ]
 }

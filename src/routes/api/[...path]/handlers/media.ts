@@ -180,6 +180,8 @@ export async function handleMediaRoutes(
         if (method === "share")
           return await handleMediaShareExtend(event, cms, tenantId, user, segments);
         if (!method) return successResponse(event, null);
+        // The SDK answers with the STORED record (`data`), not `void`: the details
+        // modal adopts this payload, and an envelope-only body used to blank it.
         return rawResponse(
           event,
           await cms.media.update(method, sanitizeMediaUpdatePayload(await request.json()), {

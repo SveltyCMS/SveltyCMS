@@ -133,11 +133,11 @@ This component presents a summary of all configuration steps before finalizing t
 								</SystemTooltip>
 							</dt>
 							<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">
-								{redact(dbConfig.host)}
+								{dbConfig.host}
 							</dd>
 						{/if}
 
-						{#if dbConfig.port}
+						{#if dbConfig.type !== 'sqlite' && dbConfig.port}
 							<dt class="flex items-center justify-between font-medium text-(--admin-text-body)">
 								{label_port?.() || 'Port'}:
 								<SystemTooltip title={setup_help_database_port?.() || 'Database port'}>
@@ -157,7 +157,7 @@ This component presents a summary of all configuration steps before finalizing t
 							<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">{dbConfig.name}</dd>
 						{/if}
 
-						{#if dbConfig.user}
+						{#if dbConfig.type !== 'sqlite' && dbConfig.user}
 							<dt class="flex items-center justify-between font-medium text-(--admin-text-body)">
 								{form_username()}:
 								<SystemTooltip title={setup_help_database_user?.() || 'Database username'}>
@@ -294,8 +294,19 @@ This component presents a summary of all configuration steps before finalizing t
 								<HelpIcon ariaLabel="Help for Email Status" />
 							</SystemTooltip>
 						</dt>
-						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">
-							{emailSettings.smtpConfigured ? '✅ Configured' : '❌ Not Configured (Skipped)'}
+						<dd
+							class="font-semibold {emailSettings.smtpConfigured
+								? 'text-success-500'
+								: 'text-warning-500'}"
+						>
+							<span class="inline-flex items-center gap-1.5">
+								<iconify-icon
+									icon={emailSettings.smtpConfigured ? 'mdi:check-circle' : 'mdi:alert-circle'}
+									width="16"
+									aria-hidden="true"
+								></iconify-icon>
+								{emailSettings.smtpConfigured ? 'Configured' : 'Not Configured (Skipped)'}
+							</span>
 						</dd>
 
 						{#if emailSettings.smtpConfigured}
@@ -303,7 +314,7 @@ This component presents a summary of all configuration steps before finalizing t
 								{setup_email_host()}:
 							</dt>
 							<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">
-								{redact(emailSettings.host)}
+								{emailSettings.host}
 							</dd>
 
 							<dt class="flex items-center font-medium text-(--admin-text-body)">
@@ -365,16 +376,33 @@ This component presents a summary of all configuration steps before finalizing t
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">
 							{systemSettings.preset}
 						</dd>
-						<dt class="font-medium text-(--admin-text-body)">Country:</dt>
+						<dt class="flex items-center justify-between font-medium text-(--admin-text-body)">
+							Country:
+							<SystemTooltip
+								title="Home country used for regional defaults such as tax rates and address formats."
+							>
+								<HelpIcon ariaLabel="Help for Country" />
+							</SystemTooltip>
+						</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">
 							{systemSettings.homeCountry || 'Not set'}
 						</dd>
-						<dt class="font-medium text-(--admin-text-body)">Currency:</dt>
+						<dt class="flex items-center justify-between font-medium text-(--admin-text-body)">
+							Currency:
+							<SystemTooltip title="Currency used for store prices and tax calculations.">
+								<HelpIcon ariaLabel="Help for Currency" />
+							</SystemTooltip>
+						</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">
 							{systemSettings.currency || 'EUR'}
 							{systemSettings.pricesIncludeTax ? '(prices include tax)' : '(tax added at checkout)'}
 						</dd>
-						<dt class="font-medium text-(--admin-text-body)">Shop language:</dt>
+						<dt class="flex items-center justify-between font-medium text-(--admin-text-body)">
+							Shop language:
+							<SystemTooltip title="Default language for the storefront.">
+								<HelpIcon ariaLabel="Help for Shop Language" />
+							</SystemTooltip>
+						</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold uppercase">
 							{systemSettings.storeLanguage}
 							{#if systemSettings.taxRate}
@@ -387,6 +415,9 @@ This component presents a summary of all configuration steps before finalizing t
 						{#if presetCollections.length > 0}
 							<dt class="flex items-center justify-between font-medium text-(--admin-text-body)">
 								Creates:
+								<SystemTooltip title="Collections scaffolded from the selected project blueprint.">
+									<HelpIcon ariaLabel="Help for Created Collections" />
+								</SystemTooltip>
 							</dt>
 							<dd class="text-tertiary-500 dark:text-primary-500 text-sm">
 								{presetCollections.join(', ')}

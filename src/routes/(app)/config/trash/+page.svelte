@@ -14,7 +14,7 @@
 	import { adminFade } from '@utils/admin-transitions';
 	import { toast } from '@src/stores/toast.svelte';
 	import { showConfirm } from '@utils/modal.svelte';
-	import { formatDisplayDate } from '@utils/date';
+	import { formatDateTime } from '@utils/format-date';
 	import { formatTrashActor } from '@utils/trash-item';
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
@@ -56,6 +56,9 @@
 	let { data } = $props();
 
 	let trashedItems = $state<TrashItem[]>(untrack(() => data.items));
+	// Id → display name resolved server-side; refreshed rows reuse the map and fall
+	// back to the raw id until the next load.
+	const actorNames = $derived((data.actorNames ?? {}) as Record<string, string>);
 	let isLoading = $state(false);
 	let sortField = $state<SortField>('deletedAt');
 	let sortOrder = $state<SortOrder>('desc');
@@ -93,8 +96,8 @@
 					break;
 				}
 				case 'deletedBy': {
-					const aVal = formatTrashActor(a.deletedBy);
-					const bVal = formatTrashActor(b.deletedBy);
+					const aVal = formatTrashActor(a.deletedBy, actorNames[a.deletedBy ?? '']);
+					const bVal = formatTrashActor(b.deletedBy, actorNames[b.deletedBy ?? '']);
 					cmp = aVal.localeCompare(bVal);
 					break;
 				}
@@ -255,8 +258,12 @@
 										<td class={SMART_TABLE_TD}>
 											<Badge preset="tonal" color="secondary">{item.collectionName}</Badge>
 										</td>
-										<td class={SMART_TABLE_TD}>{formatDisplayDate(item.deletedAt || '')}</td>
-										<td class={SMART_TABLE_TD}>{formatTrashActor(item.deletedBy)}</td>
+										<td class={SMART_TABLE_TD}>
+											{formatDateTime(item.deletedAt, data.systemLanguage, undefined, '—')}
+										</td>
+										<td class={SMART_TABLE_TD}>
+											{formatTrashActor(item.deletedBy, actorNames[item.deletedBy ?? ''])}
+										</td>
 										<td class={SMART_TABLE_TD}>
 											<div class="flex items-center justify-center">
 												<Button

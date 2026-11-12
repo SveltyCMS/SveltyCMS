@@ -207,6 +207,75 @@ describe("CacheService SWR + L2 invalidation", () => {
     expect(fetches).toBe(2);
   });
 
+  it("evicts an L2-hydrated entry from L1 when its tags are cleared", async () => {
+    // A body hydrated from L2 entered L1 without its tag index, so a write's
+    // `clearByTags` resolved no victim for that key and `clearLocalL1ByTags` left
+    // the pre-write list in L1 for the whole SWR window — SSR then served the old
+    // rows (and the old status counts) until the TTL ran out.
+    const l2 = new FakeRedis();
+    const module = await import("@src/databases/cache/cache-service?bun-unmock=" + Date.now());
+    const writer = new module.CacheService() as AnyService;
+    const reader = new module.CacheService() as AnyService;
+    services.push(writer, reader);
+    await writer.connectL2ForTest(l2);
+    await reader.connectL2ForTest(l2);
+
+    const rowsBefore = { entries: [{ _id: "old-1", title: "Old" }], totalItems: 1 };
+    await writer.getOrSetSWR(
+      LIST_KEY,
+      async () => rowsBefore,
+      TTL_FRESH_MS,
+      TTL_STALE_MS,
+      "default",
+      "collection",
+      LIST_TAGS,
+    );
+    await writer.flushL2WritesForTest();
+
+    let readerFetches = 0;
+    expect(
+      await reader.getOrSetSWR(
+        LIST_KEY,
+        async () => {
+          readerFetches += 1;
+          return { entries: [], totalItems: 0 };
+        },
+        TTL_FRESH_MS,
+        TTL_STALE_MS,
+        "default",
+        "collection",
+        LIST_TAGS,
+      ),
+    ).toEqual(rowsBefore);
+    // Served from the L2 hydrate, not from `fetchFn`.
+    expect(readerFetches).toBe(0);
+
+    await reader.clearByTags(WRITE_CLEARED_TAGS, "default");
+
+    const rowsAfter = {
+      entries: [
+        { _id: "new-1", title: "New" },
+        { _id: "old-1", title: "Old" },
+      ],
+      totalItems: 2,
+    };
+    expect(
+      await reader.getOrSetSWR(
+        LIST_KEY,
+        async () => {
+          readerFetches += 1;
+          return rowsAfter;
+        },
+        TTL_FRESH_MS,
+        TTL_STALE_MS,
+        "default",
+        "collection",
+        LIST_TAGS,
+      ),
+    ).toEqual(rowsAfter);
+    expect(readerFetches).toBe(1);
+  });
+
   it("keeps a write's surgical scope: other collections stay cached", async () => {
     const cache = await service();
     const authorsKey =

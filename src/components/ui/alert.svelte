@@ -95,7 +95,12 @@ icon support, and filled/tonal/outlined presets.
 
 <div
 	class={cn(
-		'flex items-start gap-4 p-4 rounded-2xl border border-transparent shadow-sm transition-all duration-200',
+		'alert flex items-start gap-4 p-4 rounded-2xl border border-transparent shadow-sm transition-all duration-200',
+		// The alert owns its foreground: a heading inside the message inherits the
+		// preset's accent text instead of a consumer's `text-white`. A white
+		// heading on the 10% tonal wash measured under 2:1 (SV-023), and the
+		// preset recipes already carry the contrast-safe emphasis steps.
+		'[&_h1,&_h2,&_h3,&_h4,&_h5,&_h6]:text-inherit',
 		presetClass,
 		className
 	)}
@@ -107,11 +112,11 @@ icon support, and filled/tonal/outlined presets.
 		</div>
 	{/if}
 
-	<div class="flex-1 space-y-1">
+	<div class="flex-1 space-y-1 text-sm">
 		{#if title}
 			<h4 class="font-bold leading-tight">{title}</h4>
 		{/if}
-		<div class="text-sm opacity-90">
+		<div>
 			{@render children?.()}
 		</div>
 	</div>

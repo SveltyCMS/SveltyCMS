@@ -30,6 +30,7 @@ import { getEmailTemplate, renderEmailToStrings } from "@utils/email.server";
 import { createEmail, emailList, sendEmail } from "@better-svelte-email/preview";
 import { LocalCMS } from "@src/services/sdk";
 import { preparePreviewHtml } from "@utils/email-preview.server";
+import { publicEnv } from "@src/stores/global-settings.svelte";
 
 /** Template directory, relative to the project root. */
 const EMAILS_PATH = "src/components/emails";
@@ -38,9 +39,16 @@ const EMAILS_PATH = "src/components/emails";
  * Representative props so every template can render standalone. Templates
  * declare their own defaults (`?? ''`), but a few require values — the password
  * reset/ magic-link flows and the password-updated notice — so the previewer
- * supplies them explicitly.
+ * supplies them explicitly. `body` is what `custom-email` renders; without it the
+ * first template in the sorted list showed an almost empty card.
  */
 const PREVIEW_PROPS = {
+  body:
+    "<h1>Your content is ready</h1>" +
+    "<p>Hello Preview, this is representative preview content. Real notifications " +
+    "use the same layout, typography, and spacing.</p>" +
+    '<p><a href="http://localhost:5173/dashboard">Open the dashboard</a> to review the ' +
+    "entry, or reply to this message if something looks wrong.</p>",
   email: "preview@example.com",
   expiresIn: "3600",
   expiresInLabel: "1 hour",
@@ -51,7 +59,7 @@ const PREVIEW_PROPS = {
   magicLink: "http://localhost:5173/magic-link?token=preview-token",
   resetLink: "http://localhost:5173/reset-password?token=preview-token",
   role: "admin",
-  sitename: "SveltyCMS (Preview)",
+  sitename: publicEnv.SITE_NAME || "SveltyCMS",
   token: "preview-token",
   tokenLink: "http://localhost:5173/token?token=preview-token",
   user: { firstName: "Preview", username: "preview", email: "preview@example.com" },
@@ -176,7 +184,7 @@ const previewerActions = {
       const previewProps = {
         username: "Preview User",
         email: to,
-        sitename: "SveltyCMS (Preview)",
+        sitename: publicEnv.SITE_NAME || "SveltyCMS",
         hostLink: "http://localhost:5173",
       };
 

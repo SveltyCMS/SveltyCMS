@@ -327,11 +327,15 @@
 						</div>
 						<div class="wrap-break-word lg:-mt-1">
 							{#if isInviteFlow}
-								{form_signup()}
-								<span class="text-2xl text-primary-500 sm:text-3xl">: Complete Invitation</span>
+								{form_signup()}<span class="text-2xl text-primary-500 sm:text-3xl"
+									>: Complete Invitation</span
+								>
 							{:else}
-								{form_signup()}
-								<span class="text-2xl capitalize text-primary-500 sm:text-3xl">: New User</span>
+								<!-- No whitespace between the message and the label: Svelte collapsed it into
+								     "Sign Up : New User" (SV-050). -->
+								{form_signup()}<span class="text-2xl capitalize text-primary-500 sm:text-3xl"
+									>: New User</span
+								>
 							{/if}
 						</div>
 					</h1>

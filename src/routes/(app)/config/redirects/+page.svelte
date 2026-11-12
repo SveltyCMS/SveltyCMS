@@ -19,6 +19,7 @@
 	import Select from '@components/ui/select.svelte';
 	import AdminCard from '@components/admin-card.svelte';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
+	import Modal from '@components/ui/modal.svelte';
 	import SmartTableShell from '@components/ui/smart-table/smart-table-shell.svelte';
 	import {
 		SMART_TABLE,
@@ -160,6 +161,10 @@
 		{ value: 'false', label: 'Inactive' }
 	];
 
+	const modalTitle = $derived(
+		`${selectedRedirect?._id || selectedRedirect?.id ? redirects_modal_action_edit() : redirects_modal_action_add()} ${redirects_modal_noun()}`
+	);
+
 	function openModal(redirect: (RedirectDraft & { _id?: string }) | null = null) {
 		selectedRedirect = redirect
 			? {
@@ -203,7 +208,9 @@
 			isRegex: selectedRedirect.isRegex
 		};
 		const payload = toRedirectPayload(draft);
-		const errors = validateRedirectDraft(payload);
+		// Pass the tenant's rules so a mutually-looping pair (A→B next to B→A) is
+		// rejected here instead of trapping visitors in a redirect loop.
+		const errors = validateRedirectDraft(payload, redirects);
 		formErrors = errors;
 		if (Object.keys(errors).length > 0) {
 			toast.error({ description: Object.values(errors)[0] });
@@ -498,25 +505,20 @@
 </AdminPageShell>
 
 {#if isModalOpen && selectedRedirect}
-	<div
-		class="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-surface-900/50 p-4 backdrop-blur"
-		role="presentation"
-		data-testid="redirects-modal-backdrop"
+	<Modal
+		bind:open={isModalOpen}
+		title={modalTitle}
+		size="md"
+		data-testid="redirects-modal"
+		onclose={() => {
+			selectedRedirect = null;
+			formFrom = '';
+			formTo = '';
+			formErrors = {};
+			saving = false;
+		}}
 	>
-		<AdminCard
-			class="max-h-[calc(100dvh-2rem)] w-full max-w-lg space-y-4 overflow-y-auto border border-surface-500/30 bg-white p-6 shadow-xl backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/20"
-			role="dialog"
-			aria-modal="true"
-			aria-labelledby="redirect-modal-title"
-			data-testid="redirects-modal"
-		>
-			<h3 id="redirect-modal-title" class="h3">
-				{selectedRedirect._id || selectedRedirect.id
-					? redirects_modal_action_edit()
-					: redirects_modal_action_add()}
-				{redirects_modal_noun()}
-			</h3>
-
+		<div class="space-y-4">
 			<!-- First-time orientation: what a redirect does and which type to pick. -->
 			<div
 				class="rounded border border-tertiary-500/30 bg-tertiary-500/10 p-3 dark:border-primary-500/30 dark:bg-primary-500/10"
@@ -601,6 +603,6 @@
 					</Button>
 				</div>
 			</form>
-		</AdminCard>
-	</div>
+		</div>
+	</Modal>
 {/if}

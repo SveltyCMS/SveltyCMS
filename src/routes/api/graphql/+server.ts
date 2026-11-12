@@ -25,7 +25,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import type { RequestEvent } from "@sveltejs/kit";
 import { getDb, getDbInitPromise, isDbConnected } from "@src/databases/db";
 
-import { createYoga, createSchema } from "graphql-yoga";
+import { createYoga, createSchema, renderGraphiQL, type GraphiQLOptions } from "graphql-yoga";
 import { GraphQLError, NoSchemaIntrospectionCustomRule, type DocumentNode } from "graphql";
 import { useGraphQlJit } from "@envelop/graphql-jit";
 import { BoundedJITCache } from "./jit-cache";
@@ -85,6 +85,28 @@ const isIntrospectionBlocked = () =>
   process.env.DEMO_MODE === "true";
 
 const depthLimitRule = createDepthLimitRule(MAX_QUERY_DEPTH);
+// Same limit, but the introspection subtree is exempt: GraphiQL's `__schema`
+// query nests deeper than 8 and is only reachable where introspection is allowed.
+const depthLimitRuleForPlayground = createDepthLimitRule(MAX_QUERY_DEPTH, {
+  exemptIntrospection: true,
+});
+
+/**
+ * Yoga's landing page is a standalone GraphiQL tab; give it a way back into the
+ * admin UI (it has no navigation of its own).
+ */
+const GRAPHIQL_ADMIN_LINK =
+  '<a href="/dashboard" style="position:fixed;bottom:12px;inset-inline-start:12px;z-index:9999;' +
+  "display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:9999px;" +
+  "border:1px solid #6b7280;background:#111827;color:#f9fafb;font:600 12px/1.2 system-ui,sans-serif;" +
+  'text-decoration:none" aria-label="Back to SveltyCMS admin">← SveltyCMS Admin</a>';
+
+function renderGraphiQLWithAdminLink(options: GraphiQLOptions): string {
+  const html = renderGraphiQL({ ...options, title: options.title ?? "SveltyCMS GraphQL" });
+  return html.includes("</body>")
+    ? html.replace("</body>", `${GRAPHIQL_ADMIN_LINK}</body>`)
+    : `${html}${GRAPHIQL_ADMIN_LINK}`;
+}
 const maxAliasesRule = createMaxAliasesRule(MAX_ALIASES);
 const suppressHintsRule = createSuppressHintsRule();
 
@@ -397,13 +419,17 @@ const securityValidationPlugin = {
       return;
     }
 
-    addValidationRule(depthLimitRule);
     addValidationRule(maxAliasesRule);
     // 🛡️ Introspection blocked in production, demo, or when explicitly opted in.
     // Development stays open for the in-app playground unless BLOCK_GRAPHQL_INTROSPECTION=true.
     if (isIntrospectionBlocked()) {
+      addValidationRule(depthLimitRule);
       addValidationRule(NoSchemaIntrospectionCustomRule);
       addValidationRule(suppressHintsRule);
+    } else {
+      // Dev playground: depth still applies to real fields, but `__schema` /
+      // `__type` no longer trip the flat Field counter.
+      addValidationRule(depthLimitRuleForPlayground);
     }
     endValidate();
 
@@ -715,6 +741,7 @@ export async function _getYogaApp(dbAdapter: any, tenantId?: string | null) {
       schema: schema as any,
       graphqlEndpoint: "/api/graphql",
       landingPage: true,
+      renderGraphiQL: renderGraphiQLWithAdminLink,
       cors: false,
       batching: { limit: 10 },
       // Yoga 6 logs one "Request processed" line per request through its own

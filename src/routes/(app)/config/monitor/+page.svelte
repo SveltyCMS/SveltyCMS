@@ -1,6 +1,6 @@
 <!--
 @file src/routes/(app)/config/monitor/+page.svelte
-@component Unified Enterprise Monitor & System Health Dashboard
+@component Unified System Monitor & System Health Dashboard
  -->
 <script lang="ts">
 	import AdminPageShell from '@components/admin-page-shell.svelte';

@@ -132,6 +132,10 @@ full ARIA validation linkage, and transparent background support for overlays.
 				return {
 					heightClass: label ? 'h-8 text-xs pt-2.5 pb-0.5' : 'h-8 text-xs py-1.5',
 					labelClass: 'top-1 text-xs peer-placeholder-shown:text-xs',
+					// Full variant strings (not interpolated prefixes): Tailwind only emits classes whose
+					// complete literal appears in source. `-translate-y-2` left the 12px floated label
+					// overlapping the 16px value line on the 48px `lg` field.
+					floatClass: 'peer-focus:-translate-y-1.5 peer-not-placeholder-shown:-translate-y-1.5',
 					iconSize: 14,
 					clearSize: 14
 				};
@@ -139,6 +143,7 @@ full ARIA validation linkage, and transparent background support for overlays.
 				return {
 					heightClass: label ? 'h-10 text-sm pt-3 pb-0.5' : 'h-10 text-sm py-2',
 					labelClass: 'top-1.5 text-sm peer-placeholder-shown:text-sm',
+					floatClass: 'peer-focus:-translate-y-2 peer-not-placeholder-shown:-translate-y-2',
 					iconSize: 16,
 					clearSize: 16
 				};
@@ -147,6 +152,7 @@ full ARIA validation linkage, and transparent background support for overlays.
 				return {
 					heightClass: label ? 'h-12 text-base pt-4 pb-1' : 'h-12 text-base py-3',
 					labelClass: 'top-2.5 text-base peer-placeholder-shown:text-base',
+					floatClass: 'peer-focus:-translate-y-3 peer-not-placeholder-shown:-translate-y-3',
 					iconSize: 18,
 					clearSize: 16
 				};
@@ -342,13 +348,15 @@ full ARIA validation linkage, and transparent background support for overlays.
 					sizeConfig.labelClass,
 					labelStart,
 					'peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100',
-					'peer-focus:-translate-y-2 peer-focus:scale-75',
-					'peer-not-placeholder-shown:-translate-y-2 peer-not-placeholder-shown:scale-75',
+					'peer-focus:scale-75 peer-not-placeholder-shown:scale-75',
+					sizeConfig.floatClass,
 					bgTransparent
 						? 'text-white/80 peer-focus:text-white peer-not-placeholder-shown:text-white'
 						: textColor === 'white'
 							? 'text-white/70 peer-focus:text-white peer-not-placeholder-shown:text-white'
-							: 'text-surface-600 dark:text-surface-400 peer-focus:text-tertiary-600 dark:peer-focus:text-surface-100 peer-not-placeholder-shown:text-tertiary-600 dark:peer-not-placeholder-shown:text-surface-100',
+							: textColor === 'black'
+								? 'text-surface-600'
+								: 'text-surface-600 dark:text-surface-400 peer-focus:text-tertiary-600 dark:peer-focus:text-surface-100 peer-not-placeholder-shown:text-tertiary-600 dark:peer-not-placeholder-shown:text-surface-100',
 					invalid && 'text-error-500!',
 					labelClass
 				)}

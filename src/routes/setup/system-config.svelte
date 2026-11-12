@@ -150,22 +150,31 @@ Features:
 
 	// System languages
 	function removeSystemLang(code: string) {
-		if (
-			code === systemSettings.defaultSystemLanguage &&
-			systemSettings.systemLanguages.length === 1
-		) {
+		// The default language must be reassigned deliberately, never silently swapped.
+		if (code === systemSettings.defaultSystemLanguage) {
 			return;
 		}
 		systemSettings.systemLanguages = systemSettings.systemLanguages.filter(
 			(c: string) => c !== code
 		);
-		if (!systemSettings.systemLanguages.includes(systemSettings.defaultSystemLanguage)) {
-			systemSettings.defaultSystemLanguage = systemSettings.systemLanguages[0] || 'en';
-		}
 	}
 	let showSystemPicker = $state(false);
 	let systemPickerSearch = $state('');
-	function openSystemPicker() {
+	/**
+	 * The picker is an absolutely-positioned panel inside the step's scroll
+	 * container, so anchoring it below the trigger ran past the fold (SV-040).
+	 * Measure the trigger and flip the panel above it when there is no room
+	 * below — the list keeps its own scroller, so every option stays reachable.
+	 */
+	let pickerPlacement = $state<'bottom' | 'top'>('bottom');
+	function openSystemPicker(anchor?: HTMLElement) {
+		if (anchor && typeof window !== 'undefined') {
+			const rect = anchor.getBoundingClientRect();
+			const needed = 260; // search field + max-h-48 list + panel padding + gap
+			const spaceBelow = window.innerHeight - rect.bottom;
+			const spaceAbove = rect.top;
+			pickerPlacement = spaceBelow < needed && spaceAbove > spaceBelow ? 'top' : 'bottom';
+		}
 		showSystemPicker = true;
 		queueMicrotask(() => document.getElementById('system-lang-search')?.focus());
 	}
@@ -211,18 +220,13 @@ Features:
 
 	// Content languages
 	function removeContentLang(code: string) {
-		if (
-			code === systemSettings.defaultContentLanguage &&
-			systemSettings.contentLanguages.length === 1
-		) {
+		// Same rule as system languages: never reassign the default implicitly.
+		if (code === systemSettings.defaultContentLanguage) {
 			return;
 		}
 		systemSettings.contentLanguages = systemSettings.contentLanguages.filter(
 			(c: string) => c !== code
 		);
-		if (!systemSettings.contentLanguages.includes(systemSettings.defaultContentLanguage)) {
-			systemSettings.defaultContentLanguage = systemSettings.contentLanguages[0] || '';
-		}
 	}
 	let showContentPicker = $state(false);
 	let contentPickerSearch = $state('');
@@ -337,10 +341,10 @@ Features:
 	const cdnExpanded = $derived(showCdn || systemSettings.mediaStorageType !== 'local');
 
 	const mediaStorageOptions = $derived([
-		{ value: 'local', label: setup_media_type_local?.() || '📁 Local Storage' },
-		{ value: 's3', label: setup_media_type_s3?.() || '☁️ Amazon S3' },
-		{ value: 'r2', label: setup_media_type_r2?.() || '☁️ Cloudflare R2' },
-		{ value: 'cloudinary', label: setup_media_type_cloudinary?.() || '☁️ Cloudinary' }
+		{ value: 'local', label: mediaLabel(setup_media_type_local?.(), 'Local Storage') },
+		{ value: 's3', label: mediaLabel(setup_media_type_s3?.(), 'Amazon S3') },
+		{ value: 'r2', label: mediaLabel(setup_media_type_r2?.(), 'Cloudflare R2') },
+		{ value: 'cloudinary', label: mediaLabel(setup_media_type_cloudinary?.(), 'Cloudinary') }
 	]);
 
 	const systemLanguageOptions = $derived(
@@ -361,6 +365,11 @@ Features:
 		{ value: 'tags', label: 'Surgical (Tag-based - Recommended)' },
 		{ value: 'all', label: 'Full Purge (Everything)' }
 	];
+
+	/** The localized storage labels ship with a leading emoji; select options must stay text-only. */
+	function mediaLabel(localized: string | undefined, fallback: string): string {
+		return (localized || fallback).replace(/^[\p{Extended_Pictographic}\uFE0F\s]+/u, '').trim();
+	}
 </script>
 
 <form onsubmit={(e) => e.preventDefault()} class="fade-in w-full min-w-0">
@@ -375,7 +384,7 @@ Features:
 		<section class="space-y-4">
 			<div class="grid grid-cols-1 gap-4 md:grid-cols-3 items-start">
 				<!-- Site Name -->
-				<div class="flex flex-col gap-1">
+				<div class="flex min-w-0 flex-col gap-1">
 					<label for="site-name" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon
 							icon="mdi:web"
@@ -394,7 +403,9 @@ Features:
 						bind:value={systemSettings.siteName}
 						onblur={() => handleBlur('siteName')}
 						type="text"
+						maxlength={100}
 						data-1p-ignore
+						class="min-w-0"
 						placeholder={setup_system_site_name_placeholder?.() || 'My SveltyCMS Site'}
 						error={displayErrors.siteName}
 					/>
@@ -539,7 +550,11 @@ Features:
 							class="relative flex min-h-10.5 flex-wrap items-center gap-2 rounded border border-(--admin-border-default) p-2"
 						>
 							{#each systemSettings.systemLanguages as lang (lang)}
-								<Badge variant="tertiary" size="lg" class="group dark:preset-filled-primary-500">
+								<Badge
+									variant="tertiary"
+									size="lg"
+									class="group gap-2 dark:preset-filled-primary-500"
+								>
 									<span class="text-xs font-medium">{displayLang(lang)}</span>
 									{#if getTextDirection(lang) === 'rtl'}
 										<span class="text-[9px] font-bold uppercase opacity-80"
@@ -555,7 +570,7 @@ Features:
 											>{setup_badge_english_ui()}</span
 										>
 									{/if}
-									{#if systemSettings.systemLanguages.length > 1}
+									{#if lang !== systemSettings.defaultSystemLanguage}
 										<Button
 											variant="transparent"
 											type="button"
@@ -572,7 +587,7 @@ Features:
 								<Button
 									variant="surface"
 									type="button"
-									onclick={openSystemPicker}
+									onclick={(e) => openSystemPicker(e.currentTarget as HTMLElement)}
 									aria-label={setup_aria_add_system_language()}
 									aria-haspopup="dialog"
 									aria-expanded={showSystemPicker}
@@ -588,7 +603,10 @@ Features:
 							{#if showSystemPicker}
 								<div
 									id="system-lang-picker"
-									class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-(--admin-border-default) bg-(--admin-bg-card) p-2 shadow-xl"
+									class="absolute inset-s-0 z-20 w-64 rounded border border-(--admin-border-default) bg-(--admin-bg-card) p-2 shadow-xl {pickerPlacement ===
+									'top'
+										? 'bottom-full mb-2'
+										: 'top-full mt-2'}"
 									role="dialog"
 									aria-label={setup_aria_add_system_language()}
 									tabindex="-1"
@@ -692,9 +710,13 @@ Features:
 								: 'border-(--admin-border-default) '}"
 						>
 							{#each systemSettings.contentLanguages as lang (lang)}
-								<Badge variant="tertiary" size="lg" class="group dark:preset-filled-primary-500">
+								<Badge
+									variant="tertiary"
+									size="lg"
+									class="group gap-2 dark:preset-filled-primary-500"
+								>
 									<span class="text-xs font-medium">{displayLang(lang)}</span>
-									{#if lang !== systemSettings.defaultContentLanguage || systemSettings.contentLanguages.length > 1}
+									{#if lang !== systemSettings.defaultContentLanguage}
 										<Button
 											variant="transparent"
 											type="button"
@@ -850,7 +872,7 @@ Features:
 					aria-label={cdnExpanded
 						? 'Collapse Advanced: Enterprise Scaling (Cloudflare CDN)'
 						: 'Expand Advanced: Enterprise Scaling (Cloudflare CDN)'}
-					class="flex items-center gap-2 p-0! h-auto! min-w-0! text-base font-medium! text-(--admin-text-body)"
+					class="flex items-center gap-2 p-0! h-auto! min-w-0! text-sm font-medium! text-(--admin-text-body)"
 				>
 					<iconify-icon icon={cdnExpanded ? 'mdi:chevron-up' : 'mdi:chevron-down'} width="18"
 					></iconify-icon>
@@ -894,9 +916,7 @@ Features:
 							placeholder="Enter API Token"
 						>
 							{#snippet labelSnippet()}
-								<span
-									class="flex items-center gap-1 text-base font-medium text-(--admin-text-body)"
-								>
+								<span class="flex items-center gap-1 text-sm font-medium text-(--admin-text-body)">
 									Cloudflare API Token
 									<SystemTooltip
 										title="A Cloudflare API token with permission to purge the cache for this zone. Create one under My Profile → API Tokens."
@@ -913,9 +933,7 @@ Features:
 							placeholder="Enter Zone ID"
 						>
 							{#snippet labelSnippet()}
-								<span
-									class="flex items-center gap-1 text-base font-medium text-(--admin-text-body)"
-								>
+								<span class="flex items-center gap-1 text-sm font-medium text-(--admin-text-body)">
 									Cloudflare Zone ID
 									<SystemTooltip
 										title="The Cloudflare zone ID for your domain, shown on the site's Overview page in the Cloudflare dashboard."
@@ -932,13 +950,10 @@ Features:
 							bind:value={systemSettings.cfPurgeMode}
 							options={cfPurgeOptions}
 							placeholder="Select purge strategy..."
-							size="sm"
 							ariaLabel="Purge Strategy"
 						>
 							{#snippet labelSnippet()}
-								<span
-									class="flex items-center gap-1 text-base font-medium text-(--admin-text-body)"
-								>
+								<span class="flex items-center gap-1 text-sm font-medium text-(--admin-text-body)">
 									Purge Strategy
 									<SystemTooltip
 										title="How the CDN cache is invalidated. 'Surgical (tag-based)' purges only the changed URLs and needs Cloudflare Enterprise or Cache Tags; 'Entire cache' purges everything."

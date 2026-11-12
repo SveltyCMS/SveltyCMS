@@ -105,6 +105,8 @@
 	// Background state - mutable for user interactions
 	let background = $state('#242728');
 	const darkBackground = $derived(loginBranding?.accentColor || '#242728');
+	/** Admin/reset entries repaint the canvas white; every other entry stays dark. */
+	const onLightCanvas = $derived(background === 'white');
 
 	// Initialize background based on conditions
 	$effect(() => {
@@ -456,7 +458,15 @@
 				<SveltyCMSLogoFull siteName={loginBranding?.siteName} />
 			{/if}
 			{#if loginBranding?.brandedLogin && loginBranding.siteName && loginBranding.siteName !== 'SveltyCMS'}
-				<div class="mt-2 text-center text-xl font-bold text-white drop-shadow-lg">
+				<!-- The login canvas is repainted white for admin/reset entries and dark for demo/invite
+				     entries, so the label colour follows the canvas instead of a fixed `text-white`
+				     (invisible on the white canvas). A long tenant name truncates inside the column. -->
+				<div
+					class="mt-2 w-full max-w-[min(90vw,18rem)] truncate px-2 text-center text-xl font-bold {onLightCanvas
+						? 'text-surface-900'
+						: 'text-white drop-shadow-lg'}"
+					title={loginBranding.siteName}
+				>
 					{loginBranding.siteName}
 				</div>
 			{/if}

@@ -71,7 +71,13 @@ bulk actions, and predictive preloading.
 	} from '@src/content/types';
 	import { StatusTypes } from '@src/content/status';
 	// ParaglideJS
-	import { EntryList_no_collection } from '@src/paraglide/messages';
+	import {
+		EntryList_no_collection,
+		entrylist_expand_filters,
+		entrylist_open_sidebar,
+		entrylist_select_row,
+		table_select_all_rows
+	} from '@src/paraglide/messages';
 	// Stores
 	import {
 		collections,
@@ -554,7 +560,6 @@ bulk actions, and predictive preloading.
 	});
 
 	// Simplified stable state management
-	let showDeleted = $state(false); // Controls whether to view active or archived entries
 	let globalSearchValue = $state('');
 	let expand = $state(false);
 	let filterShow = $state(false);
@@ -779,6 +784,24 @@ bulk actions, and predictive preloading.
 
 	const visibleTableHeaders = $derived(displayTableHeaders.filter((header) => header.visible));
 
+	/**
+	 * Accessible name for a row's selection checkbox.
+	 *
+	 * Every row checkbox shipped the flat label "Toggle selection", so a
+	 * screen-reader user had a page full of identically named checkboxes. Use the
+	 * row's own first text column (the title the table displays) and fall back to
+	 * the id when the row has no readable value.
+	 */
+	function rowSelectionLabel(entry: CollectionEntry): string {
+		for (const header of visibleTableHeaders) {
+			const name = (header as TableHeader).name;
+			if (!name || name === 'status') continue;
+			const raw = entry[name];
+			if (typeof raw === 'string' && raw.trim()) return entrylist_select_row({ name: raw.trim() });
+		}
+		return entrylist_select_row({ name: String(entry._id ?? '') });
+	}
+
 	const cellPaddingClass = $derived(smartTable.cellPaddingClass);
 
 	function measureHeaderColumns(): void {
@@ -995,10 +1018,8 @@ bulk actions, and predictive preloading.
 	// "Archive" while the button said Delete (BUG M5).
 	//
 	// IRREVERSIBLE PATHS — read before changing `permanent`:
-	// - The Archived view passes `showDeleted` through (entry-list-multi-button.svelte:482
-	//   `deleteAction(showDeleted)`), so Delete there is `permanent = true`: a real DELETE.
-	//   That is intentional (the Trash lists `isDeleted` rows, an archived row is not one)
-	//   and it is why the dialog says "Delete" in that view only.
+	// - The list Delete action passes `permanentRequest = false`; the deletion is
+	//   permanent only when `USE_ARCHIVE_ON_DELETE` is off (see `entry-actions.ts`).
 	// - With `USE_ARCHIVE_ON_DELETE` off or undefined, EVERY delete is permanent — the
 	//   list's Delete button destroys rows even though its label says Delete/Trash nowhere.
 	// - Otherwise one dialog + `deleteEntries` (entry-actions.ts) handle the request count:
@@ -1300,7 +1321,6 @@ bulk actions, and predictive preloading.
 		focusedRowIndex = 0;
 		focusedColIndex = 0;
 		openingEntryId = null;
-		showDeleted = false;
 		expand = false;
 		columnShow = false;
 		isBulkEditOpen = false;
@@ -1368,7 +1388,7 @@ bulk actions, and predictive preloading.
 					variant="outline"
 					type="button"
 					onclick={() => ui.toggle('leftSidebar', screen.isDesktop ? 'full' : 'collapsed')}
-					aria-label="open-sidebar"
+					aria-label={entrylist_open_sidebar()}
 					class="h-9 w-9 p-0 flex items-center justify-center rounded-lg border border-(--admin-border-default)"
 				>
 					<iconify-icon icon="mingcute:menu-fill" width="20"></iconify-icon>
@@ -1406,7 +1426,7 @@ bulk actions, and predictive preloading.
 				bind:filterShow
 				bind:columnShow
 				bind:density={entryListPaginationSettings.density}
-				bind:viewMode={smartTable.viewMode}
+				viewMode={smartTable.viewMode}
 				showViewMode={true}
 				onViewModeChange={(m) => smartTable.setViewMode(m)}
 			/>
@@ -1430,7 +1450,7 @@ bulk actions, and predictive preloading.
 				variant="outline"
 				type="button"
 				onclick={() => (expand = !expand)}
-				aria-label="expand-collapse-filters"
+				aria-label={entrylist_expand_filters()}
 				class="h-10 px-3 rounded-(--admin-radius-input) sm:hidden border border-(--admin-border-default)"
 			>
 				<iconify-icon icon="material-symbols:filter-list-rounded" width="20"></iconify-icon>
@@ -1442,7 +1462,6 @@ bulk actions, and predictive preloading.
 				{hasSelections}
 				selectedCount={smartTable.selectedCount}
 				selectedItems={getSelectedRawEntries()}
-				bind:showDeleted
 				publish={onPublish}
 				unpublish={onUnpublish}
 				schedule={onSchedule}
@@ -1466,7 +1485,7 @@ bulk actions, and predictive preloading.
 				bind:filterShow
 				bind:columnShow
 				bind:density={entryListPaginationSettings.density}
-				bind:viewMode={smartTable.viewMode}
+				viewMode={smartTable.viewMode}
 				showViewMode={true}
 				onViewModeChange={(m) => smartTable.setViewMode(m)}
 			/>
@@ -1481,20 +1500,29 @@ bulk actions, and predictive preloading.
 	{/if}
 
 	<!-- Status facet chips (server counts; streamed promise never rejects → {} fallback).
+	     `total` is the list query's own `totalItems` — the authoritative count for the same
+	     predicate set the rows use, instead of summing five separately cached buckets.
 	     Horizontal padding comes from CONTENT_PADDING so the chips line up with the
 	     table instead of touching the sidebar border. -->
 	<div class="mb-1 shrink-0 {CONTENT_PADDING}">
 		{#await statusFacets}
 			<SmartTableStatusFacets
 				facets={{}}
+				total={totalItems}
 				active={activeStatusFacet}
 				onSelect={onStatusFacetSelect}
 			/>
 		{:then facets}
-			<SmartTableStatusFacets {facets} active={activeStatusFacet} onSelect={onStatusFacetSelect} />
+			<SmartTableStatusFacets
+				{facets}
+				total={totalItems}
+				active={activeStatusFacet}
+				onSelect={onStatusFacetSelect}
+			/>
 		{:catch}
 			<SmartTableStatusFacets
 				facets={{}}
+				total={totalItems}
 				active={activeStatusFacet}
 				onSelect={onStatusFacetSelect}
 			/>
@@ -1597,6 +1625,7 @@ bulk actions, and predictive preloading.
 										<TableIcons
 											cellClass={`w-10 ${pinCellClass('start')} ${hasSelections ? 'bg-primary-500/10 dark:bg-primary-500/20' : ''}`}
 											checked={SelectAll.value}
+											checkboxLabel={table_select_all_rows()}
 											onCheck={(checked: boolean) => {
 												SelectAll.value = checked;
 											}}
@@ -1682,6 +1711,7 @@ bulk actions, and predictive preloading.
 												<TableIcons
 													cellClass={`w-10 text-center ${pinCellClass('start')} ${rowSelected ? 'bg-primary-500/10 dark:bg-primary-500/20' : ''}`}
 													checked={rowSelected}
+													checkboxLabel={rowSelectionLabel(entry)}
 													onCheck={() => {
 														if (rowId) smartTable.toggleSelect(rowId);
 													}}

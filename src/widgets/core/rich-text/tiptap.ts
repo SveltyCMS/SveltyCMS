@@ -52,8 +52,9 @@ export function createEditor(
         link: false,
         underline: false,
       }),
-      TextStyle, // Custom extension for font-size
-      FontFamily,
+      TextStyle.configure({
+        types: ["textStyle"],
+      }),
       Color,
       ImageResize, // Custom Image extension
       Underline,
@@ -72,10 +73,7 @@ export function createEditor(
           return "Start writing...";
         },
       }),
-      // Custom extensions
-      TextStyle.configure({
-        types: ["textStyle"],
-      }),
+      FontFamily,
       Table.configure({
         resizable: true,
       }),

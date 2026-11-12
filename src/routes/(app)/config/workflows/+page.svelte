@@ -464,6 +464,35 @@ Professional free-form canvas with:
 		return { x: cx + ux * t, y: cy + uy * t };
 	}
 
+	/** Point on the quadratic curve at parameter `u` (0 = start, 1 = end). */
+	function quadPoint(
+		sx: number,
+		sy: number,
+		cx: number,
+		cy: number,
+		ex: number,
+		ey: number,
+		u: number
+	) {
+		const v = 1 - u;
+		return {
+			x: v * v * sx + 2 * v * u * cx + u * u * ex,
+			y: v * v * sy + 2 * v * u * cy + u * u * ey
+		};
+	}
+
+	/**
+	 * Curve parameter for an edge label. Opposite edges of the same pair (e.g.
+	 * "Submit for Review" / "Reject") are bowed apart, but their midpoints sat
+	 * only ~57 px from each other while the pills are ~140 px wide, so the text
+	 * overlapped. Alternating along the curve guarantees distinct label points.
+	 */
+	function edgeLabelParam(index: number, reversed: boolean): number {
+		if (index === 0 && !reversed) return 0.5;
+		const step = 0.14 + 0.05 * Math.floor(index / 2);
+		return index % 2 === 0 ? 0.5 - step : 0.5 + step;
+	}
+
 	function measure(): void {
 		const canvas = canvasEl;
 		if (!canvas) return;
@@ -514,13 +543,22 @@ Professional free-form canvas with:
 			const d = reversed
 				? `M ${start.x} ${start.y} Q ${ctrlX} ${ctrlY} ${end.x} ${end.y}`
 				: `M ${start.x} ${start.y} L ${end.x} ${end.y}`;
+			const labelPoint = quadPoint(
+				start.x,
+				start.y,
+				ctrlX,
+				ctrlY,
+				end.x,
+				end.y,
+				edgeLabelParam(index, reversed)
+			);
 
 			next.push({
 				id: t.id,
 				d,
 				label: t.label,
-				lx: (start.x + 2 * ctrlX + end.x) / 4,
-				ly: (start.y + 2 * ctrlY + end.y) / 4,
+				lx: labelPoint.x,
+				ly: labelPoint.y,
 				selected: selectedTransitionId === t.id
 			});
 		}
@@ -1161,7 +1199,7 @@ Professional free-form canvas with:
 							<p class="text-sm font-medium text-surface-600 dark:text-surface-400">
 								{workflows_inspector_hint()}
 							</p>
-							<p class="mt-1 max-w-50 text-xs text-surface-400">
+							<p class="mt-1 max-w-56 text-balance text-xs text-surface-400">
 								Click a state or transition arrow to edit its properties
 							</p>
 						</div>

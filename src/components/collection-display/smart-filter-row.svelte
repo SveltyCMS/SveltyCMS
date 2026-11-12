@@ -28,6 +28,7 @@ from `createSmartFilter`. Supports text, select, date, number-range, and boolean
 	import Button from '@components/ui/button.svelte';
 	import Select from '@components/ui/select.svelte';
 	import type { TableHeader } from '@src/content/types';
+	import { table_clear_all_filters } from '@src/paraglide/messages';
 	import {
 		encodeNumberRange,
 		parseNumberRange,
@@ -189,7 +190,7 @@ from `createSmartFilter`. Supports text, select, date, number-range, and boolean
 				variant="outline"
 				size="sm"
 				onclick={onClearAll}
-				aria-label="clear-all-filters"
+				aria-label={table_clear_all_filters()}
 				class="h-8 w-8 p-0! min-w-0"
 				title="Clear all filters"
 			>

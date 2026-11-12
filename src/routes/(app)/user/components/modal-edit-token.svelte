@@ -42,6 +42,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 		modal_token_deleted_successfully,
 		modaltokenuser_tokenvalidity,
 		role as m_role,
+		useradmin_send_invite,
 		usertoken_close,
 		usertoken_copied_description,
 		usertoken_copied_title,
@@ -476,7 +477,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 			</div>
 
 			<footer
-				class="modal-footer flex flex-wrap items-center justify-between gap-4 border-t border-surface-500/20 pt-6 mt-2"
+				class="modal-footer sticky z-10 -bottom-4 -mx-4 mt-2 flex flex-wrap items-center justify-between gap-4 border-t border-(--admin-border-default) bg-(--admin-bg-card) p-4 sm:-bottom-6 sm:-mx-6"
 			>
 				<div class="flex items-center gap-4">
 					<!-- Cancel -->
@@ -493,9 +494,13 @@ It handles token creation, updates, and deletion with proper validation and erro
 					{/if}
 				</div>
 
-				<!-- Save -->
+				<!-- Create = send an invitation; edit = save the token data (SV-085) -->
 				<Button variant="tertiary" type="submit" form="token-form" class="px-10">
-					{tokenForm.submitting ? '...' : button_save()}
+					{tokenForm.submitting
+						? '...'
+						: tokenForm.data.token
+							? button_save()
+							: useradmin_send_invite()}
 				</Button>
 			</footer>
 		</form>

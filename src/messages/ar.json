@@ -3748,5 +3748,22 @@
   "dashboard_widget_source": "المصدر:",
   "dashboard_widget_static": "ودجت ثابت",
   "dashboard_widget_title": "عنوان الودجت",
-  "dashboard_widget_title_ph": "أدخل عنوان عرض الودجت"
+  "dashboard_widget_title_ph": "أدخل عنوان عرض الودجت",
+  "entrylist_expand_filters": "Show or hide table filters",
+  "entrylist_open_sidebar": "Open sidebar",
+  "entrylist_reset_view": "Reset view",
+  "entrylist_select_row": "Select entry {name}",
+  "queue_completed_at": "Completed {when}",
+  "setup_other_tab_body": "The setup wizard is already active in another tab of this browser. Continue there, or take over here — the saved setup progress is shared.",
+  "setup_other_tab_takeover": "Continue in this tab",
+  "setup_other_tab_title": "Setup is open in another tab",
+  "table_clear_all_filters": "Clear all filters",
+  "table_select_all_rows": "Select all rows",
+  "table_switch_to_card_view": "Switch to card view",
+  "table_switch_to_table_view": "Switch to table view",
+  "table_toggle_selection": "Toggle selection",
+  "useradmin_send_invite": "Send invite",
+  "useradmin_status": "Status",
+  "dashboard_preset_empty": "No widgets from \"{name}\" are available for this account. Ask an administrator for access, or add widgets one by one.",
+  "dashboard_preset_save_failed": "The dashboard layout could not be saved. Please try again."
 }

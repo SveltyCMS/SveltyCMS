@@ -11,6 +11,7 @@
 - `iconStatus` {string}: The status of the icon
 - `onCheck` {(checked: boolean) => void}: Callback function for check event
 - `cellClass` {string}: Optional classes applied to the root `<td>`
+- `checkboxLabel` {string}: Accessible name for the checkbox (defaults to a generic translated label; pass row context so each checkbox is distinguishable)
 
 ### Features
 - Provides a visual representation of the icon's checked state
@@ -23,10 +24,17 @@
 <script lang="ts">
 	// Props
 	import { StatusTypes } from '@src/content/status';
+	import { table_toggle_selection } from '@src/paraglide/messages';
 	import { ui } from '@src/stores/ui-store.svelte.ts';
 
 	// Props
-	let { checked = false, iconStatus = undefined, onCheck = () => {}, cellClass = '' } = $props(); // optional classes applied to the root <td>
+	let {
+		checked = false,
+		iconStatus = undefined,
+		onCheck = () => {},
+		cellClass = '',
+		checkboxLabel = ''
+	} = $props(); // optional classes applied to the root <td>
 
 	// Function to handle icon click and emit custom events
 	function handleIconClick(event: Event) {
@@ -48,7 +56,7 @@
 		onkeydown={handleKeydown}
 		onclick={handleIconClick}
 		aria-checked={checked ? 'true' : 'false'}
-		aria-label="Toggle selection"
+		aria-label={checkboxLabel || table_toggle_selection()}
 		role="checkbox"
 		class="mx-auto flex h-6.5 w-6.5 items-center justify-center rounded border-[3px] bg-white dark:bg-transparent
 						{iconStatus === StatusTypes.unpublish

@@ -11,7 +11,7 @@ Shared multi-step progress used by Setup Wizard and Collection Builder.
 - `completedSteps` (Set<number> | boolean[]): completed indices (Set or parallel flags)
 - `stepClickable` (boolean[]): optional per-step clickability (Setup); else completed + next
 - `orientation` ('horizontal' | 'vertical')
-- `variant` ('default' | 'setup'): setup keeps Setup Wizard colors (error = current, tertiary = done)
+- `variant` ('default' | 'setup'): setup keeps Setup Wizard colors (surface = current, tertiary = done)
 - `compact` (boolean): smaller chrome
 - `mobileTruncate` (boolean): show first word of label only (setup mobile)
 - `showLines` (boolean): connecting lines (default true)
@@ -32,6 +32,13 @@ Shared multi-step progress used by Setup Wizard and Collection Builder.
 		icon?: string;
 		id?: string;
 	}
+
+	/**
+	 * Current-step marker of the Setup Wizard variant. Exported so the wizard legend
+	 * renders the exact same class (and therefore colour) as the stepper itself.
+	 */
+	export const STEPPER_SETUP_CURRENT_MARKER =
+		'bg-surface-500/10 text-surface-900 shadow-sm ring-1 ring-surface-500/30 dark:text-surface-100';
 </script>
 
 <script lang="ts">
@@ -95,16 +102,17 @@ Shared multi-step progress used by Setup Wizard and Collection Builder.
 
 	function indicatorClass(index: number): string {
 		const done = isCompleted(index);
+		// Current wins over completed: a revisited step shows ●, never ✓ (SV-017).
 		const current = index === currentStep;
 		if (variant === 'setup') {
+			if (current) return STEPPER_SETUP_CURRENT_MARKER;
 			if (done) return 'bg-tertiary-500 dark:bg-primary-500 text-white';
-			if (current) return 'bg-error-500 text-white shadow-xl';
 			return orientation === 'vertical'
 				? 'bg-surface-200 text-surface-600 ring-1 ring-surface-300 dark:bg-surface-700 dark:text-surface-300 dark:ring-surface-600'
 				: 'bg-surface-200 text-surface-500 dark:bg-surface-500/10 dark:text-surface-50';
 		}
-		if (done) return 'bg-success-500 text-white';
 		if (current) return 'bg-tertiary-500 dark:bg-primary-500 text-white shadow-lg scale-110';
+		if (done) return 'bg-success-500 text-white';
 		return 'bg-(--admin-bg-chip) text-surface-500';
 	}
 
@@ -173,23 +181,24 @@ Shared multi-step progress used by Setup Wizard and Collection Builder.
 				onclick={() => clickable && onStepClick(i)}
 				disabled={!clickable}
 				aria-current={current ? 'step' : undefined}
-				aria-label={`${step.label} – ${done ? 'Completed' : current ? 'Current step' : 'Pending step'}`}
+				aria-label={`${step.label} – ${current ? 'Current step' : done ? 'Completed' : 'Pending step'}`}
 				tabindex={clickable ? 0 : -1}
 			>
-				<!-- Indicator -->
+				<!-- Indicator. The white halo separates the dot from the connector line;
+				     the current marker paints its own ring (shared with the wizard legend). -->
 				<div
 					class="relative z-10 flex shrink-0 items-center justify-center rounded-full font-bold transition-all
 						{orientation === 'horizontal' && variant === 'setup'
 						? 'h-8 w-8 text-xs sm:h-10 sm:w-10 sm:text-sm'
 						: orientation === 'vertical' && variant === 'setup'
-							? 'h-6 w-6 text-sm ring-2 ring-white dark:ring-surface-800'
+							? `h-6 w-6 text-sm ${current ? '' : 'ring-2 ring-white dark:ring-surface-800'}`
 							: compact
 								? 'h-7 w-7 text-xs'
 								: 'h-8 w-8 text-sm'}
 						{indicatorClass(i)}"
 				>
 					{#if variant === 'setup'}
-						<span class="text-[0.65rem]">{done ? '✓' : current ? '●' : '•'}</span>
+						<span class="text-[0.65rem]">{current ? '●' : done ? '✓' : '•'}</span>
 					{:else if done}
 						<iconify-icon icon="mdi:check" width="18" aria-hidden="true"></iconify-icon>
 					{:else if step.icon}

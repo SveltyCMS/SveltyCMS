@@ -196,33 +196,56 @@ export const DASHBOARD_PRESETS: DashboardLayoutPreset[] = [
   },
 ];
 
+export interface PresetResolution {
+  /** Widgets the preset can materialise for the given registry. */
+  widgets: DashboardWidgetConfig[];
+  /** Preset component ids that are absent from the registry (RBAC/plugin gating or drift). */
+  unavailable: string[];
+}
+
 /**
- * Creates full DashboardWidgetConfig entries from a preset.
+ * Resolves a preset against the installed widget registry.
+ *
+ * The `unavailable` list is what lets the dashboard explain an empty result:
+ * a preset whose every package is gated (requiresAdmin / requiresPlugin) must
+ * never silently persist an empty layout.
  */
-export function buildPresetWidgets(
+export function resolvePresetWidgets(
   preset: DashboardLayoutPreset,
-  availableComponentNames?: Set<string>,
-): DashboardWidgetConfig[] {
+  availableComponentNames?: ReadonlySet<string>,
+): PresetResolution {
   const widgets: DashboardWidgetConfig[] = [];
+  const unavailable: string[] = [];
 
   for (let i = 0; i < preset.widgets.length; i++) {
     const w = preset.widgets[i];
     // If an availability filter is provided, skip widgets that aren't installed or enabled
     if (availableComponentNames && !availableComponentNames.has(w.component)) {
+      unavailable.push(w.component);
       continue;
     }
 
     widgets.push({
-      id: `wgt-${w.component}-${Date.now()}-${i}`,
+      id: `wgt-${w.component}-${Date.now()}-${widgets.length}`,
       component: w.component,
       label: w.label,
       icon: w.icon,
       size: w.size,
       settings: {},
-      order: i,
-      gridPosition: i,
+      order: widgets.length,
+      gridPosition: widgets.length,
     });
   }
 
-  return widgets;
+  return { widgets, unavailable };
+}
+
+/**
+ * Creates full DashboardWidgetConfig entries from a preset.
+ */
+export function buildPresetWidgets(
+  preset: DashboardLayoutPreset,
+  availableComponentNames?: ReadonlySet<string>,
+): DashboardWidgetConfig[] {
+  return resolvePresetWidgets(preset, availableComponentNames).widgets;
 }

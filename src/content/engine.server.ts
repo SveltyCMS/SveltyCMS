@@ -464,6 +464,15 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
 }
 
 /**
+ * `listSchemas`'s last-resort stub for a table with no collection definition
+ * (see `databases/core/collection-module.ts`). Runtime-only marker — underscore
+ * keys never reach a persisted collection literal.
+ */
+function isPhysicalTableFallback(schema: Schema): boolean {
+  return (schema as Schema & { _physicalTableFallback?: boolean })._physicalTableFallback === true;
+}
+
+/**
  * 🚀 Fast-path for benchmarks.
  */
 export async function refreshCollectionsCache(tenantId?: string | null, db?: IDBAdapter) {
@@ -507,18 +516,29 @@ export async function refreshCollectionsCache(tenantId?: string | null, db?: IDB
   // 🚀 Standardize mapping keys to lowercase, but PRESERVE original schema ID casing
   // to avoid breaking case-sensitive consumers like GraphQL.
   for (const s of dbSchemas) {
-    if (s._id) {
-      schemaMap.set(s._id.toLowerCase(), s);
-    }
+    if (!s._id) continue;
+    const key = s._id.toLowerCase();
+    const existing = schemaMap.get(key);
+    // A physical-table stub must never displace a definition-backed schema that
+    // describes the same collection (the stub used to win by insertion order).
+    if (existing && !isPhysicalTableFallback(existing) && isPhysicalTableFallback(s)) continue;
+    schemaMap.set(key, s);
   }
 
   for (const s of fileSchemas) {
     if (s._id) {
-      // 🛡️ FIELD PRESERVATION: File-based schemas always win, but also guard
-      // against the DB fallback (fields: []) overwriting a richer file schema.
+      // 🛡️ DEFINITION WINS: a file schema is always definition-backed. It replaces
+      // a table stub unconditionally, and replaces a DB definition only when it
+      // carries more fields. A field-count TIE used to leave the `name`-only stub
+      // in the map — the sidebar then showed a bare lower-case table name with no
+      // icon after saving a collection.
       const key = s._id.toLowerCase();
       const existing = schemaMap.get(key);
-      if (!existing || (existing.fields?.length ?? 0) < (s.fields?.length ?? 0)) {
+      if (
+        !existing ||
+        isPhysicalTableFallback(existing) ||
+        (existing.fields?.length ?? 0) < (s.fields?.length ?? 0)
+      ) {
         schemaMap.set(key, s);
       }
     }

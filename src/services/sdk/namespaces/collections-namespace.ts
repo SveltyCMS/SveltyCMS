@@ -292,6 +292,44 @@ function scheduleIndexNowPing(
     });
 }
 
+/** Lazy audit-service handle — the audit graph must not be an eager namespace dependency. */
+let auditServiceModulePromise:
+  | Promise<typeof import("@src/services/security/audit-service")>
+  | undefined;
+
+function loadAuditServiceModule() {
+  return (auditServiceModulePromise ??= import("@src/services/security/audit-service"));
+}
+
+/** Resolve the actor fields the audit row carries, never the whole user object. */
+function contentAuditActor(
+  user: { _id?: unknown; email?: unknown; role?: unknown } | null | undefined,
+  system?: boolean,
+) {
+  return {
+    id: typeof user?._id === "string" ? user._id : null,
+    email: typeof user?.email === "string" ? user.email : system ? "system@svelty.cms" : "unknown",
+    role: typeof user?.role === "string" ? user.role : undefined,
+  };
+}
+
+/**
+ * Queue a content audit entry for the entry's "Audit History" panel.
+ *
+ * Detached on purpose: `auditService.log()` runs the Merkle-chain append, and the
+ * write path already handed its row back. Awaiting here put the chain read on the
+ * create/update latency budget; a failure is logged and never fails the write.
+ */
+function scheduleContentAudit(
+  input: import("@src/services/security/audit-service").ContentAuditInput,
+): void {
+  void loadAuditServiceModule()
+    .then(({ auditService }) => auditService.recordContentChange(input))
+    .catch((err) => {
+      logger.debug("[collections] content audit entry skipped (non-fatal)", { error: err });
+    });
+}
+
 export class CollectionsNamespace {
   private _proxy: CollectionProxy;
 
@@ -1114,6 +1152,21 @@ export class CollectionsNamespace {
       // ⚡ Response-path: never await side effects — concurrent create RPS depends on this.
       // Inside a transaction they are queued and replayed only after COMMIT.
       runAfterCommit(options, () => {
+        // Audit trail: without this, content mutations never reached `audit_logs`
+        // (the HTTP hook only sees `/api/*` and is off under TEST_MODE), so the
+        // entry's "Audit History" panel was always empty. Inside a transaction
+        // this runs after COMMIT, so a rolled-back create leaves no audit row.
+        if (!shouldSkipWriteSideEffects(options)) {
+          scheduleContentAudit({
+            action: isPublishing ? "publish" : "create",
+            collectionId: String(schema._id ?? collectionId),
+            collectionName: typeof schema.name === "string" ? schema.name : undefined,
+            entryId: createdId,
+            tenantId,
+            actor: contentAuditActor(effectiveUser, system),
+            status: (postWriteDoc as { status?: string } | null)?.status ?? requestedStatus,
+          });
+        }
         schedulePostWrite(
           this._dbAdapter,
           "create",
@@ -1525,6 +1578,17 @@ export class CollectionsNamespace {
       // ⚡ Response-path: never await side effects — concurrent update RPS depends on this.
       // Inside a transaction they are queued and replayed only after COMMIT.
       runAfterCommit(options, () => {
+        if (!shouldSkipWriteSideEffects(options)) {
+          scheduleContentAudit({
+            action: explicitPublish ? "publish" : "update",
+            collectionId: String(schema._id ?? collectionId),
+            collectionName: typeof schema.name === "string" ? schema.name : undefined,
+            entryId,
+            tenantId,
+            actor: contentAuditActor(effectiveUser, system),
+            status: (postWriteDoc as { status?: string } | null)?.status ?? requestedStatus,
+          });
+        }
         schedulePostWrite(
           this._dbAdapter,
           "update",
@@ -1606,7 +1670,20 @@ export class CollectionsNamespace {
     entryId: string,
     options: LocalApiOptions & { permanent?: boolean } = {},
   ) {
-    return executeDelete(this, collectionId, entryId, options);
+    const result = await executeDelete(this, collectionId, entryId, options);
+    if (result?.success && !shouldSkipWriteSideEffects(options)) {
+      // `peekReadySchema` is a cache read — no extra DB round-trip for the name.
+      const schema = peekReadySchema(options.tenantId, collectionId);
+      scheduleContentAudit({
+        action: "delete",
+        collectionId: String(schema?._id ?? collectionId),
+        collectionName: typeof schema?.name === "string" ? schema.name : undefined,
+        entryId,
+        tenantId: options.tenantId,
+        actor: contentAuditActor(options.system ? null : options.user, options.system),
+      });
+    }
+    return result;
   }
 
   /**

@@ -96,7 +96,56 @@ export enum AuditEventType {
   MAGIC_LINK_SUCCESS = "magic_link_success",
   ROLE_MUTATED = "role_mutated",
   ROLE_DELETED = "role_deleted",
+  CONTENT_CREATED = "content_created",
+  CONTENT_UPDATED = "content_updated",
+  CONTENT_DELETED = "content_deleted",
+  CONTENT_PUBLISHED = "content_published",
 }
+
+/** Content mutations recorded by `recordContentChange()`. */
+export type ContentAuditAction = "create" | "update" | "delete" | "publish";
+
+/** Actor carried into a content audit row (already resolved by the caller). */
+export interface ContentAuditActor {
+  id?: DatabaseId | string | null;
+  email?: string | null;
+  role?: string | null;
+  ip?: string | null;
+}
+
+/** One content create/update/delete/publish to record on the shared chain. */
+export interface ContentAuditInput {
+  action: ContentAuditAction;
+  /** Collection definition id (`schema._id`). */
+  collectionId: string;
+  /** Human-facing collection name (kept for the audit reader). */
+  collectionName?: string;
+  entryId: DatabaseId | string | null;
+  tenantId?: DatabaseId | null;
+  actor: ContentAuditActor;
+  status?: string;
+}
+
+interface ContentAuditPreset {
+  action: string;
+  eventType: AuditEventType;
+  severity: AuditSeverity;
+}
+
+const CONTENT_AUDIT_PRESETS: Record<ContentAuditAction, ContentAuditPreset> = {
+  create: { action: "Content created", eventType: AuditEventType.CONTENT_CREATED, severity: "low" },
+  update: { action: "Content updated", eventType: AuditEventType.CONTENT_UPDATED, severity: "low" },
+  delete: {
+    action: "Content deleted",
+    eventType: AuditEventType.CONTENT_DELETED,
+    severity: "medium",
+  },
+  publish: {
+    action: "Content published",
+    eventType: AuditEventType.CONTENT_PUBLISHED,
+    severity: "medium",
+  },
+};
 
 export interface AuditLogEntry extends BaseEntity {
   action: string;
@@ -798,6 +847,42 @@ export class AuditService {
       .catch((err) => logger.warn("[AuditService] Chain lock error:", err));
 
     return this.chainLock;
+  }
+
+  /**
+   * Record one content mutation (create/update/delete/publish) on the audit chain.
+   *
+   * `targetId` is the content entry id, so the entry's "Audit History" panel (which
+   * filters by `targetId` only) shows the row. Uses the same `log()` append path and
+   * canonical payload as every other audit entry, so the Merkle chain stays valid.
+   *
+   * Callers treat this as fire-and-forget: the write path must not await it.
+   */
+  async recordContentChange(input: ContentAuditInput): Promise<void> {
+    const preset = CONTENT_AUDIT_PRESETS[input.action];
+    const entryId =
+      input.entryId === null || input.entryId === undefined ? null : String(input.entryId);
+
+    await this.log(
+      preset.action,
+      {
+        id: (input.actor.id ?? null) as DatabaseId | null,
+        email: input.actor.email || "unknown",
+        role: input.actor.role ?? undefined,
+        ip: input.actor.ip ?? undefined,
+      },
+      { type: "content", id: entryId as DatabaseId | null },
+      preset.eventType,
+      preset.severity,
+      {
+        collectionId: input.collectionId,
+        collection: input.collectionName,
+        entryId,
+        operation: input.action,
+        status: input.status,
+      },
+      (input.tenantId ?? null) as DatabaseId | null,
+    );
   }
 
   async queryLogs(options: any = {}): Promise<DatabaseResult<AuditLogEntry[]>> {

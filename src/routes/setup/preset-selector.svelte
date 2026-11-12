@@ -169,16 +169,22 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 		>
 			<!-- ── Preset cards ── -->
 			{#each presets as preset (preset.id)}
+				<!-- The accessible name carries the full description: the visible copy is
+				     clamped to three lines with no other way to read the rest (SV-037). -->
 				<Button
 					type="button"
 					variant="transparent"
 					role="option"
 					aria-selected={selected === preset.id}
-					aria-label={preset.title}
+					aria-label={preset.recommended
+						? `${preset.title} (Recommended). ${preset.description}`
+						: `${preset.title}. ${preset.description}`}
 					class="relative flex flex-col flex-none w-70 p-4! h-auto! items-stretch! justify-start! font-normal! overflow-hidden text-start cursor-pointer snap-start dark:backdrop-blur-md border rounded shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none transition-all duration-250! hover:-translate-y-1 hover:shadow-[0_10px_20px_-10px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)] {selected ===
 					preset.id
-						? 'bg-tertiary-500! dark:bg-primary-900! border-tertiary-500 dark:border-primary-500/40!  shadow-[0_0_0_2px_color-mix(in_srgb,var(--color-tertiary-500)_15%,transparent),0_10px_25px_-12px_color-mix(in_srgb,var(--color-tertiary-500)_25%,transparent)]! dark:shadow-[0_0_0_2px_color-mix(in_srgb,var(--color-primary-500)_30%,transparent),0_15px_35px_-12px_rgba(0,0,0,0.6),inset_0_0_15px_color-mix(in_srgb,var(--color-primary-500)_15%,transparent)]! -translate-y-1!'
-						: 'border-(--admin-border-default) bg-(--admin-bg-card)! hover:border-tertiary-500 dark:hover:border-primary-500'}"
+						? /* Active-wash selection: the old `bg-tertiary-500` + `text-white` card failed
+						     contrast in both modes (SV-037/SV-023). */
+							'bg-primary-500/20! border-primary-500 dark:border-primary-500! shadow-[0_0_0_2px_color-mix(in_srgb,var(--color-primary-500)_25%,transparent)]! -translate-y-1!'
+						: 'border-(--admin-border-default) bg-(--admin-bg-card)! hover:border-primary-500'}"
 					onclick={() => select(preset.id)}
 				>
 					<div class="  mt-2 flex items-center gap-2">
@@ -186,21 +192,15 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 							icon={preset.icon}
 							width="22"
 							class={selected === preset.id
-								? 'text-white'
+								? 'text-primary-600 dark:text-primary-400'
 								: 'text-tertiary-500 dark:text-primary-500'}
 						></iconify-icon>
-						<span
-							class="flex-1 font-bold text-[0.88rem] leading-[1.2] {selected === preset.id
-								? 'text-white'
-								: 'text-(--admin-text-body)'}">{preset.title}</span
+						<span class="flex-1 font-bold text-[0.88rem] leading-[1.2] text-(--admin-text-body)"
+							>{preset.title}</span
 						>
 
 						{#if preset.recommended}
-							<Badge
-								variant="primary"
-								size="sm"
-								class="absolute top-1 inset-e-1 shrink-0 bg-primary-500 text-white"
-							>
+							<Badge variant="primary" size="sm" class="absolute top-1 inset-e-1 shrink-0">
 								Recommended
 							</Badge>
 						{:else if preset.complexity}
@@ -220,33 +220,22 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 					</div>
 
 					<div
-						class="line-clamp-3 text-xs leading-relaxed {selected === preset.id
-							? 'text-white/90'
-							: 'text-(--admin-text-muted)'}"
+						class="line-clamp-3 text-xs leading-relaxed text-(--admin-text-muted)"
+						title={preset.description}
 					>
 						{preset.description}
 					</div>
 
 					<div class="flex flex-wrap gap-1 mt-auto">
-						{#each preset.features.slice(0, 2) as f (f)}
-							<Badge
-								variant="surface"
-								size="sm"
-								class={selected === preset.id
-									? 'text-white/90! bg-(--admin-bg-chip)! border-(--admin-border-subtle)!'
-									: ''}
-							>
+						<!-- Selecting the card reveals every feature, so the clamped copy and the
+						     `+N` chip are no longer dead ends (SV-037). -->
+						{#each selected === preset.id ? preset.features : preset.features.slice(0, 2) as f (f)}
+							<Badge variant="surface" size="sm">
 								{f}
 							</Badge>
 						{/each}
-						{#if preset.features.length > 2}
-							<Badge
-								variant="surface"
-								size="sm"
-								class={selected === preset.id
-									? 'text-white/70 bg-(--admin-bg-chip)! border-(--admin-border-subtle)!'
-									: ''}
-							>
+						{#if selected !== preset.id && preset.features.length > 2}
+							<Badge variant="surface" size="sm" title={preset.features.slice(2).join(', ')}>
 								+{preset.features.length - 2}
 							</Badge>
 						{/if}
@@ -256,7 +245,7 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 						<iconify-icon
 							icon="mdi:check-circle"
 							width="24"
-							class="absolute inset-e-1 bottom-2 text-white"
+							class="absolute inset-e-1 bottom-2 text-primary-600 dark:text-primary-400"
 						></iconify-icon>
 					{/if}
 				</Button>

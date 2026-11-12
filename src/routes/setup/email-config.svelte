@@ -316,10 +316,24 @@
 	const isFormValid = $derived(validationResult().valid);
 
 	// Only display errors for fields that have been touched (blurred)
+	// The step itself is OPTIONAL: an operator who tabs through the empty form must
+	// not be shown red "username/password is required" errors (SV-043). Account
+	// fields only report once the operator has started filling the form in.
+	const hasAnySmtpInput = $derived(
+		Boolean(
+			wizard.emailSettings.host.trim() ||
+			wizard.emailSettings.user.trim() ||
+			wizard.emailSettings.password.trim()
+		)
+	);
+
 	const displayErrors = $derived.by(() => {
 		const errors: Record<string, string> = {};
 		// Show validation errors only for touched fields
 		for (const field of touchedFields) {
+			if (!hasAnySmtpInput && (field === 'user' || field === 'password')) {
+				continue;
+			}
 			if (localValidationErrors()[field]) {
 				errors[field] = localValidationErrors()[field];
 			}
@@ -470,6 +484,18 @@
 		testConnection();
 	}}
 >
+	<!-- Optionality is stated up front: nothing here blocks "Next" (SV-043). -->
+	<p
+		class="flex items-start gap-2 rounded border border-(--admin-border-default) bg-(--admin-bg-chip) px-3 py-2 text-xs text-(--admin-text-body)"
+	>
+		<iconify-icon
+			icon="mdi:information-outline"
+			width="16"
+			class="mt-0.5 shrink-0 text-tertiary-500 dark:text-primary-500"
+			aria-hidden="true"
+		></iconify-icon>
+		<span>{setup_email_skip_note()}</span>
+	</p>
 	<!-- Why SMTP is Needed -->
 	<div class="card preset-outlined-tertiary-500 dark:preset-outlined-primary-500 p-4">
 		<!-- Header - Always visible with toggle button -->
@@ -559,9 +585,7 @@
 					class="text-tertiary-500 dark:text-primary-500"
 					aria-hidden="true"
 				></iconify-icon>
-				<span class="text-(--admin-text-body)"
-					>{setup_email_host()} <span class="text-error-500">*</span></span
-				>
+				<span class="text-(--admin-text-body)">{setup_email_host()}</span>
 				<SystemTooltip title={setup_email_help_host()}>
 					<HelpIcon ariaLabel={setup_email_aria_help_host()} />
 				</SystemTooltip>
@@ -571,7 +595,6 @@
 				type="text"
 				bind:value={wizard.emailSettings.host}
 				placeholder={setup_email_host_placeholder()}
-				required
 				onblur={() => handleBlur('host')}
 				onchange={() => {
 					testSuccess = false;
@@ -596,9 +619,7 @@
 						class="text-tertiary-500 dark:text-primary-500"
 						aria-hidden="true"
 					></iconify-icon>
-					<span class="font-medium text-(--admin-text-body)"
-						>{setup_email_port()} <span class="text-error-500">*</span></span
-					>
+					<span class="font-medium text-(--admin-text-body)">{setup_email_port()}</span>
 					<SystemTooltip title={setup_email_help_port()}>
 						<HelpIcon ariaLabel={setup_email_aria_help_port()} />
 					</SystemTooltip>
@@ -613,7 +634,6 @@
 						placeholder={setup_email_port_custom()}
 						min={1}
 						max={65535}
-						required
 						onblur={() => handleBlur('port')}
 						onchange={() => {
 							testSuccess = false;
@@ -694,9 +714,7 @@
 					class="text-tertiary-500 dark:text-primary-500"
 					aria-hidden="true"
 				></iconify-icon>
-				<span class="text-(--admin-text-body)"
-					>{setup_email_user()} <span class="text-error-500">*</span></span
-				>
+				<span class="text-(--admin-text-body)">{setup_email_user()}</span>
 				<SystemTooltip title={setup_email_help_user()}>
 					<HelpIcon ariaLabel={setup_email_aria_help_user()} />
 				</SystemTooltip>
@@ -706,7 +724,6 @@
 				type="text"
 				bind:value={wizard.emailSettings.user}
 				placeholder={setup_email_user_placeholder()}
-				required
 				autocomplete="off"
 				onblur={() => {
 					const trimmed = wizard.emailSettings.user.trim();
@@ -732,9 +749,7 @@
 					class="text-tertiary-500 dark:text-primary-500"
 					aria-hidden="true"
 				></iconify-icon>
-				<span class="text-(--admin-text-body)"
-					>{setup_email_password()} <span class="text-error-500">*</span></span
-				>
+				<span class="text-(--admin-text-body)">{setup_email_password()}</span>
 				<SystemTooltip title={setup_email_help_password()}>
 					<HelpIcon ariaLabel={setup_email_aria_help_password()} />
 				</SystemTooltip>
@@ -745,7 +760,6 @@
 				type={showPassword ? 'text' : 'password'}
 				bind:value={wizard.emailSettings.password}
 				placeholder={setup_email_password_placeholder()}
-				required
 				autocomplete="new-password"
 				onblur={() => {
 					const trimmed = wizard.emailSettings.password.trim();
@@ -801,7 +815,7 @@
 				id="smtp-from"
 				type="email"
 				bind:value={wizard.emailSettings.from}
-				placeholder={wizard.emailSettings.user || 'noreply@example.com'}
+				placeholder="noreply@example.com"
 				onblur={() => {
 					const trimmed = wizard.emailSettings.from.trim();
 					if (trimmed !== wizard.emailSettings.from) {

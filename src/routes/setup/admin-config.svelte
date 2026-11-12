@@ -26,6 +26,7 @@
 		form_email,
 		form_password,
 		form_username,
+		formSchemas_Passwordmatch,
 		setup_admin_placeholder_confirm_password,
 		setup_admin_placeholder_email,
 		setup_admin_placeholder_password,
@@ -98,6 +99,32 @@
 			}
 		}
 		return { ...errors, ...validationErrors };
+	});
+
+	// Password-strength score at component scope so it tracks every keystroke.
+	const passwordScore = $derived(
+		Object.values(passwordRequirements as Record<string, boolean>).filter(Boolean).length
+	);
+
+	// Localized list of the rules the current password still fails.
+	const passwordRuleErrors = $derived.by(() => {
+		const missing: string[] = [];
+		if (!passwordRequirements.length) missing.push(setup_help_admin_password_requirements_length());
+		if (!passwordRequirements.letter) missing.push(setup_help_admin_password_requirements_letter());
+		if (!passwordRequirements.number) missing.push(setup_help_admin_password_requirements_number());
+		if (!passwordRequirements.special)
+			missing.push(setup_help_admin_password_requirements_character());
+		return missing.join(' · ');
+	});
+
+	const passwordError = $derived(
+		displayErrors.password ? passwordRuleErrors || displayErrors.password : undefined
+	);
+
+	const confirmPasswordError = $derived.by(() => {
+		if (!displayErrors.confirmPassword) return undefined;
+		if (adminUser.password !== adminUser.confirmPassword) return formSchemas_Passwordmatch();
+		return displayErrors.confirmPassword;
 	});
 
 	function handleBlur(fieldName: string) {
@@ -213,7 +240,7 @@
 					type={showAdminPassword ? 'text' : 'password'}
 					autocomplete="new-password"
 					placeholder={setup_admin_placeholder_password?.() || 'Enter secure password'}
-					error={displayErrors.password}
+					error={passwordError}
 					required
 				>
 					{#snippet post()}
@@ -238,45 +265,54 @@
 
 				<!-- Password Strength Meter -->
 				{#if adminUser.password}
-					{const score = Object.values(passwordRequirements).filter(Boolean).length}
 					<div class="space-y-4">
 						<div
 							class="flex h-1.5 w-full gap-1 overflow-hidden rounded-full bg-(--admin-border-subtle)"
 						>
 							<div
-								class="h-full transition-all duration-500 {score >= 1 ? 'bg-error-500' : ''}"
+								class="h-full transition-all duration-500 {passwordScore >= 1
+									? 'bg-error-500'
+									: ''}"
 								style="width: 20%"
 								aria-hidden="true"
 							></div>
 							<div
-								class="h-full transition-all duration-500 {score >= 2 ? 'bg-warning-500' : ''}"
+								class="h-full transition-all duration-500 {passwordScore >= 2
+									? 'bg-warning-500'
+									: ''}"
 								style="width: 20%"
 								aria-hidden="true"
 							></div>
 							<div
-								class="h-full transition-all duration-500 {score >= 3 ? 'bg-warning-500' : ''}"
+								class="h-full transition-all duration-500 {passwordScore >= 3
+									? 'bg-warning-500'
+									: ''}"
 								style="width: 20%"
 								aria-hidden="true"
 							></div>
 							<div
-								class="h-full transition-all duration-500 {score >= 4
+								class="h-full transition-all duration-500 {passwordScore >= 4
 									? 'bg-tertiary-500 dark:bg-primary-500'
 									: ''}"
 								style="width: 20%"
 								aria-hidden="true"
 							></div>
 							<div
-								class="h-full transition-all duration-500 {score >= 5 ? 'bg-success-500' : ''}"
+								class="h-full transition-all duration-500 {passwordScore >= 5
+									? 'bg-success-500'
+									: ''}"
 								style="width: 20%"
 								aria-hidden="true"
 							></div>
 						</div>
 						<div class="flex justify-between text-[10px] font-bold uppercase tracking-wider">
-							<span class={score >= 1 ? 'text-error-500' : 'text-(--admin-text-muted)'}>Weak</span>
-							<span class={score >= 3 ? 'text-warning-500' : 'text-(--admin-text-muted)'}
+							<span class={passwordScore >= 1 ? 'text-error-500' : 'text-(--admin-text-muted)'}
+								>Weak</span
+							>
+							<span class={passwordScore >= 3 ? 'text-warning-500' : 'text-(--admin-text-muted)'}
 								>Moderate</span
 							>
-							<span class={score >= 5 ? 'text-success-500' : 'text-(--admin-text-muted)'}
+							<span class={passwordScore >= 5 ? 'text-success-500' : 'text-(--admin-text-muted)'}
 								>Strong</span
 							>
 						</div>
@@ -314,7 +350,7 @@
 					type={showConfirmPassword ? 'text' : 'password'}
 					autocomplete="new-password"
 					placeholder={setup_admin_placeholder_confirm_password?.() || 'Confirm your password'}
-					error={displayErrors.confirmPassword}
+					error={confirmPasswordError}
 					required
 				>
 					{#snippet post()}

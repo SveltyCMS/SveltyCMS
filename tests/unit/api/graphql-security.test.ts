@@ -148,6 +148,66 @@ describe("GraphQL Whitebox Native Security Rules", () => {
     expect(errors.length).toBeGreaterThan(0);
     expect(errors.some((e) => e.message.toLowerCase().includes("introspection"))).toBe(true);
   });
+
+  it("rejects GraphiQL's introspection query under the plain depth limit", () => {
+    const query = `
+          query IntrospectionQuery {
+            __schema {
+              queryType { name }
+              types {
+                name
+                fields {
+                  name
+                  args { name }
+                  type { kind name ofType { kind name ofType { kind name ofType { kind name ofType { name } } } } }
+                }
+              }
+            }
+          }
+        `;
+    const ast = parse(query);
+
+    const strict = validate(schema, ast, [createDepthLimitRule(8)]);
+    expect(strict.some((e) => e.message.includes("Query exceeds maximum allowed depth"))).toBe(
+      true,
+    );
+  });
+
+  it("exempts the introspection subtree when the playground rule is used", () => {
+    const query = `
+          query IntrospectionQuery {
+            __schema {
+              queryType { name }
+              types {
+                name
+                fields {
+                  name
+                  args { name }
+                  type { kind name ofType { kind name ofType { kind name ofType { kind name ofType { name } } } } }
+                }
+              }
+            }
+          }
+        `;
+    const ast = parse(query);
+
+    const errors = validate(schema, ast, [createDepthLimitRule(8, { exemptIntrospection: true })]);
+    expect(errors).toHaveLength(0);
+  });
+
+  it("still rejects deep non-introspection queries with the playground rule", () => {
+    const query = `
+          query {
+            users { friends { friends { friends { friends { friends { friends { friends { friends { _id } } } } } } } } }
+          }
+        `;
+    const ast = parse(query);
+
+    const errors = validate(schema, ast, [createDepthLimitRule(8, { exemptIntrospection: true })]);
+    expect(errors.some((e) => e.message.includes("Query exceeds maximum allowed depth"))).toBe(
+      true,
+    );
+  });
 });
 
 describe("GraphQL dispatcher auth gate (catch-all /api/graphql)", () => {

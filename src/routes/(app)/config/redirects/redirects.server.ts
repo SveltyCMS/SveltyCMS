@@ -170,7 +170,15 @@ export async function saveRedirect(
   if (!dbAdapter?.crud) throw error(500, "Database not initialized");
 
   const payload = toRedirectPayload(rule);
-  const fieldErrors = validateRedirectDraft(payload);
+  // Cycle detection needs the tenant's current rules: without them `/a → /b`
+  // next to `/b → /a` would be savable and loop forever at serve time.
+  let existing: RedirectDraft[] = [];
+  try {
+    existing = await listRedirects(locals);
+  } catch (err) {
+    logger.debug("[redirects] existing rules unavailable for loop check", err);
+  }
+  const fieldErrors = validateRedirectDraft(payload, existing);
   if (Object.keys(fieldErrors).length > 0) {
     throw error(400, Object.values(fieldErrors).join("; "));
   }
