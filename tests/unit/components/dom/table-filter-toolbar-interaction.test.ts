@@ -45,6 +45,7 @@ describe("TableFilter toolbar", () => {
 
     await click(toggle);
     expect(onViewModeChange).toHaveBeenCalledWith("card");
+    // The mode prop is one-way; the handler is the only way the mode can change.
     // The controller owns the mode: the button still renders the prop it was given.
     expect(
       rendered.target.querySelector(`button[aria-label="${table_switch_to_card_view()}"]`),

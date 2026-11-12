@@ -355,7 +355,7 @@
 						</div>
 					</AdminCard>
 				</a>
-				<div class="absolute top-2.5 end-2.5 z-10">
+				<div class="absolute top-2.5 inset-e-2.5 z-10">
 					<Tooltip title="Total number of jobs registered in the queue across all statuses">
 						<HelpIcon ariaLabel="Total jobs information" />
 					</Tooltip>
@@ -386,7 +386,7 @@
 						</div>
 					</AdminCard>
 				</a>
-				<div class="absolute top-2.5 end-2.5 z-10">
+				<div class="absolute top-2.5 inset-e-2.5 z-10">
 					<Tooltip
 						title="Jobs waiting for their scheduled time or awaiting an available background worker"
 					>
@@ -419,7 +419,7 @@
 						</div>
 					</AdminCard>
 				</a>
-				<div class="absolute top-2.5 end-2.5 z-10">
+				<div class="absolute top-2.5 inset-e-2.5 z-10">
 					<Tooltip
 						title="Jobs currently being claimed and executed by a background worker right now"
 					>
@@ -452,7 +452,7 @@
 						</div>
 					</AdminCard>
 				</a>
-				<div class="absolute top-2.5 end-2.5 z-10">
+				<div class="absolute top-2.5 inset-e-2.5 z-10">
 					<Tooltip title="Jobs that have finished successfully (auto-pruned after 7 days)">
 						<HelpIcon ariaLabel="Completed jobs information" />
 					</Tooltip>
@@ -483,7 +483,7 @@
 						</div>
 					</AdminCard>
 				</a>
-				<div class="absolute top-2.5 end-2.5 z-10">
+				<div class="absolute top-2.5 inset-e-2.5 z-10">
 					<Tooltip
 						title="Jobs that exhausted their retries and crashed with an error (click row to inspect error)"
 					>

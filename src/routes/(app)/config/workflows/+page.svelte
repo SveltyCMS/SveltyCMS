@@ -899,7 +899,7 @@ Professional free-form canvas with:
 							<!-- Connection Port (Right handle to drag-create transition) -->
 							<button
 								type="button"
-								class="absolute -end-3.5 top-1/2 -translate-y-1/2 size-7 rounded-full border-2 border-white bg-primary-500 text-white shadow-md flex items-center justify-center cursor-crosshair transition-all duration-200 hover:scale-125 dark:border-surface-500/40 opacity-0 group-hover:opacity-100 group-hover:animate-pulse z-30"
+								class="absolute -inset-e-3.5 top-1/2 -translate-y-1/2 size-7 rounded-full border-2 border-white bg-primary-500 text-white shadow-md flex items-center justify-center cursor-crosshair transition-all duration-200 hover:scale-125 dark:border-surface-500/40 opacity-0 group-hover:opacity-100 group-hover:animate-pulse z-30"
 								title="Drag to another state to connect"
 								aria-label={`Connect transition from ${state.label}`}
 								onpointerdown={(e) => startPortDrag(e, state)}
@@ -995,7 +995,7 @@ Professional free-form canvas with:
 
 				<!-- Bottom-Right Canvas Controls: Zoom In / Out / Reset / Pan hint -->
 				<div
-					class="absolute bottom-3 end-3 z-30 flex items-center gap-1 rounded-lg border border-surface-500/30 bg-white/90 p-1 shadow-md backdrop-blur-sm dark:border-surface-500/40 dark:bg-surface-900/90"
+					class="absolute bottom-3 inset-e-3 z-30 flex items-center gap-1 rounded-lg border border-surface-500/30 bg-white/90 p-1 shadow-md backdrop-blur-sm dark:border-surface-500/40 dark:bg-surface-900/90"
 				>
 					<Tooltip title="Zoom out">
 						<button

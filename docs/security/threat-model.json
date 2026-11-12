@@ -91,7 +91,7 @@
       ],
       "model": "docs/security/threat-models/admin-pages.mdx",
       "reviewed_at": "2026-11-12",
-      "fingerprint": "009445b9e15930dae11fd60a587287d7c464bd6fd612bc8e5750c1951689d65c"
+      "fingerprint": "bc6068ce029fc4b99e3cd180b1d41c4c02132578ac310653c1b0d4b35aeb0a6c"
     },
     {
       "id": "system-ops",

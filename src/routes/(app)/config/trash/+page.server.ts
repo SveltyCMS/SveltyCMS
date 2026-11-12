@@ -74,7 +74,7 @@ async function resolveActorNames(
   return names;
 }
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load = (async ({ locals }) => {
   try {
     const user = getAuthenticatedUser(locals);
     if (!locals.isAdmin) {
@@ -114,4 +114,4 @@ export const load: PageServerLoad = async ({ locals }) => {
     logger.error("Failed to load trash:", err);
     throw error(500, err instanceof Error ? err.message : String(err));
   }
-};
+}) satisfies PageServerLoad;
