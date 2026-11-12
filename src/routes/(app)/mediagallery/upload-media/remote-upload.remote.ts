@@ -3,13 +3,13 @@
  * @description Remote URL upload — LocalCMS/MediaService, no form-action HTTP hop.
  */
 
-import { query, getRequestEvent } from "$app/server";
+import { getRequestEvent, command } from "$app/server";
 import type { DatabaseId } from "@src/content/types";
 import { getAuthenticatedUser, requirePagePermission } from "@utils/page-guards.server";
 import { saveRemoteMediaUrls, type RemoteUploadResult } from "../save-remote-urls.server";
 import { remoteErrorMessage } from "@utils/server/request-cms.server";
 
-export const uploadRemoteUrls = query(
+export const uploadRemoteUrls = command(
   "unchecked",
   async ({
     urls,

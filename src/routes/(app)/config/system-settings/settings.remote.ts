@@ -193,7 +193,7 @@ export const saveSettingsGroup = command(
   },
 );
 
-export const resetSettingsGroup = query(
+export const resetSettingsGroup = command(
   "unchecked",
   async (groupId: string): Promise<{ success: boolean; message?: string; error?: string }> => {
     try {

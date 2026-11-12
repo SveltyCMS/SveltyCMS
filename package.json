@@ -111,6 +111,7 @@
     "lint:transient-classification": "bun run scripts/lint/lint-transient-classification.ts",
     "lint:date-helpers": "bun run scripts/lint/lint-date-helpers.ts",
     "lint:silent-catch": "bun run scripts/lint/lint-silent-catch.ts",
+    "lint:remote-transport": "bun run scripts/lint/scan-remote-transport.ts",
     "lint:rule-budgets": "bun run scripts/lint/lint-rule-budgets.ts",
     "lint:e2e-actionability": "bun run scripts/lint/lint-e2e-actionability.ts",
     "lint:marketplace": "bun run scripts/sync-marketplace-catalog.ts --check",

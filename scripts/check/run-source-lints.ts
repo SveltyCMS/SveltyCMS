@@ -50,6 +50,10 @@ import {
   type DesignLintResult,
 } from "../lint/lint-design";
 import {
+  findRemoteTransportOffenses,
+  type RemoteTransportOffense,
+} from "../lint/scan-remote-transport";
+import {
   BUDGET_BASELINE_RELATIVE_PATH,
   checkRuleBudgets,
   formatBudgetViolation,
@@ -67,6 +71,7 @@ export interface SourceLintReport {
   timerOffenses: TimerOffense[];
   duplicateTestIdOffenses: TestIdOffense[];
   anonymousLeakOffenses: AnonymousLeak[];
+  remoteTransportOffenses: RemoteTransportOffense[];
   designResult: DesignLintResult;
   budgetViolations: BudgetViolation[];
   /** The ratchet file was unreadable, so the budget rule failed closed. */
@@ -140,6 +145,10 @@ export function runSourceLints(
     options.readExtraSource,
   );
 
+  const remoteTransportOffenses = findRemoteTransportOffenses(
+    files.filter((file) => file.path.endsWith(".remote.ts")),
+  );
+
   const designResult = findDesignViolations(
     files.filter(
       (file) =>
@@ -186,6 +195,11 @@ export function runSourceLints(
       `duplicate-testids ${offense.file}:${offense.line} — <${offense.tag} data-testid="${offense.testId}"> already rendered by ${offense.declaredIn}`,
     );
   }
+  for (const offense of remoteTransportOffenses) {
+    violations.push(
+      `remote-transport ${offense.file}:${offense.line} — ${offense.name}: ${offense.reason}`,
+    );
+  }
   for (const leak of anonymousLeakOffenses) {
     violations.push(
       `anonymous-leaks ${leak.file}:${leak.line} — ${leak.key} in ${leak.handler}: ${leak.reason}`,
@@ -221,6 +235,7 @@ export function runSourceLints(
 
   return {
     ok: violations.length === 0,
+    remoteTransportOffenses,
     dateCallOffenses,
     silentCatchOffenses,
     livePathOffenses,

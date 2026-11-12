@@ -14,7 +14,7 @@
         "src/databases/auth/permission-catalog.ts"
       ],
       "model": "docs/security/threat-models/api-dispatch.mdx",
-      "reviewed_at": "2026-11-11",
+      "reviewed_at": "2026-11-12",
       "fingerprint": "e9a0cd68fa79578416e80daf6c54d7e832db53ad050892e0236ea130125329b2"
     },
     {
@@ -38,7 +38,7 @@
       ],
       "model": "docs/security/threat-models/auth-session.mdx",
       "reviewed_at": "2026-11-12",
-      "fingerprint": "c9287d0e12a3f6602e5e54a38f22e691e782b5bc59d343a8271f8ba16ae5a8e5"
+      "fingerprint": "df324ba8399f23f3583329ebef748ef62e3edb7f6519d9e32c0b3201710c2016"
     },
     {
       "id": "content-write",
@@ -57,7 +57,7 @@
         "src/hooks/handle-collection-write-lane.ts"
       ],
       "model": "docs/security/threat-models/content-write.mdx",
-      "reviewed_at": "2026-11-11",
+      "reviewed_at": "2026-11-12",
       "fingerprint": "9a94aca4ac2e835cf7ca942f5d17526bb1294484616c29f2ee3a3ae4c83bfbae"
     },
     {
@@ -74,8 +74,8 @@
         "src/routes/api/[...path]/handlers/media-transcode.ts"
       ],
       "model": "docs/security/threat-models/media-files.mdx",
-      "reviewed_at": "2026-11-09",
-      "fingerprint": "ce3afd3f48682dd500da32e87e5a42dca2e142b4e608318c8d5bfe1e676dd060"
+      "reviewed_at": "2026-11-12",
+      "fingerprint": "45082cac737a4623adfdd156d6c8b91333a4831be551f75af716de50eebbd9a1"
     },
     {
       "id": "admin-pages",
@@ -90,8 +90,8 @@
         "src/utils/page-guards.server.ts"
       ],
       "model": "docs/security/threat-models/admin-pages.mdx",
-      "reviewed_at": "2026-11-09",
-      "fingerprint": "da916fc16e19830ad991f5224f076025c9706be87b54768aeb4d6bbb79a5d485"
+      "reviewed_at": "2026-11-12",
+      "fingerprint": "bd258f6ac76f4e1206454f3c28ac5b10cbd17b4cca201c193ba4780c4b83bb5d"
     },
     {
       "id": "system-ops",
