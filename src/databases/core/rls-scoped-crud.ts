@@ -28,7 +28,7 @@
  */
 
 import type { BaseQueryOptions, DatabaseResult, ICrudAdapter } from "../db-interface";
-import { isTenantRlsEnforced, refreshTenantRlsMode } from "../tenant-rls";
+import { isTenantRlsEnforced, maybeRefreshTenantRlsMode } from "../tenant-rls";
 import { hasTenantBypass } from "../system-tenant-scope";
 
 /** Minimal adapter surface this wrapper needs. */
@@ -96,7 +96,7 @@ export function createRlsScopedCrud<T extends ICrudAdapter>(
         // refreshed in the background; until it lands the previous mode holds,
         // which is the application-predicate default — never a weaker guarantee.
         if (!isEnforced()) {
-          void refreshTenantRlsMode();
+          maybeRefreshTenantRlsMode();
           return call.apply(source, args);
         }
 

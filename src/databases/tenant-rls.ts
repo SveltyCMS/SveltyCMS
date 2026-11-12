@@ -52,10 +52,16 @@ let cachedMode: TenantRlsMode | null = null;
 let cachedAt = 0;
 let inflight: Promise<TenantRlsMode> | null = null;
 
+/** Single-slot memo for the env fast path — `process.env` is read once per change. */
+let _envRaw: string | undefined;
+let _envMode: TenantRlsMode | null = null;
+
 function envMode(): TenantRlsMode | null {
   const raw = process.env.TENANT_RLS_ENABLED;
-  if (raw === undefined) return null;
-  return raw === "true" || raw === "1" ? "enforce" : "off";
+  if (raw === _envRaw) return _envMode;
+  _envRaw = raw;
+  _envMode = raw === undefined ? null : raw === "true" || raw === "1" ? "enforce" : "off";
+  return _envMode;
 }
 
 async function loadDbMode(): Promise<TenantRlsMode> {
@@ -102,6 +108,19 @@ export function isTenantRlsEnforced(): boolean {
 }
 
 let refreshInflight: Promise<TenantRlsMode> | null = null;
+
+/**
+ * Refresh only when the memo is actually stale.
+ *
+ * The CRUD wrapper calls this on every operation whose mode is `"off"`, so it
+ * must be allocation-free in the steady state: no promise, no microtask, no
+ * `Date.now()` bucket churn beyond one comparison. An always-on refresh built a
+ * promise chain per query and showed up as GC pressure across every lane.
+ */
+export function maybeRefreshTenantRlsMode(): void {
+  if (cachedMode !== null && Date.now() - cachedAt < TENANT_RLS_TTL_MS) return;
+  void refreshTenantRlsMode();
+}
 
 /**
  * Refresh the memoized mode without blocking the caller.
