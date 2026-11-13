@@ -54,7 +54,7 @@ Hook: `.githooks/pre-push` · Manual: **`bun run gate`** or `bun run prepush`
 
 To keep the fast tier cheap, two registry entries aggregate rules instead of spawning one process each: `check-source-lints` (`scripts/check/run-source-lints.ts`) runs thirteen rules over a single workspace read, and `check-ast-gates` runs the module-graph linkmap and the tenant-scope analysis in one process. The newer gates — `locale-format`, `css-tokens` and `click-away` (rules inside `check-source-lints`) and `check-hardcoded-copy` (the `check:copy:ratchet` baseline) — add no step to the hook: see [Testing Scripts Catalog](../tests/testing-scripts.mdx).
 
-Docs-only pushes skip build + integration. The multi-engine DB matrix and benchmarks are **CI-only**; pre-push runs the SQLite suite plus the changed-path browser contracts, not the full 9-shard E2E partition.
+Docs-only pushes skip build + integration. The multi-engine DB matrix and benchmarks are **CI-only**; pre-push runs the SQLite suite plus the changed-path browser contracts, not the full 11-shard E2E partition.
 
 **Release preparation** — `--release[=kind]` runs `scripts/version.ts` after a green gate, commits the manifest as `chore(release): bump version to vX.Y.Z` and prints the push that publishes it. Reaches the hook two ways: `bun run gate --release`, or `bun run git push --release …` (the wrapper consumes the flag and exports `SVELTY_RELEASE`, since git never forwards hook arguments). Skipped on the docs-only and `--only-failures` paths — a release commit is only prepared behind a full gate. Details: [Release Pipeline](../guides/configuration/version-channels.mdx).
 

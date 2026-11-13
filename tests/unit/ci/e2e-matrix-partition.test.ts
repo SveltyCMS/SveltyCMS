@@ -100,4 +100,30 @@ describe("CI E2E matrix partition", () => {
     );
     expect(empty.map((group) => group.name)).toEqual([]);
   });
+
+  /**
+   * The shard count is quoted in the rulebook and in the testing docs. It drifted
+   * from 9 to 11 when two groups were split and nothing noticed for weeks, so the
+   * number now has to match the partition that actually runs.
+   */
+  it("keeps the documented shard count in step with the matrix", () => {
+    const total = SHARD_GROUPS.length;
+    const files = [
+      "AGENTS.md",
+      "docs/tests/git-workflow.mdx",
+      "docs/tests/index.mdx",
+      "docs/tests/e2e-architecture.mdx",
+    ];
+
+    const stale = files.filter((file) => {
+      const source = readFileSync(join(ROOT, file), "utf8");
+      // Matches "11 E2E shards", "9-shard" and "(11 sharded)".
+      const claims = [...source.matchAll(/(\d+)[\s-]*(?:E2E\s+)?shard(?:s|ed)?\b/gi)].map((match) =>
+        Number(match[1]),
+      );
+      return claims.some((claim) => claim !== total);
+    });
+
+    expect(stale, `documents still quoting a shard count other than ${total}`).toEqual([]);
+  });
 });

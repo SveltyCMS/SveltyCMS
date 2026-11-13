@@ -4,7 +4,7 @@ title: E2E Architecture & Flow
 description: Technical deep-dive into the simplified 4-project Playwright E2E testing architecture.
 author: SveltyCMS Team
 created: 2026-03-21
-updated: 2026-07-19
+updated: 2026-11-13
 tags:
   - testing
   - e2e
@@ -26,7 +26,7 @@ SveltyCMS uses a streamlined **4-project pipeline** to achieve high-concurrency 
 ## Pipeline Overview
 
 ```
-wizard → firstuser → auth-setup → chromium (6 shards)
+wizard → firstuser → auth-setup → chromium (11 shards)
 ```
 
 | Phase | Project      | Purpose                                                                         | Runs                                           |
@@ -91,7 +91,7 @@ Each named E2E matrix job boots **its own** preview server from the e2e-env arti
 
 | Metric                | Before (19 Projects) | After (4 Projects)   | Improvement              |
 | --------------------- | -------------------- | -------------------- | ------------------------ |
-| CI job count          | 19                   | 3 (6 sharded)        | **68% reduction**        |
+| CI job count          | 19                   | 3 (11 sharded)       | **68% reduction**        |
 | Server startups       | 19 (one per project) | 1 (shared)           | **95% reduction**        |
 | Total CI runtime      | ~70–110 min          | ~12–15 min           | **~85% faster**          |
 | Auth state generation | Repeated per-project | Once in `auth-setup` | Eliminates N× redundancy |
@@ -141,7 +141,7 @@ Each worker within a chromium shard uses **header-based database routing** for f
 
 The key insight driving the simplification: **auth state is shared, not per-project**. Previously, each of the 19 projects repeated the login/setup flow independently, wasting ~3–5 minutes per project on redundant bootstrapping. By extracting setup into dedicated serial projects and sharing the resulting `storageState` files, the chromium tests start instantly with pre-authenticated sessions.
 
-The single-server model eliminates the dominant cost of the old architecture: **19 cold starts** of the SvelteKit preview server (~30s–2min each depending on adapter). One warm server serves all 6 shards concurrently.
+The single-server model eliminates the dominant cost of the old architecture: **19 cold starts** of the SvelteKit preview server (~30s–2min each depending on adapter). One warm server serves all 11 shards concurrently.
 
 ## Related
 

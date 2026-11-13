@@ -88,9 +88,9 @@ Measured end to end on 2026-11-07 before the cache and the parallel probe group:
 
 **Tree-scoped cache.** `check`, coverage, components, integration, E2E, mutation, parity and the deploy probe record a pass in `.git/svelty-gate-cache.json`, keyed on the Git tree hash plus `package.json`, `bun.lock`, the Vitest/Playwright configs, the Node/Bun runtime and the DB mode. Diff-scoped gates (integration, E2E, parity, mutation) also key on the diff base, so a rebase re-runs them. A dirty or untracked worktree can never record or hit; `bun run scripts/runs/gate-cache.ts clear` forces a full run. On the baseline cycle this removes the repeated `check` + component runs (~80s) and the parallel probe group saves ~15s of serial boot latency; a retried push of an unchanged commit reuses the remaining gates instead of re-running the 4-minute coverage job.
 
-**`next` and `main` run the same gate.** Both compute the browser targets from the same diff base (`origin/next`) and the same path mapping, so the release bump (`package.json` + `sbom.json`) is the only difference between them. The full serial suite is **CI-only**: it is split into 9 shards with isolated databases, because one shared local database takes ~17 min and surfaces spec-isolation artefacts rather than product regressions.
+**`next` and `main` run the same gate.** Both compute the browser targets from the same diff base (`origin/next`) and the same path mapping, so the release bump (`package.json` + `sbom.json`) is the only difference between them. The full serial suite is **CI-only**: it is split into 11 shards with isolated databases, because one shared local database takes ~17 min and surfaces spec-isolation artefacts rather than product regressions.
 
-**Multi-adapter DB matrix, benchmarks, and the CI shard partitioning remain CI-only.** Pre-push runs the SQLite suite plus the mapped browser contracts; the 4-engine matrix and the 9-shard split only exist on CI. Docs-only pushes skip build + integration + browser + mutation.
+**Multi-adapter DB matrix, benchmarks, and the CI shard partitioning remain CI-only.** Pre-push runs the SQLite suite plus the mapped browser contracts; the 4-engine matrix and the 11-shard split only exist on CI. Docs-only pushes skip build + integration + browser + mutation.
 
 **Release preparation (opt-in).** `bun run git push --release` (or `--release=patch|minor|major`) arms a
 post-gate step: once the nine checks pass, `scripts/version.ts auto` derives the next SemVer version from
@@ -281,7 +281,7 @@ CI runs the complete matrix automatically on every PR/push to `next`. Covers wha
 - **Whitebox**: format + lint + type check + secret scan + deploy backdoor probe + hardware tier probe (real cgroup limits)
 - **Build**: `COMPILE_ALL_ADAPTERS=true` production build
 - **DB tests**: Full multi-adapter matrix (MongoDB, PostgreSQL, MariaDB, SQLite)
-- **E2E**: Playwright prep + 6 shards (chromium)
+- **E2E**: Playwright prep + 11 shards (chromium)
 - **Benchmarks**: Performance regression detection
 
 All local test commands must use **`config/private.test.ts` only** — they must **not** rename, overwrite, or connect through the developer's `config/private.ts` (live user data). Isolation is env + policy (`private-config-policy.ts`), not backup/restore of live config.

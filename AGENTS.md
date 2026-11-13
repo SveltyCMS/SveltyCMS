@@ -100,7 +100,7 @@ All public-facing documentation, marketing, and competitive comparisons MUST com
 | Tier                | Triggered by                                                           | Jobs                                                                          | Wall clock |
 | :------------------ | :--------------------------------------------------------------------- | :---------------------------------------------------------------------------- | :--------- |
 | **fast** (required) | `pull_request`, push to `next`                                         | `plan`, `bootstrap`, `whitebox` (policy/quality + unit), `build`, `all-green` | ~6 min     |
-| **full**            | `merge_group`, nightly `schedule`, `workflow_dispatch`, push to `main` | everything above + Docker images, DB ×4, bench ×4, E2E ×9 shards              | ~12 min    |
+| **full**            | `merge_group`, nightly `schedule`, `workflow_dispatch`, push to `main` | everything above + Docker images, DB ×4, bench ×4, E2E ×11 shards             | ~12 min    |
 
 Branch protection requires **`✅ All Green`** only. The gate counts `skipped` as not-failed, so the same check is valid in both tiers: a PR proves the fast tier, and the merge queue re-runs the full matrix on the merge commit before it can land. `pull_request` deliberately has **no** `paths-ignore` — GitHub never reports a required check for a workflow that path filters skip, which would make docs-only PRs unmergeable.
 
@@ -111,7 +111,7 @@ Repository settings this file assumes (not configurable from the repo):
 
 ### CI gate parity (`ci.yml` → local mirror)
 
-CI runs 2 whitebox jobs (policy/quality + unit) + harness build + DB ×4 + bench ×4 + 9 E2E shards in the **full** tier. Validate the mirror locally first — a green local tree must stay green on CI:
+CI runs 2 whitebox jobs (policy/quality + unit) + harness build + DB ×4 + bench ×4 + 11 E2E shards in the **full** tier. Validate the mirror locally first — a green local tree must stay green on CI:
 
 | CI job (`ci.yml`)                  | Local mirror                                                                                                                                                                                                                       |
 | :--------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -135,7 +135,7 @@ CI runs 2 whitebox jobs (policy/quality + unit) + harness build + DB ×4 + bench
 | `src/utils/media/`, `src/services/media/`, media API handlers          | `routes/mediagallery/{mediagallery,folders-bulk,media-bulk-partial-failure}.spec.ts`, `routes/site/share-link.spec.ts` |
 | `src/widgets/`, `src/components/collection-display/`, collection route | `routes/collection-builder/kitchen-sink.spec.ts`                                                                       |
 
-The mapping targets spec **paths**, never `--grep` (a path cannot be combined with `--shard` and cannot silently select zero tests). The media-server row exists because a bulk-download 500 shipped from `src/utils/media/sharing.ts`, which matched no mapping and therefore never ran `folders-bulk.spec.ts`. If you touch a subsystem and the hook did not list its spec, the mapping is stale — fix the hook before trusting a green gate. **The full serial suite stays on CI** (9 shards, isolated DBs); running it on one shared local DB takes ~17 min and exposes spec-isolation artefacts, not product regressions.
+The mapping targets spec **paths**, never `--grep` (a path cannot be combined with `--shard` and cannot silently select zero tests). The media-server row exists because a bulk-download 500 shipped from `src/utils/media/sharing.ts`, which matched no mapping and therefore never ran `folders-bulk.spec.ts`. If you touch a subsystem and the hook did not list its spec, the mapping is stale — fix the hook before trusting a green gate. **The full serial suite stays on CI** (11 shards, isolated DBs); running it on one shared local DB takes ~17 min and exposes spec-isolation artefacts, not product regressions.
 
 **Parity rules — the ones that break otherwise-green trees:**
 

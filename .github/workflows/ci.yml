@@ -8,7 +8,7 @@ name: CI
 #         bootstrap · Static/Policy/Quality · Unit + components + mutation · Build
 #
 #   FULL  (merge queue, nightly, manual, every push to `main`)
-#         everything in FAST + Docker images · DB ×4 · Bench ×4 · E2E ×9 shards
+#         everything in FAST + Docker images · DB ×4 · Bench ×4 · E2E ×11 shards
 #
 # Branch protection requires **✅ All Green** only. The gate treats a skipped job
 # as not-failed, so the same required check is valid in both tiers: a PR proves
