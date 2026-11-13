@@ -300,6 +300,67 @@ test.describe("Kitchen Sink Master Collection — Editorial Lifecycle", () => {
   });
 
   /**
+   * AUD-002 / AUD-016 — the editor's dirty state and the leave guard.
+   *
+   * AUD-016: the status panel read "Unsaved changes" the moment an entry opened,
+   * because the snapshot comparison depended on object key order. AUD-002: the
+   * header × then discarded the edit without asking, while System Settings showed
+   * a confirm dialog for the same situation. Both are asserted in the order a user
+   * meets them: clean on open, dirty after typing, guarded on close.
+   */
+  test("AUD-002/016: dirty state follows real edits and closing asks first", async ({ page }) => {
+    const fixture = await seedKitchenSinkCollection(page, "aud002");
+    const created = await page.request.post("/api/testing", {
+      headers: TEST_API_HEADERS,
+      data: {
+        action: "insert",
+        collectionId: fixture.id,
+        data: { title: "Leave guard fixture" },
+      },
+    });
+    expect(created.ok(), `insert failed: ${created.status()}`).toBeTruthy();
+
+    await openCollectionEntries(page, fixture.id);
+    const row = page.getByRole("row").filter({ hasText: "Leave guard fixture" }).first();
+    await expect(row).toBeVisible({ timeout: 15_000 });
+    await row.click();
+    await expect(page).toHaveURL(/\?.*edit=/i, { timeout: 15_000 });
+
+    const titleInput = page
+      .getByRole("textbox", { name: /^title$/i })
+      .or(page.locator('input[name="title"]').first());
+    await expect(titleInput).toHaveValue("Leave guard fixture", { timeout: 10_000 });
+
+    // AUD-016: nothing has been typed, so the entry is clean.
+    await expect(page.getByText("Unsaved changes", { exact: true })).toHaveCount(0);
+
+    await titleInput.fill("Leave guard fixture (edited)");
+    await expect(page.getByText("Unsaved changes", { exact: true })).toBeVisible({
+      timeout: 5_000,
+    });
+
+    const closeButton = page.getByRole("button", { name: "Cancel", exact: true }).first();
+    await closeButton.click();
+
+    const dialog = page
+      .getByRole("dialog")
+      .filter({ hasText: /unsaved changes/i })
+      .first();
+    await expect(dialog).toBeVisible({ timeout: 10_000 });
+
+    // Staying keeps the edit.
+    await page.getByRole("button", { name: /keep editing/i }).click();
+    await expect(dialog).toHaveCount(0, { timeout: 5_000 });
+    await expect(titleInput).toHaveValue("Leave guard fixture (edited)");
+
+    // Discarding actually leaves.
+    await closeButton.click();
+    await expect(dialog).toBeVisible({ timeout: 10_000 });
+    await page.getByRole("button", { name: /discard changes/i }).click();
+    await expect(page).not.toHaveURL(/\?.*edit=/i, { timeout: 15_000 });
+  });
+
+  /**
    * CB1 — editing an existing blueprint collection must save.
    *
    * The retest saved a NEW collection but editing the seeded `posts` blueprint

@@ -29,6 +29,29 @@ import { logger } from "@utils/logger";
  */
 const browser = typeof window !== "undefined" && typeof window.addEventListener === "function";
 
+/**
+ * Deterministic serialisation for change detection.
+ *
+ * `JSON.stringify` preserves insertion order, so `{a, b}` and `{b, a}` produce
+ * different strings for identical data. The editor's field patch rebuilds an
+ * object with the edited key moved to the end, which reported "Unsaved
+ * changes" on a freshly opened entry (AUD-016) and would have made a leave
+ * guard fire on every close. Sorting object keys removes the ordering from the
+ * comparison; array order is preserved because it is data.
+ */
+function stableSnapshot(value: unknown): string {
+  return JSON.stringify(value, (_key, val: unknown) => {
+    if (val && typeof val === "object" && !Array.isArray(val)) {
+      const sorted: Record<string, unknown> = {};
+      for (const key of Object.keys(val as Record<string, unknown>).sort()) {
+        sorted[key] = (val as Record<string, unknown>)[key];
+      }
+      return sorted;
+    }
+    return val;
+  });
+}
+
 /** Cheap FNV-1a fingerprint — avoids JSON.stringify of large ContentNode trees (client-safe). */
 function structureFingerprint(nodes: ContentNode[]): string {
   let h = 2166136261;
@@ -207,28 +230,44 @@ class CollectionState {
   // --- Change Tracking State ---
   hasChanges = $state(false);
   initialDataSnapshot = $state("");
+  /**
+   * Whether the user has touched the form at all.
+   *
+   * Widgets normalise missing values on mount (`isFeatured: null` → `false`), which
+   * made a freshly opened entry differ from its own baseline and the status panel
+   * claim "Unsaved changes" (AUD-016). Dirty therefore means "the value differs
+   * *and* the user has interacted"; the flag is raised by the first real
+   * pointer/key/input event inside the form.
+   */
+  interacted = $state(false);
 
   setHasChanges(v: boolean) {
     this.hasChanges = v;
   }
 
+  markInteracted() {
+    this.interacted = true;
+  }
+
   setInitialSnapshot(data: Record<string, unknown>) {
-    this.initialDataSnapshot = JSON.stringify(data);
+    this.initialDataSnapshot = stableSnapshot(data);
     this.hasChanges = false;
+    this.interacted = false;
   }
 
   compareWithCurrent(currentData: Record<string, unknown>): boolean {
     if (!this.initialDataSnapshot) return false;
-    const currentSnapshot = JSON.stringify(currentData);
-    const changed = currentSnapshot !== this.initialDataSnapshot;
-    if (this.hasChanges !== changed) {
-      this.hasChanges = changed;
+    const changed = stableSnapshot(currentData) !== this.initialDataSnapshot;
+    const dirty = changed && this.interacted;
+    if (this.hasChanges !== dirty) {
+      this.hasChanges = dirty;
     }
-    return changed;
+    return dirty;
   }
 
   resetChanges() {
     this.hasChanges = false;
+    this.interacted = false;
     this.initialDataSnapshot = "";
   }
 

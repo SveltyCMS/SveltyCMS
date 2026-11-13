@@ -52,7 +52,7 @@
 	// --- Derived from page & stores ---
 	import { logger } from '@utils/logger';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
-	import { modalState, showCloneModal, showScheduleModal } from '@utils/modal.svelte';
+	import { modalState, showCloneModal, showScheduleModal, showConfirm } from '@utils/modal.svelte';
 	import { attachSaveShortcut } from '@utils/save-shortcut';
 	import { navigationManager } from '@utils/navigation';
 	import { toast } from '@src/stores/toast.svelte.ts';
@@ -328,6 +328,9 @@
 	}
 
 	async function persistEntry(): Promise<void> {
+		// A save attempt is the moment validation becomes actionable: every error
+		// surface (summary, inline messages, disabled Save) is gated on this.
+		validationStore.markSurfaced();
 		if (!isFormValid) {
 			const errorKeys = Object.keys(validationStore.errors || {}).filter(
 				(k) => validationStore.errors[k]
@@ -399,7 +402,24 @@
 		})
 	);
 
-	function cancel(): void {
+	/**
+	 * AUD-002: closing the editor used to discard edits silently, while System
+	 * Settings showed an "Unsaved Changes" dialog for the same situation. The
+	 * status panel is the source of truth — if it says "Unsaved changes", leaving
+	 * asks first.
+	 */
+	async function cancel(): Promise<void> {
+		if (hasChanges && currentMode !== 'view') {
+			const discard = await showConfirm({
+				title: 'Unsaved Changes',
+				body: 'You have unsaved changes. Leave the editor without saving them?',
+				confirmText: 'Discard changes',
+				cancelText: 'Keep editing',
+				theme: { color: 'warning', variant: 'soft' }
+			});
+			if (!discard) return;
+		}
+
 		document.dispatchEvent(new CustomEvent('cancelEdit', { bubbles: true }));
 		setCollectionValue({});
 		// Route transition, not a layout preference: write the shell state directly

@@ -145,4 +145,52 @@ describe("CollectionStore — Reactive Getters (snapshot fix)", () => {
       expect(collections.active?.fields).toHaveLength(2);
     });
   });
+
+  describe("change detection (AUD-016)", () => {
+    it("ignores key order for the same data", () => {
+      collections.setInitialSnapshot({ title: "Impressum", slug: "impressum" });
+
+      expect(collections.compareWithCurrent({ slug: "impressum", title: "Impressum" })).toBe(false);
+      expect(collections.hasChanges).toBe(false);
+    });
+
+    it("ignores key order inside nested objects", () => {
+      collections.setInitialSnapshot({ seo: { title: "T", description: "D" } });
+
+      expect(collections.compareWithCurrent({ seo: { description: "D", title: "T" } })).toBe(false);
+    });
+
+    it("stays clean when a widget normalises a value on mount", () => {
+      // The form opens with `isFeatured: null`; the Checkbox widget writes `false`
+      // back. That is not a user edit, so the entry must stay clean.
+      collections.setInitialSnapshot({ title: "Impressum", isFeatured: null });
+
+      expect(collections.compareWithCurrent({ title: "Impressum", isFeatured: false })).toBe(false);
+      expect(collections.hasChanges).toBe(false);
+    });
+
+    it("still reports a real edit", () => {
+      collections.setInitialSnapshot({ title: "Impressum" });
+      collections.markInteracted();
+
+      expect(collections.compareWithCurrent({ title: "Impressum QA" })).toBe(true);
+      expect(collections.hasChanges).toBe(true);
+    });
+
+    it("treats array order as data", () => {
+      collections.setInitialSnapshot({ tags: ["a", "b"] });
+      collections.markInteracted();
+
+      expect(collections.compareWithCurrent({ tags: ["b", "a"] })).toBe(true);
+    });
+
+    it("resets the interaction gate when a new snapshot is taken", () => {
+      collections.setInitialSnapshot({ title: "A" });
+      collections.markInteracted();
+      collections.setInitialSnapshot({ title: "B" });
+
+      expect(collections.compareWithCurrent({ title: "B" })).toBe(false);
+      expect(collections.interacted).toBe(false);
+    });
+  });
 });

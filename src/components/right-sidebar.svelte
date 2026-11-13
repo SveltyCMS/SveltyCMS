@@ -33,7 +33,6 @@
 		status_publish,
 		status_state_published,
 		status_state_unpublished,
-		status_unpublish,
 		validation_fix_before_save
 	} from '@src/paraglide/messages';
 	import { collections } from '@src/stores/collection-store.svelte';
@@ -261,6 +260,7 @@
 	}
 
 	async function save() {
+		validationStore.markSurfaced();
 		if (!isFormValid) {
 			toast.warning(validation_fix_before_save());
 			return;
@@ -367,7 +367,7 @@
 						{button_save()}
 					</Button>
 
-					{#if !isFormValid}
+					{#if !isFormValid && validationStore.surfaced}
 						<p
 							id="entry-save-blocked"
 							class="mt-2 flex items-start gap-1.5 text-xs text-error-500"
@@ -384,10 +384,11 @@
 					>
 						<Toggle
 							value={collections.isPublish}
-							label={collections.isPublish ? status_publish() : status_unpublish()}
-							labelColor={collections.isPublish
-								? 'text-tertiary-500 dark:text-primary-500'
-								: 'text-error-500'}
+							/* The label names the field, not the current state: a toggle that
+							   flips between "Publish" and a red "Unpublish" reads as an action
+							   and paints an off switch as an error (AUD-017). The Badge above
+							   already states Published/Unpublished. */
+							label={status_publish()}
 							iconOn="ic:baseline-check-circle"
 							iconOff="material-symbols:close"
 							disabled={shouldDisableStatusToggle}

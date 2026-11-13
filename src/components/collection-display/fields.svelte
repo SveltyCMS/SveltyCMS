@@ -334,10 +334,26 @@
 			})
 	);
 
+	/**
+	 * A native `input`/`change` event means the user touched a control. Widgets that
+	 * write normalised defaults on mount do not fire one, which is exactly the
+	 * distinction the dirty check needs (AUD-016): the store only turns dirty when a
+	 * value differs *and* the user has interacted.
+	 */
+	function markUserInteraction(event: Event) {
+		const target = event.target as HTMLElement | null;
+		if (target?.closest('input, textarea, select, [contenteditable="true"]')) {
+			collections.markInteracted();
+		}
+	}
+
 	/** Field-level store patch — avoids full-object JSON.stringify on every keystroke. */
 	function syncFieldToStore(fieldName: string) {
-		const base = (collections.activeValue as Record<string, any>) || {};
-		const patch = { ...base, [fieldName]: currentCollectionValue[fieldName] };
+		// Build from the local (normalised) form, not the raw entry: the change
+		// baseline is the normalised object, so a patch built from the raw entry
+		// differed from it on mount and reported "Unsaved changes" before the
+		// user typed anything (AUD-016).
+		const patch = { ...currentCollectionValue };
 		setCollectionValue(patch);
 		collections.compareWithCurrent(patch);
 		if (collaborationService.isCollaborative) {
@@ -350,20 +366,27 @@
 	// migration previously ran INSIDE the template (state writes in template
 	// expressions are forbidden by Svelte: they cause unstable re-renders that
 	// end in effect_update_depth_exceeded).
+	//
+	// The change-tracking baseline is the NORMALISED object, not the raw entry:
+	// widgets write defaults back on mount, so a raw snapshot made a freshly
+	// opened entry differ from its own form and the status panel said "Unsaved
+	// changes" before anyone typed (AUD-016).
 	$effect(() => {
 		const global = collections.activeValue as Record<string, unknown> | undefined;
 		const globalId = (global as any)?._id;
 
 		if (globalId && globalId !== lastEntryId) {
-			currentCollectionValue = applyFieldDefaults({ ...global } as Record<string, any>, false);
+			const normalized = applyFieldDefaults({ ...global } as Record<string, any>, false);
+			currentCollectionValue = normalized;
 			lastEntryId = globalId;
-			collections.setInitialSnapshot(global as Record<string, any>);
+			collections.setInitialSnapshot(normalized);
 			return;
 		}
 
 		if (!(globalId || lastEntryId) && global && Object.keys(global).length > 0) {
-			currentCollectionValue = applyFieldDefaults({ ...global } as Record<string, any>, true);
-			collections.setInitialSnapshot(global as Record<string, any>);
+			const normalized = applyFieldDefaults({ ...global } as Record<string, any>, true);
+			currentCollectionValue = normalized;
+			collections.setInitialSnapshot(normalized);
 		}
 	});
 
@@ -714,6 +737,8 @@
 	});
 </script>
 
+<svelte:document oninputcapture={markUserInteraction} onchangecapture={markUserInteraction} />
+
 <h1 class="sr-only">
 	{activeCollection?.name ? `Edit ${activeCollection.name} Entry` : 'Edit Entry'}
 </h1>
@@ -791,7 +816,7 @@
 				class="rounded border border-(--admin-border-default) bg-(--admin-bg-card) px-3 py-4 sm:px-4"
 			>
 				<div class="flex w-full flex-col gap-1">
-					{#if validationIssues.length > 0}
+					{#if validationIssues.length > 0 && validationStore.surfaced}
 						<!-- Shared error surface: required-field errors also reach widgets (SEO,
 						     rich text, select) that do not render their own message. -->
 						<div
