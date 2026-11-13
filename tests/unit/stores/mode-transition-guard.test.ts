@@ -113,4 +113,31 @@ describe("ModeTransitionGuard", () => {
       expect(ok).toBe(false);
     });
   });
+
+  /**
+   * Sidebar/tree/floating-nav links reset the mode in the click handler, which
+   * runs before SvelteKit's `beforeNavigate`. Pre-setting `view` on a dirty form
+   * made the editor's leave guard early-return and the edits were dropped without
+   * a draft or a prompt.
+   */
+  describe("resetForNavigation (leave guard hand-off)", () => {
+    it("resets to view when the form is clean", () => {
+      mockMode.value = "edit";
+      mockDataChangeStore.hasChanges = false;
+
+      modeTransitionGuard.resetForNavigation();
+
+      expect(mockSetMode).toHaveBeenCalledWith("view");
+    });
+
+    it("keeps the dirty mode so the editor's leave guard still fires", () => {
+      mockMode.value = "edit";
+      mockDataChangeStore.hasChanges = true;
+
+      modeTransitionGuard.resetForNavigation();
+
+      expect(mockSetMode).not.toHaveBeenCalled();
+      expect(mockMode.value).toBe("edit");
+    });
+  });
 });

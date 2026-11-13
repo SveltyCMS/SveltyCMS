@@ -192,6 +192,8 @@
 
 	// Track the last entry ID to detect when switching entries
 	let lastEntryId = $state<string | undefined>(undefined);
+	/** Last `collections.valueRevision` this form pulled, so a draft restore re-pulls. */
+	let lastRevision = 0;
 
 	// Track current content language for reactivity
 	let currentContentLanguage = $state<Locale>(contentLanguage.value as Locale);
@@ -374,11 +376,15 @@
 	$effect(() => {
 		const global = collections.activeValue as Record<string, unknown> | undefined;
 		const globalId = (global as any)?._id;
+		// A wholesale replacement (draft restore) keeps the same id, so the effect
+		// must also re-pull when the store says its value was replaced.
+		const revision = collections.valueRevision;
 
-		if (globalId && globalId !== lastEntryId) {
+		if (globalId && (globalId !== lastEntryId || revision !== lastRevision)) {
 			const normalized = applyFieldDefaults({ ...global } as Record<string, any>, false);
 			currentCollectionValue = normalized;
 			lastEntryId = globalId;
+			lastRevision = revision;
 			collections.setInitialSnapshot(normalized);
 			return;
 		}
@@ -386,6 +392,7 @@
 		if (!(globalId || lastEntryId) && global && Object.keys(global).length > 0) {
 			const normalized = applyFieldDefaults({ ...global } as Record<string, any>, true);
 			currentCollectionValue = normalized;
+			lastRevision = revision;
 			collections.setInitialSnapshot(normalized);
 		}
 	});

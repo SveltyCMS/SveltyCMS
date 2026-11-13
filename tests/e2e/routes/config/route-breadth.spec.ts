@@ -11,10 +11,14 @@
  * - iterates the static admin routes (excluding parameterized paths)
  * - asserts HTTP < 400, non-login URL, visible main/heading shell
  * - rejects SvelteKit error-page markers in the rendered body
+ * - fails on any uncaught browser exception, console error or failed request
+ *   raised while the route hydrates (one assertion per route, so the failure
+ *   names the page that broke)
  */
 
 import { expect, test } from "../../fixtures";
 import { loginAsAdmin, waitForHydration } from "../../helpers/auth";
+import { assertNoZeroErrors, attachZeroErrorGuard } from "../../helpers/zero-error-guard";
 
 /** Static admin routes only — parameterized pages are covered by their feature specs. */
 const ADMIN_ROUTES = [
@@ -47,6 +51,9 @@ test.beforeEach(async ({ page }) => {
   // The wizard/auth-setup phase resets the DB, so the shared storageState is
   // intentionally stale here (all feature specs re-authenticate the same way).
   await loginAsAdmin(page);
+  // After login: the sign-in page has its own accessibility spec, and a login
+  // failure here would mask the route under test.
+  attachZeroErrorGuard(page);
 });
 
 test.describe("Admin route breadth", () => {
@@ -69,6 +76,8 @@ test.describe("Admin route breadth", () => {
       expect(body, `${route} rendered an error page`).not.toMatch(
         /System Error|Internal Server Error|Application Error/i,
       );
+
+      assertNoZeroErrors(page);
     });
   }
 

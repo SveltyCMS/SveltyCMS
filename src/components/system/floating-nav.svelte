@@ -263,13 +263,14 @@ Home button and Settings available.
 	}
 
 	function handleNavigateToEndpoint(): void {
-		modeTransitionGuard.setMode('view');
+		// Guarded: a dirty editor must reach its own leave guard (AUD-002).
+		modeTransitionGuard.resetForNavigation();
 		showRoutes = false;
 		// Navigation is handled by <a> tag href attribute
 	}
 
 	function handleNavigateHome(): void {
-		modeTransitionGuard.setMode('view');
+		modeTransitionGuard.resetForNavigation();
 		modalState.clear();
 		ui.toggle('leftSidebar', 'hidden');
 		showRoutes = false;

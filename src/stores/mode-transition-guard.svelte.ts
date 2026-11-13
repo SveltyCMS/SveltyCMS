@@ -26,6 +26,23 @@ class ModeStateMachine {
     _setMode(newMode);
   }
 
+  /**
+   * Reset to `view` for a navigation that is already in flight.
+   *
+   * Sidebar, tree and floating-nav links used to call `setMode('view')` directly
+   * in the click handler. Svelte 5 delegates `click` on `document.body` while
+   * SvelteKit listens on `document.documentElement`, so that handler runs BEFORE
+   * `beforeNavigate` — which then saw a clean `view` mode, early-returned, and the
+   * user's edits were dropped without a draft or a prompt.
+   *
+   * Keeping the dirty mode lets the editor's own leave guard run; it either saves
+   * a draft or asks. When the form is clean the pre-set is still needed, otherwise
+   * the destination would render in the previous edit/create mode.
+   */
+  resetForNavigation(): void {
+    if (!collections.hasChanges) _setMode("view");
+  }
+
   private readonly transitions: ModeTransition[] = [
     { from: "view", to: "create" },
     { from: "view", to: "edit" },

@@ -533,7 +533,7 @@ This page dynamically switches between List views and Field editors based on the
 		const resume = resumeDraft;
 		if (!resume) return;
 
-		collections.setCollectionValue({ ...resume.data });
+		collections.replaceCollectionValue({ ...resume.data });
 		initialCollectionValue = JSON.stringify(collections.activeValue);
 		trackedDraftId = resume.draft._id;
 		trackedDraftContentId = resume.draft.contentId || null;

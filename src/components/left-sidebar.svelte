@@ -222,14 +222,15 @@ Route-driven sidebar content (no dual collapsible section headers):
 		if (isMobile()) {
 			ui.toggle('leftSidebar', 'hidden');
 		}
-		modeTransitionGuard.setMode('view');
+		// Guarded: a dirty editor must reach its own leave guard (AUD-002).
+		modeTransitionGuard.resetForNavigation();
 	}
 
 	function handleConfigClick(): void {
 		if (isMobile()) {
 			ui.toggle('leftSidebar', 'hidden');
 		}
-		modeTransitionGuard.setMode('view');
+		modeTransitionGuard.resetForNavigation();
 	}
 
 	async function signOut(): Promise<void> {

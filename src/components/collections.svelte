@@ -713,7 +713,8 @@ Provides an organized interface for navigating hierarchical content structures.
 			return;
 		}
 		const same = selectedId === node._id;
-		modeTransitionGuard.setMode('view');
+		// Guarded: a dirty editor must reach its own leave guard (AUD-002).
+		modeTransitionGuard.resetForNavigation();
 		ui.wizard.shouldShowNextButton = true;
 
 		document.dispatchEvent(

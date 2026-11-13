@@ -258,7 +258,7 @@ export const STATIC_CATALOG: StaticCatalogDef[] = [
     category: "page",
     titleKey: "global_search_config_title",
     descriptionKey: "global_search_config_description",
-    titleFallback: "Configuration",
+    titleFallback: "System Configuration",
     descriptionFallback: "System configuration overview and navigation hub.",
     keywords: ["config", "settings", "setup", "administration", "system"],
     icon: "mdi:tune",

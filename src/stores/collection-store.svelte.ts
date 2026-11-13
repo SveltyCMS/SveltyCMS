@@ -324,12 +324,26 @@ class CollectionState {
     return true;
   }
 
+  /**
+   * Bumped when the value is replaced wholesale by something other than the form
+   * itself (draft restore). The entry id does not change in that case, so the
+   * editor's pull-effect would otherwise ignore the new state and keep showing
+   * the saved entry (a "Restore draft" click that visibly does nothing).
+   */
+  valueRevision = $state(0);
+
   setCollectionValue(newValue: Record<string, unknown>) {
     this.activeValue = newValue;
     // Business logic: ensure status is set if not present
     if (this.activeValue && !("status" in this.activeValue)) {
       this.activeValue.status = this.active?.status ?? "unpublish";
     }
+  }
+
+  /** Replace the value AND tell the form to re-pull it (same entry id). */
+  replaceCollectionValue(newValue: Record<string, unknown>) {
+    this.setCollectionValue(newValue);
+    this.valueRevision += 1;
   }
 
   setModifyEntry(newFn: (status?: keyof typeof statusMap) => Promise<void>) {
