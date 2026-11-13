@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:map-marker-path"
 author: "SveltyCMS Team"
 created: "2026-08-23"
-updated: "2026-11-05"
+updated: "2026-11-13"
 tags:
   - "reference"
   - "documentation"
@@ -45,6 +45,7 @@ Reference tables for agents working in SveltyCMS. The rules live in `AGENTS.md`;
 | **Performance**       | `docs/reference/database/performance-architecture.mdx`      | `achievements-2026.mdx`                                                                                               |
 | **Benchmarks**        | `docs/tests/benchmark-matrix.mdx`                           | `docs/project/benchmarks/index.mdx`                                                                                   |
 | **Testing Scripts**   | `docs/tests/testing-scripts.mdx`                            | `docs/tests/index.mdx`                                                                                                |
+| **Static gates**      | `docs/tests/testing-scripts.mdx`                            | `AGENTS.md` (§4 drift gates), `docs/contributing/validation-pipeline.mdx`                                             |
 | **Intelligence / AI** | `docs/reference/architecture/behavioral-learning.mdx`       | `ai-integration.mdx`, `achievements-2026.mdx`                                                                         |
 | **Preloading**        | `docs/reference/architecture/hover-preloading.mdx`          | `behavioral-learning.mdx`, `cache-system.mdx`                                                                         |
 | **Media pipeline**    | `docs/reference/architecture/media-system.mdx`              | `media.mdx`, `achievements-2026.mdx`                                                                                  |
@@ -78,6 +79,7 @@ Reference tables for agents working in SveltyCMS. The rules live in `AGENTS.md`;
 | **Widgets**     | `widget-factory.ts`, `widget-store.svelte.ts`                                                                                                                                                                    |
 | **API**         | `routes/api/`, `hooks.server.ts`                                                                                                                                                                                 |
 | **Admin Theme** | `admin-page-shell.svelte`, `admin-card.svelte`, `theme-context.svelte.ts`, `theme-merge.ts`                                                                                                                      |
+| **Gates**       | `scripts/check/rule-registry.ts` (single-owner check list), `run-fast-checks.ts`, `run-source-lints.ts` (13 rules, one read), `hardcoded-copy-baseline.json` (199 fingerprints)                                  |
 | **Benchmarks**  | `benchmark-reporting.ts`, `benchmark-history.ts`, `benchmark-analysis.ts`, `benchmark-mdx.ts`, `benchmark-executive.ts`, `scripts/benchmark-matrix/` (16 files — regression-detector, reporting, runner, config) |
 | **Build**       | `vite.config.ts`, `svelte.config.js`, `tailwind.config.js`                                                                                                                                                       |
 

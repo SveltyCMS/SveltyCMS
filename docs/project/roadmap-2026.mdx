@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-11-11"
+updated: "2026-11-13"
 tags:
   - "roadmap"
   - "backlog"
@@ -211,7 +211,7 @@ tags:
   - **OpenAPI covers the automation surfaces.** Added 12 paths (webhooks + logs/retry, workflows, automations + logs/test) and the `Webhooks & Automation` tag; pinned by `tests/unit/services/api-spec-service.test.ts`.
   - **Event-bus boundary documented, not merged.** Routing `AutomationEvent` payloads through `@utils/event-bus` would forward entry data to the SSE wildcard; the reason is now in the module header and [automations > Why two event buses](../guides/content/automations.mdx).
 
-- **Drift gates shipped (2026-11-06)**: `lint:global-timers` (AST scope detection for module timers), `lint:live-paths` (static live constants outside the resolvers), `lint:transient-classification` (unclassified collection/config delete inside a catch), `lint:date-helpers` (`nowISODateString()` only), `lint:silent-catch`, `lint:rule-budgets` (per-area `any`/`AppError` ratchets) and `lint:e2e-actionability` run inside `bun run check`. Fixture tests live in `tests/unit/scripts/lint-*.test.ts`.
+- **Drift gates shipped (2026-11-06)**: `lint:global-timers` (AST scope detection for module timers), `lint:live-paths` (static live constants outside the resolvers), `lint:transient-classification` (unclassified collection/config delete inside a catch), `lint:date-helpers` (`nowISODateString()` only), `lint:silent-catch`, `lint:rule-budgets` (per-area `any`/`AppError` ratchets) and `lint:e2e-actionability` run inside `bun run check`. Fixture tests live in `tests/unit/scripts/lint-*.test.ts`. The source-rule set has since grown to thirteen (adding `locale-format`, `css-tokens`, `click-away`, `duplicate-testids`, `remote-transport`, `anonymous-leaks` and `design`) under one `run-source-lints` gate, plus the `check:copy:ratchet` baseline — see [achievements 3.79](./achievements-2026.mdx).
 
 - **Systemic audit follow-ups (2026-11-06)** — the isolation and loader fixes exposed defect _classes_, not one-offs. Counts measured on this tree:
   - [x] **Module-level timers leak per HMR.** `content-transfer.ts` (5-minute export sweep) and `api-key-usage-accumulator.ts` (10-second flush) now keep their timer + state on one `globalThis` object and `unref()` it; `lint:global-timers` (AST scope detection) gates new ones.
@@ -223,13 +223,12 @@ tags:
   - [x] **Silent catches.** All 93 empty `catch {}` blocks now log (`logger.debug`) or carry `catch-allow:`; `lint:silent-catch` enforces it. Cleanup `.catch(() => {})` handlers stay out of scope by design.
   - [x] **E2E actionability drift.** `lint:e2e-actionability` gates new `force: true` / `waitForTimeout` in specs unless a `force-allow:` / `wait-allow:` reason is written; the 12 force and 6 wait sites were triaged with reasons. Conditional/feature-gated skips remain legitimate (the ADR already bans soft-skips for control-map rows).
   - [x] **OpenAPI inventory.** `ENDPOINT_PERMISSIONS` moved to `src/routes/api/[...path]/endpoint-permissions.ts`; the spec now publishes `x-sveltycms.endpointPermissions`, `documentedNamespaces` and `undocumentedNamespaces`. Every one of the 67 namespaces is accounted for; curated paths remain intentional.
-  - [ ] **Date-display drift.** `toLocale*` inside `src/` now pins `en-US` (smart-importer counts, analytics month labels) so server output is deterministic; route new UI through `@utils/format-date` with `systemLanguage`.
 
 - **Type-Checking Gate Integration**:
   - [x] Wire `svelte-check` into pre-commit and CI quality gates (`bun run check`), including a machine-reporter parse (`scripts/check/check-svelte-diagnostics.ts`) that fails on **warnings** as well as errors — `--threshold warning` only widens output and still exits 0, so it alone was not a gate.
 - **Editorial Journey Matrix (next step for E2E)**:
   - [x] Composite multi-field journey (`kitchen-sink.spec.ts`) + zero-error guard + editor-boundary journey + browser-vitality benchmark + widget interaction matrix (2026-10-23, see [achievements 3.60](./achievements-2026.mdx)).
-  - [ ] Extend the composite journey to the remaining widget families: `RichText`, `Textarea`, `Select`, `Date`, `Tags`, `MediaUpload`, `Relation`, `Repeater` — include one uploaded image and one relation row, and assert the unsaved-changes guard.
+  - [ ] Extend the composite journey to the remaining widget families: `RichText`, `Textarea`, `Select`, `Date`, `Tags`, `MediaUpload`, `Relation`, `Repeater` — include one uploaded image and one relation row. (The unsaved-changes guard is already asserted by AUD-002/016 in `kitchen-sink.spec.ts`; see [achievements 3.79](./achievements-2026.mdx).)
   - [ ] Add a shared-harness `page.on('pageerror')` trap to the whole chromium project (not only the new journeys) once the current console-error allowlist is proven stable.
   - [ ] Tighten the browser-vitality budgets from a recorded baseline (domInteractive < 5 s / fill < 1 s / heap < 180 MB are placeholder ceilings) and add an INP measurement for rich-text typing.
   - [ ] Browser-mode component tests for `RichText`, repeater drag-and-drop, the date picker and the media picker (jsdom cannot exercise layout/pointer behaviour).

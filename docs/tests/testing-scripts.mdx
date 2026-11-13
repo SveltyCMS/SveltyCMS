@@ -6,7 +6,7 @@ order: 15
 icon: "🔧"
 author: "SveltyCMS Team"
 created: "2026-07-04"
-updated: "2026-11-01"
+updated: "2026-11-13"
 tags:
   - "testing"
   - "scripts"
@@ -50,9 +50,9 @@ The `scripts/` directory is partitioned into structured domain folders to mainta
 ```
 scripts/
 ├── benchmark-matrix/   # Multi-database micro-benchmark and regression matrix
-├── check/              # Static safety & invariant gates (DB safety, bundle size, flake budget, seams, lockfile)
+├── check/              # Static safety & invariant gates + the fast-check registry/runner (DB safety, bundle size, flake budget, seams, lockfile, source lints)
 ├── ci/                 # CI reporting dashboards and Playwright result analyzers
-├── lint/               # Specialized AST and token linters (design tokens, shades, widgets, tenant isolation)
+├── lint/               # Specialized AST and token linters (design tokens, shades, widgets, tenant isolation, locale format, CSS tokens, click-away)
 ├── probe/              # Runtime probes & network readiness (deploy backdoor, cgroup hardware, wait-for-ready)
 ├── runs/               # Test runners & harness orchestrators (run-integration, run-e2e, matrix, bench)
 ├── security/           # Dynamic & static security scanners, fuzzers, SBOM, backdoor verification
@@ -250,7 +250,7 @@ bun run scripts/security/scan-secret-misuse.ts --strict      # CI mode (exit 1 o
 Static + AST scanner for vulnerability classes in OUR code — the layer no external database can cover. Scans all files under `src/` (vendored `src/types/`, `node_modules`, generated `src/paraglide/` excluded):
 
 | Rule                         | Severity | Detects                                                                                                                      |
-| ---------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| :--------------------------- | :------- | :--------------------------------------------------------------------------------------------------------------------------- |
 | SQL value interpolation      | error    | `'${value}'` inside SQL strings — the `author__not_in` SQLi class; line-scoped identifier guard (`assertSafeSqlIdentifier`)  |
 | SQL string concatenation     | error    | `"..." + value + "..."` SQL assembly                                                                                         |
 | MongoDB JS execution         | error    | `$where` / `$function` / `$accumulator` — server-side JS (RCE class)                                                         |
@@ -414,10 +414,45 @@ Use it when a local step only needs a runnable `build/` (integration preview, E2
 
 ### `scripts/check/run-fast-checks.ts` — Parallel static-gate runner
 
-Runs the 21 read-only policy/AST/assurance gates concurrently (8 workers) and fails closed on any non-zero exit. `bun run check` calls it instead of chaining 21 `bun run` processes with `&&`.
+Schedules the read-only policy/AST/assurance gates declared in `scripts/check/rule-registry.ts` (the single owner of each check's id, script, args, kind and owner) across up to 8 workers and fails closed on any non-zero exit. `bun run check` calls it instead of chaining every script with `&&`.
+
+The suite is **18 entries**, grouped by owning subsystem:
+
+- `design-system` — `consolidate-shades`
+- `widgets` — `lint-widgets`
+- `tests` — `lint-e2e-hydration`, `lint-trivial-assertions`, `lint-e2e-actionability`, `check-route-behaviour`, `check-route-manifest`, `check-integration-isolation`, `check-seam-assertions`
+- `marketplace` — `marketplace-conformance`
+- `release` — `check-lockfile-sync`, `version-verify`
+- `security` — `security-assurance`
+- `architecture` — `check-ast-gates`, `check-route-efficiency`, `check-source-lints`
+- `i18n` — `check-translations`, `check-hardcoded-copy`
+
+Two entries aggregate several rules: `check-source-lints` runs thirteen rules over one tree read (below) and `check-ast-gates` runs the module-graph linkmap plus the tenant-scope analysis in one process. The registry is asserted before any spawn: a duplicate id, a missing script, or an `ast` rule without an exported pure function fails the run.
 
 - Measured on a 24-thread machine: **~2–3 s warm**, ~10 s cold, against ~20 s for the sequential chain.
 - Output is buffered per gate, so a failure prints that gate's own log and the gate id.
+
+### `scripts/check/run-source-lints.ts` — thirteen source rules, one tree read
+
+The `check-source-lints` registry entry. It reads the workspace **once** (the inclusive view, so Paraglide output and `.d.ts` mirrors are present for the budget ratchet) and derives the filtered view every other rule scans, then reports one deterministic list with a per-rule prefix (`date-helpers file:line — …`). The budget ratchet receives the inclusive list because it must count exactly what `readSourceFiles()` counts.
+
+| Rule                       | Rejects                                                                                                                                       | Escape hatch                         |
+| :------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------- |
+| `date-helpers`             | a direct `new Date().toISOString()` instead of `nowISODateString()`                                                                           | `lint-date-helpers: allow`           |
+| `locale-format`            | `toLocaleDateString()` / `toLocaleTimeString()` / `toLocaleString()` outside `src/utils/format-date.ts` and `src/utils/date.ts`               | `lint-locale-format: allow <reason>` |
+| `css-tokens`               | a `@theme` block that declares a `--color-*` ramp without `static`; a literal `var(--color-…)` no stylesheet or same-file definition declares | —                                    |
+| `click-away`               | a `document.addEventListener("click", …)` in a `.svelte` file whose handler never calls `closest()`/`contains()`, or guards on `data-testid`  | `lint-click-away: allow <reason>`    |
+| `silent-catch`             | an empty catch block                                                                                                                          | `catch-allow: <reason>`              |
+| `live-paths`               | a live path constant (`paths.collections`, `DEFAULT_DATABASE_DIR`, …) outside the resolvers                                                   | `lint-live-paths: allow`             |
+| `transient-classification` | a collection/config delete inside a catch handler that is not classified                                                                      | `lint-transient: allow`              |
+| `global-timers`            | a module-scope timer without a `globalThis` guard and `.unref()`                                                                              | `lint-global-timers: allow`          |
+| `duplicate-testids`        | a `data-testid` on a component that already renders the same id, or the same id twice on one component in one file                            | `testid-allow`                       |
+| `remote-transport`         | a SvelteKit `query()` (GET) that carries secret-shaped arguments or a mutating verb name                                                      | `remote-transport-allow: <reason>`   |
+| `anonymous-leaks`          | an anonymously reachable handler that returns a sign-in link, token, hash or API key                                                          | — (double opt-in gate only)          |
+| `design`                   | dead/legacy classes, an undefined `preset-*`, `variant`/`preset` on `AdminCard`, a nested `<style>` block, a missing dynamic color recipe     | —                                    |
+| `rule-budgets`             | a per-file or per-rule increase in `any` / direct `throw new AppError` against `scripts/lint/rule-budgets.json`                               | `--update` ratchets down             |
+
+The standalone scripts stay runnable for debugging; this module is the gate `bun run check` executes. A missing budget baseline fails closed with the `--update` command in the message.
 
 ### `scripts/check/run-typecheck.ts` — Parallel type gates
 
@@ -464,14 +499,40 @@ bun run check:lockfile
 
 **Used by**: Quality gate (`bun run check`).
 
-### `scripts/check/check-hardcoded-copy.ts` & `scripts/check/check-translations.ts` — Localization Gates
+### `scripts/check/check-route-efficiency.ts` — route-load efficiency scan
 
-Verifies user-facing copy uses Paraglide message tokens and validates completeness across supported languages.
+Scans `.server.ts` and `+server.ts` files under `src/routes/` for two patterns: a direct `dbAdapter.crud.*` / `.content` / `.collection` / `.system` / `.auth` call that bypasses `LocalCMS` (and with it the shared cache, tracing and tenant guards), and a sequential-`await` waterfall — four or more consecutive `const`/`let` statements that each `await` with no `Promise.all`. `src/routes/api/[...path]/+server.ts` and `src/routes/api/testing/+server.ts` are the whitelisted raw-DB routes; any path containing `testing` is exempt from the bypass rule.
+
+`--check` exits 1 only when a **critical** violation exists. Both current rules emit `advisory`, so the gate reports rather than blocks until a rule is promoted.
 
 ```bash
-bun run check:copy
-bun run check:translations
+bun run scripts/check/check-route-efficiency.ts --check
 ```
+
+**Used by**: Quality gate (`bun run check`, registry id `check-route-efficiency`).
+
+### `scripts/check/check-hardcoded-copy.ts` — unlocalized-copy ratchet
+
+Scans `.svelte` files under `src/routes/(app)` with the Svelte 5 AST for raw text nodes and user-facing attributes (`placeholder`, `aria-label`, `title`, `alt`), plus wildcard `paraglide/messages` imports. Suppression is `<!-- copy:ignore -->` per node and `<!-- copy:ignore-file -->` per file.
+
+`--check` is a **ratchet**, not a zero-tolerance scan: it compares `path::snippet` fingerprints against `scripts/check/hardcoded-copy-baseline.json` (**199 entries** as of 2026-11-13). A string that is not recorded fails; a baseline entry the scan no longer produces is reported as stale. `--update` re-records the full set after a reviewed change.
+
+```bash
+bun run check:copy           # advisory report, exit 0
+bun run check:copy:ratchet   # the gate (--check)
+```
+
+**Used by**: Quality gate (`bun run check`, registry id `check-hardcoded-copy`).
+
+### `scripts/check/check-translations.ts` — locale catalog integrity
+
+Validates every JSON catalog in `src/messages/`, using `en` as the reference: missing keys are errors, extra keys and empty values are warnings. It does not read the `(app)` routes at all, so it complements the copy ratchet rather than duplicating it.
+
+```bash
+bun run scripts/check/check-translations.ts
+```
+
+**Used by**: Quality gate (`bun run check`, registry id `check-translations`). There is no package script — the registry invokes the file directly. Both localization gates were previously reachable only by running the script by hand.
 
 ---
 
@@ -517,6 +578,35 @@ Ensures benchmark documentation tables and metrics stay synchronized with measur
 
 ```bash
 bun run lint:benchmark-mdx
+```
+
+### `scripts/lint/lint-locale-format.ts` — pinned locale formatting
+
+Bans `toLocaleDateString()`, `toLocaleTimeString()` and the overloaded `toLocaleString()` everywhere except the formatter implementations (`src/utils/format-date.ts`, `src/utils/date.ts`). Those methods resolve the locale from the runtime, so server render and client hydration can disagree; the helpers (`formatDate`, `formatDateTime`, `formatTime`, `formatNumber`) resolve `systemLanguage` deterministically and memoize their `Intl` instances. Constructing `Intl.DateTimeFormat` / `Intl.NumberFormat` directly is not flagged. Escape hatch: `// lint-locale-format: allow <reason>`.
+
+```bash
+bun run lint:locale-format
+```
+
+### `scripts/lint/lint-css-tokens.ts` — tokens that can actually exist at runtime
+
+Two failures `tsc` and snapshots cannot see:
+
+1. **Unemitted palette** — Tailwind v4 only emits the theme variables a generated utility references, so a `@theme { --color-… }` block drops every shade reached only through `var()` indirection. Any block declaring a `--color-*` ramp must be `@theme static`.
+2. **Undefined token** — a literal `var(--color-…)` that no stylesheet declares (and that the same file does not define) falls back silently to an inherited colour.
+
+The token definitions are read from `src/app.css` and `src/utilities.css`; dynamic references (`var(--color-${shade}-500)`, a name ending in `-`) are skipped because there is no literal to resolve.
+
+```bash
+bun run lint:css-tokens
+```
+
+### `scripts/lint/lint-click-away.ts` — containment guards on document clicks
+
+A `document.addEventListener("click", …)` in a `.svelte` file must prove it tests containment (`closest()` or `contains()`) in its handler, and must not build its ignore-list from `data-testid`: a testid deny-list is always one trigger short, because testids are fixtures, not a behavioural contract. `src/components/ui/popover.svelte` is the shared primitive and is allowlisted. Escape hatch: `// lint-click-away: allow <reason>`.
+
+```bash
+bun run lint:click-away
 ```
 
 ---

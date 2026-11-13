@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:shield-check"
 author: "SveltyCMS Team"
 created: "2026-01-27"
-updated: "2026-10-17"
+updated: "2026-11-13"
 tags:
   - "validation"
   - "ci-cd"
@@ -27,7 +27,7 @@ Hook: `.githooks/pre-commit` · Manual: `bun run precommit`
 
 1. `scripts/check/check-test-db-safety.ts` — never point tests at a live DB name or live config path
 2. `bun run gate:fast` — lint-staged (formats staged files before `check` runs)
-3. `bun run check` — `oxfmt --check` + `oxlint` + 21 parallel policy gates + `svelte-kit sync` + `tsc`/`svelte-check` (parallel typecheck)
+3. `bun run check` — `oxfmt --check` + `oxlint` + **18 parallel policy/AST/assurance gates** (`scripts/check/rule-registry.ts` is the single owner of the list) + `svelte-kit sync` + `tsc`/`svelte-check` (parallel typecheck)
 4. **`bun run risk:audit`** — 6 parallel gates: global security-risk scan (all 4 adapters + loopback/tenant/test-mode/AST batch guards) + secret misuse + slop + tenant-isolation API hygiene (`lint-tenant-api`) + `bun audit` + OSV.dev (skipped if only docs changed; pass `--full` to force non-incremental scanning)
 5. `bun run test:unit` — full Vitest suite, invoked directly (skipped if only docs changed)
 6. `bun run test:unit:components` — real-DOM interaction suite (only when `.svelte` or UI/component/route/widget/store files are staged)
@@ -51,6 +51,8 @@ Hook: `.githooks/pre-push` · Manual: **`bun run gate`** or `bun run prepush`
 12. **Mutation** — `scripts/test/mutate-core.ts --changed` runs last (`FULL_MUTATION=true` for all seams)
 
 `scripts/runs/gate-cache.ts` keys a passing gate on the tree hash (plus manifest/lock/test-config/runtime/DB mode, and the diff base for diff-scoped gates) and stores it in `.git/svelty-gate-cache.json`. A dirty or untracked tree never records or hits. `bun run scripts/runs/gate-cache.ts clear` forces a full run.
+
+To keep the fast tier cheap, two registry entries aggregate rules instead of spawning one process each: `check-source-lints` (`scripts/check/run-source-lints.ts`) runs thirteen rules over a single workspace read, and `check-ast-gates` runs the module-graph linkmap and the tenant-scope analysis in one process. The newer gates — `locale-format`, `css-tokens` and `click-away` (rules inside `check-source-lints`) and `check-hardcoded-copy` (the `check:copy:ratchet` baseline) — add no step to the hook: see [Testing Scripts Catalog](../tests/testing-scripts.mdx).
 
 Docs-only pushes skip build + integration. The multi-engine DB matrix and benchmarks are **CI-only**; pre-push runs the SQLite suite plus the changed-path browser contracts, not the full 9-shard E2E partition.
 

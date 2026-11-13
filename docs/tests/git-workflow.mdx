@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:git"
 author: "SveltyCMS Team"
 created: "2025-09-28"
-updated: "2026-09-18"
+updated: "2026-11-13"
 tags:
   - "git"
   - "workflow"
@@ -73,7 +73,7 @@ SveltyCMS uses native Git hooks for local quality gates — no external precheck
 | Production build (4 adapters) | `scripts/runs/integration-harness.ts --ensure-build` (smart reuse)                                                                          | <1s–90s   |
 | Bundle size gate              | `scripts/check/check-bundle-size.ts`                                                                                                        | <1s       |
 | Build & security probes       | `scripts/runs/run-probe-group.ts` — prod-backdoor, secret-misuse, hardware-tiers, tenant-isolation (parallel)                               | ~15s      |
-| Quality gate                  | `bun run check` (21 parallel policy gates + parallel typecheck; cached per tree)                                                            | ~60s      |
+| Quality gate                  | `bun run check` (18 parallel policy/AST/assurance gates + parallel typecheck; cached per tree)                                              | ~60s      |
 | Unit coverage + budget        | `bun run test:coverage` (skipped when no `src/`/`tests/`/coverage config changed; cached per tree)                                          | ~4 min    |
 | Component interactions        | `bun run test:unit:components` (cached per tree)                                                                                            | ~25s      |
 | CVE audit                     | `bun audit --severity=high` (informational, never blocks)                                                                                   | <1s       |
