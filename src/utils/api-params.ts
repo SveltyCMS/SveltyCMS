@@ -23,11 +23,14 @@ export const MAX_PAGE_SIZE = 200;
  * Clamp a client-supplied page size into `1..MAX_PAGE_SIZE`.
  * Missing / non-finite / non-positive values fall back to `fallback` (default 50) —
  * the same lenient behavior the query parsers have always had, now with a ceiling.
+ *
+ * The result is always an integer: `LIMIT` must be a bigint on PostgreSQL, so a
+ * fractional `limit`/`take` (1.5) reached the driver as a float bind and failed.
  */
 export function clampPageSize(value: unknown, fallback = 50): number {
   const n = Number(value);
   if (!Number.isFinite(n) || n <= 0) return fallback;
-  return Math.min(n, MAX_PAGE_SIZE);
+  return Math.min(Math.max(1, Math.floor(n)), MAX_PAGE_SIZE);
 }
 
 export interface CollectionQueryParams {
@@ -213,11 +216,15 @@ export function parseCollectionQueryParams(searchParams: URLSearchParams): Colle
 
   for (const [key, value] of searchParams.entries()) {
     if (key === "limit") {
-      const n = Number(value);
-      if (!isNaN(n) && n > 0) limit = Math.min(n, MAX_PAGE_SIZE);
+      // `clampPageSize` owns the 1..MAX_PAGE_SIZE clamp and the integer floor
+      // (`limit=2.7` must not reach a `LIMIT` bind).
+      limit = clampPageSize(value, 50);
     } else if (key === "offset") {
-      const n = Number(value);
-      if (!isNaN(n) && n >= 0) offset = n;
+      // OFFSET must be a non-negative safe integer on every engine. `Number()`
+      // alone let `offset=Infinity` and `offset=1.5` through, while the sibling
+      // `parsePaginationQueryParams` floors with `parseInt`.
+      const n = Math.floor(Number(value));
+      if (Number.isSafeInteger(n) && n >= 0) offset = n;
     } else if (key === "cursor") {
       // Opaque keyset cursor — pass-through; the SDK decodes and validates it.
       if (!cursor && value) cursor = value;
@@ -326,11 +333,11 @@ export function parseVirtualCollectionQueryParams(
 
   for (const [key, value] of searchParams.entries()) {
     if (key === "limit") {
-      const n = Number(value);
-      if (!isNaN(n) && n > 0) limit = n;
+      limit = clampPageSize(value, 50);
     } else if (key === "offset") {
-      const n = Number(value);
-      if (!isNaN(n) && n >= 0) offset = n;
+      // Same integer/range contract as `parseCollectionQueryParams`.
+      const n = Math.floor(Number(value));
+      if (Number.isSafeInteger(n) && n >= 0) offset = n;
     } else if (key === "cursor") {
       cursor = value;
     } else if (key === "sortField" || key === "sort") {

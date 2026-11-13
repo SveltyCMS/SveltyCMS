@@ -117,8 +117,8 @@ empty/loading, and pagination stay consistent.
 	{#if showFooter}
 		<div class={SMART_TABLE_PAGINATION_BAR}>
 			<Pagination
-				{currentPage}
-				{rowsPerPage}
+				bind:currentPage
+				bind:rowsPerPage
 				{pagesCount}
 				{totalItems}
 				{rowsPerPageOptions}

@@ -190,14 +190,33 @@ Features:
 
 		revokingAll = true;
 		try {
+			const failedIds = new Set<string>();
 			for (const s of sessions) {
 				const sid = s._id || s.id;
 				if (!sid) continue;
-				await fetch(`/api/user/sessions/${encodeURIComponent(sid)}?admin=1`, {
-					method: 'DELETE',
-					headers: clientJsonHeaders((page.data as any)?.csrfToken)
-				}).catch(() => {});
+				try {
+					const res = await fetch(`/api/user/sessions/${encodeURIComponent(sid)}?admin=1`, {
+						method: 'DELETE',
+						headers: clientJsonHeaders((page.data as any)?.csrfToken)
+					});
+					if (!res.ok) failedIds.add(sid);
+				} catch {
+					// A network error leaves the session active, exactly like an HTTP error:
+					// keep it in the list and report it instead of claiming success.
+					failedIds.add(sid);
+				}
 			}
+
+			if (failedIds.size > 0) {
+				// Only the sessions the server confirmed are gone; the rest are still active.
+				sessions = sessions.filter((s) => {
+					const sid = s._id || s.id;
+					return sid ? failedIds.has(sid) : false;
+				});
+				toast.error(usersessions_revoke_all_error());
+				return;
+			}
+
 			sessions = [];
 			toast.success(usersessions_revoke_all_success());
 		} catch (err) {

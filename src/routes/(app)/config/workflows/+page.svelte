@@ -67,17 +67,32 @@ Professional free-form canvas with:
 
 	let { data } = $props();
 
-	let states = $state<WorkflowState[]>([
-		{ id: 'draft', label: 'Draft', color: '#94a3b8', isInitial: true },
-		{ id: 'review', label: 'In Review', color: '#fbbf24' },
-		{ id: 'published', label: 'Published', color: '#22c55e', isFinal: true }
-	]);
+	/**
+	 * Starter state machine: shown before a collection is selected and for a
+	 * collection that has no stored workflow. Built per call so assigning it to
+	 * `$state` never shares node objects between loads.
+	 */
+	function createStarterWorkflow(): {
+		states: WorkflowState[];
+		transitions: WorkflowTransition[];
+	} {
+		return {
+			states: [
+				{ id: 'draft', label: 'Draft', color: '#94a3b8', isInitial: true },
+				{ id: 'review', label: 'In Review', color: '#fbbf24' },
+				{ id: 'published', label: 'Published', color: '#22c55e', isFinal: true }
+			],
+			transitions: [
+				{ id: 't1', from: 'draft', to: 'review', label: 'Submit for Review' },
+				{ id: 't2', from: 'review', to: 'published', label: 'Approve & Publish' },
+				{ id: 't3', from: 'review', to: 'draft', label: 'Reject' }
+			]
+		};
+	}
 
-	let transitions = $state<WorkflowTransition[]>([
-		{ id: 't1', from: 'draft', to: 'review', label: 'Submit for Review' },
-		{ id: 't2', from: 'review', to: 'published', label: 'Approve & Publish' },
-		{ id: 't3', from: 'review', to: 'draft', label: 'Reject' }
-	]);
+	const starterWorkflow = createStarterWorkflow();
+	let states = $state<WorkflowState[]>(starterWorkflow.states);
+	let transitions = $state<WorkflowTransition[]>(starterWorkflow.transitions);
 
 	let selectedNodeId = $state<string | null>(null);
 	let selectedTransitionId = $state<string | null>(null);
@@ -354,9 +369,18 @@ Professional free-form canvas with:
 			ensurePositions();
 			toast.success(`Workflow loaded for ${collectionId}`);
 		} else {
+			// No stored workflow for this collection: clear the selection and fall
+			// back to the starter template. Keeping the previous collection's
+			// canvas made B render (and save) A's state machine.
+			const starter = createStarterWorkflow();
 			workflowId = null;
 			workflowName = '';
 			workflowDescription = '';
+			states = starter.states;
+			transitions = starter.transitions;
+			selectedNodeId = null;
+			selectedTransitionId = null;
+			ensurePositions();
 		}
 	}
 

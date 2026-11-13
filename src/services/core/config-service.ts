@@ -20,6 +20,7 @@ import { getSchemaPath } from "@src/content/first-collection";
 import { lazyModule } from "@utils/lazy-module";
 import { logger } from "@utils/logger";
 import { nowISODateString } from "@utils/date";
+import { raise } from "@utils/error-handling";
 
 /** Cached lazy handle to the turbo GET hook — one module-registry lookup instead of one per call. */
 const loadHandleTurboGetModule = lazyModule(() => import("@src/hooks/handle-turbo-get"));
@@ -126,6 +127,29 @@ export interface ConfigManifest {
   tenantId: string;
   createdAt: string;
   resources: Record<string, number>;
+}
+
+/**
+ * A `{ success: false }` adapter result is a rejected write, not a completed one.
+ *
+ * `upsertEntity` / `deleteEntity` used to ignore the result and swallow every
+ * throw, so `performImport` resolved after the adapter had refused every row and
+ * `POST /api/config/apply` answered `{ success: true }`.
+ */
+function assertWriteApplied(item: ConfigEntity, result: unknown): void {
+  if (
+    result &&
+    typeof result === "object" &&
+    "success" in result &&
+    (result as { success: unknown }).success === false
+  ) {
+    const message = (result as { message?: unknown }).message;
+    throw new Error(
+      typeof message === "string" && message
+        ? message
+        : `${item.type} "${item.name}" was not written`,
+    );
+  }
 }
 
 /**
@@ -395,14 +419,36 @@ export class ConfigService {
     }
 
     // 1. Handle New & Updated Entities
+    //    Every write is attempted; failures are collected and raised together so a
+    //    partial import is never reported as a completed one.
     const toUpsert = [...changes.new, ...changes.updated];
+    const failures: Array<{
+      action: "import" | "delete";
+      type: string;
+      name: string;
+      error: string;
+    }> = [];
+    const recordFailure = (action: "import" | "delete", item: ConfigEntity, err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.error(`Failed to ${action} ${item.type} "${item.name}":`, err);
+      failures.push({ action, type: item.type, name: item.name, error: message });
+    };
+
     for (const item of toUpsert) {
-      await this.upsertEntity(item, tenantId);
+      try {
+        await this.upsertEntity(item, tenantId);
+      } catch (err) {
+        recordFailure("import", item, err);
+      }
     }
 
     // 2. Handle Deleted Entities
     for (const item of changes.deleted) {
-      await this.deleteEntity(item, tenantId);
+      try {
+        await this.deleteEntity(item, tenantId);
+      } catch (err) {
+        recordFailure("delete", item, err);
+      }
     }
 
     // 3. Role mutations here bypass AuthNamespace.updateRoles — the only path that
@@ -425,6 +471,27 @@ export class ConfigService {
           `Role cache invalidation after config import failed: ${(err as Error).message}`,
         );
       }
+    }
+
+    // A partial write may have touched roles, so the caches are invalidated either
+    // way; the request still fails below — "applied" must mean every write landed.
+
+    if (failures.length > 0) {
+      const attempted = toUpsert.length + changes.deleted.length;
+      const detail = failures
+        .slice(0, 5)
+        .map((f) => `${f.action} ${f.type} "${f.name}" (${f.error})`)
+        .join("; ");
+      logger.error(
+        `[ConfigService] Import completed with ${failures.length} failed write(s) of ${attempted}`,
+        { failures },
+      );
+      raise(
+        500,
+        `Configuration import failed for ${failures.length} of ${attempted} entr${attempted === 1 ? "y" : "ies"}: ${detail}`,
+        "CONFIG_IMPORT_FAILED",
+        { failures },
+      );
     }
 
     logger.debug("Configuration import completed.");
@@ -458,7 +525,7 @@ export class ConfigService {
           // and the schema definition in the collectionDef JSON column.
           const now = nowISODateString();
           const schema = item.entity as Record<string, unknown>;
-          await adapter.crud.upsert(
+          const result = await adapter.crud.upsert(
             "content_nodes",
             {
               nodeType: "collection",
@@ -478,6 +545,7 @@ export class ConfigService {
             } as any,
             { tenantId: tenantId as DatabaseId | null },
           );
+          assertWriteApplied(item, result);
           logger.debug(`Imported collection: ${item.name}`);
           break;
         }
@@ -491,12 +559,14 @@ export class ConfigService {
               (r) => r.name === role.name || String(r._id) === item.uuid,
             );
             if (existing) {
-              await adapter.auth.updateRole(existing._id, role as any, {
+              const result = await adapter.auth.updateRole(existing._id, role as any, {
                 tenantId: tenantId as any,
               });
+              assertWriteApplied(item, result);
               logger.debug(`Updated role: ${item.name}`);
             } else {
-              await adapter.auth.createRole(role, { tenantId: tenantId as any });
+              const result = await adapter.auth.createRole(role, { tenantId: tenantId as any });
+              assertWriteApplied(item, result);
               logger.debug(`Imported role: ${item.name}`);
             }
           }
@@ -511,10 +581,11 @@ export class ConfigService {
         case "setting": {
           if (adapter.system?.preferences) {
             const e = item.entity as Record<string, unknown>;
-            await adapter.system.preferences.set(e.key as string, e.value, {
+            const result = await adapter.system.preferences.set(e.key as string, e.value, {
               scope: "system",
               tenantId: (tenantId as string | null) ?? (null as any),
             });
+            assertWriteApplied(item, result);
             logger.debug(`Imported setting: ${item.name}`);
           }
           break;
@@ -523,11 +594,10 @@ export class ConfigService {
         case "widget": {
           if (adapter.system?.widgets) {
             const w = item.entity as Record<string, unknown>;
-            if (w.isActive) {
-              await adapter.system.widgets.activate(item.uuid as any);
-            } else {
-              await adapter.system.widgets.deactivate(item.uuid as any);
-            }
+            const result = w.isActive
+              ? await adapter.system.widgets.activate(item.uuid as any)
+              : await adapter.system.widgets.deactivate(item.uuid as any);
+            assertWriteApplied(item, result);
             logger.debug(`Imported widget state: ${item.name}`);
           }
           break;
@@ -540,13 +610,12 @@ export class ConfigService {
             const existing = themes.find(
               (t) => t.name === themeData.name || String(t._id) === item.uuid,
             );
-            if (existing) {
-              await adapter.system.themes.update(existing._id, themeData as any);
-            } else {
-              await adapter.system.themes.ensure(themeData as any, { tenantId: tenantId as any });
-            }
+            const written = existing
+              ? await adapter.system.themes.update(existing._id, themeData as any)
+              : await adapter.system.themes.ensure(themeData as any, { tenantId: tenantId as any });
+            assertWriteApplied(item, written);
             if (themeData.isActive) {
-              await adapter.system.themes.setDefault(themeData._id);
+              assertWriteApplied(item, await adapter.system.themes.setDefault(themeData._id));
             }
             logger.debug(`Imported theme: ${item.name}`);
           }
@@ -554,33 +623,27 @@ export class ConfigService {
         }
 
         case "webhook": {
-          try {
-            await adapter.crud.upsert(
-              "webhooks",
-              { name: item.name, ...(tenantId && { tenantId }) } as Record<string, unknown>,
-              { ...item.entity, ...(tenantId && { tenantId }) } as any,
-              { tenantId: tenantId as DatabaseId | null },
-            );
-            logger.debug(`Imported webhook: ${item.name}`);
-          } catch (err) {
-            logger.error(`Failed to import webhook ${item.name}:`, err);
-          }
+          const result = await adapter.crud.upsert(
+            "webhooks",
+            { name: item.name, ...(tenantId && { tenantId }) } as Record<string, unknown>,
+            { ...item.entity, ...(tenantId && { tenantId }) } as any,
+            { tenantId: tenantId as DatabaseId | null },
+          );
+          assertWriteApplied(item, result);
+          logger.debug(`Imported webhook: ${item.name}`);
           break;
         }
 
         case "automation":
         case "workflow": {
-          try {
-            await adapter.crud.upsert(
-              "automations",
-              { name: item.name, ...(tenantId && { tenantId }) } as Record<string, unknown>,
-              { ...item.entity, ...(tenantId && { tenantId }) } as any,
-              { tenantId: tenantId as DatabaseId | null },
-            );
-            logger.debug(`Imported automation: ${item.name}`);
-          } catch (err) {
-            logger.error(`Failed to import automation ${item.name}:`, err);
-          }
+          const result = await adapter.crud.upsert(
+            "automations",
+            { name: item.name, ...(tenantId && { tenantId }) } as Record<string, unknown>,
+            { ...item.entity, ...(tenantId && { tenantId }) } as any,
+            { tenantId: tenantId as DatabaseId | null },
+          );
+          assertWriteApplied(item, result);
+          logger.debug(`Imported automation: ${item.name}`);
           break;
         }
 
@@ -589,6 +652,7 @@ export class ConfigService {
       }
     } catch (err) {
       logger.error(`Failed to import ${item.type} "${item.name}":`, err);
+      throw err;
     }
   }
 
@@ -598,16 +662,20 @@ export class ConfigService {
     try {
       switch (item.type) {
         case "collection": {
-          await adapter.crud.delete("collections", item.uuid as any, {
+          const result = await adapter.crud.delete("collections", item.uuid as any, {
             tenantId: tenantId as DatabaseId | null,
           });
+          assertWriteApplied(item, result);
           logger.debug(`Deleted collection: ${item.name}`);
           break;
         }
 
         case "role": {
           if (adapter.auth) {
-            await adapter.auth.deleteRole(item.uuid as any, { tenantId: tenantId as any });
+            const result = await adapter.auth.deleteRole(item.uuid as any, {
+              tenantId: tenantId as any,
+            });
+            assertWriteApplied(item, result);
             logger.debug(`Deleted role: ${item.name}`);
           }
           break;
@@ -620,10 +688,11 @@ export class ConfigService {
 
         case "setting": {
           if (adapter.system?.preferences) {
-            await adapter.system.preferences.delete(item.name, {
+            const result = await adapter.system.preferences.delete(item.name, {
               scope: "system",
               tenantId: (tenantId as string | null) ?? (null as any),
             });
+            assertWriteApplied(item, result);
             logger.debug(`Deleted setting: ${item.name}`);
           }
           break;
@@ -631,39 +700,42 @@ export class ConfigService {
 
         case "widget": {
           if (adapter.system?.widgets) {
+            let result: unknown;
             try {
-              await adapter.system.widgets.delete(item.uuid as any);
-              logger.debug(`Deleted widget: ${item.name}`);
+              result = await adapter.system.widgets.delete(item.uuid as any);
             } catch {
               // Deactivation fallback
-              await adapter.system.widgets.deactivate(item.uuid as any);
-              logger.debug(`Deactivated widget: ${item.name}`);
+              result = await adapter.system.widgets.deactivate(item.uuid as any);
             }
+            assertWriteApplied(item, result);
+            logger.debug(`Deleted widget: ${item.name}`);
           }
           break;
         }
 
         case "theme": {
           if (adapter.system?.themes) {
-            await adapter.system.themes.uninstall(item.uuid as any);
+            assertWriteApplied(item, await adapter.system.themes.uninstall(item.uuid as any));
             logger.debug(`Deleted theme: ${item.name}`);
           }
           break;
         }
 
         case "webhook": {
-          await adapter.crud.delete("webhooks", item.uuid as any, {
+          const result = await adapter.crud.delete("webhooks", item.uuid as any, {
             tenantId: tenantId as DatabaseId | null,
           });
+          assertWriteApplied(item, result);
           logger.debug(`Deleted webhook: ${item.name}`);
           break;
         }
 
         case "automation":
         case "workflow": {
-          await adapter.crud.delete("automations", item.uuid as any, {
+          const result = await adapter.crud.delete("automations", item.uuid as any, {
             tenantId: tenantId as DatabaseId | null,
           });
+          assertWriteApplied(item, result);
           logger.debug(`Deleted automation: ${item.name}`);
           break;
         }
@@ -673,6 +745,7 @@ export class ConfigService {
       }
     } catch (err) {
       logger.error(`Failed to delete ${item.type} "${item.name}":`, err);
+      throw err;
     }
   }
 

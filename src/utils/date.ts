@@ -19,7 +19,7 @@
  */
 
 import type { ISODateString } from "../content/types";
-import { formatDateTime, formatNumber } from "./format-date";
+import { formatDateTime, formatNumber, parseDateInput } from "./format-date";
 
 // Canonical, locale-aware relative formatting lives in format-date.ts so SSR and
 // hydration resolve the same locale. Re-exported here for existing callers.
@@ -221,6 +221,11 @@ export function toISOString(value: unknown): ISODateString {
 
 /**
  * Standard date formatting with pattern replacement (e.g. "yyyy-MM-dd").
+ *
+ * Input parsing delegates to `parseDateInput` (the single seconds-vs-milliseconds
+ * heuristic: `> 1e11` ⇒ ms). The local `> 1e12` copy read a millisecond timestamp
+ * from 1973-03-03..2001-09-09 as seconds, so `formatDateString(ms1995, …)`
+ * rendered year 27422 while `formatDate(ms1995, …)` rendered 1995.
  */
 export function formatDateString(
   dateInput: Date | number | string,
@@ -228,10 +233,8 @@ export function formatDateString(
   fallback = "",
 ): string {
   try {
-    const date = new Date(
-      typeof dateInput === "number" ? (dateInput > 1e12 ? dateInput : dateInput * 1000) : dateInput,
-    );
-    if (Number.isNaN(date.getTime())) return fallback;
+    const date = parseDateInput(dateInput);
+    if (!date) return fallback;
 
     const yyyy = date.getFullYear().toString();
     const MM = (date.getMonth() + 1).toString().padStart(2, "0");

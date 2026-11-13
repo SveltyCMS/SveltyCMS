@@ -53,7 +53,7 @@ export const privateEnv = {
   DB_TYPE: "sqlite",
   DB_HOST: "127.0.0.1",
   DB_PORT: "",
-  DB_NAME: "sveltycms_probe",
+  DB_NAME: "sveltycms_probe_test",
   DB_USER: "",
   DB_PASSWORD: "",
   JWT_SECRET_KEY: "Probe-JWT-Secret-Key-2026-32chars!",
