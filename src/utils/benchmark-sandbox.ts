@@ -19,6 +19,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { paths } from "./path-resolver.ts";
 import { isAutomatedTestHarness, isCiRunner } from "./private-config-policy.ts";
+import { isIsolatedTestDbName } from "./test-db-safety.ts";
 
 export type BenchmarkProfile = "local" | "ci-fresh";
 
@@ -250,6 +251,64 @@ export function assertLiveDataWriteAllowed(targetPath: string): void {
       `[BenchmarkSandbox] SECURITY VIOLATION: automated harness attempted to write live .compiledCollections at '${path.relative(cwd, normalizedTarget)}'. ` +
         "Tests must compile under .compiledCollections/test-collections.",
     );
+  }
+}
+
+/**
+ * Fail-closed pre-flight for anything that runs a benchmark server.
+ *
+ * The write guard above only protects the call sites it is wired into; this
+ * check stops a run before the server (or its workers) can resolve a live
+ * path at all. It is intentionally env-only and synchronous:
+ *
+ * - `DB_NAME` must be an isolation-owned name. `resolveSqlitePath()` uses the
+ *   same classifier, so an isolated name also routes the SQLite file to
+ *   `config/test-database/` instead of `config/database/`.
+ * - `MEDIA_FOLDER` / `SVELTY_CONFIG_SYNC_DIR` / a path-shaped `DB_HOST` must
+ *   not resolve inside the developer's live trees.
+ */
+export function assertBenchmarkIsolation(
+  env: NodeJS.ProcessEnv = process.env,
+  rootDir: string = process.cwd(),
+): void {
+  const dbName = env.DB_NAME?.trim() ?? "";
+  if (!dbName) {
+    throw new Error(
+      "[BenchmarkSandbox] DB_NAME is not set. A benchmark must declare an isolated database (e.g. benchmark_shared); refusing to run against the default/live database.",
+    );
+  }
+  if (!isIsolatedTestDbName(dbName)) {
+    throw new Error(
+      `[BenchmarkSandbox] DB_NAME='${dbName}' is not an isolated test/benchmark database. Live user data must never be used by a benchmark.`,
+    );
+  }
+
+  const assertOutsideLive = (key: string, value: string | undefined, liveRoots: string[]) => {
+    const raw = value?.trim();
+    if (!raw) return;
+    const target = path.normalize(path.resolve(rootDir, raw));
+    for (const liveRoot of liveRoots) {
+      if (isSameOrInside(target, path.normalize(path.resolve(rootDir, liveRoot)))) {
+        throw new Error(
+          `[BenchmarkSandbox] ${key}='${raw}' resolves inside live data (${liveRoot}). Benchmarks must use the sandbox roots from getLocalSandboxMediaRoot()/getLocalSandboxConfigSyncRoot().`,
+        );
+      }
+    }
+  };
+
+  assertOutsideLive("MEDIA_FOLDER", env.MEDIA_FOLDER, [
+    path.join(rootDir, "mediaFolder"),
+    path.join(rootDir, "media"),
+  ]);
+  assertOutsideLive("SVELTY_CONFIG_SYNC_DIR", env.SVELTY_CONFIG_SYNC_DIR, [
+    path.join(rootDir, "config", "sync"),
+  ]);
+
+  // A SQLite host is a directory; network addresses (localhost / IPs) are not.
+  const host = env.DB_HOST?.trim();
+  const isNetworkHost = !host || host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0";
+  if (!isNetworkHost) {
+    assertOutsideLive("DB_HOST", host, [path.join(rootDir, "config", "database")]);
   }
 }
 
