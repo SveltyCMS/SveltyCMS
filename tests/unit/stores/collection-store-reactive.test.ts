@@ -192,5 +192,29 @@ describe("CollectionStore — Reactive Getters (snapshot fix)", () => {
       expect(collections.compareWithCurrent({ title: "B" })).toBe(false);
       expect(collections.interacted).toBe(false);
     });
+
+    /**
+     * Change detection runs on every keystroke (`syncFieldToStore`). Serialising
+     * the entry to compare it is O(size) *and* allocates a fresh string per call;
+     * the first version of this fix cost ~38 ms per keystroke on a 49 KB entry.
+     *
+     * Asserting the shape (no serialisation on the comparison path) is stable in
+     * a way a millisecond budget is not: a timing bound flakes under load without
+     * telling you anything the call count does not.
+     */
+    it("does not serialise the entry on every comparison", () => {
+      const large = { title: "Impressum", content: "x".repeat(50_000) };
+      collections.setInitialSnapshot(large);
+      collections.markInteracted();
+
+      const stringify = vi.spyOn(JSON, "stringify");
+      try {
+        for (let index = 0; index < 100; index++) collections.compareWithCurrent(large);
+
+        expect(stringify).not.toHaveBeenCalled();
+      } finally {
+        stringify.mockRestore();
+      }
+    });
   });
 });
