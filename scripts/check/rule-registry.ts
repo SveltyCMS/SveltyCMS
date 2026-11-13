@@ -120,6 +120,19 @@ export const FAST_CHECKS: readonly CheckSpec[] = [
     owner: "architecture",
   },
   {
+    id: "check-route-efficiency",
+    script: "scripts/check/check-route-efficiency.ts",
+    args: ["--check"],
+    kind: "policy",
+    owner: "architecture",
+  },
+  {
+    id: "check-translations",
+    script: "scripts/check/check-translations.ts",
+    kind: "policy",
+    owner: "i18n",
+  },
+  {
     id: "check-hardcoded-copy",
     script: "scripts/check/check-hardcoded-copy.ts",
     args: ["--check"],
