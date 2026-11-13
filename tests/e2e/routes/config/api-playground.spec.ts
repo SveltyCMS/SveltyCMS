@@ -31,7 +31,7 @@ test.describe("API Playground — GraphQL explorer", () => {
     const landing = await page.request.get("/api/graphql", { headers: { Accept: "text/html" } });
     expect(landing.status()).toBe(200);
     expect(landing.headers()["content-type"] ?? "").toContain("text/html");
-    expect(await landing.text()).toContain("Yoga GraphiQL");
+    expect(await landing.text()).toContain("SveltyCMS GraphQL");
   });
 
   test("config hub restores the direct GraphQL explorer tile", async ({ page }) => {

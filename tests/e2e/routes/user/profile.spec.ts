@@ -358,7 +358,7 @@ test.describe.serial("User Profile Management", () => {
     // Select Duration
     await tokenDialog.locator("#expires-select").selectOption("12 hrs");
 
-    await tokenDialog.getByRole("button", { name: "Save" }).click();
+    await tokenDialog.getByRole("button", { name: /send invite|save/i }).click();
 
     // After success the modal stays open and renders an "Invitation Token Created"
     // panel with the copyable invite link. Assert on that heading (scoped to the

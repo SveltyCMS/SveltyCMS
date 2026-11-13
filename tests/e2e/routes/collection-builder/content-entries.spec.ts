@@ -372,7 +372,7 @@ test.describe("Collection entries (edit / delete / search / error boundary)", ()
     // stay outline. (A filled dashboard action was an intentional UX change.)
     await expect(dashboard, "Go to Dashboard action").toBeVisible({ timeout: 10_000 });
     await expect(dashboard, "Go to Dashboard must be primary").toHaveClass(
-      /preset-filled-tertiary-600/,
+      /preset-filled-primary-500/,
     );
     for (const [label, button] of [
       ["Reload View", reload],

@@ -45,7 +45,7 @@ test.describe("User Management — Invite Flow", () => {
       await roleChip.click();
     }
 
-    await tokenDialog.getByRole("button", { name: /save/i }).click();
+    await tokenDialog.getByRole("button", { name: /send invite|save/i }).click();
 
     await expect(
       tokenDialog.getByRole("heading", { name: /Invitation Token Created/i }),
