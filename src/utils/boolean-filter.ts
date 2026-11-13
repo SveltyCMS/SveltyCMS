@@ -12,6 +12,7 @@
  */
 
 import type { CollectionFilterMap } from "./collection-query-filter-meta";
+import { raise } from "./error-handling";
 
 export type BooleanFilterOperator =
   | "equals"
@@ -60,6 +61,13 @@ const OPERATORS = new Set<BooleanFilterOperator>([
   "is_not_empty",
 ]);
 
+/**
+ * Operators the UI previously offered but the portable filter map cannot express.
+ * Fail closed: a crafted `filterLogic` URL carrying one of these must 400, never
+ * be silently dropped (a dropped clause shows rows the caller intended to exclude).
+ */
+const FORBIDDEN_OPERATORS = new Set(["not_contains", "starts_with", "ends_with"]);
+
 function sanitizeField(field: string): string | null {
   const trimmed = field.trim();
   if (!FIELD_RE.test(trimmed) || trimmed.length > 80) return null;
@@ -86,6 +94,17 @@ export function parseBooleanFilterGroup(raw: unknown): BooleanFilterGroup | null
   const rulesIn = Array.isArray(o.rules) ? o.rules : [];
   const rules: BooleanFilterRule[] = [];
   for (const item of rulesIn.slice(0, MAX_RULES)) {
+    const rawOperator =
+      item &&
+      typeof item === "object" &&
+      typeof (item as Record<string, unknown>).operator === "string"
+        ? ((item as Record<string, unknown>).operator as string)
+        : "";
+    if (FORBIDDEN_OPERATORS.has(rawOperator)) {
+      raise(400, `Unsupported filter operator "${rawOperator}"`, "FILTER_UNSUPPORTED_OPERATOR", {
+        operator: rawOperator,
+      });
+    }
     const rule = sanitizeRule(item);
     if (rule) rules.push(rule);
   }
@@ -113,11 +132,13 @@ export function decodeBooleanFilterParam(
 ): BooleanFilterGroup | null {
   if (!raw || typeof raw !== "string") return null;
   if (raw.length > MAX_URL_CHARS) return null;
+  let parsed: unknown;
   try {
-    return parseBooleanFilterGroup(JSON.parse(raw));
+    parsed = JSON.parse(raw);
   } catch {
     return null;
   }
+  return parseBooleanFilterGroup(parsed);
 }
 
 function ruleToAndOp(rule: BooleanFilterRule): CollectionFilterMap[string] | null {
@@ -135,12 +156,11 @@ function ruleToAndOp(rule: BooleanFilterRule): CollectionFilterMap[string] | nul
     case "lte":
       return rule.value ? { lte: rule.value } : null;
     case "gt":
-      return rule.value ? { gte: rule.value } : null;
+      return rule.value ? { gt: rule.value } : null;
     case "lt":
-      return rule.value ? { lte: rule.value } : null;
+      return rule.value ? { lt: rule.value } : null;
     case "not_equals":
-      // Portable approximation: empty/null is the closest fail-closed operator.
-      return rule.value ? { contains: rule.value } : null;
+      return rule.value ? { ne: rule.value } : null;
     default:
       return null;
   }

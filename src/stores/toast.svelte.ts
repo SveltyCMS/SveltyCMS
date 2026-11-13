@@ -303,6 +303,7 @@ class ToastStore {
   close(id: string): void {
     const toast = this.toasts.find((t) => t.id === id);
     this.clearTimer(id);
+    this.paused.delete(id);
     this.toasts = this.toasts.filter((t) => t.id !== id);
     this.persist();
     // Fire onDismiss for manual closes (not timer-based)
@@ -319,10 +320,10 @@ class ToastStore {
   pause(id: string): void {
     if (this.paused.has(id)) return;
 
-    this.paused.add(id);
     const toast = this.toasts.find((t) => t.id === id);
     if (!toast) return;
 
+    this.paused.add(id);
     const elapsed = Date.now() - toast.createdAt;
     toast.remainingTime = Math.max(0, toast.remainingTime - elapsed);
 

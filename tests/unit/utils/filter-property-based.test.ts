@@ -79,7 +79,16 @@ const LOGICAL_OPERATOR_KEYS = ["$and", "$or", "$nor", "$not"] as const;
 // ---------------------------------------------------------------------------
 
 /** Operator shapes `whitelistFilterParams` is documented to emit. */
-const OPERATOR_SIGNATURES = new Set(["contains", "eq", "in", "isNull", "gte,lte"]);
+const OPERATOR_SIGNATURES = new Set([
+  "contains",
+  "eq",
+  "ne",
+  "in",
+  "isNull",
+  "gte,lte",
+  "gt",
+  "lt",
+]);
 
 function assertFilterOperatorShape(value: unknown): void {
   expect(value).toBeTypeOf("object");
@@ -93,12 +102,22 @@ function assertFilterOperatorShape(value: unknown): void {
     expect(op.eq).not.toBeUndefined();
     expect(op.eq).not.toBeNull();
     expect(String(op.eq).trim()).not.toBe("");
+  } else if ("ne" in op) {
+    expect(op.ne).not.toBeUndefined();
+    expect(op.ne).not.toBeNull();
+    expect(String(op.ne).trim()).not.toBe("");
   } else if ("in" in op) {
     expect(Array.isArray(op.in)).toBe(true);
     expect((op.in as unknown[]).length).toBeGreaterThan(0);
     expect((op.in as unknown[]).length).toBeLessThan(100);
   } else if ("isNull" in op) {
     expect(typeof op.isNull).toBe("boolean");
+  } else if ("gt" in op) {
+    expect(op.gt).not.toBeUndefined();
+    expect(op.gt).not.toBeNull();
+  } else if ("lt" in op) {
+    expect(op.lt).not.toBeUndefined();
+    expect(op.lt).not.toBeNull();
   } else {
     // gte/lte pair — at least one bound must be a real value.
     // trivial-assert-ok: the contract is a union (one or both bounds may be present).
@@ -208,6 +227,12 @@ const filterOpValueArb = fc.oneof(
       nil: undefined,
     }),
     lte: fc.option(fc.oneof(fc.string({ maxLength: 8 }), fc.integer({ min: -5, max: 5 })), {
+      nil: undefined,
+    }),
+    gt: fc.option(fc.oneof(fc.string({ maxLength: 8 }), fc.integer({ min: -5, max: 5 })), {
+      nil: undefined,
+    }),
+    lt: fc.option(fc.oneof(fc.string({ maxLength: 8 }), fc.integer({ min: -5, max: 5 })), {
       nil: undefined,
     }),
   }),

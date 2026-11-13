@@ -28,9 +28,6 @@ Provides operator selection, type-specific inputs, and accessible keyboard navig
 		| 'equals'
 		| 'not_equals'
 		| 'contains'
-		| 'not_contains'
-		| 'starts_with'
-		| 'ends_with'
 		| 'gt'
 		| 'gte'
 		| 'lt'
@@ -52,11 +49,8 @@ Provides operator selection, type-specific inputs, and accessible keyboard navig
 
 	export const STRING_OPERATORS: OperatorOption[] = [
 		{ value: 'contains', label: 'contains' },
-		{ value: 'not_contains', label: 'does not contain' },
 		{ value: 'equals', label: 'equals' },
 		{ value: 'not_equals', label: 'does not equal' },
-		{ value: 'starts_with', label: 'starts with' },
-		{ value: 'ends_with', label: 'ends with' },
 		{ value: 'is_empty', label: 'is empty' },
 		{ value: 'is_not_empty', label: 'is not empty' }
 	];

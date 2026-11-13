@@ -140,6 +140,8 @@
 					if (result.success) {
 						toast.success('Completed jobs cleared.');
 						await refreshAll();
+					} else {
+						toast.error('Failed to clear completed jobs.');
 					}
 				} catch (e: unknown) {
 					toast.error(
@@ -163,6 +165,8 @@
 					if (result.success) {
 						toast.success('Job deleted.');
 						await refreshAll();
+					} else {
+						toast.error('Failed to delete job.');
 					}
 				} catch (e: unknown) {
 					toast.error(e instanceof Error ? e.message || String(e) : 'Failed to delete job.');
@@ -743,6 +747,8 @@
 																if (result.success) {
 																	toast.success('Job rescheduled.');
 																	await refreshAll();
+																} else {
+																	toast.error('Failed to retry job.');
 																}
 															} catch (e: unknown) {
 																toast.error(

@@ -39,6 +39,22 @@ import { normalizeSortDirection } from "./page-utils";
 import { logger } from "@utils/logger";
 
 /**
+ * Portable filter keys emitted by `compileBooleanFilterGroup` (`boolean-filter`)
+ * versus their Mongo-style `$` spelling. The REST / bracket pipeline rewrites
+ * these upstream, but the `filterLogic` advanced-filter path can hand the bare
+ * keys straight through — so translate them here (fail-closed: anything else is
+ * still treated as the existing whole-value `$eq`, which the filterable-fields
+ * guard rejects before a driver bind error can occur).
+ */
+const PORTABLE_OPERATOR_TO_MONGO: Readonly<Record<string, string>> = Object.freeze({
+  ne: "$ne",
+  gt: "$gt",
+  gte: "$gte",
+  lt: "$lt",
+  lte: "$lte",
+});
+
+/**
  * Sentinel for the raw point-read fast path.
  * `null` from `rawFindById` means "SELECT ran and matched 0 rows" (absent);
  * `RAW_DECLINED` means "the raw path could not run" (fall back to Drizzle).
@@ -1285,6 +1301,24 @@ function addFilterConds(
           );
           handled = true;
         } else {
+          const canonical = PORTABLE_OPERATOR_TO_MONGO[subKey];
+          if (canonical) {
+            addSingleCondition(
+              out,
+              table,
+              key,
+              canonical,
+              subValue,
+              getColumn,
+              getJsonField,
+              value,
+              coerceJsonValue,
+              getJsonEquals,
+              getJsonCompare,
+            );
+            handled = true;
+            continue;
+          }
           addSingleCondition(
             out,
             table,

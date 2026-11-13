@@ -30,9 +30,12 @@ export const FILTER_URL_PREFIX = "filter_";
 export type CollectionFilterOp =
   | { contains: string }
   | { eq: string | number | boolean }
+  | { ne: string | number | boolean }
   | { in: Array<string | number | boolean> }
   | { isNull: boolean }
   | { gte?: string | number; lte?: string | number }
+  | { gt: string | number }
+  | { lt: string | number }
   | string;
 
 /** Map of field id → operator, ready for QueryBuilder / CollectionService. */

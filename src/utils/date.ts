@@ -183,11 +183,27 @@ export function nowISODateString(): ISODateString {
 }
 
 /**
- * Converts an ISO date string to a Date object with automatic fallback to Date.now() on invalid input.
+ * Converts an ISO date string to a Date.
+ *
+ * Returns the parsed `Date` for a valid ISO date string. For an invalid or
+ * non-parseable input it returns an **invalid** `Date` (`NaN` time) instead of
+ * the previous `new Date()` ("now") fallback, so a corrupt stored timestamp can
+ * no longer silently become the current time on a subsequent write. Callers that
+ * want an explicit signal should use {@link parseISODateStringStrict}.
  */
 export function isoDateStringToDate(isoString: ISODateString | string): Date {
   const d = new Date(isoString);
-  return Number.isNaN(d.getTime()) ? new Date() : d;
+  return Number.isNaN(d.getTime()) ? new Date(NaN) : d;
+}
+
+/**
+ * Strict ISO date parser. Returns `null` for any value that is not a valid,
+ * parseable ISO date string — never a manufactured `new Date()`.
+ */
+export function parseISODateStringStrict(value: ISODateString | string): Date | null {
+  if (!isISODateString(value)) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 /**

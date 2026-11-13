@@ -67,6 +67,40 @@ import {
 import { getJsonDataPatch } from "./query-primitives";
 
 /**
+ * Portable filter keys emitted by `compileBooleanFilterGroup` (`boolean-filter`)
+ * versus their Mongo-style `$` spelling the query layer understands. The REST /
+ * bracket pipeline rewrites these before they reach the builder, but the
+ * `filterLogic` advanced-filter path still hands the bare keys straight through
+ * — so normalize them here to keep both spellings on the compiled plan.
+ */
+const PORTABLE_OPERATOR_TO_MONGO: Readonly<Record<string, string>> = Object.freeze({
+  ne: "$ne",
+  gt: "$gt",
+  gte: "$gte",
+  lt: "$lt",
+  lte: "$lte",
+});
+
+function normalizePortableOperators(value: Record<string, unknown>): Record<string, unknown> {
+  let hasBare = false;
+  for (const key in value) {
+    if (!Object.hasOwn(value, key)) continue;
+    const canonical = PORTABLE_OPERATOR_TO_MONGO[key];
+    if (canonical !== undefined && canonical !== key) {
+      hasBare = true;
+      break;
+    }
+  }
+  if (!hasBare) return value;
+  const out: Record<string, unknown> = Object.create(null);
+  for (const key in value) {
+    if (!Object.hasOwn(value, key)) continue;
+    out[PORTABLE_OPERATOR_TO_MONGO[key] ?? key] = value[key];
+  }
+  return out;
+}
+
+/**
  * Per-engine behavior surface for the shared SQL query builder.
  * All divergence between the SQLite, MariaDB and PostgreSQL builders is
  * expressed here — the class itself contains no engine-specific branches.
@@ -1490,7 +1524,7 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
       this.compilable = false;
       return;
     }
-    const valObj = value as Record<string, unknown>;
+    const valObj = normalizePortableOperators(value as Record<string, unknown>);
     if ("$eq" in valObj && isBindable(valObj.$eq)) {
       this.where({ [key]: valObj.$eq } as unknown as Partial<T>);
     } else if ("$ne" in valObj && isBindable(valObj.$ne)) {

@@ -294,12 +294,16 @@ describe("@utils/date — property-based", () => {
     );
   });
 
-  it("isoDateStringToDate() never returns an Invalid Date", () => {
+  it("isoDateStringToDate() mirrors Date parsing and never manufactures 'now'", () => {
     fc.assert(
       fc.property(fc.string({ maxLength: 50 }), (input) => {
-        const date = isoDateStringToDate(input);
-        expect(date).toBeInstanceOf(Date);
-        expect(Number.isNaN(date.getTime())).toBe(false);
+        const expected = new Date(input).getTime();
+        const actual = isoDateStringToDate(input).getTime();
+        // A non-parseable string must stay Invalid Date, not become the current
+        // time (the old code returned `new Date()` for it). Both-NaN is the pass
+        // case for garbage input; both-equal is the pass case for valid input.
+        expect(Number.isNaN(actual)).toBe(Number.isNaN(expected));
+        if (!Number.isNaN(expected)) expect(actual).toBe(expected);
       }),
       { numRuns: 300 },
     );

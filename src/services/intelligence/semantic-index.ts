@@ -84,6 +84,9 @@ const _index = new Map<string, IndexedItem>();
 let _initialized = false;
 const CACHE_KEY = "semantic-index:data";
 
+/** Upper bound on the in-memory index so a long-lived process cannot grow it unboundedly. */
+const MAX_INDEX_ITEMS = 10_000;
+
 // ─── Core API ──────────────────────────────────────────────────────────────
 
 /**
@@ -141,7 +144,34 @@ export async function indexBatch(
     _index.set(key, indexed);
   }
 
+  // Bounded eviction: cap the in-memory index and evict the oldest entries once
+  // the cap is exceeded. Content deletions also remove entries via
+  // removeFromSemanticIndex(); this cap is the backstop for content that is
+  // never explicitly evicted.
+  if (_index.size > MAX_INDEX_ITEMS) {
+    const toEvict = _index.size - MAX_INDEX_ITEMS;
+    const oldest = [..._index.entries()]
+      .sort(([, a], [, b]) => a.indexedAt - b.indexedAt)
+      .slice(0, toEvict);
+    for (const [key] of oldest) {
+      _index.delete(key);
+    }
+    logger.info(`[SemanticIndex] Evicted ${toEvict} oldest entries (cap ${MAX_INDEX_ITEMS})`);
+  }
+
   logger.info(`[SemanticIndex] Batch-indexed ${items.length} items (${results[0].backend})`);
+}
+
+/**
+ * Evict a single indexed item by its (tenant-scoped) id, mirroring the key
+ * composition in {@link indexBatch}. Returns true when an entry was removed.
+ *
+ * Call this from content-delete paths so a deleted item is no longer returned
+ * by a later {@link semanticSearch} query.
+ */
+export function removeFromSemanticIndex(id: string, tenantId?: string): boolean {
+  const key = tenantId ? `${tenantId}:${id}` : id;
+  return _index.delete(key);
 }
 
 // ─── Reranker ──────────────────────────────────────────────────────────────

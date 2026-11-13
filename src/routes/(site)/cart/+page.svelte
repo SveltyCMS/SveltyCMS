@@ -30,11 +30,16 @@
 	}
 
 	async function setQty(line: { productId: string; variantSku?: string }, qty: number) {
-		await fetch('/api/commerce/cart', {
+		const res = await fetch('/api/commerce/cart', {
 			method: 'PATCH',
 			headers: clientJsonHeaders(),
 			body: JSON.stringify({ productId: line.productId, variantSku: line.variantSku, qty })
 		});
+		const body = await res.json().catch(() => ({}));
+		if (!res.ok || body.success === false) {
+			error = body.message || 'Could not update cart';
+			return;
+		}
 		await load();
 	}
 

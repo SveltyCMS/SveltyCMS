@@ -41,6 +41,7 @@ export type FilterRejectReason =
   | "unsafe_widget"
   | "field_permission"
   | "invalid_value"
+  | "unsupported_operator"
   | "empty";
 
 export interface FilterRejection {
@@ -349,6 +350,15 @@ export function compileSecureFilters(
     // Structured operators (preferred for API clients)
     if (op && typeof op === "object" && !Array.isArray(op)) {
       const o = op as Record<string, unknown>;
+
+      // `ne`/`gt`/`lt` are valid on the adapter list path (boolean-filter → the
+      // SQL/Mongo compilers) but this engine has no not-equals or inequality
+      // columns. Reject rather than fall through to an empty string, which would
+      // silently drop the filter (fail-closed).
+      if (o.ne !== undefined || o.gt !== undefined || o.lt !== undefined) {
+        rejected.push({ field: key, reason: "unsupported_operator" });
+        continue;
+      }
 
       if (typeof o.isNull === "boolean") {
         nullChecks.push({ field: key, isNull: o.isNull });

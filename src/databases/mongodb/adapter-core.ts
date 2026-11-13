@@ -53,6 +53,22 @@ const MONGO_OP_MAP: Record<string, string> = {
 };
 
 /**
+ * Portable filter keys emitted by `compileBooleanFilterGroup` (`boolean-filter`)
+ * versus their Mongo `$` spelling. The REST / bracket pipeline rewrites these
+ * upstream, but the `filterLogic` advanced-filter path can hand the bare keys
+ * straight through — so translate them here. Anything else remains the existing
+ * whole-value `$eq` (rejected by the filterable-fields guard before it can match
+ * nothing).
+ */
+const PORTABLE_OPERATOR_TO_MONGO: Readonly<Record<string, string>> = Object.freeze({
+  ne: "$ne",
+  gt: "$gt",
+  gte: "$gte",
+  lt: "$lt",
+  lte: "$lte",
+});
+
+/**
  * Mongoose global toObject/toJSON options mutate SHARED global state — apply
  * them once per process instead of on every connect() (multiple connections or
  * concurrent test harnesses would otherwise clobber each other's settings).
@@ -428,6 +444,17 @@ export abstract class MongoAdapterCore extends BaseAdapter {
             this.addMongoCondition(out, key, subKey, (value as any)[subKey]);
             handled = true;
           } else {
+            const canonical = PORTABLE_OPERATOR_TO_MONGO[subKey];
+            if (canonical) {
+              this.addMongoCondition(
+                out,
+                key,
+                canonical,
+                (value as Record<string, unknown>)[subKey],
+              );
+              handled = true;
+              continue;
+            }
             this.addMongoCondition(out, key, "$eq", value);
             handled = true;
             break;

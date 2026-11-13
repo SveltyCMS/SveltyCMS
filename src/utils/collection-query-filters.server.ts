@@ -375,6 +375,8 @@ export function whitelistFilterParams(
       out[key] = { contains: o.contains.trim() };
     } else if (o.eq !== undefined && o.eq !== null && String(o.eq).trim() !== "") {
       out[key] = { eq: o.eq as string | number | boolean };
+    } else if (o.ne !== undefined && o.ne !== null && String(o.ne).trim() !== "") {
+      out[key] = { ne: o.ne as string | number | boolean };
     } else if (Array.isArray(o.in) && o.in.length > 0 && o.in.length < 100) {
       out[key] = { in: o.in as Array<string | number | boolean> };
     } else if (typeof o.isNull === "boolean") {
@@ -384,6 +386,10 @@ export function whitelistFilterParams(
         gte: o.gte as string | number | undefined,
         lte: o.lte as string | number | undefined,
       };
+    } else if (o.gt != null && String(o.gt).trim() !== "") {
+      out[key] = { gt: o.gt as string | number };
+    } else if (o.lt != null && String(o.lt).trim() !== "") {
+      out[key] = { lt: o.lt as string | number };
     }
   }
   return out;
