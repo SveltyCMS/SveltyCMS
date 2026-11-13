@@ -503,6 +503,50 @@ const RTL_RE = new RegExp(
 // Svelte file scan
 // ---------------------------------------------------------------------------
 
+/**
+ * Browser-autofill hints that may legitimately appear on a field.
+ *
+ * `autocomplete="username"` / `"current-password"` tell the browser to fill a
+ * field with the site's SAVED LOGIN. On a service-credential field (database,
+ * SMTP, Redis, API key) that silently stores the admin's CMS password as the
+ * service password. Only the flows below are real user-password forms.
+ */
+const USERNAME_AUTOFILL_ALLOWED: readonly RegExp[] = [
+  /^src\/routes\/login\//,
+  /^src\/components\/user\//,
+  /^src\/routes\/setup\/admin-config\.svelte$/,
+];
+const PASSWORD_AUTOFILL_ALLOWED: readonly RegExp[] = [
+  /^src\/routes\/login\//,
+  /^src\/routes\/share\//,
+  /^src\/routes\/\(app\)\/user\//,
+  /^src\/components\/user\//,
+  /^src\/routes\/\(app\)\/config\/system-settings\//,
+];
+
+/** Flags a login autofill hint reused on a service-credential field (SV-011). */
+function scanCredentialAutofill(relPath: string, content: string, sink: Violation[]): void {
+  if (!relPath.endsWith(".svelte")) return;
+  const normalized = relPath.replace(/\\/g, "/");
+  const lines = content.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const match = /autocomplete\s*=\s*["'](username|current-password)["']/i.exec(lines[i]);
+    if (!match) continue;
+    const token = match[1].toLowerCase();
+    const allowed = token === "username" ? USERNAME_AUTOFILL_ALLOWED : PASSWORD_AUTOFILL_ALLOWED;
+    if (allowed.some((pattern) => pattern.test(normalized))) continue;
+    report(
+      relPath,
+      i + 1,
+      "credential-autofill",
+      `autocomplete="${token}" lets the browser's saved site login fill a service-credential field — use "off" (identifier) or "new-password" (secret) outside a user-password form`,
+      "error",
+      false,
+      sink,
+    );
+  }
+}
+
 async function scanSvelteFile(
   relPath: string,
   content: string,
@@ -514,6 +558,8 @@ async function scanSvelteFile(
   const lines = cleanContent.split("\n");
   const fixedLines = [...lines];
   let fileWasModified = false;
+
+  scanCredentialAutofill(relPath, content, sink);
 
   let inCodeBlock = false;
   let inScriptBlock = false;

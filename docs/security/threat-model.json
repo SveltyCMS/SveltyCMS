@@ -37,8 +37,8 @@
         "src/routes/api/[...path]/handlers/scim.ts"
       ],
       "model": "docs/security/threat-models/auth-session.mdx",
-      "reviewed_at": "2026-11-12",
-      "fingerprint": "ba0af192e81b28c39b7701e7d29d962a496b014c135673442535bcf1b25cb4c8"
+      "reviewed_at": "2026-11-13",
+      "fingerprint": "c2d64ad4eed3d98ada50868a7047162df13fecdb401f3d1b20a54b5a5a6e90db"
     },
     {
       "id": "content-write",

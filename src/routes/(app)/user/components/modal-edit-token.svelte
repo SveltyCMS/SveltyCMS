@@ -92,6 +92,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import { dateToISODateString } from '@utils/date';
 	import { convertExpiresToHours, convertLegacyExpiresFormat } from '../user-remote-utils';
+	import { resolveDefaultInviteRole } from '@utils/user-role-defaults';
 
 	// Props
 	interface Props {
@@ -114,39 +115,9 @@ It handles token creation, updates, and deletion with proper validation and erro
 		close
 	}: Props = $props();
 
-	type RoleOption = { _id: string; name: string };
-
-	/** Preference order for the least-privileged default (most useful non-admin first). */
-	const PREFERRED_NON_ADMIN_ROLES = ['editor', 'user', 'viewer'];
-
-	function isAdminRole(entry: RoleOption): boolean {
-		return (
-			/^(admin|administrator)$/i.test(entry._id) || /^(admin|administrator)$/i.test(entry.name)
-		);
-	}
-
-	/**
-	 * Least-privilege default for a NEW invitation token.
-	 *
-	 * Minting an invite pre-selected as Administrator grants the most privileged
-	 * account in the CMS by accident. Prefer a non-admin role (`editor` → `user`
-	 * → `viewer` → first non-admin) and only fall back to `admin` when it is the
-	 * sole role. Editing an existing token passes its stored role, which wins.
-	 */
-	function resolveDefaultRole(availableRoles: RoleOption[]): string {
-		for (const preferred of PREFERRED_NON_ADMIN_ROLES) {
-			const match = availableRoles.find(
-				(entry) => entry._id.toLowerCase() === preferred || entry.name.toLowerCase() === preferred
-			);
-			if (match) return match._id;
-		}
-		const nonAdmin = availableRoles.find((entry) => !isAdminRole(entry));
-		return (nonAdmin ?? availableRoles[0])?._id ?? 'admin';
-	}
-
-	/** Explicit `role` prop wins (edit path); otherwise use the safest available role. */
+	/** Least-privilege default for a NEW invitation token (see @utils/user-role-defaults). */
 	function effectiveRole(): string {
-		return role || resolveDefaultRole(roles ?? []);
+		return role || resolveDefaultInviteRole(roles ?? []);
 	}
 
 	function resolveInitialValues() {

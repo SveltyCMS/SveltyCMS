@@ -597,3 +597,37 @@ describe("slop-scanner — machine-readable output (--json)", () => {
     expect(infoOnly.counts.errors + infoOnly.counts.warnings).toBe(0);
   });
 });
+
+describe("slop-scanner — credential autofill hints", () => {
+  const passwordMarkup = '<Input type="password" autocomplete="current-password" />';
+
+  it("flags a login autofill hint on a service credential field", async () => {
+    const violations = await scanSvelteContent(
+      "src/routes/setup/email-config.svelte",
+      passwordMarkup,
+    );
+    expect(violations.some((v) => v.category === "credential-autofill")).toBe(true);
+  });
+
+  it("flags a username hint outside the admin-account step", async () => {
+    const violations = await scanSvelteContent(
+      "src/routes/setup/database-config.svelte",
+      '<Input autocomplete="username" />',
+    );
+    expect(violations.some((v) => v.category === "credential-autofill")).toBe(true);
+  });
+
+  it("allows the real user-password forms", async () => {
+    for (const file of [
+      "src/routes/login/components/sign-in.svelte",
+      "src/routes/(app)/user/components/tab-security.svelte",
+      "src/components/user/modal-edit-form.svelte",
+    ]) {
+      const violations = await scanSvelteContent(file, passwordMarkup);
+      expect(
+        violations.some((v) => v.category === "credential-autofill"),
+        file,
+      ).toBe(false);
+    }
+  });
+});
