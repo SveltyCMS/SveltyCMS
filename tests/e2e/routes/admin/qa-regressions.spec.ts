@@ -74,15 +74,17 @@ test.describe("QA audit regressions — browser-only", () => {
     const collectionId = await seedCollection(page);
     await page.goto(`/en/collection/${collectionId}`, { waitUntil: "domcontentloaded" });
 
-    const toCard = page.getByRole("button", { name: /switch to card view|zur kartenansicht/i });
+    // The tooltip wrapper also exposes `role="button"`, so match the real
+    // control by its tag + aria-label rather than by role alone.
+    const toCard = page.locator('button[aria-label="Switch to card view"]');
     await expect(toCard).toBeVisible({ timeout: 30_000 });
     await toCard.click();
 
     // The label flips only if the controller accepted the new mode — the old
     // getter-only accessor threw before it did.
-    await expect(
-      page.getByRole("button", { name: /switch to table view|zur tabellenansicht/i }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('button[aria-label="Switch to table view"]')).toBeVisible({
+      timeout: 15_000,
+    });
 
     assertNoZeroErrors(page);
   });
@@ -97,7 +99,9 @@ test.describe("QA audit regressions — browser-only", () => {
     }
     await expect(settingsTab).toHaveAttribute("aria-selected", "true", { timeout: 5_000 });
 
-    const toggle = page.getByLabel(/high contrast|hoher kontrast/i).first();
+    // `Toggle` renders `role="switch"`; a plain label match would also hit the
+    // neighbouring help icon (its aria-label mentions high contrast too).
+    const toggle = page.getByRole("switch", { name: /high contrast|hoher kontrast/i });
     await expect(toggle).toBeVisible({ timeout: 15_000 });
 
     const save = page.getByTestId("user-save-appearance-btn");
