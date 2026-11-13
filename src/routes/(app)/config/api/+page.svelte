@@ -239,9 +239,10 @@
 
 	const generatedSnippet = $derived.by(() => {
 		const col = selectedCollection;
+		const origin = page.url.origin;
 		if (selectedSnippetType === 'curl') {
 			return `# Query ${col} collection via cURL
-curl -X GET "http://localhost:5173/api/content/${col}" \\
+curl -X GET "${origin}/api/collections/${col}" \\
   -H "Accept: application/json" \\
   -H "Cookie: token=YOUR_SESSION_TOKEN"`;
 		}
@@ -255,7 +256,7 @@ interface ApiResponse<T> {
 }
 
 export async function fetch${col.charAt(0).toUpperCase() + col.slice(1)}() {
-  const response = await fetch('/api/content/${col}', {
+			  const response = await fetch('${origin}/api/collections/${col}', {
     method: 'GET',
     headers: { 'Accept': 'application/json' }
   });
@@ -274,7 +275,7 @@ export async function fetch${col.charAt(0).toUpperCase() + col.slice(1)}() {
 import requests
 
 def get_${col}():
-    url = "http://localhost:5173/api/content/${col}"
+			    url = "${origin}/api/collections/${col}"
     headers = {"Accept": "application/json"}
     response = requests.get(url, headers=headers)
     response.raise_for_status()
@@ -422,7 +423,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 								size="sm"
 								onclick={() => {
 									restMethod = 'GET';
-									restEndpoint = `/api/content/${col.id}`;
+									restEndpoint = `/api/collections/${col.id}`;
 								}}
 							>
 								{col.name}

@@ -19,7 +19,7 @@
     "runtimeCycleCount": 0,
     "clientServerLeakCount": 0,
     "clientReachableFiles": 467,
-    "clientReachableKB": 4168,
+    "clientReachableKB": 4192,
     "byArea": {
       "src/hooks.client.ts": {
         "files": 1,

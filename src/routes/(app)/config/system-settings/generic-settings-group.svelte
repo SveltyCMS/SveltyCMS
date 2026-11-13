@@ -176,6 +176,16 @@ Handles all field types and validation automatically
 	// because the initial load errored (the error alert is the user's signal to retry).
 	let hasUnsavedChanges = $derived(!loading && hasUnsavedSettingChanges(values, originalValues));
 
+	/**
+	 * A field whose inline error is currently visible blocks the save. Range errors
+	 * are raised while typing (AUD-020), so Save must not stay enabled for a value
+	 * the browser itself marks invalid (`min`/`max`). Read-only fields are excluded:
+	 * their value comes from the environment and the user cannot correct it here.
+	 */
+	let hasInvalidField = $derived(
+		group.fields.some((field) => !field.readonly && Boolean(errors[field.key]))
+	);
+
 	// Notify parent component when hasUnsavedChanges changes
 	$effect(() => {
 		if (onUnsavedChanges) {
@@ -825,6 +835,10 @@ Handles all field types and validation automatically
 
 		<form
 			id="settings-group-form"
+			/* Never let the browser treat a settings field as a login form: Chrome
+			   offers the admin's saved CMS credential for any password input it
+			   thinks belongs to one (AUD-004). */
+			autocomplete="off"
 			onsubmit={(e) => {
 				e.preventDefault();
 				saveSettings();
@@ -1341,7 +1355,15 @@ Handles all field types and validation automatically
 									placeholder={field.placeholder}
 									required={field.required}
 									disabled={field.readonly}
-									oninput={() => (errors[field.key] = '')}
+									oninput={() => {
+										const next = values[field.key] as number;
+										const outOfRange =
+											typeof next === 'number' &&
+											((field.min !== undefined && next < field.min) ||
+												(field.max !== undefined && next > field.max));
+										errors[field.key] = outOfRange ? (validateField(field, next) ?? '') : '';
+									}}
+									autocomplete="off"
 									error={errors[field.key]}
 								/>
 								<!-- Number Input -->
@@ -1355,7 +1377,14 @@ Handles all field types and validation automatically
 										required={field.required}
 										min={field.min}
 										max={field.max}
-										oninput={() => (errors[field.key] = '')}
+										oninput={() => {
+											const next = values[field.key] as number;
+											const outOfRange =
+												typeof next === 'number' &&
+												((field.min !== undefined && next < field.min) ||
+													(field.max !== undefined && next > field.max));
+											errors[field.key] = outOfRange ? (validateField(field, next) ?? '') : '';
+										}}
 										error={errors[field.key]}
 										class="flex-1"
 									/>
@@ -1378,7 +1407,7 @@ Handles all field types and validation automatically
 									required={field.required}
 									disabled={field.readonly}
 									oninput={() => (errors[field.key] = '')}
-									autocomplete="current-password"
+									autocomplete="new-password"
 									error={errors[field.key]}
 								>
 									{#snippet post()}
@@ -1861,7 +1890,7 @@ Handles all field types and validation automatically
 							variant="primary"
 							type="submit"
 							form="settings-group-form"
-							disabled={saving || !hasUnsavedChanges || !group.fields?.length}
+							disabled={saving || !hasUnsavedChanges || !group.fields?.length || hasInvalidField}
 							data-testid="settings-group-save"
 							class="shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded px-4 py-2 text-sm font-semibold"
 						>

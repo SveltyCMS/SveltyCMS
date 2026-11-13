@@ -347,6 +347,9 @@ Deep links: /config/design-system?tab=themes|customizer|preview|overrides
 	let themes = $state<ThemeSummary[]>(untrack(() => data.themes ?? []));
 	let loadingThemes = $state(false);
 	let newThemeName = $state('');
+	/** Inline form errors (AUD-073) — toasts alone left the fields unmarked. */
+	let themeNameError = $state('');
+	let importJsonError = $state('');
 	let cloneName = $state('');
 
 	async function loadThemes() {
@@ -717,9 +720,10 @@ Deep links: /config/design-system?tab=themes|customizer|preview|overrides
 	async function handleCreate() {
 		const n = newThemeName.trim();
 		if (!n) {
-			toast.warning('Enter a name');
+			themeNameError = 'Enter a theme name';
 			return;
 		}
+		themeNameError = '';
 		try {
 			const res = await apiCreateTheme({
 				name: n,
@@ -825,9 +829,10 @@ Deep links: /config/design-system?tab=themes|customizer|preview|overrides
 
 	async function importPreset() {
 		if (!importPresetJson.trim()) {
-			toast.warning('Paste JSON first');
+			importJsonError = 'Paste a theme JSON object first';
 			return;
 		}
+		importJsonError = '';
 		saving = true;
 		try {
 			const body = await apiImportThemePreset(importPresetJson.trim());
@@ -861,7 +866,7 @@ Deep links: /config/design-system?tab=themes|customizer|preview|overrides
 				toast.success('Preset imported');
 			}
 		} catch (e: unknown) {
-			toast.error(e instanceof Error ? e.message : String(e));
+			importJsonError = e instanceof Error ? e.message : String(e);
 		} finally {
 			saving = false;
 		}
@@ -1209,6 +1214,8 @@ Deep links: /config/design-system?tab=themes|customizer|preview|overrides
 										class="flex-1"
 										placeholder={theme_new_name_placeholder()}
 										aria-label={theme_new_name_aria()}
+										error={themeNameError}
+										oninput={() => (themeNameError = '')}
 										data-testid="appearance-theme-name"
 										onkeydown={(e) => {
 											if (e.key === 'Enter') handleCreate();
@@ -1218,6 +1225,7 @@ Deep links: /config/design-system?tab=themes|customizer|preview|overrides
 										variant="tertiary"
 										onclick={handleCreate}
 										leadingIcon="mdi:plus"
+										disabled={!newThemeName.trim()}
 										data-testid="appearance-theme-create-btn">{theme_create()}</Button
 									>
 								</div>
@@ -1305,6 +1313,8 @@ Deep links: /config/design-system?tab=themes|customizer|preview|overrides
 									textareaClass="min-h-30 font-mono text-xs"
 									placeholder={'{"name":"My Theme","properties":{...}}'}
 									rows={6}
+									error={importJsonError}
+									oninput={() => (importJsonError = '')}
 								>
 									{#snippet labelSnippet()}
 										{@render fieldLabel(theme_import_json(), HELP.importJson)}
@@ -1315,6 +1325,7 @@ Deep links: /config/design-system?tab=themes|customizer|preview|overrides
 										variant="tertiary"
 										onclick={importPreset}
 										loading={saving}
+										disabled={!importPresetJson.trim()}
 										leadingIcon="mdi:upload"
 									>
 										{theme_import_theme()}
