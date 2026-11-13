@@ -14,16 +14,17 @@
  * - Deterministic reporting — a failing tool's own output, never interleaved
  * - Fail-closed: any non-zero child exit fails the gate with that exit code
  * - Per-job duration so a future regression in either tool is visible
+ * - Pure failure summarisation (`collectTypecheckFailures`, `formatFailureLines`)
  */
 
 import { spawn } from "node:child_process";
 
-interface TypecheckJob {
+export interface TypecheckJob {
   id: string;
   argv: readonly string[];
 }
 
-interface JobOutcome {
+export interface JobOutcome {
   job: TypecheckJob;
   exitCode: number;
   output: string;
@@ -35,13 +36,28 @@ const ROOT = process.cwd();
 // Bun runtime; `tsc` keeps the Node runtime that CI's `03-check` job uses.
 const BUN_BIN = process.execPath;
 
-const JOBS: readonly TypecheckJob[] = [
+export const TYPECHECK_JOBS: readonly TypecheckJob[] = [
   {
     id: "tsc",
     argv: ["node", "node_modules/typescript/lib/tsc.js", "--noEmit", "-p", "tsconfig.json"],
   },
   { id: "svelte-check", argv: [BUN_BIN, "scripts/check/check-svelte-diagnostics.ts"] },
 ];
+
+/** Outcomes that must fail the gate, in declaration order. */
+export function collectTypecheckFailures(outcomes: readonly JobOutcome[]): JobOutcome[] {
+  return outcomes.filter((outcome) => outcome.exitCode !== 0);
+}
+
+/** One console line per failed gate, plus its own output when it printed any. */
+export function formatFailureLines(failures: readonly JobOutcome[]): string[] {
+  const lines: string[] = [];
+  for (const outcome of failures) {
+    lines.push(`\n❌ ${outcome.job.id} failed (${outcome.durationMs}ms):`);
+    if (outcome.output) lines.push(outcome.output);
+  }
+  return lines;
+}
 
 function runJob(job: TypecheckJob): Promise<JobOutcome> {
   const startedAt = Date.now();
@@ -79,13 +95,10 @@ function runJob(job: TypecheckJob): Promise<JobOutcome> {
 
 async function main(): Promise<number> {
   const startedAt = Date.now();
-  const outcomes = await Promise.all(JOBS.map(runJob));
-  const failed = outcomes.filter((outcome) => outcome.exitCode !== 0);
+  const outcomes = await Promise.all(TYPECHECK_JOBS.map(runJob));
+  const failed = collectTypecheckFailures(outcomes);
 
-  for (const outcome of failed) {
-    console.error(`\n❌ ${outcome.job.id} failed (${outcome.durationMs}ms):`);
-    if (outcome.output) console.error(outcome.output);
-  }
+  for (const line of formatFailureLines(failed)) console.error(line);
 
   const elapsed = Date.now() - startedAt;
   if (failed.length > 0) {

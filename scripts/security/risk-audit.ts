@@ -194,6 +194,35 @@ export function unsuppressedAdvisories(
   return ids.filter((id) => !allowed.has(id.toLowerCase()));
 }
 
+/** What a failed dependency audit is allowed to mean. */
+export type AuditStepVerdict =
+  | { kind: "pass" }
+  | { kind: "allowed-suppressed"; ids: string[] }
+  | { kind: "fail"; ids: string[] }
+  | { kind: "fail-unidentified" };
+
+/**
+ * Classify one dependency-audit step without printing anything.
+ *
+ * A failure whose only ids are suppressed dev/build advisories is allowed; a
+ * failure with no identifiable advisory is NEVER allowed (a format change must
+ * not silently turn a real advisory into a pass).
+ */
+export function classifyAuditStep(
+  exitCode: number,
+  stdout: string,
+  suppressed: readonly string[] = SUPPRESSED_AUDIT_ADVISORIES,
+): AuditStepVerdict {
+  if (exitCode === 0) return { kind: "pass" };
+  const advisoryIds = extractAdvisoryIds(stdout);
+  const unsuppressed = unsuppressedAdvisories(advisoryIds, suppressed);
+  if (advisoryIds.length > 0 && unsuppressed.length === 0) {
+    return { kind: "allowed-suppressed", ids: advisoryIds };
+  }
+  if (unsuppressed.length > 0) return { kind: "fail", ids: unsuppressed };
+  return { kind: "fail-unidentified" };
+}
+
 /** Human-readable rendering of the structured reporter (replaces its raw JSON). */
 function formatAuditReport(advisories: AuditAdvisory[]): string {
   if (advisories.length === 0) return "✅ No dependency advisories reported.\n";
@@ -249,17 +278,16 @@ async function main(): Promise<number> {
     if (res.exitCode === 0) {
       ok += 1;
     } else if (isAuditStep) {
-      const advisoryIds = extractAdvisoryIds(res.stdout);
-      const unsuppressed = unsuppressedAdvisories(advisoryIds);
-      if (advisoryIds.length > 0 && unsuppressed.length === 0) {
+      const verdict = classifyAuditStep(res.exitCode, res.stdout);
+      if (verdict.kind === "allowed-suppressed") {
         console.log(
-          `\n⚠️  ${res.name} has only known suppressed dev/build advisories (${advisoryIds.join(", ")}) — allowing.`,
+          `\n⚠️  ${res.name} has only known suppressed dev/build advisories (${verdict.ids.join(", ")}) — allowing.`,
         );
         ok += 1;
-      } else if (unsuppressed.length > 0) {
+      } else if (verdict.kind === "fail") {
         console.error(`\n❌ ${res.name} failed (exit ${res.exitCode})`);
-        console.error(`   Unsuppressed advisories: ${unsuppressed.join(", ")}`);
-      } else {
+        console.error(`   Unsuppressed advisories: ${verdict.ids.join(", ")}`);
+      } else if (verdict.kind === "fail-unidentified") {
         console.error(
           `\n❌ ${res.name} failed (exit ${res.exitCode}) with no identifiable advisory — treating as a real failure.`,
         );

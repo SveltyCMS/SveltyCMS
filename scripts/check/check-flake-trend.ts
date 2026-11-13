@@ -25,6 +25,7 @@
  * - appends a Markdown table to GITHUB_STEP_SUMMARY when set
  * - reads Playwright JSON with the same stats/suite-walk strategy as
  *   `check-flake-budget.ts`
+ * - pure `parseHistoryContent` / `entriesInWindow` / `evaluateTrend` cores
  */
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
@@ -42,14 +43,14 @@ const DAY_MS = 86_400_000;
 /** Keep the console/Markdown table readable when the window holds many shards. */
 const MAX_TABLE_ROWS = 40;
 
-interface Totals {
+export interface Totals {
   passed: number;
   failed: number;
   flaky: number;
   skipped: number;
 }
 
-interface HistoryEntry {
+export interface HistoryEntry {
   at: string;
   label: string;
   executed: number;
@@ -57,12 +58,22 @@ interface HistoryEntry {
   failed: number;
 }
 
-interface WindowStats {
+export interface WindowStats {
   runs: number;
   executed: number;
   failed: number;
   flaky: number;
   rate: number;
+}
+
+export interface TrendBudget {
+  maxFlaky: number;
+  maxRate: number;
+}
+
+export interface TrendVerdict {
+  ok: boolean;
+  reasons: string[];
 }
 
 function arg(name: string, fallback = ""): string {
@@ -125,15 +136,17 @@ function walkSuites(node: unknown, totals: Totals): void {
   }
 }
 
-/** Mirrors the report parsing in `check-flake-budget.ts` (that module exits on import).
+/**
+ * Parses a Playwright JSON report body.
+ *
+ * Mirrors the report parsing in `check-flake-budget.ts` (that module exits on import).
  * `passed` intentionally excludes `flaky` in both branches so `executed`
  * (`passed + failed + flaky`) stays consistent — Playwright's `stats.expected`
  * already omits flaky, while the suite walk counts it separately. The resulting
  * rate is identical to the per-run budget's stats path.
  */
-function readReport(path: string): Totals {
-  const raw = readFileSync(path, "utf8").replace(/^\uFEFF/, "");
-  const data: unknown = JSON.parse(raw);
+export function parsePlaywrightReport(raw: string): Totals {
+  const data: unknown = JSON.parse(raw.replace(/^\uFEFF/, ""));
 
   if (!isRecord(data)) return { passed: 0, failed: 0, flaky: 0, skipped: 0 };
 
@@ -154,21 +167,25 @@ function readReport(path: string): Totals {
   return totals;
 }
 
-function readHistory(path: string): { entries: HistoryEntry[]; malformed: number } {
-  if (!existsSync(path)) return { entries: [], malformed: 0 };
+function readReport(path: string): Totals {
+  return parsePlaywrightReport(readFileSync(path, "utf8"));
+}
 
-  let raw: string;
-  try {
-    raw = readFileSync(path, "utf8").replace(/^\uFEFF/, "");
-  } catch (error) {
-    console.warn(`[flake-trend] cannot read ${path} — treating as empty (${String(error)})`);
-    return { entries: [], malformed: 0 };
-  }
-
+/**
+ * Parses the JSONL history, keeping every valid line.
+ *
+ * A corrupt line is counted (`malformed`) but never aborts the gate: losing the
+ * whole window because one CI job wrote a truncated line would hide a real
+ * trend.
+ */
+export function parseHistoryContent(raw: string): {
+  entries: HistoryEntry[];
+  malformed: number;
+} {
   const entries: HistoryEntry[] = [];
   let malformed = 0;
 
-  for (const line of raw.split(/\r?\n/)) {
+  for (const line of raw.replace(/^\uFEFF/, "").split(/\r?\n/)) {
     const trimmed = line.trim();
     if (!trimmed) continue;
 
@@ -209,6 +226,20 @@ function readHistory(path: string): { entries: HistoryEntry[]; malformed: number
   return { entries, malformed };
 }
 
+function readHistory(path: string): { entries: HistoryEntry[]; malformed: number } {
+  if (!existsSync(path)) return { entries: [], malformed: 0 };
+
+  let raw: string;
+  try {
+    raw = readFileSync(path, "utf8");
+  } catch (error) {
+    console.warn(`[flake-trend] cannot read ${path} — treating as empty (${String(error)})`);
+    return { entries: [], malformed: 0 };
+  }
+
+  return parseHistoryContent(raw);
+}
+
 function appendEntry(path: string, entry: HistoryEntry): void {
   mkdirSync(dirname(path), { recursive: true });
   appendFileSync(path, `${JSON.stringify(entry)}\n`, "utf8");
@@ -218,11 +249,35 @@ function rate(flaky: number, executed: number): number {
   return executed > 0 ? (flaky / executed) * 100 : 0;
 }
 
-function summarise(entries: HistoryEntry[]): WindowStats {
+/** Runs inside the rolling window, oldest first. */
+export function entriesInWindow(
+  entries: readonly HistoryEntry[],
+  nowMs: number,
+  windowDays: number,
+): HistoryEntry[] {
+  const cutoff = nowMs - windowDays * DAY_MS;
+  return entries
+    .filter((entry) => Date.parse(entry.at) >= cutoff)
+    .sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+}
+
+export function summariseWindow(entries: readonly HistoryEntry[]): WindowStats {
   const executed = entries.reduce((sum, entry) => sum + entry.executed, 0);
   const flaky = entries.reduce((sum, entry) => sum + entry.flaky, 0);
   const failed = entries.reduce((sum, entry) => sum + entry.failed, 0);
   return { runs: entries.length, executed, flaky, failed, rate: rate(flaky, executed) };
+}
+
+/** Gate decision: a value exactly at budget passes, above it fails. */
+export function evaluateTrend(window: WindowStats, budget: TrendBudget): TrendVerdict {
+  const reasons: string[] = [];
+  if (window.flaky > budget.maxFlaky) {
+    reasons.push(`flaky ${window.flaky} > budget ${budget.maxFlaky}`);
+  }
+  if (window.rate > budget.maxRate) {
+    reasons.push(`flake rate ${formatRate(window.rate)} > budget ${budget.maxRate}%`);
+  }
+  return { ok: reasons.length === 0, reasons };
 }
 
 function formatRate(value: number): string {
@@ -355,13 +410,12 @@ function main(): number {
     console.warn(`[flake-trend] ignored ${malformed} corrupt line(s) in ${historyPath}`);
   }
 
-  const cutoff = Date.now() - windowDays * DAY_MS;
-  const windowed = entries
-    .filter((entry) => Date.parse(entry.at) >= cutoff)
-    .sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
-  const window = summarise(windowed);
+  const windowed = entriesInWindow(entries, Date.now(), windowDays);
+  const window = summariseWindow(windowed);
+  const verdict = evaluateTrend(window, { maxFlaky, maxRate });
+  const reasons = verdict.reasons;
 
-  const icon = window.rate > maxRate || window.flaky > maxFlaky ? "❌" : "✅";
+  const icon = verdict.ok ? "✅" : "❌";
   console.log(
     `\n${icon} Flake trend — ${windowDays}-day window · ${window.runs} run${window.runs === 1 ? "" : "s"} · ` +
       `${window.executed} executed · ${window.flaky} flaky · ${window.failed} failed · ${formatRate(window.rate)}`,
@@ -376,14 +430,6 @@ function main(): number {
     console.log("   (no runs inside the window)");
   }
   console.log("");
-
-  const reasons: string[] = [];
-  if (window.flaky > maxFlaky) {
-    reasons.push(`flaky ${window.flaky} > budget ${maxFlaky}`);
-  }
-  if (window.rate > maxRate) {
-    reasons.push(`flake rate ${formatRate(window.rate)} > budget ${maxRate}%`);
-  }
 
   const body =
     `## ${icon} Flake trend (${windowDays}-day rolling)\n\n` +
@@ -407,4 +453,6 @@ function main(): number {
   return 0;
 }
 
-process.exit(main());
+if (import.meta.main) {
+  process.exit(main());
+}

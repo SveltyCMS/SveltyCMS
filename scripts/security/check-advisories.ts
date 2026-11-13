@@ -64,7 +64,8 @@ interface CliFlags {
 /** A bad flag is a usage error, not a ledger problem. */
 class UsageError extends Error {}
 
-function parseFlags(argv: readonly string[]): CliFlags {
+/** Parse the CLI flags; throws `UsageError` on anything unknown. */
+export function parseAdvisoryCliFlags(argv: readonly string[]): CliFlags {
   const flags: CliFlags = { json: false, failOnBreach: false, writeDoc: false, help: false };
   for (const arg of argv) {
     switch (arg) {
@@ -155,7 +156,10 @@ function errorMessage(error: unknown): string {
 }
 
 /** Human table for the default (non-JSON) output: id, severity, state, latency, SLA, status. */
-function renderRecordTable(records: readonly AdvisoryRecord[], stats: LatencyStats): string {
+export function renderAdvisoryRecordTable(
+  records: readonly AdvisoryRecord[],
+  stats: LatencyStats,
+): string {
   const openById = new Map(stats.open.map((entry) => [entry.id, entry]));
 
   const rows = records.map((record) => {
@@ -190,10 +194,38 @@ function renderRecordTable(records: readonly AdvisoryRecord[], stats: LatencySta
   return [header, ...rows].map(formatRow).join("\n");
 }
 
+export interface LedgerReport {
+  ok: boolean;
+  advisories: AdvisoryRecord[];
+  examples: string[];
+  stats: LatencyStats;
+  /** Machine-readable breach list. Key name is part of the CLI contract. */
+  slabreaches: SlaBreach[];
+  errors: string[];
+}
+
+/** The `--json` report shape downstream tooling reads (key names are the contract). */
+export function buildLedgerReport(
+  records: readonly AdvisoryRecord[],
+  stats: LatencyStats,
+  errors: readonly string[],
+): LedgerReport {
+  return {
+    ok: errors.length === 0,
+    advisories: [...records],
+    examples: records
+      .filter((record) => record.provenance === "example")
+      .map((record) => record.id),
+    stats,
+    slabreaches: findSlaBreaches(stats),
+    errors: [...errors],
+  };
+}
+
 function run(argv: readonly string[]): number {
   let flags: CliFlags;
   try {
-    flags = parseFlags(argv);
+    flags = parseAdvisoryCliFlags(argv);
   } catch (error) {
     console.error(`✖ ${errorMessage(error)}`);
     console.error(USAGE);
@@ -274,22 +306,9 @@ function run(argv: readonly string[]): number {
   );
 
   if (flags.json) {
-    console.log(
-      JSON.stringify(
-        {
-          ok: errors.length === 0,
-          advisories: records,
-          examples: exampleIds,
-          stats,
-          slabreaches: slaBreaches,
-          errors,
-        },
-        null,
-        2,
-      ),
-    );
+    console.log(JSON.stringify(buildLedgerReport(records, stats, errors), null, 2));
   } else {
-    console.log(renderRecordTable(records, stats));
+    console.log(renderAdvisoryRecordTable(records, stats));
     console.log("\nRelease latency by severity:\n");
     console.log(renderMarkdownTable(stats));
     console.log(

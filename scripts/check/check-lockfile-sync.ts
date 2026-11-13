@@ -15,6 +15,12 @@
  * - every direct dependency must exist in bun.lock
  * - its resolved version must satisfy the declared semver range
  *
+ * Features:
+ * - Tolerant bun.lock parser (BOM + trailing commas)
+ * - Exact pins and non-registry sources (`file:`, `git`, `link:`, `workspace:`)
+ *   are accepted without a semver comparison
+ * - Offender list shared by the CLI and the unit suite (`findLockfileOffenders`)
+ *
  * Usage: bun run scripts/check-lockfile-sync.ts
  * Exit: 0 when in sync, 1 with a list of offenders otherwise.
  */
@@ -23,16 +29,24 @@ import { readFileSync } from "node:fs";
 
 const FAIL_PREFIX = "❌ lockfile-sync";
 
-interface LockEntry {
+export interface LockEntry {
   /** First element of a bun.lock package entry: "name@resolvedVersion". */
   resolved: string;
 }
 
-function parseBunLock(path: string): Record<string, LockEntry> {
-  const raw = readFileSync(path, "utf-8")
-    .replace(/^\uFEFF/, "")
-    .replace(/,\s*([\]}])/g, "$1");
-  const data = JSON.parse(raw) as { packages?: Record<string, unknown> };
+/** One `[name, range]` pair from package.json. */
+export type DeclaredDependency = readonly [name: string, range: string];
+
+/**
+ * Parses the bun.lock JSON body.
+ *
+ * bun.lock is JSONC-ish: it may carry a BOM and trailing commas, neither of
+ * which `JSON.parse` accepts. Entries that are not `[resolved, …]` tuples are
+ * ignored rather than treated as missing.
+ */
+export function parseBunLockContent(raw: string): Record<string, LockEntry> {
+  const normalized = raw.replace(/^\uFEFF/, "").replace(/,\s*([\]}])/g, "$1");
+  const data = JSON.parse(normalized) as { packages?: Record<string, unknown> };
   const entries: Record<string, LockEntry> = {};
   for (const [name, info] of Object.entries(data.packages ?? {})) {
     if (Array.isArray(info) && typeof info[0] === "string") {
@@ -42,46 +56,82 @@ function parseBunLock(path: string): Record<string, LockEntry> {
   return entries;
 }
 
-function versionOf(resolved: string): string {
+/** Extracts the resolved version from a `name@version` lock entry. */
+export function versionOf(resolved: string): string {
   const at = resolved.lastIndexOf("@");
   return at > 0 ? resolved.slice(at + 1) : resolved;
 }
 
-const pkgJson = JSON.parse(readFileSync("package.json", "utf-8")) as {
-  dependencies?: Record<string, string>;
-  devDependencies?: Record<string, string>;
-  optionalDependencies?: Record<string, string>;
-};
-const lock = parseBunLock("bun.lock");
+/**
+ * Compares declared ranges against the lockfile.
+ *
+ * `satisfies` is injected so the caller supplies `Bun.semver.satisfies` (the
+ * CLI runs under Bun) while unit tests can exercise the comparison plumbing
+ * without depending on a global runtime.
+ */
+export function findLockfileOffenders(
+  declared: readonly DeclaredDependency[],
+  lock: Readonly<Record<string, LockEntry>>,
+  satisfies: (version: string, range: string) => boolean,
+): string[] {
+  const offenders: string[] = [];
 
-const declared: Array<[string, string]> = [
-  ...Object.entries(pkgJson.dependencies ?? {}),
-  ...Object.entries(pkgJson.devDependencies ?? {}),
-  ...Object.entries(pkgJson.optionalDependencies ?? {}),
-];
+  for (const [name, range] of declared) {
+    const entry = lock[name];
+    if (!entry) {
+      offenders.push(`${name}@${range} — missing from bun.lock (run: bun install)`);
+      continue;
+    }
 
-const offenders: string[] = [];
-for (const [name, range] of declared) {
-  const entry = lock[name];
-  if (!entry) {
-    offenders.push(`${name}@${range} — missing from bun.lock (run: bun install)`);
-    continue;
+    const version = versionOf(entry.resolved);
+    if (version === range || /^(http|file:|git|link:|workspace:)/.test(version)) {
+      continue; // exact pin or non-registry source — nothing to satisfy
+    }
+
+    if (!satisfies(version, range)) {
+      offenders.push(
+        `${name}@${range} — bun.lock resolves ${version} (run: bun install to sync the lockfile)`,
+      );
+    }
   }
-  const version = versionOf(entry.resolved);
-  if (version === range || /^(http|file:|git|link:|workspace:)/.test(version)) {
-    continue; // exact pin or non-registry source — nothing to satisfy
-  }
-  if (!Bun.semver.satisfies(version, range)) {
-    offenders.push(
-      `${name}@${range} — bun.lock resolves ${version} (run: bun install to sync the lockfile)`,
+
+  return offenders;
+}
+
+function readLockfile(path: string): Record<string, LockEntry> {
+  return parseBunLockContent(readFileSync(path, "utf-8"));
+}
+
+function main(): number {
+  const pkgJson = JSON.parse(readFileSync("package.json", "utf-8")) as {
+    dependencies?: Record<string, string>;
+    devDependencies?: Record<string, string>;
+    optionalDependencies?: Record<string, string>;
+  };
+  const lock = readLockfile("bun.lock");
+
+  const declared: DeclaredDependency[] = [
+    ...Object.entries(pkgJson.dependencies ?? {}),
+    ...Object.entries(pkgJson.devDependencies ?? {}),
+    ...Object.entries(pkgJson.optionalDependencies ?? {}),
+  ];
+
+  const offenders = findLockfileOffenders(declared, lock, (version, range) =>
+    Bun.semver.satisfies(version, range),
+  );
+
+  if (offenders.length > 0) {
+    console.error(
+      `${FAIL_PREFIX}: package.json and bun.lock are out of sync (${offenders.length}):`,
     );
+    for (const line of offenders) console.error(`  - ${line}`);
+    return 1;
   }
+
+  console.log(`✅ lockfile-sync: ${declared.length} direct dependencies in sync with bun.lock`);
+  return 0;
 }
 
-if (offenders.length > 0) {
-  console.error(`${FAIL_PREFIX}: package.json and bun.lock are out of sync (${offenders.length}):`);
-  for (const line of offenders) console.error(`  - ${line}`);
-  process.exit(1);
+if (import.meta.main) {
+  process.exit(main());
 }
-
-console.log(`✅ lockfile-sync: ${declared.length} direct dependencies in sync with bun.lock`);

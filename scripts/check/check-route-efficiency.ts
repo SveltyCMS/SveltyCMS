@@ -8,13 +8,17 @@
  * 2. Sequential `await` waterfalls (independent DB queries that should be Promise.all'd)
  * 3. RouteResourceStateMachine lane classification compatibility
  *
- * Supports `--check` flag to fail CI with exit code 1 if critical violations are found.
+ * Features:
+ * - Pure per-file scanner (`scanRouteSource`) shared by the CLI and the unit suite
+ * - Whitelisted raw-DB routes (`api/[...path]`, `api/testing`) and any `testing` path
+ * - Four-line threshold for the sequential-await heuristic
+ * - Supports `--check` flag to fail CI with exit code 1 if critical violations are found
  */
 
 import fs from "node:fs";
 import path from "node:path";
 
-interface Violation {
+export interface Violation {
   file: string;
   line: number;
   type: "DIRECT_DB_ACCESS" | "SEQUENTIAL_AWAIT_WATERFALL";
@@ -22,19 +26,28 @@ interface Violation {
   message: string;
 }
 
-const isCheck = process.argv.includes("--check");
-const ROUTES_DIR = path.resolve(process.cwd(), "src/routes");
-const violations: Violation[] = [];
-
 // Whitelist routes that legitimately interact with raw database driver or test harnesses
-const ALLOWED_RAW_DB_ROUTES = new Set([
+export const ALLOWED_RAW_DB_ROUTES: ReadonlySet<string> = new Set([
   "src/routes/api/[...path]/+server.ts",
   "src/routes/api/testing/+server.ts",
 ]);
 
-function scanFile(filePath: string): void {
-  const relPath = path.relative(process.cwd(), filePath).replace(/\\/g, "/");
-  const content = fs.readFileSync(filePath, "utf-8");
+const DIRECT_DB_MARKERS = [
+  "dbAdapter.crud.",
+  "dbAdapter.content.",
+  "dbAdapter.collection.",
+  "dbAdapter.system.",
+  "dbAdapter.auth.",
+];
+
+/**
+ * Scans one route source file.
+ *
+ * `relPath` must be repository-relative with POSIX separators; it is both the
+ * whitelist key and the value reported in a violation.
+ */
+export function scanRouteSource(relPath: string, content: string): Violation[] {
+  const violations: Violation[] = [];
   const lines = content.split("\n");
 
   let consecutiveAwaits = 0;
@@ -46,11 +59,7 @@ function scanFile(filePath: string): void {
 
     // Check for direct dbAdapter usage in server routes where LocalCMS or services are preferred
     if (
-      (line.includes("dbAdapter.crud.") ||
-        line.includes("dbAdapter.content.") ||
-        line.includes("dbAdapter.collection.") ||
-        line.includes("dbAdapter.system.") ||
-        line.includes("dbAdapter.auth.")) &&
+      DIRECT_DB_MARKERS.some((marker) => line.includes(marker)) &&
       !ALLOWED_RAW_DB_ROUTES.has(relPath) &&
       !relPath.includes("testing")
     ) {
@@ -94,36 +103,46 @@ function scanFile(filePath: string): void {
       consecutiveAwaits = 0;
     }
   }
+
+  return violations;
 }
 
-function walkDir(dir: string): void {
+function walkDir(dir: string, violations: Violation[]): void {
   if (!fs.existsSync(dir)) return;
   const entries = fs.readdirSync(dir, { withFileTypes: true });
   for (const entry of entries) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      walkDir(full);
+      walkDir(full, violations);
     } else if (
       entry.isFile() &&
       (entry.name.endsWith(".server.ts") || entry.name.endsWith("+server.ts"))
     ) {
-      scanFile(full);
+      const relPath = path.relative(process.cwd(), full).replace(/\\/g, "/");
+      const content = fs.readFileSync(full, "utf-8");
+      violations.push(...scanRouteSource(relPath, content));
     }
   }
 }
 
-console.log("🚀 Scanning SveltyCMS routes for efficiency patterns...\n");
-walkDir(ROUTES_DIR);
+function main(argv: readonly string[]): number {
+  const isCheck = argv.includes("--check");
+  const routesDir = path.resolve(process.cwd(), "src/routes");
+  const violations: Violation[] = [];
 
-const criticalCount = violations.filter((v) => v.severity === "critical").length;
-const advisoryCount = violations.filter((v) => v.severity === "advisory").length;
+  console.log("🚀 Scanning SveltyCMS routes for efficiency patterns...\n");
+  walkDir(routesDir, violations);
 
-if (violations.length === 0) {
-  console.log(
-    "✅ Route efficiency check passed: 0 direct DB bypasses or heavy await waterfalls found.",
-  );
-  process.exit(0);
-} else {
+  const criticalCount = violations.filter((v) => v.severity === "critical").length;
+  const advisoryCount = violations.filter((v) => v.severity === "advisory").length;
+
+  if (violations.length === 0) {
+    console.log(
+      "✅ Route efficiency check passed: 0 direct DB bypasses or heavy await waterfalls found.",
+    );
+    return 0;
+  }
+
   console.log(
     `ℹ️ Found ${violations.length} route efficiency item(s) (${criticalCount} critical, ${advisoryCount} advisory):\n`,
   );
@@ -134,9 +153,13 @@ if (violations.length === 0) {
 
   if (isCheck && criticalCount > 0) {
     console.error(`\n❌ Gate failed: ${criticalCount} critical route efficiency violation(s).`);
-    process.exit(1);
+    return 1;
   }
 
   console.log("\n✅ Route efficiency scan complete (advisories reported).");
-  process.exit(0);
+  return 0;
+}
+
+if (import.meta.main) {
+  process.exit(main(process.argv.slice(2)));
 }

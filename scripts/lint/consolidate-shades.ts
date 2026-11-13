@@ -29,6 +29,11 @@
  *   bun run scripts/lint/consolidate-shades.ts --check   # drift guard (exit 1 on drift)
  *   bun run scripts/lint/consolidate-shades.ts --dry     # preview only, no writes
  *   bun run scripts/lint/consolidate-shades.ts           # apply the fixes in place
+ *
+ * ### Features:
+ * - Pure `analyzeShadeSource()` core (migrations + violations, no disk access)
+ * - `SHADE_EXCLUDED_FILES` published so unit tests pin the documented exemptions
+ * - `import.meta.main` guard — importing this module never walks or rewrites `src/`
  */
 
 import { readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
@@ -39,7 +44,7 @@ const DRY = process.argv.includes("--dry");
 const CHECK = process.argv.includes("--check");
 const ROOT = fileURLToPath(new URL("../../src", import.meta.url));
 
-const EXCLUDED = new Set([
+export const SHADE_EXCLUDED_FILES: ReadonlySet<string> = new Set([
   "highlighted-text.svelte",
   "restart-required-banner.svelte",
   "image-editor-modal.svelte",
@@ -84,6 +89,27 @@ const TEXT_TEXT_RE = new RegExp(
 
 // `bg-surface-800` / `dark:bg-surface-800` advisory count
 const SURFACE_800_RE = /(^|[\\s"'(\\[{:=])(?:dark:)?bg-surface-800(?!\d)(?!\/)/g;
+
+/** One contract migration applied to a single line. */
+export interface ShadeChange {
+  /** 1-based line number. */
+  line: number;
+  /** Token as written. */
+  from: string;
+  /** Token after the migration. */
+  to: string;
+}
+
+/** Result of analysing one file: rewritten text plus everything the guard reports. */
+export interface ShadeFileAnalysis {
+  /** Source with every contract migration applied (byte-identical when nothing changed). */
+  text: string;
+  changes: ShadeChange[];
+  /** Legacy `text-text-{shade}` tokens — `text` is not a hue, so they are reported, never rewritten. */
+  textTextViolations: { line: number; token: string }[];
+  /** `bg-surface-800` / `dark:bg-surface-800` solid fills — advisory only, never gated. */
+  surface800Count: number;
+}
 
 const changes: string[] = [];
 const textTextViolations: string[] = [];
@@ -172,17 +198,19 @@ function transformToken(
   }
 }
 
-function processFile(file: string): void {
-  const base = file.split(/[\\/]/).pop() || "";
-  if (EXCLUDED.has(base)) return;
-  const original = readFileSync(file, "utf8");
-  const lines = original.split("\n");
-  const rel = file.replace(ROOT, "").replace(/\\/g, "/");
-  let changed = false;
+/**
+ * Pure core: applies the status-shade contract to one source string.
+ * No disk access, so the guard and its migrations are unit-testable.
+ */
+export function analyzeShadeSource(source: string): ShadeFileAnalysis {
+  const lines = source.split("\n");
+  const changes: ShadeChange[] = [];
+  const textTextViolations: ShadeFileAnalysis["textTextViolations"] = [];
+  let surface800Count = 0;
 
   for (let i = 0; i < lines.length; i++) {
     for (const m of lines[i].matchAll(TEXT_TEXT_RE)) {
-      textTextViolations.push(`${rel}:${i + 1}  ${m[0].trim()}`);
+      textTextViolations.push({ line: i + 1, token: m[0].trim() });
     }
     for (const m of lines[i].matchAll(SURFACE_800_RE)) {
       if (m[0].includes("bg-surface-800")) surface800Count++;
@@ -217,24 +245,35 @@ function processFile(file: string): void {
         alpha,
         variants.includes("class:"),
       );
-      if (out !== m) {
-        changes.push(
-          `${file.replace(ROOT, "").replace(/\\/g, "/")}:${i + 1}  ${m.trim()}  →  ${out.trim()}`,
-        );
-      }
+      if (out !== m) changes.push({ line: i + 1, from: m.trim(), to: out.trim() });
       return out;
     });
 
-    if (next !== line) {
-      lines[i] = next;
-      changed = true;
-    }
+    if (next !== line) lines[i] = next;
   }
 
-  if (changed) {
-    filesChanged++;
-    if (!DRY) writeFileSync(file, lines.join("\n"));
+  return { text: lines.join("\n"), changes, textTextViolations, surface800Count };
+}
+
+function processFile(file: string): void {
+  const base = file.split(/[\\/]/).pop() || "";
+  if (SHADE_EXCLUDED_FILES.has(base)) return;
+  const original = readFileSync(file, "utf8");
+  const analysis = analyzeShadeSource(original);
+  const rel = file.replace(ROOT, "").replace(/\\/g, "/");
+
+  for (const violation of analysis.textTextViolations) {
+    textTextViolations.push(`${rel}:${violation.line}  ${violation.token}`);
   }
+  surface800Count += analysis.surface800Count;
+
+  if (analysis.changes.length === 0) return;
+
+  for (const change of analysis.changes) {
+    changes.push(`${rel}:${change.line}  ${change.from}  →  ${change.to}`);
+  }
+  filesChanged++;
+  if (!DRY) writeFileSync(file, analysis.text);
 }
 
 function walk(dir: string): void {
@@ -249,47 +288,51 @@ function walk(dir: string): void {
   }
 }
 
-walk(ROOT);
+function main(): void {
+  walk(ROOT);
 
-if (CHECK) {
-  let failed = false;
+  if (CHECK) {
+    let failed = false;
 
-  if (changes.length > 0) {
-    failed = true;
-    console.log(
-      `[check] ${changes.length} tokens violate the status-shade contract across ${filesChanged} files:`,
-    );
-    console.log(changes.join("\n"));
-    console.log("Run `bun run scripts/lint/consolidate-shades.ts` to apply the fixes.");
+    if (changes.length > 0) {
+      failed = true;
+      console.log(
+        `[check] ${changes.length} tokens violate the status-shade contract across ${filesChanged} files:`,
+      );
+      console.log(changes.join("\n"));
+      console.log("Run `bun run scripts/lint/consolidate-shades.ts` to apply the fixes.");
+    }
+
+    if (textTextViolations.length > 0) {
+      failed = true;
+      console.log(
+        `\n[check] ${textTextViolations.length} legacy \`text-text-{shade}\` class(es) — \`text\` is not a valid hue:`,
+      );
+      console.log(textTextViolations.join("\n"));
+      console.log("  → replace with the correct surface hue (e.g. text-surface-400).");
+    }
+
+    if (failed) process.exit(1);
+
+    if (surface800Count > 0) {
+      console.log(
+        `\n[advisory] ${surface800Count} \`bg-surface-800\` / \`dark:bg-surface-800\` solid surface fills detected.`,
+      );
+      console.log(
+        "  This is the accepted dark surface across the codebase (known wider cleanup) — not gated.",
+      );
+    }
+
+    console.log("status shades: OK — no contract drift found");
+    process.exit(0);
   }
 
-  if (textTextViolations.length > 0) {
-    failed = true;
-    console.log(
-      `\n[check] ${textTextViolations.length} legacy \`text-text-{shade}\` class(es) — \`text\` is not a valid hue:`,
-    );
-    console.log(textTextViolations.join("\n"));
-    console.log("  → replace with the correct surface hue (e.g. text-surface-400).");
+  if (DRY) {
+    console.log(`[dry] ${changes.length} token replacements across ${filesChanged} files`);
+  } else {
+    console.log(`[applied] ${changes.length} token replacements across ${filesChanged} files`);
   }
-
-  if (failed) process.exit(1);
-
-  if (surface800Count > 0) {
-    console.log(
-      `\n[advisory] ${surface800Count} \`bg-surface-800\` / \`dark:bg-surface-800\` solid surface fills detected.`,
-    );
-    console.log(
-      "  This is the accepted dark surface across the codebase (known wider cleanup) — not gated.",
-    );
-  }
-
-  console.log("status shades: OK — no contract drift found");
-  process.exit(0);
+  if (changes.length > 0) console.log(changes.join("\n"));
 }
 
-if (DRY) {
-  console.log(`[dry] ${changes.length} token replacements across ${filesChanged} files`);
-} else {
-  console.log(`[applied] ${changes.length} token replacements across ${filesChanged} files`);
-}
-if (changes.length > 0) console.log(changes.join("\n"));
+if (import.meta.main) main();

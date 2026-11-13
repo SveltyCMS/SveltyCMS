@@ -7,115 +7,168 @@
  * - Key alignment: verifies that all keys present in the reference catalog (en.json) exist in all target catalogs
  * - Detects empty values, whitespace-only strings, or un-translated fallback placeholders
  *
+ * Features:
+ * - Pure `auditCatalogs` core shared by the CLI and the unit suite
+ * - `en` is the reference catalog when present, otherwise the first locale
+ * - Missing keys are errors; extra keys and empty values are warnings
+ *
  * Usage: `bun run scripts/check-translations.ts`
+ * Exit: 0 when no key is missing, 1 otherwise (including unreadable catalogs).
  */
 
 import fs from "node:fs";
 import path from "node:path";
 
 const MESSAGES_DIR = path.join(process.cwd(), "src/messages");
+const MAX_LISTED_KEYS = 10;
+const MAX_LISTED_EMPTY_KEYS = 5;
 
-function loadCatalog(filepath: string): Record<string, string> {
-  const content = fs.readFileSync(filepath, "utf8");
-  try {
-    return JSON.parse(content);
-  } catch (err: any) {
-    console.error(`❌ Invalid JSON in file ${filepath}:`, err.message);
-    process.exit(1);
-  }
+export type Catalog = Record<string, unknown>;
+
+export interface CatalogIssue {
+  locale: string;
+  kind: "missing" | "extra" | "empty";
+  keys: string[];
 }
 
-function auditTranslations(): void {
-  if (!fs.existsSync(MESSAGES_DIR)) {
-    console.error(`❌ Messages directory not found at: ${MESSAGES_DIR}`);
-    process.exit(1);
-  }
+export interface CatalogAudit {
+  referenceLocale: string | null;
+  keyCounts: Record<string, number>;
+  issues: CatalogIssue[];
+  errorCount: number;
+  warningCount: number;
+}
 
-  const files = fs.readdirSync(MESSAGES_DIR).filter((f) => f.endsWith(".json"));
-  if (files.length === 0) {
-    console.error("❌ No locale JSON catalogs found in src/messages/");
-    process.exit(1);
-  }
+/**
+ * Audits loaded catalogs against the reference locale.
+ *
+ * The reference is `en` when present, else the first catalog key. Missing keys
+ * are counted as errors; extra keys and blank string values are warnings. A
+ * non-string value (e.g. a nested object) is never reported as an empty
+ * translation, matching the pre-extraction behaviour.
+ */
+export function auditCatalogs(catalogs: Readonly<Record<string, Catalog>>): CatalogAudit {
+  const locales = Object.keys(catalogs);
+  const referenceLocale = catalogs["en"] ? "en" : (locales[0] ?? null);
+  const keyCounts: Record<string, number> = {};
+  for (const locale of locales) keyCounts[locale] = Object.keys(catalogs[locale]!).length;
 
-  console.log(`🌐 Auditing ${files.length} locale catalog(s) in src/messages/...`);
+  const audit: CatalogAudit = {
+    referenceLocale,
+    keyCounts,
+    issues: [],
+    errorCount: 0,
+    warningCount: 0,
+  };
+  if (!referenceLocale) return audit;
 
-  const catalogs: Record<string, Record<string, string>> = {};
-  for (const file of files) {
-    const locale = path.basename(file, ".json");
-    catalogs[locale] = loadCatalog(path.join(MESSAGES_DIR, file));
-    console.log(`  ✓ Loaded locale '${locale}': ${Object.keys(catalogs[locale]).length} keys`);
-  }
-
-  const referenceLocale = catalogs["en"] ? "en" : Object.keys(catalogs)[0];
-  const referenceKeys = new Set(Object.keys(catalogs[referenceLocale]));
-
-  let errorCount = 0;
-  let warningCount = 0;
+  const referenceKeys = new Set(Object.keys(catalogs[referenceLocale]!));
 
   for (const [locale, catalog] of Object.entries(catalogs)) {
     if (locale === referenceLocale) continue;
 
     const currentKeys = new Set(Object.keys(catalog));
 
-    // Check missing keys in target locale
-    const missingKeys: string[] = [];
-    for (const key of referenceKeys) {
-      if (!currentKeys.has(key)) {
-        missingKeys.push(key);
-      }
-    }
-
+    const missingKeys = [...referenceKeys].filter((key) => !currentKeys.has(key));
     if (missingKeys.length > 0) {
-      console.error(
-        `\n❌ [${locale}] Missing ${missingKeys.length} key(s) present in '${referenceLocale}':`,
-      );
-      missingKeys.slice(0, 10).forEach((k) => console.error(`   - ${k}`));
-      if (missingKeys.length > 10) {
-        console.error(`   ... and ${missingKeys.length - 10} more`);
-      }
-      errorCount += missingKeys.length;
+      audit.issues.push({ locale, kind: "missing", keys: missingKeys });
+      audit.errorCount += missingKeys.length;
     }
 
-    // Check extra keys not present in reference locale
-    const extraKeys: string[] = [];
-    for (const key of currentKeys) {
-      if (!referenceKeys.has(key)) {
-        extraKeys.push(key);
-      }
-    }
-
+    const extraKeys = [...currentKeys].filter((key) => !referenceKeys.has(key));
     if (extraKeys.length > 0) {
-      console.warn(
-        `\n⚠️  [${locale}] Has ${extraKeys.length} extra key(s) not in '${referenceLocale}':`,
-      );
-      extraKeys.slice(0, 10).forEach((k) => console.warn(`   - ${k}`));
-      warningCount += extraKeys.length;
+      audit.issues.push({ locale, kind: "extra", keys: extraKeys });
+      audit.warningCount += extraKeys.length;
     }
 
-    // Check empty strings
-    const emptyKeys: string[] = [];
-    for (const [key, val] of Object.entries(catalog)) {
-      if (typeof val === "string" && val.trim().length === 0) {
-        emptyKeys.push(key);
-      }
-    }
-
+    const emptyKeys = Object.entries(catalog)
+      .filter(([, value]) => typeof value === "string" && value.trim().length === 0)
+      .map(([key]) => key);
     if (emptyKeys.length > 0) {
-      console.warn(`\n⚠️  [${locale}] Has ${emptyKeys.length} empty translation value(s):`);
-      emptyKeys.slice(0, 5).forEach((k) => console.warn(`   - ${k}`));
-      warningCount += emptyKeys.length;
+      audit.issues.push({ locale, kind: "empty", keys: emptyKeys });
+      audit.warningCount += emptyKeys.length;
     }
   }
 
-  console.log("\n----------------------------------------");
-  if (errorCount > 0) {
-    console.error(
-      `❌ Translation audit FAILED with ${errorCount} error(s) and ${warningCount} warning(s).`,
-    );
-    process.exit(1);
-  } else {
-    console.log(`✅ Translation audit PASSED with 0 errors (${warningCount} warning(s)).`);
+  return audit;
+}
+
+function loadCatalog(filepath: string): Catalog | null {
+  const content = fs.readFileSync(filepath, "utf8");
+  try {
+    const parsed: unknown = JSON.parse(content);
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      console.error(`❌ Invalid JSON in file ${filepath}: expected a JSON object`);
+      return null;
+    }
+    return parsed as Catalog;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`❌ Invalid JSON in file ${filepath}: ${message}`);
+    return null;
   }
 }
 
-auditTranslations();
+function reportAudit(audit: CatalogAudit): void {
+  for (const issue of audit.issues) {
+    if (issue.kind === "missing") {
+      console.error(
+        `\n❌ [${issue.locale}] Missing ${issue.keys.length} key(s) present in '${audit.referenceLocale}':`,
+      );
+      issue.keys.slice(0, MAX_LISTED_KEYS).forEach((key) => console.error(`   - ${key}`));
+      if (issue.keys.length > MAX_LISTED_KEYS) {
+        console.error(`   ... and ${issue.keys.length - MAX_LISTED_KEYS} more`);
+      }
+    } else if (issue.kind === "extra") {
+      console.warn(
+        `\n⚠️  [${issue.locale}] Has ${issue.keys.length} extra key(s) not in '${audit.referenceLocale}':`,
+      );
+      issue.keys.slice(0, MAX_LISTED_KEYS).forEach((key) => console.warn(`   - ${key}`));
+    } else {
+      console.warn(`\n⚠️  [${issue.locale}] Has ${issue.keys.length} empty translation value(s):`);
+      issue.keys.slice(0, MAX_LISTED_EMPTY_KEYS).forEach((key) => console.warn(`   - ${key}`));
+    }
+  }
+}
+
+function main(): number {
+  if (!fs.existsSync(MESSAGES_DIR)) {
+    console.error(`❌ Messages directory not found at: ${MESSAGES_DIR}`);
+    return 1;
+  }
+
+  const files = fs.readdirSync(MESSAGES_DIR).filter((f) => f.endsWith(".json"));
+  if (files.length === 0) {
+    console.error("❌ No locale JSON catalogs found in src/messages/");
+    return 1;
+  }
+
+  console.log(`🌐 Auditing ${files.length} locale catalog(s) in src/messages/...`);
+
+  const catalogs: Record<string, Catalog> = {};
+  for (const file of files) {
+    const locale = path.basename(file, ".json");
+    const catalog = loadCatalog(path.join(MESSAGES_DIR, file));
+    if (!catalog) return 1;
+    catalogs[locale] = catalog;
+    console.log(`  ✓ Loaded locale '${locale}': ${Object.keys(catalog).length} keys`);
+  }
+
+  const audit = auditCatalogs(catalogs);
+  reportAudit(audit);
+
+  console.log("\n----------------------------------------");
+  if (audit.errorCount > 0) {
+    console.error(
+      `❌ Translation audit FAILED with ${audit.errorCount} error(s) and ${audit.warningCount} warning(s).`,
+    );
+    return 1;
+  }
+
+  console.log(`✅ Translation audit PASSED with 0 errors (${audit.warningCount} warning(s)).`);
+  return 0;
+}
+
+if (import.meta.main) {
+  process.exit(main());
+}

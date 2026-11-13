@@ -38,9 +38,12 @@ interface Finding {
   endpoint: string;
   test: string;
   owasp: string;
-  risk: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+  risk: FindingRisk;
   detail: string;
 }
+
+/** Severity band a finding is reported under. */
+export type FindingRisk = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
 
 const findings: Finding[] = [];
 let authCookie: string | null = null;
@@ -115,15 +118,24 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 /** A production target is HTTPS off-loopback, or NODE_ENV=production. */
 function isProductionTarget(): boolean {
-  if (process.env.NODE_ENV === "production") return true;
-  if (!/^https:\/\//i.test(BASE)) return false;
-  return !/^https:\/\/(localhost|127\.0\.0\.1|\[::1\])(?:[:/]|$)/i.test(BASE);
+  return isProductionTargetFor(BASE);
+}
+
+/** Pure form of `isProductionTarget()` — the audit never treats loopback as production. */
+export function isProductionTargetFor(
+  base: string,
+  nodeEnv: string | undefined = process.env.NODE_ENV,
+): boolean {
+  if (nodeEnv === "production") return true;
+  if (!/^https:\/\//i.test(base)) return false;
+  return !/^https:\/\/(localhost|127\.0\.0\.1|\[::1\])(?:[:/]|$)/i.test(base);
 }
 
 /** Session cookies: `auth_sessions` and its `__Host-` production variant. */
 const SESSION_COOKIE_RE = /(^|-)auth_sessions$/i;
 
-interface SetCookieEntry {
+/** One parsed `Set-Cookie` header — attributes belong to THIS cookie only. */
+export interface SetCookieEntry {
   name: string;
   value: string;
   /** Lower-cased `flag` / `attribute=value` map for THIS header only. */
@@ -132,7 +144,7 @@ interface SetCookieEntry {
 }
 
 /** Parse ONE `Set-Cookie` header line into a single per-cookie entry. */
-function parseSetCookieEntry(raw: string): SetCookieEntry[] {
+export function parseSetCookieHeader(raw: string): SetCookieEntry[] {
   const [pair, ...attrParts] = raw.split(";");
   const separator = pair.indexOf("=");
   if (separator <= 0) return [];
@@ -150,6 +162,20 @@ function parseSetCookieEntry(raw: string): SetCookieEntry[] {
 }
 
 /**
+ * Parse one `Set-Cookie` header per entry, never joined.
+ * A flag carried by one cookie (`svelty-csrf`) must not be credited to another
+ * (`auth_sessions`) — the bug the old joined-header implementation shipped.
+ */
+export function parseSetCookieHeaders(rawValues: readonly string[]): SetCookieEntry[] {
+  return rawValues.flatMap(parseSetCookieHeader);
+}
+
+/** The session cookie an audit must grade, or `undefined` when the response has none. */
+export function findSessionCookie(entries: readonly SetCookieEntry[]): SetCookieEntry | undefined {
+  return entries.find((cookie) => SESSION_COOKIE_RE.test(cookie.name));
+}
+
+/**
  * Split a response's `set-cookie` headers into per-cookie entries.
  *
  * NEVER joins the headers: a flag carried by one cookie (e.g. `svelty-csrf`)
@@ -158,14 +184,95 @@ function parseSetCookieEntry(raw: string): SetCookieEntry[] {
  */
 function setCookieEntries(headers: Headers): SetCookieEntry[] {
   const split = headers.getSetCookie?.();
-  if (split && split.length > 0) return split.flatMap(parseSetCookieEntry);
+  if (split && split.length > 0) return parseSetCookieHeaders(split);
   const combined = headers.get("set-cookie");
   if (!combined) return [];
-  return combined.split("\n").flatMap(parseSetCookieEntry);
+  return parseSetCookieHeaders(combined.split("\n"));
+}
+
+/** One graded cookie flag: a pass, an environment note, or a finding to report. */
+export type CookieFlagOutcome =
+  | { kind: "pass"; message: string }
+  | { kind: "note"; message: string }
+  | { kind: "report"; test: string; risk: FindingRisk; detail: string };
+
+/**
+ * Pure core for the A02 cookie audit: grade HttpOnly / Secure / SameSite /
+ * `__Host-` on the isolated session cookie.
+ *
+ * `productionTarget` only escalates; a plain-HTTP dev target reports a note
+ * instead of a finding, which is exactly what the CLI printed before.
+ */
+export function assessSessionCookieFlags(
+  cookie: SetCookieEntry,
+  options: { requiresSecure: boolean; productionTarget: boolean; base: string },
+): CookieFlagOutcome[] {
+  const outcomes: CookieFlagOutcome[] = [];
+  const name = cookie.name;
+
+  if (cookie.attributes.has("httponly")) {
+    outcomes.push({ kind: "pass", message: `HttpOnly: set on "${name}"` });
+  } else {
+    outcomes.push({
+      kind: "report",
+      test: "Cookie missing HttpOnly",
+      risk: "HIGH",
+      detail: `Session cookie "${name}" lacks HttpOnly — XSS can steal the token`,
+    });
+  }
+
+  if (cookie.attributes.has("secure")) {
+    outcomes.push({ kind: "pass", message: `Secure: set on "${name}"` });
+  } else if (options.requiresSecure) {
+    outcomes.push({
+      kind: "report",
+      test: "Cookie missing Secure",
+      risk: "MEDIUM",
+      detail: `Session cookie "${name}" lacks Secure on an HTTPS/production target`,
+    });
+  } else {
+    outcomes.push({
+      kind: "note",
+      message: `Secure: not set on "${name}" (target ${options.base} is plain HTTP)`,
+    });
+  }
+
+  const sameSite = cookie.attributes.get("samesite");
+  if (typeof sameSite === "string" && /^(strict|lax)$/i.test(sameSite)) {
+    outcomes.push({ kind: "pass", message: `SameSite=${sameSite}: set on "${name}"` });
+  } else {
+    outcomes.push({
+      kind: "report",
+      test: "Cookie missing SameSite",
+      risk: "MEDIUM",
+      detail:
+        typeof sameSite === "string"
+          ? `Session cookie "${name}" has SameSite=${sameSite} (expected Strict or Lax)`
+          : `Session cookie "${name}" lacks SameSite — CSRF risk`,
+    });
+  }
+
+  if (name.startsWith("__Host-")) {
+    outcomes.push({ kind: "pass", message: `__Host- prefix: present on "${name}"` });
+  } else if (options.productionTarget) {
+    outcomes.push({
+      kind: "report",
+      test: "Cookie missing __Host- prefix",
+      risk: "LOW",
+      detail: `Session cookie "${name}" has no __Host- prefix — subdomain cookie leakage risk (RFC 6265bis)`,
+    });
+  } else {
+    outcomes.push({
+      kind: "note",
+      message: `__Host- prefix: not required for ${options.base} (non-production target)`,
+    });
+  }
+
+  return outcomes;
 }
 
 /** First string value stored under `key` in a JSON response (BFS, bounded). */
-function readStringField(payload: string, key: string): string | null {
+export function readStringField(payload: string, key: string): string | null {
   let parsed: unknown;
   try {
     parsed = JSON.parse(payload);
@@ -190,7 +297,7 @@ function readStringField(payload: string, key: string): string | null {
 }
 
 /** First collection id/name present in a `/api/collections` payload (bounded). */
-function firstCollectionId(payload: string): string | null {
+export function firstCollectionId(payload: string): string | null {
   let parsed: unknown;
   try {
     parsed = JSON.parse(payload);
@@ -321,7 +428,7 @@ async function setupAuth(): Promise<boolean> {
   // Extract session cookie — pick the auth_sessions entry, never the first
   // header (a `svelty-csrf` cookie may be emitted first).
   const loginEntries = setCookieEntries(loginRes.headers);
-  const sessionEntry = loginEntries.find((cookie) => SESSION_COOKIE_RE.test(cookie.name));
+  const sessionEntry = findSessionCookie(loginEntries);
   const firstEntry = loginEntries[0];
   authCookie = sessionEntry
     ? `${sessionEntry.name}=${sessionEntry.value}`
@@ -1085,7 +1192,7 @@ async function auditCookieSecurity() {
   // Per-cookie, per-header evaluation. Joining the headers (the old behaviour)
   // credited `svelty-csrf`'s flags to `auth_sessions` and masked real gaps.
   const entries = setCookieEntries(res.headers);
-  const session = entries.find((cookie) => SESSION_COOKIE_RE.test(cookie.name));
+  const session = findSessionCookie(entries);
 
   if (!session) {
     const observed = entries.map((cookie) => cookie.name).join(", ") || "(unparseable)";
@@ -1094,62 +1201,16 @@ async function auditCookieSecurity() {
     return;
   }
 
-  const cookieName = session.name;
   const requiresSecure = /^https:/i.test(BASE) || isProductionTarget();
 
-  if (session.attributes.has("httponly")) {
-    pass(`HttpOnly: set on "${cookieName}"`);
-  } else {
-    report(
-      "/api/auth/login",
-      "Cookie missing HttpOnly",
-      "A02",
-      "HIGH",
-      `Session cookie "${cookieName}" lacks HttpOnly — XSS can steal the token`,
-    );
-  }
-
-  if (session.attributes.has("secure")) {
-    pass(`Secure: set on "${cookieName}"`);
-  } else if (requiresSecure) {
-    report(
-      "/api/auth/login",
-      "Cookie missing Secure",
-      "A02",
-      "MEDIUM",
-      `Session cookie "${cookieName}" lacks Secure on an HTTPS/production target`,
-    );
-  } else {
-    console.log(`  ℹ️  Secure: not set on "${cookieName}" (target ${BASE} is plain HTTP)`);
-  }
-
-  const sameSite = session.attributes.get("samesite");
-  if (typeof sameSite === "string" && /^(strict|lax)$/i.test(sameSite)) {
-    pass(`SameSite=${sameSite}: set on "${cookieName}"`);
-  } else {
-    report(
-      "/api/auth/login",
-      "Cookie missing SameSite",
-      "A02",
-      "MEDIUM",
-      typeof sameSite === "string"
-        ? `Session cookie "${cookieName}" has SameSite=${sameSite} (expected Strict or Lax)`
-        : `Session cookie "${cookieName}" lacks SameSite — CSRF risk`,
-    );
-  }
-
-  if (cookieName.startsWith("__Host-")) {
-    pass(`__Host- prefix: present on "${cookieName}"`);
-  } else if (isProductionTarget()) {
-    report(
-      "/api/auth/login",
-      "Cookie missing __Host- prefix",
-      "A02",
-      "LOW",
-      `Session cookie "${cookieName}" has no __Host- prefix — subdomain cookie leakage risk (RFC 6265bis)`,
-    );
-  } else {
-    console.log(`  ℹ️  __Host- prefix: not required for ${BASE} (non-production target)`);
+  for (const outcome of assessSessionCookieFlags(session, {
+    requiresSecure,
+    productionTarget: isProductionTarget(),
+    base: BASE,
+  })) {
+    if (outcome.kind === "pass") pass(outcome.message);
+    else if (outcome.kind === "note") console.log(`  ℹ️  ${outcome.message}`);
+    else report("/api/auth/login", outcome.test, "A02", outcome.risk, outcome.detail);
   }
 }
 
@@ -1194,7 +1255,7 @@ async function seedLowPrivilegeSession(): Promise<LowPrivilegeSession | null> {
   if (!login || login.status !== 200) return null;
 
   const entries = setCookieEntries(login.headers);
-  const session = entries.find((cookie) => SESSION_COOKIE_RE.test(cookie.name));
+  const session = findSessionCookie(entries);
   if (!session) return null;
   const csrf = entries.find((cookie) => /csrf/i.test(cookie.name));
   const cookie = csrf

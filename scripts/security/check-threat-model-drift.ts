@@ -42,10 +42,12 @@ class CliError extends Error {
   }
 }
 
-interface CliOptions {
+export interface CliOptions {
   mode: "check" | "update";
   json: boolean;
   date?: string;
+  /** `--help` was passed; the caller prints usage and exits 0. */
+  help: boolean;
 }
 
 function usage(): string {
@@ -59,17 +61,19 @@ function usage(): string {
   ].join("\n");
 }
 
-function parseArgs(argv: readonly string[]): CliOptions {
+/** Parse the CLI contract. Throws `CliError` with exit code 2 on anything invalid. */
+export function parseCliArgs(argv: readonly string[]): CliOptions {
   let mode: CliOptions["mode"] = "check";
   let modeExplicit = false;
   let json = false;
   let date: string | undefined;
+  let help = false;
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === "--help" || arg === "-h") {
-      console.log(usage());
-      process.exit(EXIT_OK);
+      help = true;
+      continue;
     }
     if (arg === "--json") {
       json = true;
@@ -97,7 +101,7 @@ function parseArgs(argv: readonly string[]): CliOptions {
     throw new CliError(`Invalid --date "${date}" — expected YYYY-MM-DD`, EXIT_USAGE);
   }
 
-  return { mode, json, date };
+  return { mode, json, date, help };
 }
 
 function todayIso(): string {
@@ -343,7 +347,11 @@ function runUpdate(cwd: string, date: string, json: boolean): number {
 }
 
 function main(): void {
-  const options = parseArgs(process.argv.slice(2));
+  const options = parseCliArgs(process.argv.slice(2));
+  if (options.help) {
+    console.log(usage());
+    process.exit(EXIT_OK);
+  }
   const cwd = process.cwd();
 
   const exitCode =

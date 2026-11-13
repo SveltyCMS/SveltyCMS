@@ -38,10 +38,27 @@ const LARGE_LIB_MARKERS = [
   { pattern: "node:events", label: "node:events (server leak)" },
 ];
 
-interface Issue {
+export interface Issue {
   file: string;
   size: number;
   reason: string;
+}
+
+/** One emitted chunk, as handed to the pure classifier. */
+export interface ChunkInput {
+  /** Raw on-disk path; only used for the admin-shell node heuristic. */
+  filePath: string;
+  /** Repository-relative path reported in a violation. */
+  relPath: string;
+  /** Emitted size in bytes. */
+  size: number;
+  content: string;
+}
+
+/** Classifier verdict: at most one violation plus non-blocking advisories. */
+export interface ChunkVerdict {
+  issue: Issue | null;
+  warnings: string[];
 }
 
 /**
@@ -61,7 +78,7 @@ interface Issue {
  */
 const STATIC_NODE_IMPORT_RE = /(?:^|[^.\w$])(?:from|import)\s*["']((?:node:)[a-z][\w/.-]*)["']/g;
 
-function findNodeBuiltinImports(content: string): string[] {
+export function findNodeBuiltinImports(content: string): string[] {
   const found = new Set<string>();
   STATIC_NODE_IMPORT_RE.lastIndex = 0;
   for (let m = STATIC_NODE_IMPORT_RE.exec(content); m; m = STATIC_NODE_IMPORT_RE.exec(content)) {
@@ -87,74 +104,111 @@ function collectJsFiles(dir: string): string[] {
   return out;
 }
 
-function isAdminShellNode(file: string, content: string): boolean {
+export function isAdminShellNode(file: string, content: string): boolean {
   // The (app) layout compiles to `_app/immutable/nodes/N.<hash>.js`.
-  if (!file.includes(`${join("immutable", "nodes")}`)) return false;
+  // Normalize separators so the heuristic is stable across platforms.
+  if (!file.replace(/\\/g, "/").includes("immutable/nodes")) return false;
   return ADMIN_SHELL_MARKERS.some((marker) => content.includes(marker));
 }
 
-function checkFile(path: string, size: number): Issue | null {
-  const rel = path.replace(ROOT, "").replace(/\\/g, "/").replace(/^\/+/, "");
-  const name = rel.split("/").pop() || rel;
-  const content = readFileSync(path, "utf8");
+/**
+ * Classifies one emitted client chunk.
+ *
+ * Every chunk is scanned for Node-builtin imports and banned client markers;
+ * only entry/layout/shell chunks are size-gated and checked for TipTap. The
+ * returned `warnings` are advisory (large libs that are legal when lazy-loaded).
+ */
+export function evaluateChunk({ filePath, relPath, size, content }: ChunkInput): ChunkVerdict {
+  const name = relPath.split("/").pop() || relPath;
 
   // Every client chunk is checked for node builtins; only entry/shell chunks are
   // size-gated (they load on every page).
   const leaks = findNodeBuiltinImports(content);
   if (leaks.length > 0) {
     return {
-      file: rel,
-      size: Math.round(size / 1024),
-      reason:
-        `imports ${leaks.map((s) => `"${s}"`).join(", ")} — the browser cannot fetch ` +
-        `node builtins (CORS-blocked scheme) and the whole chunk fails to load. ` +
-        `Move the Node work into a .server.ts module or use pure string helpers.`,
+      issue: {
+        file: relPath,
+        size: Math.round(size / 1024),
+        reason:
+          `imports ${leaks.map((s) => `"${s}"`).join(", ")} — the browser cannot fetch ` +
+          `node builtins (CORS-blocked scheme) and the whole chunk fails to load. ` +
+          `Move the Node work into a .server.ts module or use pure string helpers.`,
+      },
+      warnings: [],
     };
   }
 
   for (const banned of BANNED_CLIENT_MARKERS) {
     if (content.includes(banned.pattern)) {
       return {
-        file: rel,
-        size: Math.round(size / 1024),
-        reason: `contains "${banned.pattern}" — ${banned.reason}`,
+        issue: {
+          file: relPath,
+          size: Math.round(size / 1024),
+          reason: `contains "${banned.pattern}" — ${banned.reason}`,
+        },
+        warnings: [],
       };
     }
   }
 
   // Only check entry chunks + layout files (loaded on every page).
   // SvelteKit compiles the (app) shell to nodes/N.js, so also match that.
-  const isEntry = name.startsWith("entry");
+  //
+  // The entry test must look at the PATH SEGMENT, not the basename: the real
+  // output is `_app/immutable/entry/app.<hash>.js`, whose basename is
+  // `app.<hash>.js`. Matching `name.startsWith("entry")` only ever matched
+  // synthetic fixture names, so the 80 KB entry budget silently never applied.
+  const isEntry = relPath.split("/").includes("entry") || name.startsWith("entry");
   const isRootLayout = /^0\.[A-Za-z0-9_-]+\.js$/.test(name);
-  const isLayout = isRootLayout || name.includes("layout") || isAdminShellNode(path, content);
-  if (!isEntry && !isLayout) return null;
+  const isLayout = isRootLayout || name.includes("layout") || isAdminShellNode(filePath, content);
+  if (!isEntry && !isLayout) return { issue: null, warnings: [] };
 
   // Check size threshold
   const kb = Math.round(size / 1024);
   const max = isEntry ? MAX_ENTRY_KB : isRootLayout ? MAX_ROOT_LAYOUT_KB : MAX_LAYOUT_KB;
   if (kb > max) {
-    return { file: rel, size: kb, reason: `exceeds ${max} KB threshold` };
+    return {
+      issue: { file: relPath, size: kb, reason: `exceeds ${max} KB threshold` },
+      warnings: [],
+    };
   }
 
   // Check for accidental TipTap leak
   for (const marker of TIPTAP_MARKERS) {
     if (content.includes(marker)) {
       return {
-        file: rel,
-        size: kb,
-        reason: `contains "${marker}" — TipTap leaked into critical chunk (should be lazy-loaded in rich-text widget only)`,
+        issue: {
+          file: relPath,
+          size: kb,
+          reason: `contains "${marker}" — TipTap leaked into critical chunk (should be lazy-loaded in rich-text widget only)`,
+        },
+        warnings: [],
       };
     }
   }
 
   // Check for large lib leaks
+  const warnings: string[] = [];
   for (const lib of LARGE_LIB_MARKERS) {
     if (content.includes(lib.pattern)) {
-      console.warn(`  ⚠️ ${rel}: contains ${lib.label} (${kb} KB) — verify lazy-load`);
+      warnings.push(`  ⚠️ ${relPath}: contains ${lib.label} (${kb} KB) — verify lazy-load`);
     }
   }
 
-  return null;
+  return { issue: null, warnings };
+}
+
+function checkFile(path: string, size: number): Issue | null {
+  const rel = path.replace(ROOT, "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const content = readFileSync(path, "utf8");
+  const { issue, warnings } = evaluateChunk({
+    filePath: path,
+    relPath: rel,
+    size,
+    content,
+  });
+  for (const warning of warnings) console.warn(warning);
+  return issue;
 }
 
 function main(): number {
@@ -206,4 +260,6 @@ function main(): number {
   return 1;
 }
 
-process.exit(main());
+if (import.meta.main) {
+  process.exit(main());
+}

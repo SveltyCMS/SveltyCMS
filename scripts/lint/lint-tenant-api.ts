@@ -20,7 +20,7 @@
 
 import { execSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { basename, join, relative } from "node:path";
+import { join, relative } from "node:path";
 import { cpus } from "node:os";
 import {
   Project,
@@ -104,7 +104,8 @@ const REQUIRED_SCOPE_EXPORTS = [
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-interface Violation {
+/** One tenant-isolation hygiene violation, located by file and 1-based line. */
+export interface TenantApiViolation {
   file: string;
   line: number;
   message: string;
@@ -167,9 +168,13 @@ function getChangedSourceFiles(): string[] {
   return [...seen].filter((f) => existsSync(join(ROOT, f)));
 }
 
-function isAllowlisted(file: string): boolean {
-  const rel = relative(ROOT, file).replace(/\\/g, "/");
-  return BYPASS_ALLOWLIST.some((re) => re.test(rel) || re.test(file));
+/**
+ * True when a project-relative path may set `bypassTenantCheck`.
+ * Exported so the documented allowlist escape hatch is pinned by tests.
+ */
+export function isAllowlistedPath(relPath: string): boolean {
+  const posix = relPath.replace(/\\/g, "/");
+  return BYPASS_ALLOWLIST.some((re) => re.test(posix));
 }
 
 function isPositionalTenantId(param: Node): boolean {
@@ -198,124 +203,161 @@ function getLineNumber(sourceFile: SourceFile, node: Node): number {
 
 // ─── Rule 1: Positional tenantId detection (AST) ────────────────────────────
 
-function checkPositionalTenantId(filePath: string, violations: Violation[]): void {
+function checkPositionalTenantId(filePath: string, violations: TenantApiViolation[]): void {
   try {
     const content = readFileSync(filePath, "utf8");
-    const project = new Project({ useInMemoryFileSystem: true });
-    const sourceFile = project.createSourceFile(basename(filePath), content);
-    const rel = relative(ROOT, filePath);
-
-    // Walk all function-like declarations
-    const visit = (node: Node) => {
-      const funcNode =
-        node.asKind(SyntaxKind.MethodDeclaration) ||
-        node.asKind(SyntaxKind.MethodSignature) ||
-        node.asKind(SyntaxKind.FunctionDeclaration) ||
-        node.asKind(SyntaxKind.ArrowFunction);
-      if (funcNode) {
-        const params = (funcNode as unknown as FunctionLikeDeclaration).getParameters();
-        for (let i = 0; i < params.length; i++) {
-          const param = params[i];
-          if (!param.isKind(SyntaxKind.Parameter)) continue;
-          const paramText = param.getText();
-          if (!paramText.includes("tenantId")) continue;
-          if (paramText.startsWith("{")) continue;
-          if (funcNode.isKind(SyntaxKind.PropertySignature)) continue;
-
-          const isLastParam = i === params.length - 1;
-          if (isLastParam) {
-            const typeNode = param.getTypeNode();
-            const typeText = typeNode?.getText() ?? "";
-            if (
-              typeText.includes("BaseQueryOptions") ||
-              typeText.includes("QueryOptions") ||
-              typeText.includes("FindOptions") ||
-              typeText.includes("Record<") ||
-              (typeText.includes("{") && !typeText.includes("DatabaseId"))
-            ) {
-              continue;
-            }
-          }
-
-          if (isPositionalTenantId(param)) {
-            violations.push({
-              file: `${rel}:${getLineNumber(sourceFile, param)}`,
-              line: getLineNumber(sourceFile, param),
-              message: "positional tenantId — use options?: BaseQueryOptions as last arg",
-            });
-          }
-        }
-      }
-
-      node.forEachChild(visit);
-    };
-    sourceFile.forEachChild(visit);
+    violations.push(...findPositionalTenantViolations(content, relative(ROOT, filePath)));
   } catch {
     /* file may not exist or parse — skip */
   }
 }
 
+/**
+ * Pure core for rule 1: a positional `tenantId?: DatabaseId | null` parameter on
+ * a media/content/auth surface. The options bag must be the last argument.
+ */
+export function findPositionalTenantViolations(
+  content: string,
+  relPath: string,
+): TenantApiViolation[] {
+  const violations: TenantApiViolation[] = [];
+  const project = new Project({ useInMemoryFileSystem: true });
+  const sourceFile = project.createSourceFile("module.ts", content);
+
+  // Walk all function-like declarations
+  const visit = (node: Node) => {
+    const funcNode =
+      node.asKind(SyntaxKind.MethodDeclaration) ||
+      node.asKind(SyntaxKind.MethodSignature) ||
+      node.asKind(SyntaxKind.FunctionDeclaration) ||
+      node.asKind(SyntaxKind.ArrowFunction);
+    if (funcNode) {
+      const params = (funcNode as unknown as FunctionLikeDeclaration).getParameters();
+      for (let i = 0; i < params.length; i++) {
+        const param = params[i];
+        if (!param.isKind(SyntaxKind.Parameter)) continue;
+        const paramText = param.getText();
+        if (!paramText.includes("tenantId")) continue;
+        if (paramText.startsWith("{")) continue;
+        if (funcNode.isKind(SyntaxKind.PropertySignature)) continue;
+
+        const isLastParam = i === params.length - 1;
+        if (isLastParam) {
+          const typeNode = param.getTypeNode();
+          const typeText = typeNode?.getText() ?? "";
+          if (
+            typeText.includes("BaseQueryOptions") ||
+            typeText.includes("QueryOptions") ||
+            typeText.includes("FindOptions") ||
+            typeText.includes("Record<") ||
+            (typeText.includes("{") && !typeText.includes("DatabaseId"))
+          ) {
+            continue;
+          }
+        }
+
+        if (isPositionalTenantId(param)) {
+          const line = getLineNumber(sourceFile, param);
+          violations.push({
+            file: `${relPath}:${line}`,
+            line,
+            message: "positional tenantId — use options?: BaseQueryOptions as last arg",
+          });
+        }
+      }
+    }
+
+    node.forEachChild(visit);
+  };
+  sourceFile.forEachChild(visit);
+  return violations;
+}
+
 /** Check db-interface.ts IMediaAdapter/IContentAdapter/IAuthAdapter blocks. */
-function checkInterfaceBlocks(violations: Violation[]): void {
+function checkInterfaceBlocks(violations: TenantApiViolation[]): void {
   if (!existsSync(DB_INTERFACE)) return;
 
   try {
     const content = readFileSync(DB_INTERFACE, "utf8");
-    const project = new Project({ useInMemoryFileSystem: true });
-    const sourceFile = project.createSourceFile("db-interface.ts", content);
-
-    const targetInterfaces = ["IMediaAdapter", "IContentAdapter", "IAuthAdapter", "ISystemAdapter"];
-
-    for (const iface of sourceFile.getInterfaces()) {
-      if (!targetInterfaces.includes(iface.getName())) continue;
-
-      for (const method of iface.getMethods()) {
-        const params = method.getParameters();
-        for (let i = 0; i < params.length; i++) {
-          const param = params[i];
-          const paramText = param.getText();
-
-          if (!paramText.includes("tenantId")) continue;
-
-          const isLastParam = i === params.length - 1;
-          if (isLastParam) {
-            const typeText = param.getTypeNode()?.getText() ?? "";
-            if (
-              typeText.includes("BaseQueryOptions") ||
-              typeText.includes("QueryOptions") ||
-              typeText.includes("FindOptions") ||
-              typeText.includes("Record<")
-            ) {
-              continue;
-            }
-          }
-
-          if (isPositionalTenantId(param)) {
-            violations.push({
-              file: `src/databases/db-interface.ts:${getLineNumber(sourceFile, param)}`,
-              line: getLineNumber(sourceFile, param),
-              message: "positional tenantId — use options?: BaseQueryOptions",
-            });
-          }
-        }
-      }
-    }
+    violations.push(...findInterfaceTenantViolations(content, "src/databases/db-interface.ts"));
   } catch {
     /* skip */
   }
 }
 
+/**
+ * Pure core for the adapter interface declarations: a positional `tenantId`
+ * parameter on `IMediaAdapter` / `IContentAdapter` / `IAuthAdapter` / `ISystemAdapter`.
+ */
+export function findInterfaceTenantViolations(
+  content: string,
+  relPath: string,
+): TenantApiViolation[] {
+  const violations: TenantApiViolation[] = [];
+  const project = new Project({ useInMemoryFileSystem: true });
+  const sourceFile = project.createSourceFile("db-interface.ts", content);
+
+  const targetInterfaces = ["IMediaAdapter", "IContentAdapter", "IAuthAdapter", "ISystemAdapter"];
+
+  for (const iface of sourceFile.getInterfaces()) {
+    if (!targetInterfaces.includes(iface.getName())) continue;
+
+    for (const method of iface.getMethods()) {
+      const params = method.getParameters();
+      for (let i = 0; i < params.length; i++) {
+        const param = params[i];
+        const paramText = param.getText();
+
+        if (!paramText.includes("tenantId")) continue;
+
+        const isLastParam = i === params.length - 1;
+        if (isLastParam) {
+          const typeText = param.getTypeNode()?.getText() ?? "";
+          if (
+            typeText.includes("BaseQueryOptions") ||
+            typeText.includes("QueryOptions") ||
+            typeText.includes("FindOptions") ||
+            typeText.includes("Record<")
+          ) {
+            continue;
+          }
+        }
+
+        if (isPositionalTenantId(param)) {
+          const line = getLineNumber(sourceFile, param);
+          violations.push({
+            file: `${relPath}:${line}`,
+            line,
+            message: "positional tenantId — use options?: BaseQueryOptions",
+          });
+        }
+      }
+    }
+  }
+  return violations;
+}
+
 // ─── Rule 2: bypassTenantCheck outside allowlist (AST) ──────────────────────
 
-function checkBypassAllowlist(filePath: string, violations: Violation[]): void {
-  if (isAllowlisted(filePath)) return;
-
+function checkBypassAllowlist(filePath: string, violations: TenantApiViolation[]): void {
   const raw = readFileSync(filePath, "utf8");
-  if (!raw.includes("bypassTenantCheck")) return;
+  violations.push(...findBypassTenantCheckViolations(raw, relative(ROOT, filePath)));
+}
 
+/**
+ * Pure core for rule 2: `bypassTenantCheck: true` in product code.
+ * The `BYPASS_ALLOWLIST` escape hatch is applied here — per file, never globally.
+ */
+export function findBypassTenantCheckViolations(
+  content: string,
+  relPath: string,
+): TenantApiViolation[] {
+  if (isAllowlistedPath(relPath)) return [];
+  if (!content.includes("bypassTenantCheck")) return [];
+
+  const violations: TenantApiViolation[] = [];
   const project = new Project({ useInMemoryFileSystem: true });
-  const sourceFile = project.createSourceFile(basename(filePath), raw);
-  const rel = relative(ROOT, filePath);
+  const sourceFile = project.createSourceFile("module.ts", content);
 
   const visit = (node: Node) => {
     // Find object literal property assignments `bypassTenantCheck: true`
@@ -324,9 +366,10 @@ function checkBypassAllowlist(filePath: string, violations: Violation[]): void {
       if (name === "bypassTenantCheck") {
         const initializer = node.getLastChild()?.getText();
         if (initializer === "true") {
+          const line = getLineNumber(sourceFile, node);
           violations.push({
-            file: `${rel}:${getLineNumber(sourceFile, node)}`,
-            line: getLineNumber(sourceFile, node),
+            file: `${relPath}:${line}`,
+            line,
             message:
               "bypassTenantCheck: true outside allowlist — use withSystemScope(reason) or add path to allowlist",
           });
@@ -336,16 +379,21 @@ function checkBypassAllowlist(filePath: string, violations: Violation[]): void {
     node.forEachChild(visit);
   };
   sourceFile.forEachChild(visit);
+  return violations;
 }
 
 // ─── Rule 3: Auto-bypass defaults on assertTenantContext (AST) ───────────────
 
-function checkAutoBypassDefaults(filePath: string, violations: Violation[]): void {
+function checkAutoBypassDefaults(filePath: string, violations: TenantApiViolation[]): void {
   const raw = readFileSync(filePath, "utf8");
+  violations.push(...findAutoBypassViolations(raw, relative(ROOT, filePath)));
+}
 
+/** Pure core for rule 3: `assertTenantContext(options ?? { bypassTenantCheck: true })`. */
+export function findAutoBypassViolations(content: string, relPath: string): TenantApiViolation[] {
+  const violations: TenantApiViolation[] = [];
   const project = new Project({ useInMemoryFileSystem: true });
-  const sourceFile = project.createSourceFile(basename(filePath), raw);
-  const rel = relative(ROOT, filePath);
+  const sourceFile = project.createSourceFile("module.ts", content);
 
   const visit = (node: Node) => {
     if (node.getKind() === SyntaxKind.CallExpression) {
@@ -357,9 +405,10 @@ function checkAutoBypassDefaults(filePath: string, violations: Violation[]): voi
         callText.includes("bypassTenantCheck") &&
         callText.includes("true")
       ) {
+        const line = getLineNumber(sourceFile, node);
         violations.push({
-          file: `${rel}:${getLineNumber(sourceFile, node)}`,
-          line: getLineNumber(sourceFile, node),
+          file: `${relPath}:${line}`,
+          line,
           message:
             "auto-bypass default (options ?? { bypassTenantCheck: true }) is banned — callers must pass withSystemScope or tenantId",
         });
@@ -368,25 +417,38 @@ function checkAutoBypassDefaults(filePath: string, violations: Violation[]): voi
     node.forEachChild(visit);
   };
   sourceFile.forEachChild(visit);
+  return violations;
 }
 
 // ─── Rule 4: System tenant scope exports (AST) ──────────────────────────────
 
-function checkScopeExports(violations: Violation[]): void {
+const SCOPE_FILE_LABEL = "src/databases/system-tenant-scope.ts";
+
+function checkScopeExports(violations: TenantApiViolation[]): void {
   const scopeFile = join(SRC, "databases", "system-tenant-scope.ts");
-  if (!existsSync(scopeFile)) {
-    violations.push({
-      file: "src/databases/system-tenant-scope.ts",
-      line: 0,
-      message: "missing branded system scope module",
-    });
-    return;
+  let raw: string | null = null;
+  try {
+    raw = existsSync(scopeFile) ? readFileSync(scopeFile, "utf8") : null;
+  } catch {
+    // Unreadable module → reported exactly like a missing one.
+    raw = null;
+  }
+  violations.push(...findScopeExportViolations(raw));
+}
+
+/**
+ * Pure core for rule 4: the branded system-scope module must export every
+ * helper callers branch on. `null` means the module itself is missing.
+ */
+export function findScopeExportViolations(content: string | null): TenantApiViolation[] {
+  if (content === null) {
+    return [{ file: SCOPE_FILE_LABEL, line: 0, message: "missing branded system scope module" }];
   }
 
+  const violations: TenantApiViolation[] = [];
   try {
-    const raw = readFileSync(scopeFile, "utf8");
     const project = new Project({ useInMemoryFileSystem: true });
-    const sourceFile = project.createSourceFile("system-tenant-scope.ts", raw);
+    const sourceFile = project.createSourceFile("system-tenant-scope.ts", content);
 
     const exportedFunctions = new Set(
       sourceFile
@@ -398,25 +460,22 @@ function checkScopeExports(violations: Violation[]): void {
     for (const name of REQUIRED_SCOPE_EXPORTS) {
       if (!exportedFunctions.has(name)) {
         violations.push({
-          file: `src/databases/system-tenant-scope.ts`,
+          file: SCOPE_FILE_LABEL,
           line: 0,
           message: `missing export function ${name}`,
         });
       }
     }
   } catch {
-    violations.push({
-      file: "src/databases/system-tenant-scope.ts",
-      line: 0,
-      message: "missing branded system scope module",
-    });
+    return [{ file: SCOPE_FILE_LABEL, line: 0, message: "missing branded system scope module" }];
   }
+  return violations;
 }
 
 // ─── Orchestration ──────────────────────────────────────────────────────────
 
 async function main() {
-  const violations: Violation[] = [];
+  const violations: TenantApiViolation[] = [];
   const start = performance.now();
 
   const fullScan = process.argv.includes("--full") || process.argv.includes("--all");
@@ -486,7 +545,9 @@ async function main() {
   process.exit(0);
 }
 
-main().catch((err) => {
-  console.error("Fatal lint error:", err);
-  process.exit(2);
-});
+if (import.meta.main) {
+  main().catch((err) => {
+    console.error("Fatal lint error:", err);
+    process.exit(2);
+  });
+}
