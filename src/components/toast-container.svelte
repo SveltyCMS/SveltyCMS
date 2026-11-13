@@ -32,11 +32,13 @@
 		ALLOWED_ATTR: ['href', 'title', 'rel', 'target']
 	};
 
-	let sanitize = $state<(str: string) => string>((str) => str);
+	// Fail closed: until DOMPurify is loaded the message is rendered as text, never
+	// injected raw (the identity fallback allowed markup injection before init).
+	let sanitizeHtml = $state<((str: string) => string) | null>(null);
 
 	onMount(async () => {
 		const { default: DOMPurify } = await import('dompurify');
-		sanitize = (str: string) => DOMPurify.sanitize(str, TOAST_SANITIZE_CONFIG);
+		sanitizeHtml = (str: string) => DOMPurify.sanitize(str, TOAST_SANITIZE_CONFIG);
 	});
 
 	interface Props {
@@ -233,7 +235,11 @@
 							{/if}
 							<p class="text-xs sm:text-sm opacity-90 wrap-break-word">
 								<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-								{@html sanitize(t.message)}
+								{#if sanitizeHtml}
+									{@html sanitizeHtml(t.message)}
+								{:else}
+									{t.message}
+								{/if}
 							</p>
 
 							{#if t.action}

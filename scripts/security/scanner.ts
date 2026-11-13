@@ -15,12 +15,21 @@
  *   await runScanner({ auth: true, ci: true });
  *
  * ### Audit Categories (OWASP 2021 mapped)
- * - A01: Broken Access Control → auth bypass, endpoint protection, GraphQL auth, CSRF
- * - A02: Cryptographic Failures → cookie security, HSTS, token handling
- * - A03: Injection → SQLi, NoSQLi, XSS reflection, path traversal
+ * - A01: Broken Access Control → auth bypass, endpoint protection, GraphQL auth,
+ *   CSRF (token/Content-Type matrix + X-Forwarded-Host), BOLA / privilege
+ *   escalation, X-HTTP-Method-Override
+ * - A02: Cryptographic Failures → per-cookie session flags (HttpOnly / Secure /
+ *   SameSite / __Host-), HSTS, token handling
+ * - A03: Injection → SQLi, NoSQLi, XSS reflection, path traversal, plus the
+ *   public (unauthenticated) login surface
  * - A04: Insecure Design → GraphQL depth/alias limits, rate limiting
- * - A05: Security Misconfiguration → security headers, CORS, CSP
+ * - A05: Security Misconfiguration → security headers, CORS, CSP, GraphQL
+ *   introspection on production targets
  * - A07: Identification Failures → account lockout, rate limiting
+ *
+ * Every probe reports whether it actually asserted something: a request that
+ * only got `401` (needs `--auth`) is counted and printed as SKIPPED, never as a
+ * pass. The summary prints tested vs skipped totals.
  */
 
 const AUDITOR_UA = "SveltyCMS-Security-Audit/3.0";
@@ -85,6 +94,126 @@ function report(
   console.log(`  ${icons[risk]} [${risk}] [${owasp}] ${test}: ${detail}`);
 }
 
+/** Probes that actually reached a parser/guard and produced a verdict. */
+let testsRun = 0;
+/** Probes that could not assert anything (auth required, endpoint absent, …). */
+let testsSkipped = 0;
+
+function pass(message: string) {
+  testsRun++;
+  console.log(`  ✅ ${message}`);
+}
+
+function skip(message: string, reason = "auth required") {
+  testsSkipped++;
+  console.log(`  ⏭️  SKIPPED (${reason}) — ${message}`);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** A production target is HTTPS off-loopback, or NODE_ENV=production. */
+function isProductionTarget(): boolean {
+  if (process.env.NODE_ENV === "production") return true;
+  if (!/^https:\/\//i.test(BASE)) return false;
+  return !/^https:\/\/(localhost|127\.0\.0\.1|\[::1\])(?:[:/]|$)/i.test(BASE);
+}
+
+/** Session cookies: `auth_sessions` and its `__Host-` production variant. */
+const SESSION_COOKIE_RE = /(^|-)auth_sessions$/i;
+
+interface SetCookieEntry {
+  name: string;
+  value: string;
+  /** Lower-cased `flag` / `attribute=value` map for THIS header only. */
+  attributes: Map<string, string | true>;
+  raw: string;
+}
+
+/** Parse ONE `Set-Cookie` header line into a single per-cookie entry. */
+function parseSetCookieEntry(raw: string): SetCookieEntry[] {
+  const [pair, ...attrParts] = raw.split(";");
+  const separator = pair.indexOf("=");
+  if (separator <= 0) return [];
+  const name = pair.slice(0, separator).trim();
+  const value = pair.slice(separator + 1).trim();
+  const attributes = new Map<string, string | true>();
+  for (const part of attrParts) {
+    const trimmed = part.trim();
+    if (!trimmed) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq === -1) attributes.set(trimmed.toLowerCase(), true);
+    else attributes.set(trimmed.slice(0, eq).trim().toLowerCase(), trimmed.slice(eq + 1).trim());
+  }
+  return [{ name, value, attributes, raw }];
+}
+
+/**
+ * Split a response's `set-cookie` headers into per-cookie entries.
+ *
+ * NEVER joins the headers: a flag carried by one cookie (e.g. `svelty-csrf`)
+ * must not be credited to another (`auth_sessions`). Splits on newlines only —
+ * a comma split mangles `Expires` dates.
+ */
+function setCookieEntries(headers: Headers): SetCookieEntry[] {
+  const split = headers.getSetCookie?.();
+  if (split && split.length > 0) return split.flatMap(parseSetCookieEntry);
+  const combined = headers.get("set-cookie");
+  if (!combined) return [];
+  return combined.split("\n").flatMap(parseSetCookieEntry);
+}
+
+/** First string value stored under `key` in a JSON response (BFS, bounded). */
+function readStringField(payload: string, key: string): string | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(payload);
+  } catch {
+    return null;
+  }
+  const queue: unknown[] = [parsed];
+  let inspected = 0;
+  while (queue.length > 0 && inspected < 50) {
+    inspected++;
+    const node = queue.shift();
+    if (Array.isArray(node)) {
+      queue.push(...node);
+      continue;
+    }
+    if (!isRecord(node)) continue;
+    const value = node[key];
+    if (typeof value === "string" && value.length > 0) return value;
+    queue.push(...Object.values(node));
+  }
+  return null;
+}
+
+/** First collection id/name present in a `/api/collections` payload (bounded). */
+function firstCollectionId(payload: string): string | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(payload);
+  } catch {
+    return null;
+  }
+  const queue: unknown[] = [parsed];
+  let inspected = 0;
+  while (queue.length > 0 && inspected < 200) {
+    inspected++;
+    const node = queue.shift();
+    if (Array.isArray(node)) {
+      queue.push(...node);
+      continue;
+    }
+    if (!isRecord(node)) continue;
+    const candidate = node._id ?? node.id ?? node.name;
+    if (typeof candidate === "string" && candidate.length > 0) return candidate;
+    queue.push(...Object.values(node));
+  }
+  return null;
+}
+
 async function probe(
   method: string,
   path: string,
@@ -93,7 +222,9 @@ async function probe(
   timeout = 5000,
 ) {
   const hdrs: Record<string, string> = { "User-Agent": AUDITOR_UA, ...headers };
-  if (authCookie) hdrs["Cookie"] = authCookie;
+  // An explicit Cookie header (even empty) always wins — audits that need a
+  // second identity or a cookie-less request must not inherit the session.
+  if (authCookie && headers?.Cookie === undefined) hdrs["Cookie"] = authCookie;
 
   const start = performance.now();
   try {
@@ -187,15 +318,23 @@ async function setupAuth(): Promise<boolean> {
     return false;
   }
 
-  // Extract session cookie — use getSetCookie() or cookies map (not split on comma)
-  const cookieHeader =
-    loginRes.headers.getSetCookie?.()?.[0] ?? loginRes.headers.get("set-cookie")?.split("\n")[0];
-  if (cookieHeader) {
-    authCookie = cookieHeader.split(";")[0].trim();
-  }
+  // Extract session cookie — pick the auth_sessions entry, never the first
+  // header (a `svelty-csrf` cookie may be emitted first).
+  const loginEntries = setCookieEntries(loginRes.headers);
+  const sessionEntry = loginEntries.find((cookie) => SESSION_COOKIE_RE.test(cookie.name));
+  const firstEntry = loginEntries[0];
+  authCookie = sessionEntry
+    ? `${sessionEntry.name}=${sessionEntry.value}`
+    : firstEntry
+      ? `${firstEntry.name}=${firstEntry.value}`
+      : null;
 
   // Extract CSRF token
-  csrfToken = loginRes.cookies["svelty-csrf"] || loginRes.cookies["__Host-svelty-csrf"] || null;
+  csrfToken =
+    loginRes.cookies["svelty-csrf"] ||
+    loginRes.cookies["__Host-svelty-csrf"] ||
+    loginEntries.find((cookie) => /csrf/i.test(cookie.name))?.value ||
+    null;
 
   console.log(`  ✅ Authenticated as audit@security.test`);
   console.log(`     Session cookie: ${authCookie ? "present" : "missing"}`);
@@ -207,25 +346,24 @@ async function setupAuth(): Promise<boolean> {
 
 async function teardownAuth() {
   if (!authCookie) return;
-  console.log("\n🧹 Cleaning up test admin user...");
-  try {
-    const testSecret = process.env.TEST_API_SECRET || "test-secret-dev";
-    await probe(
-      "POST",
-      "/api/testing",
-      {
-        "Content-Type": "application/json",
-        "x-test-secret": testSecret,
-      },
-      JSON.stringify({
-        action: "wipe-user",
-        email: "audit@security.test",
-      }),
-      5000,
-    );
-    console.log("  ✅ Test admin user removed");
-  } catch {
-    console.log("  ⚠️  Could not clean up test admin (non-fatal)");
+  console.log("\n🧹 Cleaning up test users...");
+  const testSecret = process.env.TEST_API_SECRET || "test-secret-dev";
+  for (const email of ["audit@security.test", LOW_PRIV_USER.email]) {
+    try {
+      await probe(
+        "POST",
+        "/api/testing",
+        {
+          "Content-Type": "application/json",
+          "x-test-secret": testSecret,
+        },
+        JSON.stringify({ action: "wipe-user", email }),
+        5000,
+      );
+      console.log(`  ✅ Test user removed: ${email}`);
+    } catch {
+      console.log(`  ⚠️  Could not clean up ${email} (non-fatal)`);
+    }
   }
 }
 
@@ -255,9 +393,9 @@ async function auditTestingBackdoor() {
       "POST without x-test-secret returned 200 — unauthenticated testing API",
     );
   } else if (noSecret.status === 401 || noSecret.status === 403) {
-    console.log(`  ✅ No secret: rejected (${noSecret.status})`);
+    pass(`No secret: rejected (${noSecret.status})`);
   } else if (noSecret.status === 404) {
-    console.log(`  ✅ No secret: stripped from build (${noSecret.status})`);
+    pass(`No secret: stripped from build (${noSecret.status})`);
   } else {
     report(
       "/api/testing",
@@ -293,7 +431,7 @@ async function auditTestingBackdoor() {
     wrongSecret.status === 403 ||
     wrongSecret.status === 404
   ) {
-    console.log(`  ✅ Wrong secret: rejected (${wrongSecret.status})`);
+    pass(`Wrong secret: rejected (${wrongSecret.status})`);
   } else {
     report(
       "/api/testing",
@@ -330,7 +468,7 @@ async function auditTestingBackdoor() {
     knownDefault.status === 403 ||
     knownDefault.status === 404
   ) {
-    console.log(`  ✅ Hardcoded benchmark secret: rejected (${knownDefault.status})`);
+    pass(`Hardcoded benchmark secret: rejected (${knownDefault.status})`);
   }
 }
 
@@ -370,7 +508,7 @@ async function auditAuth() {
           report(ep, "Auth bypass", "A01", "CRITICAL", "Unauthenticated access returns 200");
         }
       } else if (res.status === 401 || res.status === 403 || res.status === blockedStatus()) {
-        console.log(`  ✅ ${ep}: blocked (${res.status})`);
+        pass(`${ep}: blocked (${res.status})`);
       } else {
         console.log(`  ℹ️  ${ep}: returned ${res.status} (expected ${blockedStatus()})`);
       }
@@ -378,16 +516,99 @@ async function auditAuth() {
   );
 }
 
-// ── A01: CSRF PROTECTION ─────────────────────────────────────────────────
+// ── A01: CSRF & HOST-HEADER INJECTION ────────────────────────────────────
+
+/** Payloads that inject a foreign hostname through reverse-proxy headers. */
+const HOST_INJECTION_VALUE = "evil.example.com";
+
+/**
+ * Password-reset routes differ per build; probe the known candidates and let a
+ * 404 mean "not present" rather than a pass.
+ */
+const PASSWORD_RESET_PATHS = [
+  "/api/auth/request-password-reset",
+  "/api/user/request-password-reset",
+];
+
+async function auditHostHeaderInjection() {
+  const attempts = [
+    {
+      label: "login",
+      path: "/api/auth/login",
+      body: JSON.stringify({ email: "audit@security.test", password: "wrong-password" }),
+      optional: false,
+    },
+    ...PASSWORD_RESET_PATHS.map((path) => ({
+      label: "password reset",
+      path,
+      body: JSON.stringify({ email: "audit@security.test" }),
+      optional: true,
+    })),
+  ];
+
+  let resetEndpointFound = false;
+
+  for (const attempt of attempts) {
+    const res = await probe(
+      "POST",
+      attempt.path,
+      {
+        "Content-Type": "application/json",
+        "X-Forwarded-Host": HOST_INJECTION_VALUE,
+        "X-Forwarded-Proto": "https",
+      },
+      attempt.body,
+    );
+
+    // A password-reset route that does not exist in this build proves nothing.
+    if (attempt.optional && (!res || res.status === 404)) continue;
+    if (attempt.optional) resetEndpointFound = true;
+
+    const label = `host injection on ${attempt.label} (${attempt.path})`;
+    if (!res) {
+      skip(label, "no response");
+      continue;
+    }
+
+    const echoesHost = res.body.toLowerCase().includes(HOST_INJECTION_VALUE);
+    if (res.status >= 200 && res.status < 300) {
+      report(
+        attempt.path,
+        "X-Forwarded-Host accepted",
+        "A01",
+        "HIGH",
+        `${label}: returned ${res.status} with an attacker-controlled forwarded host`,
+      );
+    } else if (echoesHost) {
+      report(
+        attempt.path,
+        "X-Forwarded-Host reflected",
+        "A01",
+        "HIGH",
+        `${label}: response echoes the injected host — password-reset poisoning risk`,
+      );
+    } else {
+      pass(`${label}: injected host ignored (${res.status})`);
+    }
+  }
+
+  if (!resetEndpointFound) {
+    skip("host injection on password reset", "no password-reset endpoint in this build");
+  }
+}
 
 async function auditCSRF() {
   console.log("\n🛡️  [A01] CSRF Protection");
+
+  // Host-header injection is public-reachable — probe it even without --auth.
+  await auditHostHeaderInjection();
+
   if (!authCookie) {
-    console.log("  ⚠️  No auth session — skipping CSRF audit (requires --auth)");
+    skip("CSRF token matrix", "requires --auth");
     return;
   }
 
-  const mutations = [
+  const mutations: { method: string; path: string; body: string | undefined }[] = [
     {
       method: "POST",
       path: "/api/collections",
@@ -398,42 +619,59 @@ async function auditCSRF() {
       path: "/api/collections/csrf-test",
       body: JSON.stringify({ data: {} }),
     },
-    { method: "DELETE", path: "/api/collections/csrf-test" },
+    { method: "DELETE", path: "/api/collections/csrf-test", body: undefined },
   ];
 
-  // 🔀 PARALLEL: the "no CSRF" probes are independent (each is expected to be
-  // rejected, so they create no state) — fire them concurrently.
-  await Promise.all(
-    mutations.map(async (mut) => {
-      // Request WITHOUT CSRF token (but with session cookie)
-      const noCsrf = await probe(
+  // Matrix: each state-changing request is replayed with every token/content-type
+  // variation. Pass = 400/401/403/422; anything 2xx is a finding.
+  const tokenCases: { label: string; headers: Record<string, string> }[] = [
+    { label: "missing token", headers: {} },
+    { label: "empty token", headers: { "x-csrf-token": "" } },
+    { label: "forged token", headers: { "x-csrf-token": "invalid-token" } },
+    {
+      label: "text/plain body, no token",
+      headers: { "Content-Type": "text/plain" },
+    },
+    {
+      label: "form-urlencoded body, no token",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    },
+  ];
+
+  const REJECTED = new Set([400, 401, 403, 422]);
+
+  for (const mut of mutations) {
+    for (const tokenCase of tokenCases) {
+      const label = `${mut.method} ${mut.path} (${tokenCase.label})`;
+      const res = await probe(
         mut.method,
         mut.path,
         {
           "Content-Type": "application/json",
           Origin: "https://evil.example.com",
-          // Explicitly do NOT send CSRF token
+          ...tokenCase.headers,
         },
         mut.body,
       );
 
-      if (!noCsrf) return;
-
-      if (noCsrf.status === 403 || noCsrf.status === 401) {
-        console.log(
-          `  ✅ ${mut.method} ${mut.path}: rejected without CSRF token (${noCsrf.status})`,
-        );
-      } else if (noCsrf.status < 400) {
+      if (!res) {
+        skip(label, "no response");
+      } else if (REJECTED.has(res.status)) {
+        pass(`${label}: rejected (${res.status})`);
+      } else if (res.status >= 200 && res.status < 300) {
         report(
           mut.path,
           "CSRF bypass",
           "A01",
           "HIGH",
-          `${mut.method} accepted ${noCsrf.status} without CSRF token — cross-site request forgery risk`,
+          `${label}: accepted ${res.status} without a valid CSRF token — cross-site request forgery risk`,
         );
+      } else {
+        // 404/405/500 — neither a bypass nor a proven CSRF rejection.
+        pass(`${label}: no bypass (${res.status})`);
       }
-    }),
-  );
+    }
+  }
 
   // "with CSRF" probes stay sequential: the POST creates the `csrf-test`
   // collection that the subsequent PUT/DELETE target.
@@ -449,7 +687,7 @@ async function auditCSRF() {
         mut.body,
       );
       if (withCsrf && withCsrf.status < 400) {
-        console.log(`  ✅ ${mut.method} ${mut.path}: CSRF token validation works`);
+        pass(`${mut.method} ${mut.path}: CSRF token validation works`);
       }
     }
   }
@@ -480,6 +718,8 @@ async function auditXSS() {
           "HIGH",
           `Payload reflected: "${payload.substring(0, 40)}"`,
         );
+      } else {
+        pass(`XSS payload not reflected: "${payload.substring(0, 24)}"`);
       }
       const ct = res.headers.get("content-type") || "";
       if (ct.includes("text/html") && !htmlReported) {
@@ -494,37 +734,41 @@ async function auditXSS() {
       }
     }),
   );
-  console.log(`  ✅ Tested ${payloads.length} XSS payloads`);
+  console.log(`  ℹ️  Tested ${payloads.length} XSS payloads`);
 }
 
 async function auditSQLi() {
   console.log("\n💉 [A03] SQLi & NoSQLi Injection");
   const sqlPayloads = ["'; DROP TABLE users;--", "1' OR '1'='1", "union select * from users"];
-  let blocked = 0;
 
   // In SETUP mode, all API endpoints return 503 — injection test can't reach the query parser
   if (isSetupMode()) {
     console.log(
       `  ℹ️  System in SETUP mode — API endpoints are blocked (503). SQLi test requires a configured system.`,
     );
-    console.log(`  ✅ SQLi test skipped (valid — system pre-configuration)`);
+    skip(`${sqlPayloads.length} SQLi payloads`, "system in SETUP mode");
     return;
   }
 
+  let blocked = 0;
+  let skippedProbes = 0;
+
   await Promise.all(
     sqlPayloads.map(async (p) => {
+      const label = `SQLi payload "${p.substring(0, 28)}"`;
       const res = await probe("GET", `/api/collections?filter=${encodeURIComponent(p)}`);
-      if (!res) return;
-      if (res.status === 401 || res.status === 403) {
-        if (res.status === 403) {
-          blocked++;
-          console.log(`  ✅ SQLi actively rejected (403)`);
-        } else {
-          console.log(`  ⚠️  SQLi probe requires auth (401) — run with --auth for full test`);
-        }
+      if (!res) {
+        skippedProbes++;
+        skip(label, "no response");
+      } else if (res.status === 401) {
+        skippedProbes++;
+        skip(label, "401, run with --auth");
+      } else if (res.status === 403) {
+        blocked++;
+        pass(`${label}: actively rejected (403)`);
       } else if (res.status === 400 || res.status === 422) {
         blocked++;
-        console.log(`  ✅ SQLi blocked (${res.status})`);
+        pass(`${label}: blocked (${res.status})`);
       } else {
         report(
           "/api/collections?filter=...",
@@ -543,10 +787,12 @@ async function auditSQLi() {
     await Promise.all(
       nosqlPayloads.map(async (p) => {
         const res = await probe("GET", `/api/collections?filter=${encodeURIComponent(p)}`);
-        if (!res) return;
-        if (res.status === 400) {
+        if (!res) {
+          skippedProbes++;
+          skip(`NoSQLi payload ${p.substring(0, 30)}`, "no response");
+        } else if (res.status === 400) {
           blocked++;
-          console.log(`  ✅ NoSQLi blocked (400): ${p.substring(0, 35)}`);
+          pass(`NoSQLi blocked (400): ${p.substring(0, 35)}`);
         } else if (res.status === 200) {
           report(
             "/api/collections?filter=...",
@@ -558,9 +804,14 @@ async function auditSQLi() {
         }
       }),
     );
+  } else {
+    skip("2 NoSQLi payloads", "requires --auth");
+    skippedProbes++;
   }
 
-  console.log(`  ✅ Tested all SQLi/NoSQLi payloads (blocked ${blocked} invalid attempts)`);
+  console.log(
+    `  ℹ️  SQLi/NoSQLi: ${sqlPayloads.length} SQLi + 2 NoSQLi payloads, ${blocked} rejected, ${skippedProbes} skipped`,
+  );
 }
 
 async function auditPathTraversal() {
@@ -568,10 +819,17 @@ async function auditPathTraversal() {
   const payloads = ["../../../etc/passwd", "..\\..\\windows\\system32", "/etc/passwd%00.html"];
   await Promise.all(
     payloads.map(async (p) => {
+      const label = `traversal payload "${p.substring(0, 28)}"`;
       const res = await probe("GET", `/api/media/files?path=${encodeURIComponent(p)}`);
-      if (!res) return;
-      if ([400, 401, 403, 404].includes(res.status)) {
-        console.log(`  ✅ Traversal blocked (${res.status})`);
+      if (!res) {
+        skip(label, "no response");
+        return;
+      }
+      if (res.status === 401) {
+        // The route is auth-gated: the payload never reached a path resolver.
+        skip(label, "401, run with --auth");
+      } else if ([400, 403, 404, 422].includes(res.status)) {
+        pass(`${label}: blocked (${res.status})`);
       } else if (res.status === 200) {
         report(
           "/api/media/files?path=...",
@@ -580,9 +838,62 @@ async function auditPathTraversal() {
           "CRITICAL",
           `Payload returned 200: "${p}"`,
         );
+      } else {
+        pass(`${label}: not accepted (${res.status})`);
       }
     }),
   );
+}
+
+/**
+ * Unauthenticated injection surface: `/api/auth/login` is public, so a run
+ * without `--auth` still parses an attacker-supplied value server-side.
+ */
+async function auditPublicInjection() {
+  console.log("\n💉 [A03] Unauthenticated Injection (public login)");
+  const payloads = [
+    "'; DROP TABLE users;--",
+    "1' OR '1'='1",
+    "union select * from users",
+    "../../../etc/passwd",
+    "..\\..\\windows\\system32",
+    "/etc/passwd%00.html",
+  ];
+  const errorLeak = /SQLITE_ERROR|syntax error|unhandled|drizzle-orm|node_modules/i;
+
+  for (const payload of payloads) {
+    const label = `login payload "${payload.substring(0, 28)}"`;
+    const res = await probe(
+      "POST",
+      "/api/auth/login",
+      { "Content-Type": "application/json", Origin: BASE },
+      JSON.stringify({ email: payload, password: payload }),
+    );
+
+    if (!res) {
+      skip(label, "no response");
+    } else if (res.status >= 200 && res.status < 300) {
+      report(
+        "/api/auth/login",
+        "Injection payload authenticated",
+        "A03",
+        "CRITICAL",
+        `${label}: returned ${res.status} — login bypass via injection`,
+      );
+    } else if (res.status === 429) {
+      skip(label, "rate limited (429)");
+    } else if (res.status >= 500 || errorLeak.test(res.body)) {
+      report(
+        "/api/auth/login",
+        "Injection error disclosure",
+        "A03",
+        "HIGH",
+        `${label}: returned ${res.status} with parser/framework internals`,
+      );
+    } else {
+      pass(`${label}: rejected cleanly (${res.status})`);
+    }
+  }
 }
 
 // ── A04: INSECURE DESIGN (GraphQL) ────────────────────────────────────
@@ -606,12 +917,35 @@ async function auditGraphQL() {
       "Unauthenticated GraphQL returns 200",
     );
   } else if (noAuth && (noAuth.status === 401 || noAuth.status === 403)) {
-    console.log("  ✅ GraphQL requires authentication");
+    pass("GraphQL requires authentication");
+  }
+
+  // Introspection must be blocked unconditionally in production.
+  const introspection = await probe(
+    "POST",
+    "/api/graphql",
+    { "Content-Type": "application/json" },
+    JSON.stringify({ query: "{ __schema { types { name } } }" }),
+  );
+  if (!introspection) {
+    skip("GraphQL introspection", "no response");
+  } else if (!isProductionTarget()) {
+    console.log("  ℹ️  GraphQL introspection not gated on a non-production target (dev/CI parity)");
+  } else if (introspection.status >= 200 && introspection.status < 300) {
+    report(
+      "/api/graphql",
+      "GraphQL introspection enabled",
+      "A05",
+      "MEDIUM",
+      `Production target served __schema introspection (${introspection.status})`,
+    );
+  } else {
+    pass(`GraphQL introspection blocked in production (${introspection.status})`);
   }
 
   // Depth & alias tests only work with auth
   if (!authCookie) {
-    console.log("  ⚠️  Skipping depth/alias tests (no auth — requires --auth flag)");
+    skip("GraphQL depth/alias limits", "requires --auth");
     return;
   }
 
@@ -626,9 +960,11 @@ async function auditGraphQL() {
     JSON.stringify({ query: depthQuery }),
   );
   if (depthRes && depthRes.status === 400) {
-    console.log("  ✅ GraphQL depth limiting active");
+    pass("GraphQL depth limiting active");
   } else if (depthRes && depthRes.status === 200) {
     report("/api/graphql", "No depth limit", "A04", "HIGH", "Deep query accepted — DoS risk");
+  } else if (depthRes) {
+    skip(`GraphQL depth limit probe (${depthRes.status})`, "no verdict status");
   }
 
   // Alias limit (max 15)
@@ -640,7 +976,7 @@ async function auditGraphQL() {
     JSON.stringify({ query: `{ ${aliasQuery} }` }),
   );
   if (aliasRes && aliasRes.status === 400) {
-    console.log("  ✅ GraphQL alias limiting active");
+    pass("GraphQL alias limiting active");
   } else if (aliasRes && aliasRes.status === 200) {
     report(
       "/api/graphql",
@@ -649,6 +985,8 @@ async function auditGraphQL() {
       "MEDIUM",
       "Batched alias query accepted — DoS risk",
     );
+  } else if (aliasRes) {
+    skip(`GraphQL alias limit probe (${aliasRes.status})`, "no verdict status");
   }
 }
 
@@ -674,7 +1012,7 @@ async function auditHeaders() {
   for (const [h, msg] of apiChecks) {
     if (res.headers.get(h)) {
       present++;
-      console.log(`  ✅ ${h}: present`);
+      pass(`${h}: present`);
     } else {
       console.log(`  ℹ️  ${msg}: not set on API response (expected for headless API)`);
     }
@@ -702,9 +1040,9 @@ async function auditCORS() {
       `ACAO: ${acao} — allows arbitrary origins`,
     );
   } else if (!acao) {
-    console.log("  ✅ No CORS headers on cross-origin request (correct)");
+    pass("No CORS headers on cross-origin request (correct)");
   } else {
-    console.log(`  ✅ CORS restricted to: ${acao}`);
+    pass(`CORS restricted to: ${acao}`);
   }
 
   if (acac === "true") {
@@ -721,7 +1059,7 @@ async function auditCORS() {
 async function auditCookieSecurity() {
   console.log("\n🍪 [A02] Cookie Security");
   if (!authCookie) {
-    console.log("  ⚠️  No auth session — skipping cookie audit (requires --auth)");
+    skip("cookie security", "requires --auth");
     return;
   }
 
@@ -740,58 +1078,282 @@ async function auditCookieSecurity() {
   );
 
   if (!res || !res.headers.get("set-cookie")) {
-    console.log("  ⚠️  No Set-Cookie header in login response");
+    skip("cookie security", "login returned no Set-Cookie header");
     return;
   }
 
-  // Use getSetCookie() for correct parsing
-  const setCookieHeaders = res.headers.getSetCookie?.() ?? [];
-  const setCookie =
-    setCookieHeaders.length > 0 ? setCookieHeaders.join(", ") : res.headers.get("set-cookie") || "";
+  // Per-cookie, per-header evaluation. Joining the headers (the old behaviour)
+  // credited `svelty-csrf`'s flags to `auth_sessions` and masked real gaps.
+  const entries = setCookieEntries(res.headers);
+  const session = entries.find((cookie) => SESSION_COOKIE_RE.test(cookie.name));
 
-  const hasHttpOnly = setCookie.toLowerCase().includes("httponly");
-  const hasSecure = setCookie.toLowerCase().includes("secure");
-  const hasSameSite = setCookie.toLowerCase().includes("samesite");
-  const hasHostPrefix = setCookie.includes("__Host-");
+  if (!session) {
+    const observed = entries.map((cookie) => cookie.name).join(", ") || "(unparseable)";
+    console.log(`  ℹ️  Set-Cookie entries observed: ${observed}`);
+    skip("session cookie flags", "session cookie header could not be isolated");
+    return;
+  }
 
-  if (hasHttpOnly) console.log("  ✅ HttpOnly: set");
-  else
+  const cookieName = session.name;
+  const requiresSecure = /^https:/i.test(BASE) || isProductionTarget();
+
+  if (session.attributes.has("httponly")) {
+    pass(`HttpOnly: set on "${cookieName}"`);
+  } else {
     report(
       "/api/auth/login",
       "Cookie missing HttpOnly",
       "A02",
       "HIGH",
-      "Session cookie lacks HttpOnly flag — XSS can steal token",
+      `Session cookie "${cookieName}" lacks HttpOnly — XSS can steal the token`,
     );
+  }
 
-  if (hasSecure) console.log("  ✅ Secure: set");
-  else
+  if (session.attributes.has("secure")) {
+    pass(`Secure: set on "${cookieName}"`);
+  } else if (requiresSecure) {
     report(
       "/api/auth/login",
       "Cookie missing Secure",
       "A02",
       "MEDIUM",
-      "Session cookie lacks Secure flag — transmitted over HTTP",
+      `Session cookie "${cookieName}" lacks Secure on an HTTPS/production target`,
     );
+  } else {
+    console.log(`  ℹ️  Secure: not set on "${cookieName}" (target ${BASE} is plain HTTP)`);
+  }
 
-  if (hasSameSite) console.log("  ✅ SameSite: set");
-  else
+  const sameSite = session.attributes.get("samesite");
+  if (typeof sameSite === "string" && /^(strict|lax)$/i.test(sameSite)) {
+    pass(`SameSite=${sameSite}: set on "${cookieName}"`);
+  } else {
     report(
       "/api/auth/login",
       "Cookie missing SameSite",
       "A02",
       "MEDIUM",
-      "Session cookie lacks SameSite — CSRF risk",
+      typeof sameSite === "string"
+        ? `Session cookie "${cookieName}" has SameSite=${sameSite} (expected Strict or Lax)`
+        : `Session cookie "${cookieName}" lacks SameSite — CSRF risk`,
     );
+  }
 
-  if (hasHostPrefix) console.log("  ✅ __Host- prefix: present");
-  else if (!BASE.includes("localhost")) {
+  if (cookieName.startsWith("__Host-")) {
+    pass(`__Host- prefix: present on "${cookieName}"`);
+  } else if (isProductionTarget()) {
     report(
       "/api/auth/login",
       "Cookie missing __Host- prefix",
       "A02",
       "LOW",
-      "No __Host- prefix — subdomain cookie leakage risk (RFC 6265bis)",
+      `Session cookie "${cookieName}" has no __Host- prefix — subdomain cookie leakage risk (RFC 6265bis)`,
+    );
+  } else {
+    console.log(`  ℹ️  __Host- prefix: not required for ${BASE} (non-production target)`);
+  }
+}
+
+// ── A01: BOLA / PRIVILEGE ESCALATION ─────────────────────────────────
+
+/**
+ * A deliberately unprivileged identity for the BOLA probes.
+ *
+ * The audit's own session is seeded as `admin`, so re-using it would make any
+ * successful `{role:"admin"}` write look legitimate and hide a real bug.
+ */
+const LOW_PRIV_USER = {
+  email: "audit-lowpriv@security.test",
+  password: "AuditPass123!",
+  username: "audit-lowpriv",
+  role: "guest",
+};
+
+interface LowPrivilegeSession {
+  cookie: string;
+  csrfToken: string | null;
+  userId: string | null;
+}
+
+async function seedLowPrivilegeSession(): Promise<LowPrivilegeSession | null> {
+  const testSecret = process.env.TEST_API_SECRET || "test-secret-dev";
+  const seed = await probe(
+    "POST",
+    "/api/testing",
+    { "Content-Type": "application/json", "x-test-secret": testSecret, Cookie: "" },
+    JSON.stringify({ action: "seed", ...LOW_PRIV_USER }),
+    10000,
+  );
+  if (!seed || seed.status !== 200) return null;
+
+  const login = await probe(
+    "POST",
+    "/api/auth/login",
+    { "Content-Type": "application/json", Cookie: "" },
+    JSON.stringify({ email: LOW_PRIV_USER.email, password: LOW_PRIV_USER.password }),
+  );
+  if (!login || login.status !== 200) return null;
+
+  const entries = setCookieEntries(login.headers);
+  const session = entries.find((cookie) => SESSION_COOKIE_RE.test(cookie.name));
+  if (!session) return null;
+  const csrf = entries.find((cookie) => /csrf/i.test(cookie.name));
+  const cookie = csrf
+    ? `${session.name}=${session.value}; ${csrf.name}=${csrf.value}`
+    : `${session.name}=${session.value}`;
+
+  const me = await probe("GET", "/api/user/me", { Cookie: cookie });
+  return {
+    cookie,
+    csrfToken: csrf ? csrf.value : null,
+    userId: me ? readStringField(me.body, "_id") : null,
+  };
+}
+
+async function auditBOLA() {
+  console.log("\n🕵️  [A01] BOLA / Privilege Escalation");
+  if (!authCookie) {
+    skip("BOLA / privilege escalation", "requires --auth");
+    return;
+  }
+
+  const lowPriv = await seedLowPrivilegeSession();
+  if (!lowPriv) {
+    skip("BOLA / privilege escalation", "no low-privilege session (testing API unavailable)");
+    return;
+  }
+
+  const escalationBody = JSON.stringify({
+    role: "admin",
+    isAdmin: true,
+    tenantId: "other-tenant",
+  });
+  const escalationMarkers: { pattern: RegExp; field: string }[] = [
+    { pattern: /"isAdmin"\s*:\s*true/i, field: "isAdmin" },
+    { pattern: /"role"\s*:\s*"admin"/i, field: "role" },
+    { pattern: /"tenantId"\s*:\s*"other-tenant"/i, field: "tenantId" },
+  ];
+
+  const targets = [
+    "/api/user",
+    ...(lowPriv.userId ? [`/api/user/${encodeURIComponent(lowPriv.userId)}`] : []),
+    "/api/user/audit-foreign-user-id",
+  ];
+
+  for (const method of ["PATCH", "PUT"]) {
+    for (const path of targets) {
+      const label = `${method} ${path} as role "${LOW_PRIV_USER.role}"`;
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        Origin: BASE,
+        Cookie: lowPriv.cookie,
+      };
+      if (lowPriv.csrfToken) headers["x-csrf-token"] = lowPriv.csrfToken;
+
+      const res = await probe(method, path, headers, escalationBody);
+      if (!res) {
+        skip(label, "no response");
+      } else if (res.status === 401) {
+        skip(label, "auth required (401)");
+      } else if (res.status >= 200 && res.status < 300) {
+        const escalation = escalationMarkers.find((marker) => marker.pattern.test(res.body));
+        if (escalation) {
+          report(
+            path,
+            "Privilege escalation",
+            "A01",
+            "CRITICAL",
+            `${label}: accepted ${res.status} and returned escalated field "${escalation.field}"`,
+          );
+        } else {
+          pass(`${label}: privileged fields stripped (${res.status})`);
+        }
+      } else {
+        pass(`${label}: rejected (${res.status})`);
+      }
+    }
+  }
+
+  // Cross-tenant read: the header is a TEST_MODE-only override, so a 2xx with
+  // foreign records on a normal target is the finding.
+  if (IS_TEST_MODE || process.env.PLAYWRIGHT_TEST === "true") {
+    skip("cross-tenant read (X-Tenant-Id)", "TEST_MODE honours x-test-tenant-id by design");
+    return;
+  }
+
+  const crossTenant = await probe("GET", "/api/user", {
+    Origin: BASE,
+    "X-Tenant-Id": "other-tenant",
+    Cookie: lowPriv.cookie,
+  });
+  if (!crossTenant) {
+    skip("cross-tenant read (X-Tenant-Id)", "no response");
+  } else if (
+    crossTenant.status >= 200 &&
+    crossTenant.status < 300 &&
+    /"tenantId"\s*:\s*"other-tenant"/i.test(crossTenant.body)
+  ) {
+    report(
+      "/api/user",
+      "Cross-tenant data exposure",
+      "A01",
+      "CRITICAL",
+      "GET /api/user with X-Tenant-Id: other-tenant returned foreign-tenant records",
+    );
+  } else {
+    pass(
+      `cross-tenant read with X-Tenant-Id: other-tenant returned no foreign records (${crossTenant.status})`,
+    );
+  }
+}
+
+// ── A01: HTTP METHOD OVERRIDE ────────────────────────────────────────
+
+async function auditMethodOverride() {
+  console.log("\n🔀 [A01] HTTP Method Override");
+  if (!authCookie) {
+    skip("X-HTTP-Method-Override", "requires --auth");
+    return;
+  }
+
+  const list = await probe("GET", "/api/collections");
+  if (!list) {
+    skip("X-HTTP-Method-Override", "collections unreachable");
+    return;
+  }
+  if (list.status === 401 || list.status === 403) {
+    skip("X-HTTP-Method-Override", "auth required");
+    return;
+  }
+
+  const collectionId = list.status === 200 ? firstCollectionId(list.body) : null;
+  if (!collectionId) {
+    skip("X-HTTP-Method-Override", "no collection available to target");
+    return;
+  }
+
+  const targetPath = `/api/collections/${encodeURIComponent(collectionId)}`;
+  const before = await probe("GET", targetPath);
+  if (!before || before.status !== 200) {
+    skip(`X-HTTP-Method-Override on ${targetPath}`, "target collection not readable");
+    return;
+  }
+
+  const override = await probe("GET", targetPath, { "X-HTTP-Method-Override": "DELETE" });
+  const after = await probe("GET", targetPath);
+  if (!after) {
+    skip(`X-HTTP-Method-Override on ${targetPath}`, "no response");
+    return;
+  }
+
+  if (after.status === 200) {
+    pass(`GET ${targetPath} + X-HTTP-Method-Override: DELETE did not delete the collection`);
+  } else {
+    report(
+      targetPath,
+      "Method override honoured",
+      "A01",
+      "HIGH",
+      `GET with X-HTTP-Method-Override: DELETE left the resource at ${after.status} (override response: ${override?.status ?? "none"})`,
     );
   }
 }
@@ -806,7 +1368,7 @@ async function auditRateLimit() {
     console.log(
       `  ℹ️  System in SETUP mode — login is blocked (503). Rate limit test requires a configured system.`,
     );
-    console.log(`  ✅ Rate limit test skipped (valid — system pre-configuration)`);
+    skip("rate limiting & account lockout", "system in SETUP mode");
     return;
   }
 
@@ -829,7 +1391,7 @@ async function auditRateLimit() {
   const locked = responses.filter((r) => r.status === 403).length;
 
   if (throttled > 0) {
-    console.log(`  ✅ Rate limiting: ${throttled} requests throttled (429)`);
+    pass(`Rate limiting: ${throttled} requests throttled (429)`);
     // Check for Retry-After header (RFC 6585)
     const rateRes = await probe(
       "POST",
@@ -838,11 +1400,11 @@ async function auditRateLimit() {
       JSON.stringify({ email: "test@test.com", password: "wrong" }),
     );
     if (rateRes && rateRes.headers.get("retry-after")) {
-      console.log("  ✅ Retry-After header present (RFC 6585 compliant)");
+      pass("Retry-After header present (RFC 6585 compliant)");
     }
   }
   if (locked > 0) {
-    console.log(`  ✅ Account lockout: ${locked} lockout responses (403)`);
+    pass(`Account lockout: ${locked} lockout responses (403)`);
   }
   if (throttled === 0 && locked === 0) {
     report(
@@ -891,7 +1453,7 @@ async function auditInfoLeakage() {
         "API error responses disclose framework internals or filesystem stack trace details",
       );
     } else {
-      console.log("  ✅ Error response: clean (no internal stack traces or path disclosure)");
+      pass("Error response: clean (no internal stack traces or path disclosure)");
     }
   }
 }
@@ -959,7 +1521,10 @@ async function auditSecretLeakage() {
         );
       }
     }
-    if (!leaked) passed++;
+    if (!leaked) {
+      passed++;
+      testsRun++;
+    }
   }
 
   const errRes = await probe("GET", "/api/this/does/not/exist/anywhere");
@@ -1062,11 +1627,14 @@ async function main() {
   }
   if (runFull) {
     await auditAuth(); // A01
-    if (AUTH_MODE) await auditCSRF(); // A01 — CSRF requires auth
+    await auditCSRF(); // A01 — host injection (public) + CSRF matrix (--auth)
     await auditXSS(); // A03
     await auditSQLi(); // A03
     await auditPathTraversal(); // A03
-    await auditGraphQL(); // A01 + A04
+    await auditPublicInjection(); // A03 — works without --auth
+    await auditBOLA(); // A01 — BOLA / privilege escalation
+    await auditMethodOverride(); // A01 — X-HTTP-Method-Override
+    await auditGraphQL(); // A01 + A04 + introspection
     await auditHeaders(); // A05
     await auditCORS(); // A05
     await auditCookieSecurity(); // A02
@@ -1075,7 +1643,7 @@ async function main() {
     await auditSecretLeakage(); // A05 — credentialed secrets in responses
   }
 
-  // Teardown: clean up seeded test admin
+  // Teardown: clean up seeded test users
   if (AUTH_MODE) {
     await teardownAuth();
   }
@@ -1092,6 +1660,10 @@ async function main() {
   console.log(`   🟠 HIGH:     ${byRisk("HIGH")}`);
   console.log(`   🟡 MEDIUM:   ${byRisk("MEDIUM")}`);
   console.log(`   🔵 LOW:      ${byRisk("LOW")}`);
+
+  console.log("\n   Coverage:");
+  console.log(`   ✅ tested:  ${testsRun}`);
+  console.log(`   ⏭️  skipped: ${testsSkipped} (could not assert — not counted as passing)`);
 
   console.log("\n   OWASP Top 10 Coverage:");
   for (const cat of ["A01", "A02", "A03", "A04", "A05", "A07"]) {

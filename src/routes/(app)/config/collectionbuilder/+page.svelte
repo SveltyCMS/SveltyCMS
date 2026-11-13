@@ -36,6 +36,7 @@ None (TreeView has its own keyboard navigation)
 <script lang="ts">
 	import { SvelteSet } from 'svelte/reactivity';
 	import type { ContentNode, DatabaseId } from '@src/databases/db-interface';
+	import { getSchemaPath } from '@src/content/first-collection';
 	import { nowISODateString } from '@src/utils/date';
 	import { generateUUID } from '@utils/native-utils';
 	import { hasDuplicateSiblingName } from '@src/content/content-tree';
@@ -652,7 +653,7 @@ None (TreeView has its own keyboard navigation)
 					_id: `preset:${col.name}` as unknown as DatabaseId,
 					name: col.name,
 					icon: col.icon,
-					path: `/collection/${col.name}`,
+					path: getSchemaPath({ name: col.name }),
 					order: currentConfig.length + i,
 					translations: [],
 					description: col.description,

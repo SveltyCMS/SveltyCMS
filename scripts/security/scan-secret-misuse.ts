@@ -7,8 +7,15 @@
  * ### Features:
  * - **High-entropy detection**: Shannon entropy analysis to reduce false
  *   positives by distinguishing actual secrets from variable names/placeholders.
- * - **Known key patterns**: Matches AWS, GitHub, Stripe, JWT, and generic
- *   API key formats for high-confidence detection.
+ * - **Known key patterns**: Matches AWS, GitHub, Stripe, JWT, DB connection
+ *   strings, SendGrid, Resend, npm and generic API key formats for
+ *   high-confidence detection.
+ * - **Whole-file pass**: High-value patterns are re-run over the normalised
+ *   file text (`"a" + "b"` joined, `\r` stripped) so a secret split across
+ *   lines cannot evade the per-line pass.
+ * - **Comment awareness**: A small lexer tracks line and block comments,
+ *   quoted strings and template literals, so the `//` inside `https://…` never
+ *   hides a token.
  * - **Incremental scanning**: Only re-scans files modified since last commit
  *   (use `--full` to force full scan).
  * - **Full-repo scope**: scans `src`, `scripts`, `config/collections`, `.github`
@@ -78,7 +85,26 @@ const PRIVATE_SECRETS = [
   "PREVIEW_SECRET",
 ];
 
-const ALL_FORBIDDEN_KEYS = [...BOOTSTRAP_SECRETS, ...PRIVATE_SECRETS];
+/**
+ * Canonical list of every secret env/key name this scanner treats as private.
+ * Exported so the production-bundle scanner can reuse exactly this set.
+ */
+export const ALL_FORBIDDEN_KEYS: readonly string[] = [
+  ...new Set([
+    ...BOOTSTRAP_SECRETS,
+    ...PRIVATE_SECRETS,
+    "SMTP_PASS",
+    "SMTP_PASSWORD",
+    "REDIS_PASSWORD",
+    "SAML_CLIENT_SECRET_VERIFIER",
+    "GOOGLE_CLIENT_SECRET",
+    "CF_API_TOKEN",
+    "CLOUDFLARE_API_TOKEN",
+    "AWS_SECRET_ACCESS_KEY",
+    "S3_SECRET_ACCESS_KEY",
+    "R2_SECRET_ACCESS_KEY",
+  ]),
+];
 
 /** Pre-compiled single regex for all forbidden keys (avoids one RegExp allocation per key per line). */
 const FORBIDDEN_PRIVATE_SETTING_RE = new RegExp(
@@ -98,10 +124,11 @@ interface KeyPattern {
 const KNOWN_KEY_PATTERNS: KeyPattern[] = [
   // AWS Access Key ID
   { name: "AWS Access Key", regex: /(?:AKIA|ASIA)[0-9A-Z]{16}/g, requireEntropy: false },
-  // AWS Secret Access Key (base64-like, ~40 chars)
+  // AWS Secret Access Key (base64-like, ~40 chars). The `.` in the lookbehind
+  // keeps dotted identifiers and URL paths (`schemas.xmlsoap.org/ws/...`) out.
   {
     name: "AWS Secret Key",
-    regex: /(?<![A-Za-z0-9/+])[A-Za-z0-9/+]{40}(?![A-Za-z0-9/+])/g,
+    regex: /(?<![A-Za-z0-9/+.])[A-Za-z0-9/+]{40}(?![A-Za-z0-9/+])/g,
     requireEntropy: true,
   },
   // GitHub Personal Access Token (classic)
@@ -162,7 +189,97 @@ const KNOWN_KEY_PATTERNS: KeyPattern[] = [
   },
   // Hugging Face tokens
   { name: "Hugging Face Token", regex: /\bhf_[A-Za-z0-9]{20,}/g, requireEntropy: false },
+  // DB connection string with embedded credentials
+  {
+    name: "DB Connection String",
+    regex:
+      /(?:postgres|postgresql|mysql|mariadb|mongodb(?:\+srv)?|redis):\/\/[^:\s"'`]+:[^@\s"'`]+@/gi,
+    requireEntropy: false,
+  },
+  // SendGrid API key (SG.<22>.<43>)
+  {
+    name: "SendGrid API Key",
+    regex: /\bSG\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}\b/g,
+    requireEntropy: false,
+  },
+  // Resend API key (re_<24+>)
+  { name: "Resend API Key", regex: /\bre_[A-Za-z0-9]{24,}\b/g, requireEntropy: false },
+  // npm automation token (npm_<36>)
+  { name: "npm Token", regex: /\bnpm_[A-Za-z0-9]{36}\b/g, requireEntropy: false },
 ];
+
+/** Sticky matcher for a string literal split across a `+` (also across newlines). */
+const SPLIT_CONCAT_RE = /(["'`])\s*\+\s*\1/y;
+
+/**
+ * Placeholder docs examples (`user:pass@`) and runtime template interpolation
+ * (`${user}:${encoded}@`) are not hardcoded credentials.
+ */
+function isPlaceholderConnectionString(matched: string): boolean {
+  return (
+    matched.includes("${") ||
+    /\/\/(?:user|username|usr|admin|root):(?:pass|password|pwd|secret)\b/i.test(matched)
+  );
+}
+
+/**
+ * Shared gates for a known-key match: safe strings, placeholders, entropy and
+ * the minimum lengths that keep the generic patterns from firing on prose.
+ */
+function shouldReportKnownKey(name: string, matched: string, requireEntropy: boolean): boolean {
+  if (isKnownSafe(matched)) return false;
+  if (name === "DB Connection String" && isPlaceholderConnectionString(matched)) return false;
+  if (requireEntropy && !isHighEntropy(matched)) return false;
+  if (name === "Generic API Key (32+)" && matched.length < 40) return false;
+  if (name === "Hex Secret (64+)" && matched.length < 72) return false;
+  return true;
+}
+
+// ─── Hardcoded credential comparison patterns (Rule 6) ──────────────────────
+
+const SECRET_IDENT = "(?:password|secret|token|passphrase|passwd)";
+
+/** `<secret-ident> === "literal"` / `!== "literal"`. */
+const COMPARISON_POSTFIX_RE = new RegExp(
+  `(?:^|[^.\\w])${SECRET_IDENT}\\s*[!=]==?\\s*["'\`]([^"'\`]{4,})["'\`]`,
+  "i",
+);
+
+/** Yoda form: `"literal" === <secret-ident>`. */
+const COMPARISON_YODA_RE = new RegExp(
+  `["'\`]([^"'\`]{4,})["'\`]\\s*[!=]==?\\s*${SECRET_IDENT}\\b`,
+  "i",
+);
+
+/** `<secret-ident>.includes("literal")` / `.startsWith("literal")`. */
+const SECRET_METHOD_LITERAL_RE = new RegExp(
+  `\\b${SECRET_IDENT}\\s*\\.\\s*(?:includes|startsWith)\\s*\\(\\s*["'\`]([^"'\`]{4,})["'\`]`,
+  "i",
+);
+
+/** Password-hash prefixes (`$argon2…`, `$2b$…`) are algorithm markers, not credentials. */
+const HASH_MARKER_RE = /^\$(?:argon2|2[abxy]|scrypt|pbkdf2)/i;
+
+/** First hardcoded literal compared against a secret-looking identifier, if any. */
+function findHardcodedComparison(line: string): string | null {
+  const postfix = COMPARISON_POSTFIX_RE.exec(line);
+  const yoda = COMPARISON_YODA_RE.exec(line);
+  const method = SECRET_METHOD_LITERAL_RE.exec(line);
+  return postfix?.[1] ?? yoda?.[1] ?? method?.[1] ?? null;
+}
+
+/** Typeof guards, Svelte templates, type annotations and hash markers are not backdoors. */
+function isSafeComparisonLiteral(value: string, line: string): boolean {
+  return (
+    value === "string" ||
+    value === "number" ||
+    value === "boolean" ||
+    /^<[a-z]/.test(value) ||
+    line.trim().endsWith(">") ||
+    isKnownSafe(value) ||
+    HASH_MARKER_RE.test(value)
+  );
+}
 
 // ─── Exposure patterns (console.log / logger.*, hardcoded) ──────────────────
 
@@ -207,11 +324,19 @@ const HARDCODED_BENCHMARK_SECRET = /SVELTYCMS_TEST_SECRET_2026/;
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-interface Finding {
+export interface Finding {
   file: string;
   line: number;
   message: string;
   confidence: "high" | "medium" | "low";
+}
+
+/** Adds a finding unless an identical one was already reported for that line. */
+function addFinding(findings: Finding[], finding: Finding): void {
+  const isDuplicate = findings.some(
+    (f) => f.file === finding.file && f.line === finding.line && f.message === finding.message,
+  );
+  if (!isDuplicate) findings.push(finding);
 }
 
 // ─── Entropy Calculation ────────────────────────────────────────────────────
@@ -350,7 +475,7 @@ function getChangedFiles(): string[] {
   }
 }
 
-function isServerFile(filePath: string): boolean {
+export function isServerFile(filePath: string): boolean {
   const n = filePath.replace(/\\/g, "/");
   return (
     n.endsWith(".server.ts") ||
@@ -371,12 +496,161 @@ function isServerFile(filePath: string): boolean {
 
 // ─── Scanning ───────────────────────────────────────────────────────────────
 
+/**
+ * Marks which character indexes of each line sit inside a JS/TS comment. It
+ * tracks block comments, quoted strings and template literals across lines, so
+ * the `//` in `https://…` (or in `"a // b"`) never suppresses a real finding.
+ */
+function computeCommentMasks(lines: readonly string[]): Uint8Array[] {
+  const masks: Uint8Array[] = [];
+  let inBlockComment = false;
+  let inTemplate = false;
+
+  for (const line of lines) {
+    const mask = new Uint8Array(line.length);
+    let quote: '"' | "'" | null = null;
+
+    for (let i = 0; i < line.length; i += 1) {
+      const ch = line[i];
+      const next = line[i + 1];
+
+      if (inBlockComment) {
+        mask[i] = 1;
+        if (ch === "*" && next === "/") {
+          if (i + 1 < line.length) mask[i + 1] = 1;
+          inBlockComment = false;
+          i += 1;
+        }
+        continue;
+      }
+
+      if (inTemplate) {
+        if (ch === "\\") i += 1;
+        else if (ch === "`") inTemplate = false;
+        continue;
+      }
+
+      if (quote) {
+        if (ch === "\\") i += 1;
+        else if (ch === quote) quote = null;
+        continue;
+      }
+
+      if (ch === "/" && next === "/") {
+        mask.fill(1, i);
+        break;
+      }
+      if (ch === "/" && next === "*") {
+        mask[i] = 1;
+        if (i + 1 < line.length) mask[i + 1] = 1;
+        inBlockComment = true;
+        i += 1;
+        continue;
+      }
+      if (ch === '"' || ch === "'") quote = ch;
+      else if (ch === "`") inTemplate = true;
+    }
+
+    masks.push(mask);
+  }
+
+  return masks;
+}
+
+interface NormalisedSource {
+  text: string;
+  /** 1-based original line of each surviving character (normalisation drops chars). */
+  lineAt: Int32Array;
+  /** 1 when the surviving character sat inside a comment in the original source. */
+  commented: Uint8Array;
+}
+
+/**
+ * Joins `"a" + "b"` (including across newlines) and strips `\r`, while keeping
+ * the original line and comment state of every surviving character so findings
+ * stay pinpointed and suppressed comments stay suppressed.
+ */
+function normaliseWholeFile(
+  content: string,
+  commentMasks: readonly Uint8Array[],
+): NormalisedSource {
+  const src = content.replace(/\r/g, "");
+  const chars: string[] = [];
+  const lineAt = new Int32Array(src.length);
+  const commented = new Uint8Array(src.length);
+  let lineIdx = 0;
+  let col = 0;
+
+  for (let i = 0; i < src.length; i += 1) {
+    const ch = src[i];
+    if (ch === "\n") {
+      lineIdx += 1;
+      col = 0;
+      continue;
+    }
+    if (ch === '"' || ch === "'" || ch === "`") {
+      SPLIT_CONCAT_RE.lastIndex = i;
+      const join = SPLIT_CONCAT_RE.exec(src);
+      if (join) {
+        for (const skipped of join[0]) {
+          if (skipped === "\n") {
+            lineIdx += 1;
+            col = 0;
+          } else {
+            col += 1;
+          }
+        }
+        i += join[0].length - 1;
+        continue;
+      }
+    }
+    const at = chars.length;
+    lineAt[at] = lineIdx + 1;
+    commented[at] = commentMasks[lineIdx]?.[col] ?? 0;
+    chars.push(ch);
+    col += 1;
+  }
+
+  return {
+    text: chars.join(""),
+    lineAt: lineAt.subarray(0, chars.length),
+    commented: commented.subarray(0, chars.length),
+  };
+}
+
+/** Re-runs every known-key pattern over the whole file so splits cannot evade them. */
+function scanWholeFile(
+  content: string,
+  relPath: string,
+  commentMasks: readonly Uint8Array[],
+  findings: Finding[],
+): void {
+  const { text, lineAt, commented } = normaliseWholeFile(content, commentMasks);
+  if (text.length === 0) return;
+
+  for (const { name, regex, requireEntropy } of KNOWN_KEY_PATTERNS) {
+    regex.lastIndex = 0;
+    let match: RegExpExecArray | null;
+    while ((match = regex.exec(text)) !== null) {
+      if (commented[match.index] === 1) continue;
+      if (!shouldReportKnownKey(name, match[0], requireEntropy)) continue;
+      addFinding(findings, {
+        file: relPath,
+        line: lineAt[match.index] ?? 1,
+        message: `Hardcoded ${name} detected`,
+        confidence: requireEntropy ? "medium" : "high",
+      });
+    }
+  }
+}
+
 function scanLine(
   line: string,
   lineNum: number,
   relPath: string,
   isServer: boolean,
   isAllowlistedForSecrets: boolean,
+  commentMask: Uint8Array,
   findings: Finding[],
 ): void {
   // ── Rule 1: Forbidden key access in non-server files ────────────────────
@@ -413,12 +687,8 @@ function scanLine(
       let match: RegExpExecArray | null;
       while ((match = regex.exec(line)) !== null) {
         const matched = match[0];
-        if (isKnownSafe(matched)) continue;
-        const before = line.slice(0, match.index);
-        if (/\/\//.test(before.split("\n").pop() ?? "")) continue;
-        if (requireEntropy && !isHighEntropy(matched)) continue;
-        if (name === "Generic API Key (32+)" && matched.length < 40) continue;
-        if (name === "Hex Secret (64+)" && matched.length < 72) continue;
+        if (commentMask[match.index] === 1) continue;
+        if (!shouldReportKnownKey(name, matched, requireEntropy)) continue;
         findings.push({
           file: relPath,
           line: lineNum,
@@ -481,29 +751,50 @@ function scanLine(
 
   // ── Rule 6: Hardcoded credentials in comparisons (backdoor detection) ─────
   if (!isAllowlistedForSecrets) {
-    const compareMatch = line.match(
-      /(?:^|[^.\w])(password|secret|token|passphrase|passwd)\s*[!=]==?\s*["'`]([^"'`]{4,})["'`]/i,
-    );
-    if (compareMatch) {
-      const value = compareMatch[2];
-      // Skip typeof guards, Svelte templates, type annotations, and known safe strings
-      const isSafe =
-        value === "string" ||
-        value === "number" ||
-        value === "boolean" ||
-        /^<[a-z]/.test(value) ||
-        line.trim().endsWith(">") ||
-        isKnownSafe(value);
-      if (!isSafe && value.length >= 4) {
-        findings.push({
-          file: relPath,
-          line: lineNum,
-          message: `Hardcoded credential in comparison: \`${value}\` — possible auth bypass backdoor`,
-          confidence: "high",
-        });
-      }
+    const value = findHardcodedComparison(line);
+    if (value !== null && !isSafeComparisonLiteral(value, line)) {
+      findings.push({
+        file: relPath,
+        line: lineNum,
+        message: `Hardcoded credential in comparison: \`${value}\` — possible auth bypass backdoor`,
+        confidence: "high",
+      });
     }
   }
+}
+
+function scanText(content: string, relPath: string, findings: Finding[]): void {
+  const isServer = isServerFile(relPath);
+  const isAllowlistedForSecrets = BENCHMARK_SECRET_ALLOWLIST.some((p) => relPath.includes(p));
+  const lines = content.replace(/\r/g, "").split("\n");
+  const commentMasks = computeCommentMasks(lines);
+
+  for (let i = 0; i < lines.length; i++) {
+    // Skip comment-only / blank lines for speed
+    const trimmed = lines[i].trim();
+    if (!trimmed || trimmed.startsWith("//") || trimmed.startsWith("*")) continue;
+
+    scanLine(
+      lines[i],
+      i + 1,
+      relPath,
+      isServer,
+      isAllowlistedForSecrets,
+      commentMasks[i],
+      findings,
+    );
+  }
+
+  if (!isAllowlistedForSecrets) {
+    scanWholeFile(content, relPath, commentMasks, findings);
+  }
+}
+
+/** Scans an in-memory source string — the testable entry point. */
+export function scanSource(content: string, relPath: string): Finding[] {
+  const findings: Finding[] = [];
+  scanText(content, relPath.replace(/\\/g, "/"), findings);
+  return findings;
 }
 
 async function scanFile(
@@ -519,18 +810,8 @@ async function scanFile(
     return; // binary or unreadable
   }
 
-  const lines = content.split("\n");
-  const isServer = isServerFile(filePath);
   const relPath = relative(ROOT, filePath).replace(/\\/g, "/");
-  const isAllowlistedForSecrets = BENCHMARK_SECRET_ALLOWLIST.some((p) => relPath.includes(p));
-
-  for (let i = 0; i < lines.length; i++) {
-    // Skip comment-only / blank lines for speed
-    const trimmed = lines[i].trim();
-    if (!trimmed || trimmed.startsWith("//") || trimmed.startsWith("*")) continue;
-
-    scanLine(lines[i], i + 1, relPath, isServer, isAllowlistedForSecrets, findings);
-  }
+  scanText(content, relPath, findings);
 
   // Progress
   if ((fileIndex + 1) % 50 === 0 || fileIndex === total - 1) {
@@ -647,7 +928,9 @@ async function main() {
   process.exit(0);
 }
 
-main().catch((err) => {
-  console.error("Fatal:", err);
-  process.exit(2);
-});
+if (import.meta.main) {
+  main().catch((err) => {
+    console.error("Fatal:", err);
+    process.exit(2);
+  });
+}

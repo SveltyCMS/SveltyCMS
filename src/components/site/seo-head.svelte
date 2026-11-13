@@ -70,10 +70,12 @@ robots, hreflang alternates, Open Graph, Twitter Card, JSON-LD) for site-starter
 		{/if}
 		{#if meta.jsonLdScript}
 			<!-- Generated server-side from sanitized widget data; safe to render raw. -->
+			<!-- slop:suppress security — sanitizeJsonLd() escapes the JSON-LD payload; value is server-generated -->
 			{@html sanitizeJsonLd(meta.jsonLdScript)}
 		{/if}
 		{#each meta.autoJsonLd as autoScript (autoScript)}
 			<!-- Site-level JSON-LD auto-generated from the CMS structure; safe to render raw. -->
+			<!-- slop:suppress security — sanitizeJsonLd() escapes the JSON-LD payload; value is server-generated -->
 			{@html sanitizeJsonLd(autoScript)}
 		{/each}
 	{/if}

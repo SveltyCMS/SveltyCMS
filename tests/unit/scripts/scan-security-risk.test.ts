@@ -11,6 +11,8 @@ import {
   scanGlobalRisk,
   scanSvelteKitRisk,
   scanAstRisk,
+  scanAstSqlRisk,
+  isSuppressed,
 } from "../../../scripts/security/scan-security-risk";
 
 describe("scanDbRisk — SQL value interpolation (SQLi class)", () => {
@@ -628,5 +630,345 @@ describe("scanGlobalRisk — loopback prefix, tenant spoofing, and bare NODE_ENV
     expect(
       violations.some((v) => v.category === "test-mode-bare-node-env" && v.severity === "error"),
     ).toBe(true);
+  });
+});
+
+describe("scanAstSqlRisk — multi-line SQL statements", () => {
+  it("flags a template whose SQL verb is on a different line from the interpolation", () => {
+    const vulnerable = [
+      "const queryText = `",
+      "  SELECT * FROM users",
+      "  WHERE email = '${email}'",
+      "`;",
+    ].join("\n");
+    const violations = scanAstSqlRisk("src/databases/sqlite/adapter.ts", vulnerable);
+    expect(
+      violations.some(
+        (v) => v.category === "sql-template-value-interpolation" && v.severity === "error",
+      ),
+    ).toBe(true);
+  });
+
+  it("flags cross-line concatenation of a value into SQL", () => {
+    const vulnerable = [
+      "const queryText =",
+      '  "SELECT * FROM users WHERE id = \'" +',
+      "  userId +",
+      '  "\'";',
+    ].join("\n");
+    const violations = scanAstSqlRisk("src/databases/sqlite/adapter.ts", vulnerable);
+    expect(violations.some((v) => v.category === "sql-template-value-interpolation")).toBe(true);
+  });
+
+  it("passes bound parameters, tagged templates and validated identifiers", () => {
+    const fixed = [
+      "const rows = sql`SELECT * FROM users WHERE id = ${id}`;",
+      'const row = stmt.get("SELECT * FROM users WHERE id = ?", id);',
+      "assertSafeSqlIdentifier(collection, 'collection');",
+      "const ddl = `",
+      '  CREATE VIRTUAL TABLE "${collection}_fts"',
+      "`;",
+    ].join("\n");
+    expect(scanAstSqlRisk("src/databases/sqlite/adapter.ts", fixed)).toHaveLength(0);
+  });
+});
+
+describe("scanGlobalRisk — SSRF without a variable-name allowlist", () => {
+  it("flags fetch(target) from a destructured request body", () => {
+    const vulnerable = [
+      "export const POST = async ({ request }) => {",
+      "  const { target } = await request.json();",
+      "  return fetch(target);",
+      "};",
+    ].join("\n");
+    expect(
+      scanGlobalRisk("src/routes/api/import/+server.ts", vulnerable).some(
+        (v) => v.category === "ssrf-unguarded-fetch" && v.severity === "error",
+      ),
+    ).toBe(true);
+  });
+
+  it("flags event.fetch(link) where link is a search param", () => {
+    const vulnerable = [
+      "const link = url.searchParams.get('src');",
+      "const response = await event.fetch(link);",
+    ].join("\n");
+    expect(
+      scanGlobalRisk("src/routes/api/import/+server.ts", vulnerable).some(
+        (v) => v.category === "ssrf-unguarded-fetch",
+      ),
+    ).toBe(true);
+  });
+
+  it("passes guarded, relative and configured targets", () => {
+    const guarded = [
+      'import { validateEgressUrl, safeFetch } from "@utils/egress-guard";',
+      "const { target } = await request.json();",
+      "await validateEgressUrl(target);",
+      "await fetch(target);",
+    ].join("\n");
+    expect(
+      scanGlobalRisk("src/routes/api/import/+server.ts", guarded).some(
+        (v) => v.category === "ssrf-unguarded-fetch",
+      ),
+    ).toBe(false);
+    const configured = [
+      "const { id } = await request.json();",
+      'const PLUGIN_API = "/api/plugins";',
+      "await fetch(PLUGIN_API);",
+      'const GITHUB_URL = "https://api.github.com/repos";',
+      "await fetch(GITHUB_URL);",
+    ].join("\n");
+    expect(
+      scanGlobalRisk("src/services/version-service.ts", configured).some(
+        (v) => v.category === "ssrf-unguarded-fetch",
+      ),
+    ).toBe(false);
+  });
+
+  it("honours the per-line ssrf-allow escape hatch", () => {
+    const allowed = [
+      "const { target } = await request.json();",
+      "// ssrf-allow: admin-configured connector endpoint, host allowlisted",
+      "const response = await fetch(target);",
+    ].join("\n");
+    expect(
+      scanGlobalRisk("src/routes/api/import/+server.ts", allowed).some(
+        (v) => v.category === "ssrf-unguarded-fetch",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("scanAstRisk — prototype pollution", () => {
+  it("flags Object.assign(target, requestBody)", () => {
+    const vulnerable = [
+      "export async function POST({ request }) {",
+      "  const payload = await request.json();",
+      "  return Object.assign({}, payload);",
+      "}",
+    ].join("\n");
+    expect(
+      scanAstRisk("src/services/settings-writer.ts", vulnerable).some(
+        (v) => v.category === "prototype-pollution-request-merge" && v.severity === "error",
+      ),
+    ).toBe(true);
+  });
+
+  it("flags a spread merge of a request-derived identifier", () => {
+    const vulnerable = [
+      "export async function POST({ request }) {",
+      "  const body = await request.json();",
+      "  const merged = { ...DEFAULT_SETTINGS, ...body };",
+      "  return merged;",
+      "}",
+    ].join("\n");
+    expect(
+      scanAstRisk("src/services/settings-writer.ts", vulnerable).some(
+        (v) => v.category === "prototype-pollution-request-merge",
+      ),
+    ).toBe(true);
+  });
+
+  it("passes merges that strip prototype keys and config-only merges", () => {
+    const guarded = [
+      "export async function POST({ request }) {",
+      "  const payload = await request.json();",
+      '  if (Object.hasOwn(payload, "__proto__")) delete payload["__proto__"];',
+      "  return Object.assign({}, payload);",
+      "}",
+    ].join("\n");
+    expect(
+      scanAstRisk("src/services/settings-writer.ts", guarded).some(
+        (v) => v.category === "prototype-pollution-request-merge",
+      ),
+    ).toBe(false);
+    const configMerge = "const merged = deepMerge(DEFAULT_THEME_FEATURES, tenantConfig.features);";
+    expect(
+      scanAstRisk("src/utils/theme-merge.ts", configMerge).some(
+        (v) => v.category === "prototype-pollution-request-merge",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("scanAstRisk — timing-unsafe secret comparison", () => {
+  it("flags `===` between secret identifiers", () => {
+    const vulnerable = [
+      "export function valid(testSecret) {",
+      "  const masterSecret = resolveMasterSecret();",
+      "  return testSecret === masterSecret;",
+      "}",
+    ].join("\n");
+    expect(
+      scanAstRisk("src/hooks/handle-test-isolation.ts", vulnerable).some(
+        (v) => v.category === "timing-unsafe-comparison" && v.severity === "error",
+      ),
+    ).toBe(true);
+  });
+
+  it("flags `.includes(` on a token", () => {
+    const vulnerable = "if (providedToken.includes(csrfSecret)) { allow(); }";
+    expect(
+      scanAstRisk("src/utils/security/check.ts", vulnerable).some(
+        (v) => v.category === "timing-unsafe-comparison",
+      ),
+    ).toBe(true);
+  });
+
+  it("passes timingSafeEqual, content-hash identity and sentinel constants", () => {
+    const guarded = [
+      'import { timingSafeEqual } from "node:crypto";',
+      "export function valid(testSecret, masterSecret) {",
+      "  return timingSafeEqual(Buffer.from(testSecret), Buffer.from(masterSecret));",
+      "}",
+    ].join("\n");
+    expect(
+      scanAstRisk("src/hooks/handle-test-isolation.ts", guarded).some(
+        (v) => v.category === "timing-unsafe-comparison",
+      ),
+    ).toBe(false);
+    const hashIdentity = "if (hashedToken !== token) { legacyLookup(); }";
+    expect(
+      scanAstRisk("src/databases/mongodb/auth-token.ts", hashIdentity).some(
+        (v) => v.category === "timing-unsafe-comparison",
+      ),
+    ).toBe(false);
+    const sentinel = "if (secret === SSO_SECRET_MASK) { keep(); }";
+    expect(
+      scanAstRisk("src/routes/api/handlers/sso.ts", sentinel).some(
+        (v) => v.category === "timing-unsafe-comparison",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("scanAstRisk — insecure randomness in security contexts", () => {
+  it("flags Math.random() on an auth/token path", () => {
+    const vulnerable = "const resetCode = Math.floor(Math.random() * 1000000);";
+    expect(
+      scanAstRisk("src/utils/security/password-reset.ts", vulnerable).some(
+        (v) => v.category === "insecure-randomness" && v.severity === "error",
+      ),
+    ).toBe(true);
+  });
+
+  it("passes Math.random() jitter outside security paths", () => {
+    const jitter = "const delay = base + Math.random() * 200;";
+    expect(
+      scanAstRisk("src/utils/retry-dynamic-import.ts", jitter).some(
+        (v) => v.category === "insecure-randomness",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("scanAstRisk — open redirect", () => {
+  it("flags redirect(3xx, search-param target) without same-origin validation", () => {
+    const vulnerable = [
+      "export const GET = async ({ url, locals }) => {",
+      "  const target = url.searchParams.get('next');",
+      "  throw redirect(302, target);",
+      "};",
+    ].join("\n");
+    expect(
+      scanAstRisk("src/routes/api/redirect/+server.ts", vulnerable).some(
+        (v) => v.category === "open-redirect" && v.severity === "error",
+      ),
+    ).toBe(true);
+  });
+
+  it("passes targets validated with a same-origin check", () => {
+    const guarded = [
+      "export const GET = async ({ url, locals }) => {",
+      "  const target = url.searchParams.get('next');",
+      '  if (!target || !target.startsWith("/")) throw error(400);',
+      "  throw redirect(302, target);",
+      "};",
+    ].join("\n");
+    expect(
+      scanAstRisk("src/routes/api/redirect/+server.ts", guarded).some(
+        (v) => v.category === "open-redirect",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("scanAstRisk — missing auth guard on route modules", () => {
+  it("flags a route module that reads request input without a guard", () => {
+    const vulnerable = [
+      "export const POST = async ({ request }) => {",
+      "  const body = await request.json();",
+      "  return json(body);",
+      "};",
+    ].join("\n");
+    expect(
+      scanAstRisk("src/routes/api/custom/+server.ts", vulnerable).some(
+        (v) => v.category === "missing-auth-guard" && v.severity === "error",
+      ),
+    ).toBe(true);
+  });
+
+  it("passes guarded, exempt and explicitly public routes", () => {
+    const guarded = [
+      "export const POST = async ({ request, locals }) => {",
+      "  const user = getAuthenticatedUser(locals);",
+      "  const body = await request.json();",
+      "  return json({ user, body });",
+      "};",
+    ].join("\n");
+    expect(
+      scanAstRisk("src/routes/api/custom/+server.ts", guarded).some(
+        (v) => v.category === "missing-auth-guard",
+      ),
+    ).toBe(false);
+    const declared = [
+      "// public-endpoint: preview token is verified by previewService.validateToken",
+      "export const GET = async ({ url }) => {",
+      "  const token = url.searchParams.get('preview_token');",
+      "  return json({ token });",
+      "};",
+    ].join("\n");
+    expect(
+      scanAstRisk("src/routes/api/preview/+server.ts", declared).some(
+        (v) => v.category === "missing-auth-guard",
+      ),
+    ).toBe(false);
+    expect(
+      scanAstRisk("src/routes/login/+page.server.ts", declared).some(
+        (v) => v.category === "missing-auth-guard",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("isSuppressed — rule-scoped suppressions", () => {
+  const lines = [
+    "// slop:suppress",
+    "eval(userInput);",
+    "// slop:suppress dynamic-code-execution",
+    "eval(userInput);",
+    "// slop:suppress open-redirect",
+    "eval(userInput);",
+    "// slop:suppress — prose reason, not a rule id",
+    "eval(userInput);",
+    "eval(userInput);",
+  ];
+
+  it("suppresses only the offending line or the line above it", () => {
+    expect(isSuppressed(lines, 1, "dynamic-code-execution")).toBe(true);
+    expect(isSuppressed(lines, 3, "dynamic-code-execution")).toBe(true);
+    expect(isSuppressed(lines, 8, "dynamic-code-execution")).toBe(false);
+  });
+
+  it("respects a named rule id and treats prose as an unscoped marker", () => {
+    expect(isSuppressed(lines, 5, "dynamic-code-execution")).toBe(false);
+    expect(isSuppressed(lines, 5, "open-redirect")).toBe(true);
+    expect(isSuppressed(lines, 7, "dynamic-code-execution")).toBe(true);
+  });
+
+  it("does not suppress across a whole file", () => {
+    const marker = ["// slop:suppress", "const a = 1;", "eval(userInput);"];
+    expect(isSuppressed(marker, 2, "dynamic-code-execution")).toBe(false);
   });
 });

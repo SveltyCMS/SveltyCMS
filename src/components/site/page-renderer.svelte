@@ -153,6 +153,7 @@
 				role={editable ? 'button' : undefined}
 				tabindex={editable ? 0 : undefined}
 			>
+				<!-- slop:suppress security — serverSanitizedHtml() sanitizes the stored body server-side; the client only re-renders it -->
 				{@html sanitizedBody}
 			</div>
 		{/if}
@@ -172,6 +173,7 @@
 						<p class="mt-4 text-(--admin-text-muted)">{block.body}</p>
 					{/if}
 				{:else if block.type === 'richtext'}
+					<!-- slop:suppress security — serverSanitizedHtml() sanitizes each stored block server-side -->
 					<div class="prose dark:prose-invert">{@html sanitizedBlockHtml(block.body)}</div>
 				{:else if block.type === 'cta' && block.ctaText}
 					{@const ctaHref = safeHref(block.ctaHref)}

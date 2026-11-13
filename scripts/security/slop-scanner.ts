@@ -7,7 +7,7 @@
  * - Svelte legacy store warnings
  * - Directional Tailwind property conversions to Logical Properties (autofixable)
  * - Accessibility missing-label assertions on interactive elements
- * - Unsanitized {@html} expression risk evaluations with nested brace support
+ * - {@html} sanitization proofs — only an outermost sanitizer call counts (nested-brace aware)
  * - Dynamic brace-balanced {#each} block key constraint validations
  * - Duplicate content duplication flags
  * - Scans TS/JS files for TODOs, naming, and duplicate content slop
@@ -74,18 +74,33 @@ export function isExcludedPath(pathLike: string | URL): boolean {
  * Trailing slashes are preserved because they denote a directory prefix.
  */
 function normalizeSuppressionPath(p: string): string {
-  return p.replace(/\\/g, "/").replace(/^\.\//, "");
+  return p.replace(/\\/g, "/").replace(/^(?:\.\/)+/, "");
+}
+
+/** A `.slop-suppress.json` entry (`category: "*"` silences every category). */
+export interface SuppressionRule {
+  file: string;
+  category: string;
 }
 
 /**
- * Exact/prefix path match, never a substring match: a suppression for
- * `src/foo.ts` must not silence `src/foo.tsx` or `src/foo.ts.helper.ts`.
+ * Exact repo-relative path or directory-prefix match. Never a bare filename or a
+ * substring match: an entry for `src/foo.ts` must not silence `src/foo.tsx`,
+ * `src/foo.ts.helper.ts`, or `src/databases/foo.ts` — only `foo.ts` at the repo
+ * root and anything below `foo.ts/` are covered by an entry spelled `foo.ts`.
+ * Separators are normalised and a leading `./` is stripped on both sides.
  */
-function isSuppressed(nf: string, category: string): boolean {
-  return SUPPRESS.some((s) => {
+export function isSuppressed(
+  nf: string,
+  category: string,
+  rules: readonly SuppressionRule[] = SUPPRESS,
+): boolean {
+  const file = normalizeSuppressionPath(nf);
+  return rules.some((s) => {
     if (s.category !== category && s.category !== "*") return false;
-    const target = s.file.replace(/\/$/, "");
-    return nf === target || nf.startsWith(`${target}/`) || nf.endsWith(`/${target}`);
+    const target = normalizeSuppressionPath(s.file).replace(/\/+$/, "");
+    if (!target) return false;
+    return file === target || file.startsWith(`${target}/`);
   });
 }
 
@@ -225,6 +240,31 @@ let fixedFiles = 0;
  * `violations` array — repeated calls must never leak into each other.
  * Suppression entries may use `"category": "*"` to silence a whole file.
  */
+/**
+ * Lines of the file currently being scanned. Suppression must be scoped to the
+ * offending line (or the two above it): a whole-file `slop:suppress` marker used
+ * to silence every rule in the file — including the security rules — even when it
+ * was written for an unrelated rule.
+ */
+let activeLines: string[] = [];
+
+/**
+ * True when the offending line (or the two lines above it) carries
+ * `slop:suppress`, optionally scoped to a rule id:
+ * `slop:suppress regex-interpolation — why this is safe`.
+ */
+function isLineSuppressed(line: number, category: string): boolean {
+  const window = activeLines.slice(Math.max(0, line - 3), line);
+  for (const text of window) {
+    const at = text.indexOf("slop:suppress");
+    if (at === -1) continue;
+    const rest = text.slice(at + "slop:suppress".length).trim();
+    const token = /^([a-z][a-z0-9-]*)/.exec(rest)?.[1];
+    if (!token || token === category) return true;
+  }
+  return false;
+}
+
 function report(
   file: string,
   line: number,
@@ -236,6 +276,7 @@ function report(
 ) {
   const nf = file.replace(/\\/g, "/");
   if (isSuppressed(nf, category)) return;
+  if (line > 0 && isLineSuppressed(line, category)) return;
 
   sink.push({
     file: nf,
@@ -862,16 +903,18 @@ async function scanSvelteFile(
   // Code fences blanked once — reused by {@html} and {#each} below
   const contentNoCodeBlocks = content.replace(/```[\s\S]*?```/g, blankOut);
 
-  // Brace-matched {@html} — nested objects/functions no longer break parsing
+  // Brace-matched {@html} — nested objects/functions no longer break parsing.
+  // The expression itself must *be* a sanitizer call (or a name this file binds
+  // to one); a substring match is not a proof.
+  const scriptSource = extractScriptBodies(content)
+    .bodies.map((b) => b.body)
+    .join("\n");
+  const sanitizedBindings = collectSanitizedBindings(scriptSource);
   for (const m of contentNoCodeBlocks.matchAll(/\{@html\b/g)) {
     const close = matchBrace(contentNoCodeBlocks, m.index!);
     if (close === -1) continue;
     const expr = contentNoCodeBlocks.slice(m.index! + 6, close).trim();
-    if (
-      !/sanitize|DOMPurify|escape|safeHtml|marked|he\.|parseMD|parseMarkdown|getDisplayValue|getStatusText|getFieldComponentHtml/i.test(
-        expr,
-      )
-    ) {
+    if (!isSanitizedExpression(expr, sanitizedBindings)) {
       const lineNo = contentNoCodeBlocks.slice(0, m.index!).split("\n").length;
       report(
         relPath,
@@ -917,6 +960,210 @@ async function scanSvelteFile(
       console.log(`🛠️  Fixed Svelte properties in: ${relPath}`);
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// {@html} sanitization analysis
+// ---------------------------------------------------------------------------
+
+/**
+ * Callees that *are* a sanitization proof when they form the outermost
+ * construct of a `{@html}` expression. Markdown renderers are deliberately
+ * absent: `marked` emits HTML without removing script payloads (it is unsafe by
+ * default), and `parseMD`/`parseMarkdown` are renderers, not sanitizers.
+ */
+const SANITIZER_CALLEES = new Set([
+  "DOMPurify.sanitize",
+  "window.DOMPurify.sanitize",
+  "globalThis.DOMPurify.sanitize",
+  "sanitizeHtml",
+  "sanitizeSvg",
+  "escapeHtml",
+  "Sanitize",
+]);
+
+/** Identifiers that are a proof on their own (the repo `Sanitize` component). */
+const SANITIZER_IDENTIFIERS = new Set(["Sanitize"]);
+
+/**
+ * Names the previous substring allowlist trusted that emit or merely *relocate*
+ * HTML — matched here only to keep the rejection explicit and greppable.
+ */
+const NON_SANITIZING_HELPERS = new Set([
+  "marked",
+  "parseMD",
+  "parseMarkdown",
+  "he.decode",
+  "safeHtml",
+  "getDisplayValue",
+  "getStatusText",
+  "getFieldComponentHtml",
+]);
+
+const BARE_IDENTIFIER_RE = /^[A-Za-z_$][\w$]*$/;
+const CALLEE_RE = /^([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\s*\(/;
+const STRING_LITERAL_RE = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`/g;
+/** `$derived(…)`, `$derived.by(…)`, `$state(…)`, `$state.raw(…)` wrappers. */
+const TRANSPARENT_WRAPPER_RE = /^\$(?:derived(?:\.by)?|state(?:\.raw|\.snapshot|\.eager)?)\s*\(/;
+const EMPTY_ARROW_RE = /^\(\s*\)\s*=>\s*/;
+const BINDING_ASSIGN_RE = /([A-Za-z_$][\w$]*)\s*=\s*/g;
+
+/**
+ * Index of the bracket closing the one at `open`, or -1 when unbalanced.
+ * String/template literals are skipped so a brace inside a string never
+ * changes the nesting depth.
+ */
+function matchBracket(content: string, open: number, opener: string, closer: string): number {
+  let depth = 0;
+  let quote: string | null = null;
+  for (let i = open; i < content.length; i++) {
+    const ch = content[i];
+    if (quote) {
+      if (ch === "\\") i++;
+      else if (ch === quote) quote = null;
+      continue;
+    }
+    if (ch === '"' || ch === "'" || ch === "`") quote = ch;
+    else if (ch === opener) depth++;
+    else if (ch === closer) {
+      depth--;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
+}
+
+/**
+ * Reads the end of the expression starting at `start`: the first `;`/newline at
+ * bracket depth 0. Multi-line calls (`$derived(\n sanitizeHtml(x)\n)`) stay whole.
+ */
+function readExpressionEnd(text: string, start: number): number {
+  let depth = 0;
+  let quote: string | null = null;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (quote) {
+      if (ch === "\\") i++;
+      else if (ch === quote) quote = null;
+      continue;
+    }
+    if (ch === '"' || ch === "'" || ch === "`") quote = ch;
+    else if (ch === "(" || ch === "[" || ch === "{") depth++;
+    else if (ch === ")" || ch === "]" || ch === "}") depth = Math.max(0, depth - 1);
+    else if ((ch === ";" || ch === "\n") && depth === 0) return i;
+  }
+  return text.length;
+}
+
+/** Strips balanced outer parens plus `$derived`/`$state`/`() =>` wrappers. */
+function unwrapExpression(input: string): string {
+  let text = input.trim();
+  for (let guard = 0; guard < 8; guard++) {
+    if (text.startsWith("(") && matchBracket(text, 0, "(", ")") === text.length - 1) {
+      text = text.slice(1, -1).trim();
+      continue;
+    }
+    const wrapper = TRANSPARENT_WRAPPER_RE.exec(text);
+    if (wrapper && matchBracket(text, wrapper[0].length - 1, "(", ")") === text.length - 1) {
+      text = text.slice(wrapper[0].length, -1).trim();
+      continue;
+    }
+    if (EMPTY_ARROW_RE.test(text)) {
+      text = text.replace(EMPTY_ARROW_RE, "").trim();
+      continue;
+    }
+    break;
+  }
+  return text;
+}
+
+/** True when `expr` concatenates with `+` outside string literals. */
+function hasUnquotedConcat(expr: string): boolean {
+  return /\+/.test(expr.replace(STRING_LITERAL_RE, '""'));
+}
+
+/**
+ * Splits a top-level `cond ? a : b` into its branches, or null. Bracket depth is
+ * tracked so ternary-like tokens inside calls/objects are not mistaken for the
+ * outermost conditional.
+ */
+function topLevelTernaryBranches(expr: string): [string, string] | null {
+  let depth = 0;
+  let quote: string | null = null;
+  let questionAt = -1;
+  for (let i = 0; i < expr.length; i++) {
+    const ch = expr[i];
+    if (quote) {
+      if (ch === "\\") i++;
+      else if (ch === quote) quote = null;
+      continue;
+    }
+    if (ch === '"' || ch === "'" || ch === "`") quote = ch;
+    else if (ch === "(" || ch === "[" || ch === "{") depth++;
+    else if (ch === ")" || ch === "]" || ch === "}") depth--;
+    else if (depth === 0 && ch === "?" && expr[i + 1] !== "." && expr[i + 1] !== "?") {
+      questionAt = i;
+    } else if (depth === 0 && ch === ":" && questionAt >= 0) {
+      return [expr.slice(questionAt + 1, i), expr.slice(i + 1)];
+    }
+  }
+  return null;
+}
+
+/**
+ * True only when the *outermost* construct of `rawExpr` produces sanitized HTML.
+ *
+ * Rejected on purpose: a bare `marked(`/`parseMD(`/`parseMarkdown(` call (they
+ * emit HTML, they do not sanitize), any `+` concatenation (escaping one operand
+ * leaves the rest raw), a ternary whose branches are not both sanitizer calls,
+ * and a bare identifier that no sanitizer binding in this file proves.
+ */
+function isSanitizedExpression(
+  rawExpr: string,
+  proven: ReadonlySet<string> = new Set(),
+  depth = 0,
+): boolean {
+  if (depth > 3) return false;
+  const expr = unwrapExpression(rawExpr);
+  if (!expr) return false;
+  const branches = topLevelTernaryBranches(expr);
+  if (branches) {
+    return branches.every((branch) => isSanitizedExpression(branch, proven, depth + 1));
+  }
+  if (hasUnquotedConcat(expr)) return false;
+  if (BARE_IDENTIFIER_RE.test(expr)) {
+    return SANITIZER_IDENTIFIERS.has(expr) || proven.has(expr);
+  }
+  const callee = CALLEE_RE.exec(expr)?.[1] ?? "";
+  if (!callee || NON_SANITIZING_HELPERS.has(callee)) return false;
+  return SANITIZER_CALLEES.has(callee);
+}
+
+/**
+ * Collects names this file binds to a sanitizer result — `const clean =
+ * sanitizeHtml(…)`, `$derived(sanitizeSvg(…))`, and re-assignments such as
+ * `html = sanitizeHtml(…)` inside an `$effect`. Two passes so a binding may
+ * refer to a sanitized name declared further down. Anything not proved here
+ * stays a finding: an unverifiable pass-through is reported, never assumed.
+ */
+function collectSanitizedBindings(scriptSource: string): Set<string> {
+  const proven = new Set<string>();
+  // Comments are stripped first: an example `const x = sanitizeHtml(…)` in prose
+  // must not become a proof for a real `x`.
+  const source = scriptSource
+    .replace(/\/\*[\s\S]*?\*\//g, blankOut)
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
+  if (!source.trim()) return proven;
+  for (let pass = 0; pass < 2; pass++) {
+    for (const m of source.matchAll(BINDING_ASSIGN_RE)) {
+      const name = m[1];
+      if (!name) continue;
+      const start = m.index! + m[0].length;
+      const expr = source.slice(start, readExpressionEnd(source, start));
+      if (isSanitizedExpression(expr, proven)) proven.add(name);
+    }
+  }
+  return proven;
 }
 
 // ---------------------------------------------------------------------------
@@ -1019,7 +1266,6 @@ const SECURITY_ARCH_PATTERNS: {
 ];
 
 function scanSecurityPatterns(relPath: string, content: string) {
-  if (content.includes("slop:suppress")) return;
   const lines = content.split("\n");
   for (let i = 0; i < lines.length; i++) {
     const trimmed = lines[i].trim();
@@ -1044,7 +1290,6 @@ function scanSecurityPatterns(relPath: string, content: string) {
  * that produce false positives on every backtick string.
  */
 function scanRawSqlRisk(relPath: string, content: string) {
-  if (content.includes("slop:suppress")) return;
   const hasIdentifierGuard =
     /\b(?:SAFE_IDENTIFIER|SAFE_IDENT|isSafeIdentifier|validateIdentifier|assertSafeIdentifier|assertSafeSqlIdentifier|assertSqlIdentifier|assertIdentifier|quoteIdentifier|quoteMariaIdentifier|escapeSqlIdentifier|getTableName)\b/.test(
       content,
@@ -1109,7 +1354,6 @@ function scanRawSqlRisk(relPath: string, content: string) {
  * for the CSRF check — server-to-server calls don't require CSRF tokens.
  */
 function scanClientSecurityPatterns(relPath: string, content: string) {
-  if (content.includes("slop:suppress")) return;
   const isServerSide =
     /(^|\/)(?:api|hooks|databases|services)\//.test(relPath) ||
     /\.(?:server|remote|ws)\.(?:ts|js)$/.test(relPath);
@@ -1193,7 +1437,6 @@ function scanClientSecurityPatterns(relPath: string, content: string) {
  * latent wrong-table bug. The defining file itself is exempt.
  */
 function scanCollectionTableNameRisk(relPath: string, content: string) {
-  if (content.includes("slop:suppress")) return;
   if (relPath.endsWith("core/collection-name.ts")) return;
   const re = /`collection_\$\{|["']collection_["']\s*\+/g;
   const lines = content.split("\n");
@@ -1507,6 +1750,7 @@ async function main() {
 
   for (const { file, rel, content, isSvelte } of entries) {
     try {
+      activeLines = content.split("\n");
       if (isSvelte) await scanSvelteFile(rel, content, shouldFix);
       scanTodos(rel, content);
       checkFileNaming(rel);

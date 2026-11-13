@@ -17,6 +17,7 @@
 
 import { isSecureCookieContext } from "@src/databases/auth/constants";
 import { readSessionCookie } from "@utils/security/session-cookie";
+import { constantTimeBufferEqual } from "@utils/security/constant-time";
 import { logger } from "@utils/logger";
 import { getDbInitPromise } from "@src/databases/db";
 import { getTenantIdFromHostname } from "@utils/tenant";
@@ -226,7 +227,13 @@ export async function upgrade(ctx: WsUpgradeContext): Promise<WsAuthResult | fal
     const actualTestSecret =
       getPrivateSettingSync("TEST_API_SECRET") || process.env.TEST_API_SECRET;
 
-    const isAuthorizedTest = Boolean(isTestMode && testSecret && testSecret === actualTestSecret);
+    // 🛡️ Constant-time: compare the bypass secret without an early-exit operator.
+    const isAuthorizedTest = Boolean(
+      isTestMode &&
+      testSecret &&
+      actualTestSecret &&
+      constantTimeBufferEqual(Buffer.from(testSecret), Buffer.from(actualTestSecret)),
+    );
 
     // ==================== SESSION RESOLUTION ====================
     // Shared pipeline with HTTP auth (handle-authentication): mem LRU →

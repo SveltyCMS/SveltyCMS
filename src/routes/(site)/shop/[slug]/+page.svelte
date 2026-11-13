@@ -50,6 +50,7 @@
 	<title>{data.product.title} - Shop</title>
 	{#if data.productJsonLd}
 		<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+		<!-- slop:suppress security — serializeJsonLd escapes <, U+2028 and U+2029 before the script tag (seo-head.ts) -->
 		{@html safeHtml(data.productJsonLd)}
 	{/if}
 </svelte:head>

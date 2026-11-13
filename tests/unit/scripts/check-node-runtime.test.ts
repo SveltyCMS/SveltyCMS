@@ -6,16 +6,23 @@
  */
 
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   checkNodeRuntime,
   compareVersions,
+  isSkipRequested,
   parseNodeFloor,
   parseVersion,
+  shouldSkipNodeRuntimeCheck,
+  skipOverrideAllowed,
 } from "../../../scripts/security/check-node-runtime";
 
 /** CVE-2026-111497 first patched 24.x release. */
 const PATCHED_24 = { major: 24, minor: 22, patch: 1 };
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("parseVersion", () => {
   it("parses prefixed, bare, and pre-release versions", () => {
@@ -71,6 +78,36 @@ describe("checkNodeRuntime", () => {
     const result = checkNodeRuntime("24.15.0", ">=24.22.1", true);
     expect(result.ok).toBe(true);
     expect(result.message).toContain("Bun");
+  });
+});
+
+describe("skip override", () => {
+  it("is honoured for local development", () => {
+    expect(isSkipRequested({ SKIP_NODE_RUNTIME_CHECK: "1" })).toBe(true);
+    expect(isSkipRequested({ SKIP_NODE_CHECK: "1" })).toBe(true);
+    expect(shouldSkipNodeRuntimeCheck({ SKIP_NODE_RUNTIME_CHECK: "true" })).toBe(true);
+  });
+
+  it("is ignored in CI even when every alias is set", () => {
+    const env = { SKIP_NODE_RUNTIME_CHECK: "1", SKIP_NODE_CHECK: "1", CI: "true" };
+    expect(isSkipRequested(env)).toBe(true);
+    expect(skipOverrideAllowed(env)).toBe(false);
+    expect(shouldSkipNodeRuntimeCheck(env)).toBe(false);
+  });
+
+  it("is ignored in production", () => {
+    const env = { SKIP_NODE_RUNTIME_CHECK: "true", NODE_ENV: "production" };
+    expect(shouldSkipNodeRuntimeCheck(env)).toBe(false);
+  });
+
+  it("reads the real process env (CI set by the runner)", () => {
+    vi.stubEnv("CI", "true");
+    vi.stubEnv("SKIP_NODE_RUNTIME_CHECK", "1");
+    expect(shouldSkipNodeRuntimeCheck()).toBe(false);
+  });
+
+  it("does not skip when nothing was requested", () => {
+    expect(shouldSkipNodeRuntimeCheck({})).toBe(false);
   });
 });
 

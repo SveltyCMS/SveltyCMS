@@ -94,6 +94,7 @@
 				class="flex-1 p-4 overflow-y-auto bg-white dark:bg-surface-900 prose dark:prose-invert max-w-none border-s border-surface-500/30 dark:border-surface-500/40"
 			>
 				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+				<!-- slop:suppress security — parseMarkdown escapes every text run before emitting markup (parse-markdown.ts escapeHtml) -->
 				{@html parseMarkdown(rawText)}
 			</div>
 		{/if}

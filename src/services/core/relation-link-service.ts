@@ -128,6 +128,7 @@ export function relationLinkId(
   targetId: string,
 ): string {
   const key = [tenantId ?? "", sourceCollection, fieldName, sourceId, targetId].join("\u0000");
+  // slop:suppress fast-hash-secret — deterministic primary key over a tenant-scoped tuple; never hashes a secret
   const hex = createHash("sha256").update(key).digest("hex").slice(0, 32);
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
 }

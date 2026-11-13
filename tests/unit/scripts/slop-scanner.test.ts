@@ -1,13 +1,15 @@
 /**
  * @file tests/unit/scripts/slop-scanner.test.ts
  * @description Unit tests for slop-scanner rules — Svelte 5 SSR hydration safety,
- * unpinned date localization detection, and HTML sanitization guards.
+ * unpinned date localization detection, HTML sanitization proofs, and suppression
+ * path matching.
  */
 
 import { describe, it, expect } from "vitest";
 import {
   buildScannerJson,
   isExcludedPath,
+  isSuppressed,
   scanSvelteContent,
   summarizeViolations,
   type Violation,
@@ -100,26 +102,55 @@ describe("slop-scanner — date & number localization pinning", () => {
 });
 
 describe("slop-scanner — HTML sanitization guards", () => {
+  const unsafeHtml = (violations: Violation[]) =>
+    violations.some((v) => v.category === "security" && v.message.includes("Unsafe {@html}"));
+
   it("flags raw {@html} without sanitization helper", async () => {
     const code = "<div>{@html untrustedPayload}</div>";
     const violations = await scanSvelteContent("src/routes/page.svelte", code);
-    expect(violations.some((v) => v.category === "security" && v.severity === "error")).toBe(true);
+    expect(unsafeHtml(violations)).toBe(true);
   });
 
-  it("passes {@html parseMarkdown(...)}", async () => {
-    const code = "<div>{@html parseMarkdown(rawText)}</div>";
+  it("flags {@html marked(x)} — marked emits HTML, it does not sanitize", async () => {
+    const code = "<div>{@html marked(rawText)}</div>";
     const violations = await scanSvelteContent("src/widgets/markdown.svelte", code);
-    expect(
-      violations.some((v) => v.category === "security" && v.message.includes("Unsafe {@html}")),
-    ).toBe(false);
+    expect(unsafeHtml(violations)).toBe(true);
+  });
+
+  it("flags {@html user + escape(id)} — one escaped operand leaves the rest raw", async () => {
+    const code = "<div>{@html user + escape(id)}</div>";
+    const violations = await scanSvelteContent("src/routes/page.svelte", code);
+    expect(unsafeHtml(violations)).toBe(true);
+  });
+
+  it("flags a ternary whose branches are not both sanitizer calls", async () => {
+    const code = "<div>{@html flag ? sanitizeHtml(a) : b}</div>";
+    const violations = await scanSvelteContent("src/routes/page.svelte", code);
+    expect(unsafeHtml(violations)).toBe(true);
+  });
+
+  it("passes a ternary with sanitizer calls on both branches", async () => {
+    const code = "<div>{@html flag ? sanitizeHtml(a) : sanitizeHtml(b)}</div>";
+    const violations = await scanSvelteContent("src/routes/page.svelte", code);
+    expect(unsafeHtml(violations)).toBe(false);
+  });
+
+  it("passes {@html DOMPurify.sanitize(x)}", async () => {
+    const code = "<div>{@html DOMPurify.sanitize(rawHtml)}</div>";
+    const violations = await scanSvelteContent("src/components/content.svelte", code);
+    expect(unsafeHtml(violations)).toBe(false);
+  });
+
+  it("passes {@html sanitizeSvg(x)}", async () => {
+    const code = "<div>{@html sanitizeSvg(svgMarkup)}</div>";
+    const violations = await scanSvelteContent("src/components/icon.svelte", code);
+    expect(unsafeHtml(violations)).toBe(false);
   });
 
   it("passes {@html sanitizeHtml(...)}", async () => {
     const code = "<div>{@html sanitizeHtml(userContent)}</div>";
     const violations = await scanSvelteContent("src/components/content.svelte", code);
-    expect(
-      violations.some((v) => v.category === "security" && v.message.includes("Unsafe {@html}")),
-    ).toBe(false);
+    expect(unsafeHtml(violations)).toBe(false);
   });
 
   it("brace-matches {@html} with nested objects (not broken by inner braces)", async () => {
@@ -131,9 +162,62 @@ describe("slop-scanner — HTML sanitization guards", () => {
   it("passes {@html sanitizeHtml(render(article, { inline: true }))} nested", async () => {
     const code = "<div>{@html sanitizeHtml(render(article, { inline: true }))}</div>";
     const violations = await scanSvelteContent("src/routes/page.svelte", code);
-    expect(
-      violations.some((v) => v.category === "security" && v.message.includes("Unsafe {@html}")),
-    ).toBe(false);
+    expect(unsafeHtml(violations)).toBe(false);
+  });
+
+  it("passes a bare identifier the same file binds to a sanitizer result", async () => {
+    const code = [
+      '<script lang="ts">',
+      "  let raw = '';",
+      "  const clean = $derived(sanitizeHtml(raw));",
+      "</script>",
+      "<div>{@html clean}</div>",
+    ].join("\n");
+    const violations = await scanSvelteContent("src/components/content.svelte", code);
+    expect(unsafeHtml(violations)).toBe(false);
+  });
+
+  it("flags a bare identifier bound to a pass-through, not a sanitizer", async () => {
+    const code = [
+      '<script lang="ts">',
+      "  const passthrough = (raw: string) => raw;",
+      "  let clean = $state('');",
+      "  clean = passthrough(clean);",
+      "</script>",
+      "<div>{@html clean}</div>",
+    ].join("\n");
+    const violations = await scanSvelteContent("src/components/content.svelte", code);
+    expect(unsafeHtml(violations)).toBe(true);
+  });
+});
+
+describe("slop-scanner — suppression path matching", () => {
+  const rule = (file: string) => [{ file, category: "security" }];
+
+  it("does NOT silence a same-named file in a subdirectory", () => {
+    expect(isSuppressed("src/databases/utils.ts", "security", rule("utils.ts"))).toBe(false);
+  });
+
+  it("silences an exact repo-relative path", () => {
+    expect(isSuppressed("utils.ts", "security", rule("utils.ts"))).toBe(true);
+    expect(isSuppressed("src/db/utils.ts", "security", rule("src/db/utils.ts"))).toBe(true);
+  });
+
+  it("silences descendants when the entry is written as a directory", () => {
+    expect(isSuppressed("utils.ts/child.ts", "security", rule("utils.ts/"))).toBe(true);
+    expect(isSuppressed("utils.ts/child.ts", "security", rule("utils.ts"))).toBe(true);
+    expect(isSuppressed("utils.ts", "security", rule("utils.ts/"))).toBe(true);
+  });
+
+  it("normalises separators and a leading ./ on both sides", () => {
+    expect(isSuppressed("src\\db\\utils.ts", "security", rule(".\\src/db/utils.ts"))).toBe(true);
+    expect(isSuppressed("./utils.ts", "security", rule("utils.ts"))).toBe(true);
+  });
+
+  it("honours the category wildcard and rejects a mismatched category", () => {
+    expect(isSuppressed("utils.ts", "security", [{ file: "utils.ts", category: "*" }])).toBe(true);
+    expect(isSuppressed("utils.ts", "security", rule("utils.tsx"))).toBe(false);
+    expect(isSuppressed("utils.ts.helper.ts", "security", rule("utils.ts"))).toBe(false);
   });
 });
 
