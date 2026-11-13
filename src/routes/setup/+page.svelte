@@ -48,6 +48,8 @@
 	import { showConfirm } from '@utils/modal.svelte';
 	import { adminPage } from '@utils/admin-transitions';
 	// Using iconify-icon web component
+	import { addCollection } from 'iconify-icon';
+	import { registerOfflineIcons } from '@components/system/icons/offline-icons';
 	import { onMount, tick } from 'svelte';
 	import AdminConfig from './admin-config.svelte';
 	import DatabaseConfig from './database-config.svelte';
@@ -67,6 +69,13 @@
 	import { logger } from '@src/utils/logger.ts';
 	import { dbConfigForHint, isPresetId } from '@src/services/setup/market';
 	import { readSetupHints } from './setup.remote';
+
+	// The wizard renders before any admin data exists, so its own icons are bundled
+	// instead of fetched from api.iconify.design (SV-031). Registered here rather
+	// than in the root layout so the ~20 KB icon set stays out of the entry chunk
+	// (the root-layout budget is 25 KB). Names outside this set still resolve
+	// through the default provider.
+	if (typeof window !== 'undefined') registerOfflineIcons(addCollection);
 
 	// --- 1. STATE MANAGEMENT (Wired to Store) ---
 	// `origin` comes from the server load; the intersection keeps editors happy

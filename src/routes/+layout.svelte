@@ -22,13 +22,6 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 	import '../app.css';
 	// Register Iconify custom element globally
 	import 'iconify-icon';
-	import { addCollection } from 'iconify-icon';
-	import { registerOfflineIcons } from '@components/system/icons/offline-icons';
-
-	// The setup wizard renders before any admin data exists, so its own icons are
-	// bundled instead of fetched from api.iconify.design (SV-031). Names outside
-	// this set still resolve through the default provider.
-	if (typeof window !== 'undefined') registerOfflineIcons(addCollection);
 
 	// Plugin UI slot registration MUST run with the app shell — bundlers hoist a
 	// bare side-effect import into lazy route nodes when only route pages import
