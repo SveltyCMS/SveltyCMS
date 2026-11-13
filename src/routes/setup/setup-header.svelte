@@ -66,7 +66,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 					<h1 class="truncate text-lg font-bold leading-normal sm:text-2xl lg:text-3xl">
 						<a
 							aria-label="Documentation"
-							href="https://github.com/SveltyCMS/SveltyCMS"
+							href="https://docs.sveltycms.com"
 							target="_blank"
 							rel="noopener noreferrer"
 						>

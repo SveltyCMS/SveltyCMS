@@ -77,7 +77,6 @@
 	// Types
 	import {
 		adminarea_activesession,
-		adminarea_blocked,
 		adminarea_consumed,
 		adminarea_createat,
 		adminarea_emailtoken,
@@ -139,6 +138,7 @@
 		useradmin_manage_sessions_tooltip,
 		useradmin_never,
 		useradmin_self_block_warning,
+		useradmin_status,
 		useradmin_tenant_id,
 		useradmin_token_action_success,
 		useradmin_token_copied,
@@ -418,7 +418,7 @@
 		}
 	} // Table header definitions
 	const tableHeadersUser = [
-		{ label: adminarea_blocked(), key: 'blocked' },
+		{ label: useradmin_status(), key: 'blocked' },
 		{ label: form_avatar(), key: 'avatar' },
 		{ label: email(), key: 'email' },
 		{ label: username(), key: 'username' },
@@ -432,7 +432,7 @@
 	] as const;
 
 	const tableHeaderToken = [
-		{ label: adminarea_blocked(), key: 'blocked' },
+		{ label: useradmin_status(), key: 'blocked' },
 		{ label: email(), key: 'email' },
 		{ label: role(), key: 'role' },
 		{ label: useradmin_tenant_id(), key: 'tenantId' },

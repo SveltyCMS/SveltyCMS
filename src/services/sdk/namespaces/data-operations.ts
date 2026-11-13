@@ -12,6 +12,7 @@
 
 import { BaseNamespace } from "./misc-namespaces";
 import type { IDBAdapter } from "@src/databases/db-interface";
+import type { ContentPackage, DuplicateStrategy } from "@src/services/core/content-package-service";
 import type { LocalApiOptions } from "./types";
 import { lazyModule } from "@src/utils/lazy-module";
 
@@ -36,6 +37,52 @@ const getSyncContentStateLazy = lazyModule(() =>
 const getContentServiceLazy = lazyModule(() =>
   import("@src/content/engine.server").then((m) => m.contentService),
 );
+
+/** The job-queue sentinel is not a user and must never be used as an actor. */
+const SYSTEM_ACTOR_SENTINEL = "system";
+
+/**
+ * Normalise an explicit actor id. Empty strings and the system sentinel are
+ * not identities.
+ */
+function normalizeActorId(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const id = value.trim();
+  return id.length > 0 && id !== SYSTEM_ACTOR_SENTINEL ? id : undefined;
+}
+
+/**
+ * Extract a usable actor id from an SDK caller identity.
+ *
+ * `LocalApiOptions.user` is the identity the namespace layer already receives —
+ * the collection write lane refuses a write without it — so it is the established
+ * way to name a caller here. `id` covers a serialized session.
+ */
+function callerUserIdOf(user: unknown): string | undefined {
+  if (!user || typeof user !== "object") return undefined;
+  const record = user as { _id?: unknown; id?: unknown };
+  return normalizeActorId(record._id) ?? normalizeActorId(record.id);
+}
+
+/**
+ * Resolve the actor an import runs as.
+ *
+ * Explicit ids win (call params, then options), otherwise the caller's SDK
+ * identity is used. There is deliberately no `"system"` fallback: `applyImport`'s
+ * publication gate fails closed on a missing actor, and the sentinel is not a
+ * resolvable user, so defaulting to it only turns a clear "no importing user"
+ * rejection into a confusing "could not be resolved" one.
+ */
+function resolveImportActorId(
+  paramsUserId: string | undefined,
+  options: LocalApiOptions & { userId?: string },
+): string | undefined {
+  return (
+    normalizeActorId(paramsUserId) ??
+    normalizeActorId(options.userId) ??
+    callerUserIdOf(options.user)
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Configuration Namespace
@@ -170,21 +217,23 @@ export class ContentTransferNamespace extends BaseNamespace {
       duplicateStrategy?: string;
       userId?: string;
     } = {},
-    options: LocalApiOptions = {},
+    options: LocalApiOptions & { userId?: string } = {},
   ) {
     const contentPackageService = await getContentPackageServiceLazy();
-    return contentPackageService.planImport(pkg as any, {
-      duplicateStrategy: params.duplicateStrategy as any,
+    const userId = resolveImportActorId(params.userId, options);
+    return contentPackageService.planImport(pkg as unknown as ContentPackage, {
+      duplicateStrategy: params.duplicateStrategy as DuplicateStrategy | undefined,
       tenantId: options.tenantId as string,
-      userId: params.userId ?? "system",
+      ...(userId ? { userId } : {}),
     });
   }
 
   async applyImport(planId: string, options: LocalApiOptions & { userId?: string } = {}) {
     const contentPackageService = await getContentPackageServiceLazy();
+    const userId = resolveImportActorId(undefined, options);
     return contentPackageService.applyImport(planId, {
       tenantId: options.tenantId as string,
-      userId: options.userId,
+      ...(userId ? { userId } : {}),
     });
   }
 

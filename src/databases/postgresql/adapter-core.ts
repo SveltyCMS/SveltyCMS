@@ -2161,6 +2161,20 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       schemaData,
       force,
     );
+
+    // Opt-in database-enforced isolation: a new collection table gets ENABLE +
+    // FORCE + the `tenant_isolation` policy in the same provisioning step, so a
+    // table can never exist in RLS mode without the boundary. Off by default —
+    // see `tenant-rls.ts` for why the predicate stays the default guarantee.
+    const { getTenantRlsMode } = await import("@src/databases/tenant-rls");
+    if ((await getTenantRlsMode()) === "enforce") {
+      const result = await this.enforceTenantPolicy(tableName, "system");
+      if (!result.success) {
+        throw new Error(
+          `RLS is enabled (TENANT_RLS_ENABLED) but could not be applied to "${tableName}": ${result.message ?? result.error?.code ?? "unknown error"}`,
+        );
+      }
+    }
   }
 
   // --------------------------------------------------------------------------
@@ -2169,11 +2183,23 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
 
   /**
    * Sets the tenant context for the current PostgreSQL session.
-   * This must be called at the START of each request after tenant resolution.
-   * PostgreSQL RLS policies will then automatically filter all queries
-   * against the `app.tenant_id` session variable without application-level changes.
+   *
+   * ### What this does NOT do (read before relying on it)
+   * On the **shared** pool — the request path for every ordinary deployment — this
+   * returns early without touching `app.tenant_id`: there is no bound connection to
+   * set it on, and a session-level GUC on a pooled socket would leak to the next
+   * request anyway. Request isolation therefore comes from the `tenantId` predicate
+   * every tenant-owned query carries, not from RLS. `enforceTenantPolicy()` refuses
+   * to report success while that is the only guarantee, and
+   * `tests/integration/databases/tenant-pool-isolation.test.ts` pins the behaviour.
+   *
+   * The GUC is set only where a scope can actually be pinned to one connection:
+   * a dedicated per-tenant pool (opted in via `setTenantPool`), or an explicit
+   * transaction handle — in which case `set_config(..., true)` is transaction-local
+   * and reverts on commit/rollback.
    *
    * @param tenantId - The tenant ID to set, or null to use the "global" context
+   * @param sql - Optional transaction-bound handle; makes the setting transaction-local
    * @throws {Error} if the database is not connected
    */
   public async setTenantContext(
@@ -2207,6 +2233,11 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
    * Once the policy is in place and `setTenantContext()` is called per-request,
    * PostgreSQL automatically enforces tenant isolation on every query.
    *
+   * **Not wired on purpose:** the shared pool cannot bind `app.tenant_id` (see
+   * `setTenantContext`) and Postgres ignores RLS for the table owner without
+   * `FORCE`. This method therefore verifies after the DDL that the policy can
+   * actually filter, and fails instead of returning a false success.
+   *
    * @param collection - The collection name (e.g., "posts")
    * @param _tenantId - Reserved for future use; the policy uses session context
    * @returns DatabaseResult indicating success or failure
@@ -2224,12 +2255,18 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         }
         const physicalName = getTableName(table as any);
 
-        // ENABLE (not FORCE): the CMS typically connects as table owner, so
-        // FORCE without a reserved per-request connection would hide every
-        // row when app.tenant_id is unset on a pooled socket. App-level
-        // WHERE tenantId=? remains the request-path isolator; RLS + GUC
-        // apply inside transactions / dedicated tenant pools.
+        // `TENANT_RLS_ENABLED` decides whether the policy is FORCEd. Forced means
+        // the table owner is filtered too, which is the only way RLS is a real
+        // boundary when the CMS connects as the schema owner. It also means every
+        // statement on this table must run with `app.tenant_id` bound (or on a
+        // `BYPASSRLS` role): an unbound context hides EVERY row.
+        const { getTenantRlsMode } = await import("@src/databases/tenant-rls");
+        const forceRls = (await getTenantRlsMode()) === "enforce";
+
         await this.raw.execute(`ALTER TABLE "${physicalName}" ENABLE ROW LEVEL SECURITY`);
+        if (forceRls) {
+          await this.raw.execute(`ALTER TABLE "${physicalName}" FORCE ROW LEVEL SECURITY`);
+        }
 
         // Create or replace the tenant isolation policy.
         // The USING clause compares the table's double-quoted "tenantId" column
@@ -2241,6 +2278,38 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         await this.raw.execute(
           `CREATE POLICY tenant_isolation ON "${physicalName}" FOR ALL USING ("tenantId" = current_setting('app.tenant_id', true))`,
         );
+
+        // 🔒 Verify instead of assuming. Two silent failure modes can leave a policy
+        // that looks enabled while filtering nothing or everything:
+        //   1. PostgreSQL never applies a table's policies to its OWNER unless
+        //      `FORCE ROW LEVEL SECURITY` is set, so `ENABLE` alone is a no-op for
+        //      the role the CMS normally connects as.
+        //   2. `current_setting('app.tenant_id', true)` is NULL when no tenant context
+        //      was bound to the connection, and `"tenantId" = NULL` is never true —
+        //      with FORCE (or a non-owner role) every row disappears.
+        // A security control that reports success while enforcing nothing is worse
+        // than an absent one, so this fails closed and names the remediation.
+        const [state] = (await this.raw.execute(
+          `SELECT c.relrowsecurity AS enabled,
+                  c.relforcerowsecurity AS forced,
+                  pg_has_role(current_user, c.relowner, 'MEMBER') AS is_owner
+             FROM pg_class c
+            WHERE c.oid = to_regclass($1)`,
+          [`"${physicalName}"`],
+        )) as Array<{ enabled: boolean; forced: boolean; is_owner: boolean }>;
+
+        if (!state?.enabled) {
+          throw new Error(
+            `RLS did not enable on "${physicalName}" — refusing to report success for a policy that cannot filter`,
+          );
+        }
+        if (state.is_owner && !state.forced) {
+          throw new Error(
+            `RLS on "${physicalName}" is bypassed for the owning role (relrowsecurity is ignored for a table owner). ` +
+              `Connect as a non-owner role, or FORCE ROW LEVEL SECURITY and bind app.tenant_id transaction-locally ` +
+              `(set_config(..., true)) on every request — an unset app.tenant_id hides EVERY row.`,
+          );
+        }
       },
       "ENFORCE_TENANT_POLICY_FAILED",
       `Failed to enforce tenant policy for collection "${collection}"`,

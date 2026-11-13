@@ -20,6 +20,7 @@ import type { Schema } from "@src/content/types";
 import type { LocalApiOptions } from "../types";
 import { persistWithOutbox, schedulePostWrite, shouldSkipWriteSideEffects } from "./post-write";
 import { scheduleDefaultListWarm } from "./list-warm";
+import { deleteJunctionLinksForEntry } from "./junction-fields";
 
 /** What the delete lane needs from the namespace — no class instance required. */
 export interface DeleteEntryContext {
@@ -79,6 +80,14 @@ export async function executeDelete(
   );
 
   if (result && result.success) {
+    // 🔗 Cascade junction edges on both sides (this row as source and as target).
+    await deleteJunctionLinksForEntry(
+      ctx._dbAdapter,
+      schema,
+      entryId,
+      tenantId,
+      (options as { transaction?: unknown }).transaction,
+    );
     // ⚡ Response-path: never await side effects — concurrent delete RPS depends on this
     schedulePostWrite(
       ctx._dbAdapter,

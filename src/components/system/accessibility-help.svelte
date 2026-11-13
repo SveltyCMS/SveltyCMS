@@ -23,7 +23,7 @@
 		// Application-specific (ATAG requirement)
 		{ key: '?', desc: 'Open this accessibility help dialog' },
 		{ key: 'Ctrl/Cmd + S', desc: 'Save current content' },
-		{ key: 'Alt + 1-5', desc: 'Jump to setup wizard steps 1-5' },
+		{ key: 'Alt + 1-6', desc: 'Jump to setup wizard steps 1-6' },
 		{ key: 'Alt + T', desc: 'Toggle theme (light/dark)' },
 
 		// Navigation
@@ -187,12 +187,10 @@
 
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 			<div
-				class="rounded border border-primary-500/30 bg-primary-500/10 p-4 dark:border-primary-500/40 dark:bg-primary-900/20"
+				class="preset-tonal-primary rounded border border-primary-500/30 p-4 dark:border-primary-500/40"
 			>
-				<h5 class="mb-2 font-semibold text-primary-600 dark:text-primary-400">
-					Part A: Accessible Interface
-				</h5>
-				<ul class="space-y-1 text-sm text-primary-600 dark:text-primary-400">
+				<h5 class="mb-2 font-semibold">Part A: Accessible Interface</h5>
+				<ul class="space-y-1 text-sm">
 					<li class="flex items-start gap-2">
 						<iconify-icon icon="mdi:check-circle" class="mt-0.5" width="16"></iconify-icon>
 						<span>Full keyboard navigation</span>
@@ -209,12 +207,10 @@
 			</div>
 
 			<div
-				class="rounded border border-success-500/20 bg-success-500/10 p-4 dark:border-success-500/40 dark:bg-success-900/20"
+				class="preset-tonal-success rounded border border-success-500/30 p-4 dark:border-success-500/40"
 			>
-				<h5 class="mb-2 font-semibold text-success-600 dark:text-success-400">
-					Part B: Accessible Content
-				</h5>
-				<ul class="space-y-1 text-sm text-success-600 dark:text-success-400">
+				<h5 class="mb-2 font-semibold">Part B: Accessible Content</h5>
+				<ul class="space-y-1 text-sm">
 					<li class="flex items-start gap-2">
 						<iconify-icon icon="mdi:check-circle" class="mt-0.5" width="16"></iconify-icon>
 						<span>Alt text enforcement for images</span>

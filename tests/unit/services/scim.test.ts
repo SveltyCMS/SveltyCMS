@@ -143,7 +143,9 @@ describe("SCIM PATCH Engine", () => {
     const updates = applyScimPatchOps(existingUser, [
       { op: "replace", path: "active", value: false },
     ]);
-    expect(updates).toEqual({ isActive: false });
+    // `active` also moves `blocked`: that is the field the authentication pipeline
+    // enforces, so a deprovision must set both (see scim-deprovisioning.test.ts).
+    expect(updates).toEqual({ isActive: false, blocked: true });
   });
 
   it("should handle add operation with path", () => {

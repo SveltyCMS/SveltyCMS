@@ -44,6 +44,7 @@
 
 import { dev } from "$app/env";
 import { generateUUID } from "@utils/native-utils";
+import { constantTimeBufferEqual } from "@utils/security/constant-time";
 import { logger } from "@utils/logger";
 
 /** Replay cache entry duration in milliseconds (60s default). */
@@ -170,7 +171,12 @@ export function decideSubmissionGuard(
   const queryToken = hasQueryToken ? (searchParams.get(SUBMISSION_TOKEN_PARAM) ?? "").trim() : "";
   const headerToken = hasHeaderToken ? String(headerValue).trim() : "";
 
-  if (queryToken && headerToken && queryToken !== headerToken) {
+  // 🛡️ Constant-time: a token mismatch must not leak bytes through an early exit.
+  if (
+    queryToken &&
+    headerToken &&
+    !constantTimeBufferEqual(Buffer.from(queryToken), Buffer.from(headerToken))
+  ) {
     return { engaged: true, submissionId: null, reason: "conflict" };
   }
 

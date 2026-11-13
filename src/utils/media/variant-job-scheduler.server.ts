@@ -99,6 +99,11 @@ async function runLane(): Promise<void> {
     }
   } finally {
     activeLanes--;
+    // A job enqueued while this lane was between its `queue.length` check and
+    // this decrement saw `activeLanes === MAX_CONCURRENT` and started no lane.
+    // Without this hand-off it stays queued forever — its subscriber (the
+    // media row) would then never leave `processing`.
+    if (queue.length > 0 && activeLanes < MAX_CONCURRENT) void runLane();
   }
 }
 

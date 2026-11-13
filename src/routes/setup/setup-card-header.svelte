@@ -1,5 +1,5 @@
 <!--
-@file src/routes/setup/SetupCardHeader.svelte
+@file src/routes/setup/setup-card-header.svelte
 @description Header component for the main content card.
 Displays the current step title and icon, and a reset button.
 -->
@@ -30,7 +30,7 @@ Displays the current step title and icon, and a reset button.
 		{#if icons[currentStep]}
 			<iconify-icon
 				icon={icons[currentStep]}
-				class="me-2 h-4 w-4 text-error-500 sm:h-5 sm:w-5"
+				class="me-2 h-4 w-4 text-(--admin-text-muted) sm:h-5 sm:w-5"
 				aria-hidden="true"
 			></iconify-icon>
 		{/if}

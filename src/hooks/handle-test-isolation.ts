@@ -15,6 +15,7 @@
  */
 
 import { testWorkerContext } from "@utils/test-worker-context";
+import { constantTimeBufferEqual } from "@utils/security/constant-time";
 import type { Handle } from "@sveltejs/kit/hooks";
 import { logger } from "@utils/logger";
 import { getRequestFlags } from "@utils/hook-utils";
@@ -92,7 +93,12 @@ export const handleTestIsolation: Handle = async ({ event, resolve }) => {
       clientAddress === "::ffff:127.0.0.1";
 
     const masterSecret = resolveMasterSecret();
-    const isSecretValid = !!(masterSecret && testSecret === masterSecret);
+    // 🛡️ Constant-time: a plain `===` on the bypass secret is a timing oracle.
+    const isSecretValid = Boolean(
+      masterSecret &&
+      testSecret &&
+      constantTimeBufferEqual(Buffer.from(testSecret), Buffer.from(masterSecret)),
+    );
 
     if (!isLocal || !isSecretValid) {
       logger.warn(

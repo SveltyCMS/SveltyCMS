@@ -192,11 +192,13 @@ function checkMemoryTokenBucket(
 
 // ─── Adaptive User Profile Resolution ──────────────────────────────────────
 
-export function peekSessionUserSync(sessionId: string): any | null {
+export function peekSessionUserSync(sessionId: string, tenantId?: string | null): any | null {
   const peeker = (globalThis as any)[Symbol.for("svelty.session.peeker")];
   if (typeof peeker === "function") {
     try {
-      return peeker(sessionId);
+      // Tenant-scoped: the in-memory session cache is keyed by tenant + id, so a
+      // peek without the tenant must never resolve another tenant's user.
+      return tenantId ? peeker(sessionId, tenantId) : null;
     } catch {
       return null;
     }
@@ -223,7 +225,9 @@ export function resolveAdaptiveUserTier(event: RequestEvent): AdaptiveUserTier {
       const sessionId = isSecure
         ? event.cookies.get(cookieName)
         : event.cookies.get(cookieName) || event.cookies.get(SESSION_COOKIE_NAME);
-      return sessionId ? peekSessionUserSync(sessionId) : null;
+      return sessionId
+        ? peekSessionUserSync(sessionId, event.locals.tenantId as string | undefined)
+        : null;
     } catch {
       return null;
     }

@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-11-08"
+updated: "2026-11-11"
 tags:
   - "roadmap"
   - "backlog"
@@ -24,13 +24,13 @@ tags:
 
 ## 🎯 Priority for Implementers
 
-| Priority | Initiative                         | Key Deliverables                                                                                                            |
-| :------- | :--------------------------------- | :-------------------------------------------------------------------------------------------------------------------------- |
-| **P0**   | **System Language P0 remainder**   | ✅ Complete (2026-11-01): `bun run check:copy` is at 0 offenses; keep new copy localized as a regression guard.             |
-| **P1**   | **Two-Plane Phase 5 verification** | 24 h PostgreSQL soak, noise-aware leak proof, and the published 4-cell wire/domain matrix (§1)                              |
-| **P1**   | **External validation**            | Independent penetration test plus the SLSA/Sigstore/Scorecard bundle — the one enterprise gate automation cannot close (§8) |
-| **P2**   | **Commerce Engine Add-Ons**        | Promotion rule groups (`ConditionPlugin`), BOGO/tiered discounts, multi-warehouse, FX resolver, and Stripe Billing          |
-| **P2**   | **Enterprise Cluster & Cloud**     | Distributed session clustering, Redis pub/sub worker bridge, and Svelty Managed Cloud recipes                               |
+| Priority | Initiative                         | Key Deliverables                                                                                                                                                                                                     |
+| :------- | :--------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **P0**   | **System Language P0 remainder**   | ✅ Complete (2026-11-01): `bun run check:copy` is at 0 offenses; keep new copy localized as a regression guard.                                                                                                      |
+| **P1**   | **Two-Plane Phase 5 verification** | 24 h PostgreSQL soak, noise-aware leak proof, and the published 4-cell wire/domain matrix (§1)                                                                                                                       |
+| **P1**   | **External validation**            | Independent penetration test plus the SLSA/Sigstore/Scorecard bundle — the one enterprise gate automation cannot close (§8)                                                                                          |
+| **P2**   | **Commerce Engine Add-Ons**        | Promotion rule groups (`ConditionPlugin`), BOGO/tiered discounts, multi-warehouse, FX resolver, and Stripe Billing                                                                                                   |
+| **P2**   | **Enterprise Cluster & Cloud**     | Distributed session clustering, Redis pub/sub worker bridge, and Svelty Managed Cloud recipes (still open: the tenant/global revocation **read** path shipped 2026-11-11, but no caller publishes those markers yet) |
 
 ---
 
@@ -268,6 +268,9 @@ tags:
 - **Enterprise Identity & Encryption (Shipped 2026-11-04)**:
   - [x] **Enterprise Cloud KMS Envelope Encryption**: Multi-cloud envelope encryption supporting AWS KMS, GCP KMS, Azure Key Vault, HashiCorp Vault, and Local HKDF. Zero-latency in-memory DEK caching ensures sub-microsecond field encryption (<0.008 ms/op, zero network calls on hot paths) preserving sub-2ms persistence. Shipped in `src/utils/security/cloud-kms.ts`.
   - [x] **Enterprise SAML 2.0 & OIDC SSO Federation**: SP-initiated and IdP-initiated SAML 2.0 login (`@node-saml/node-saml`), one-click public provider discovery, RFC 7636 PKCE, JIT auto-provisioning with claim-to-role mapping rules, and OIDC RP-initiated logout. Fully decoupled from session authorization (<0.5 ns in-register bitmask check post-login). Shipped in `src/databases/auth/saml-auth.ts` and `src/databases/auth/sso-session.ts`.
+  - [x] **Multi-node SSO logout**: `sid`/`sub`/SAML `NameID` indexed at login into the shared cache, so an OP- or IdP-initiated logout routed to a different worker still terminates the session. Shipped in `src/databases/auth/sso-session.ts`; pinned by `tests/unit/auth/sso-distributed-logout.test.ts`.
+  - [x] **PostgreSQL RLS in the request path (opt-in)**: `TENANT_RLS_ENABLED=true` provisions `ENABLE` + `FORCE` + `tenant_isolation` from `createModel()`, and tenant-scoped `db.crud.*` calls run in a transaction that binds `app.tenant_id` per call (`src/databases/core/rls-scoped-crud.ts`). Proven against a **non-owner role** — pool reuse, concurrent tenants, cross-tenant writes rejected — in `tests/integration/databases/tenant-rls-request-path.test.ts`. Off by default: system paths carry no tenant and need a `BYPASSRLS` role.
+  - [x] **Independent audit-chain anchor**: `AUDIT_ANCHOR_PATH` writes the head hash + count to a file outside the CMS database, atomically, on every committed checkpoint; `verifyChain()` compares against it, so deleting the tail **and** the DB checkpoint row no longer verifies. Failures are counted (`getAnchorStatus()`) and reported by the verification result. Next step for a stronger trust boundary: move the same write/read contract to object storage or a KMS-backed sink.
 - **SSRF & Prototype Pollution Hardening (Shipped 2026-11-05)**:
   - [x] **SSRF Scope Enforcement & Protocol Downgrade Defense**: `validateEgressUrl` and `safeFetch` prevent scope escape across redirect hops (`allowedHosts`, `allowedOrigins`, `urlScope`) and reject protocol downgrade from `https:` to `http:`. Shipped in `src/utils/egress-guard.ts`.
   - [x] **Zero-Overhead Prototype Pollution Defense**: Object utilities (`deepClone`, `deepCopy`, `copyDataWithFreshRowIds`, `deepMerge`, `deepMergeMetadata`, `sanitizeObject`, and `TokenRegistry` path traversal) strictly reject `__proto__`, `constructor`, and `prototype` keys (>5.2M ops/s throughput maintained). Shipped in `src/utils/native-utils.ts`, `src/utils/security/input-sanitizer.ts`, `src/utils/data-utils.ts`, `src/widgets/desugar-field.ts`, and `src/services/token/engine.ts`.
@@ -338,7 +341,7 @@ Shortlisted differentiators that are **not** scheduled. Each is recorded here wi
 
 - **Temporal reads (as-of revision)** — read an entry as it existed at a revision or timestamp, reusing `content_revisions` and the existing projections. Buyers in regulated segments ask for this in place of full database PITR.
   - _Acceptance:_ `GET /api/collections/:c/:id?asOf=<revision|ISO>` returns the historical row, tenant-scoped, with normal projection/access rules; pinned by unit + integration tests on SQLite and PostgreSQL.
-- **Audit-chain external anchoring** — periodically anchor the SHA-256 chain head with an RFC 3161 timestamp authority (and optionally a public transparency log), plus a verification endpoint. Moves the audit trail from self-attested to third-party-witnessed.
+- **Audit-chain external anchoring** — periodically anchor the SHA-256 chain head with an RFC 3161 timestamp authority (and optionally a public transparency log), plus a verification endpoint. Moves the audit trail from self-attested to third-party-witnessed. _The internal tail checkpoint and fork guard shipped (2026-11-11, [achievements 3.76](./achievements-2026.mdx)); external witnessing is still open._
   - _Acceptance:_ `security:assurance` verifies an anchored head; editing a cloned ledger row fails verification.
 - **Agent write-approval lane** — WebMCP/agent tokens may propose mutations but not commit them; a human approves a diff and the approval (actor, hash, timestamp) joins the audit chain. Extends the agent surface without widening its blast radius.
   - _Acceptance:_ an agent token can create a proposal and cannot write a live row; the approval endpoint requires a human session; both events appear in the audit chain.

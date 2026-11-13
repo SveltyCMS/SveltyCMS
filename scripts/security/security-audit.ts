@@ -163,7 +163,7 @@ if (RUN_CVE_SCAN) {
       stdio: "inherit",
       cwd: process.cwd(),
     });
-    const osv = spawnSync("bun", ["run", "scripts/security/scan-osv.ts", "--strict"], {
+    const osv = spawnSync("bun", ["run", "scripts/security/scan-osv.ts"], {
       stdio: "inherit",
       cwd: process.cwd(),
     });

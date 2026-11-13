@@ -912,6 +912,11 @@ export class CacheService {
         if (l2Val) {
           cachedEntry = typeof l2Val === "string" ? JSON.parse(l2Val) : l2Val;
           this.l1.set(fullKey, cachedEntry, { ttl: staleTtl * 2 });
+          // A hydrated body must join the SAME tag index as a fetched one, else
+          // `clearByTags` resolves no victim for this key and `clearLocalL1ByTags`
+          // leaves the pre-write body in L1 for the whole SWR window. Cost is the
+          // tag array we already hold: O(tags) map hits, no await, no serialization.
+          if (tags.length > 0) this.registerTagsForKey(fullKey, tags, tenantId);
         }
       } catch (error) {
         logger.debug("[cache-service] suppressed error", error);
@@ -940,6 +945,9 @@ export class CacheService {
             if (fresh !== undefined && fresh !== null) {
               const entry = { value: fresh, storedAt: Date.now() };
               this.l1.set(fullKey, entry, { ttl: staleTtl * 2 });
+              // Same tag contract as the miss path below: the refreshed body
+              // replaces the L1 copy, so it must stay evictable by tag.
+              if (tags.length > 0) this.registerTagsForKey(fullKey, tags, tenantId);
               this.writeSwrEntryToL2(fullKey, entry, tags, tenantId, l2TtlSeconds);
             }
           } catch (error) {

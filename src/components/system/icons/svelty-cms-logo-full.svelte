@@ -83,16 +83,17 @@
 	</svg>
 
 	<div
-		class="absolute inset-x-0 top-17.5 flex -translate-y-1/2 flex-col items-center justify-center text-center"
+		class="absolute inset-x-0 top-17.5 flex w-full -translate-y-1/2 flex-col items-center justify-center text-center"
 	>
 		<!-- Logo -->
 		<Logo fill="red" className="w-14 h-14" />
 
-		<!-- PUBLIC SITENAME -->
-		<div class="-mt-2 text-3xl font-bold">
-			<SiteName {siteName} highlight="CMS" textClass="text-black" />
+		<!-- PUBLIC SITENAME — capped to the ring's inner width so a long tenant name
+		     truncates instead of spilling past the 170px badge circle. -->
+		<div class="-mt-2 w-35 overflow-hidden text-3xl font-bold">
+			<SiteName {siteName} highlight="CMS" textClass="block truncate text-black" />
 		</div>
 		<!-- Slogan -->
-		<div class="-mt-px text-[13px] font-bold text-surface-500">{slogan}</div>
+		<div class="-mt-px w-35 truncate text-[13px] font-bold text-surface-500">{slogan}</div>
 	</div>
 </div>

@@ -60,12 +60,20 @@ export interface CmsEditModeMessage {
 
 export type CmsOutboundMessage = CmsUpdateMessage | CmsFieldSelectMessage | CmsEditModeMessage;
 
+/** Sent from Website to CMS when a preview link tries to navigate away. */
+export interface CmsNavigateMessage {
+  type: "svelty:navigate";
+  href: string;
+  text?: string;
+}
+
 export type CmsInboundMessage =
   | CmsInitMessage
   | CmsFieldClickMessage
   | CmsFieldHoverMessage
   | CmsSaveMessage
-  | CmsPreviewUpdateMessage;
+  | CmsPreviewUpdateMessage
+  | CmsNavigateMessage;
 
 export type CmsMessage = CmsOutboundMessage | CmsInboundMessage;
 

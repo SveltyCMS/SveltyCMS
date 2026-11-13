@@ -14,6 +14,7 @@ import {
   toRedirectPayload,
   filterRedirectsByQuery,
   findRegexRedirect,
+  canonicalRedirectPath,
 } from "@utils/redirects-utils";
 
 describe("isSafeRedirectRegex - ReDoS guard", () => {
@@ -147,6 +148,81 @@ describe("normalizeRedirectType / payload", () => {
     });
     expect(errors.from).toBeTruthy();
     expect(errors.to).toBeTruthy();
+  });
+
+  describe("loop detection (SV-076)", () => {
+    it("rejects a self-referencing redirect", () => {
+      const errors = validateRedirectDraft({
+        from: "/qa-loop",
+        to: "/qa-loop",
+        type: 301,
+        active: true,
+        isRegex: false,
+      });
+      expect(errors.to).toMatch(/same path|loop/i);
+    });
+
+    it("treats a trailing slash, query, and hash as the same path", () => {
+      expect(canonicalRedirectPath("/qa-loop/")).toBe("/qa-loop");
+      expect(canonicalRedirectPath("/qa-loop?x=1#top")).toBe("/qa-loop");
+      expect(
+        validateRedirectDraft({
+          from: "/qa-loop",
+          to: "/qa-loop/?utm=1",
+          type: 301,
+          active: true,
+          isRegex: false,
+        }).to,
+      ).toBeTruthy();
+    });
+
+    it("accepts a normal one-way redirect", () => {
+      expect(
+        validateRedirectDraft({
+          from: "/old",
+          to: "/new",
+          type: 301,
+          active: true,
+          isRegex: false,
+        }),
+      ).toEqual({});
+    });
+
+    it("rejects a mutually-looping pair against existing rules", () => {
+      const existing = [
+        { id: "r2", from: "/b", to: "/a", type: 301, active: true, isRegex: false },
+      ];
+      const errors = validateRedirectDraft(
+        { from: "/a", to: "/b", type: 301, active: true, isRegex: false },
+        existing,
+      );
+      expect(errors.to).toMatch(/loop/i);
+      expect(errors.to).toContain("/a");
+    });
+
+    it("rejects a longer cycle through existing rules", () => {
+      const existing = [
+        { id: "r2", from: "/b", to: "/c", type: 301, active: true, isRegex: false },
+        { id: "r3", from: "/c", to: "/a", type: 301, active: true, isRegex: false },
+      ];
+      const errors = validateRedirectDraft(
+        { from: "/a", to: "/b", type: 301, active: true, isRegex: false },
+        existing,
+      );
+      expect(errors.to).toMatch(/loop/i);
+    });
+
+    it("ignores the rule's own saved row when editing", () => {
+      const existing = [
+        { id: "r1", from: "/a", to: "/b", type: 301, active: true, isRegex: false },
+      ];
+      expect(
+        validateRedirectDraft(
+          { id: "r1", from: "/a", to: "/b", type: 301, active: true, isRegex: false },
+          existing,
+        ),
+      ).toEqual({});
+    });
   });
 });
 

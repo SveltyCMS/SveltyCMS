@@ -227,6 +227,25 @@ const KEYS = {
   dbTest: `${KEY_PREFIX}dbTestPassed`,
 } as const;
 
+/** Session flag set by the wizard entry page; cleared once setup completes. */
+const SETUP_SESSION_KEY = "sveltycms_setup_active";
+
+/**
+ * Credentials never leave memory. The wizard persists the admin step to
+ * `localStorage` so a reload does not lose the chosen username/email, and a
+ * previous version serialised the whole object — including `password` and
+ * `confirmPassword` — which left a plaintext admin password in browser storage.
+ *
+ * Pure and non-mutating so the regression is testable without a storage stub:
+ * the caller keeps its in-memory credentials, the snapshot has neither key.
+ */
+export function stripAdminCredentials(admin: AdminUser): Partial<AdminUser> {
+  const persisted: Partial<AdminUser> = { ...admin };
+  delete persisted.password;
+  delete persisted.confirmPassword;
+  return persisted;
+}
+
 // --- Storage Utility ---
 function getStorage(): Storage | null {
   if (typeof window === "undefined") {
@@ -251,6 +270,8 @@ function createSetupStore() {
   let isLoaded = false;
   /** Guards setupPersistence() so repeated arming cannot stack effect writers. */
   let persistenceArmed = false;
+  /** Set once setup finishes so the writer stops re-creating the purged keys. */
+  let persistenceSuspended = false;
 
   const wizard = $state({
     dbConfig: { ...initialDbConfig },
@@ -374,15 +395,18 @@ function createSetupStore() {
 
     $effect.root(() => {
       $effect(() => {
-        if (!isLoaded) {
+        if (!isLoaded || persistenceSuspended) {
           return;
         }
         if (!storage) {
           return;
         }
         try {
+          // Credentials never leave memory: strip before serialising (and the load path
+          // drops them again, healing any previously poisoned localStorage entry).
+          const persistedAdmin = stripAdminCredentials(wizard.adminUser);
           storage.setItem(KEYS.db, JSON.stringify(wizard.dbConfig));
-          storage.setItem(KEYS.admin, JSON.stringify(wizard.adminUser));
+          storage.setItem(KEYS.admin, JSON.stringify(persistedAdmin));
           storage.setItem(KEYS.system, JSON.stringify(wizard.systemSettings));
           storage.setItem(KEYS.email, JSON.stringify(wizard.emailSettings));
           storage.setItem(KEYS.step, String(wizard.currentStep));
@@ -618,10 +642,13 @@ function createSetupStore() {
     wizard.isLoading = true;
     wizard.errorMessage = "";
 
+    // SQLite is file-based: any leftover credentials from a previous engine must not be sent.
+    const isSqliteEngine = wizard.dbConfig.type === "sqlite";
+
     try {
       logger.debug("[SetupStore] Calling completeSetup remote function...");
       const data = await completeSetupRemote({
-        database: wizard.dbConfig,
+        database: isSqliteEngine ? { ...wizard.dbConfig, user: "", password: "" } : wizard.dbConfig,
         admin: wizard.adminUser,
         system: {
           ...wizard.systemSettings,
@@ -669,6 +696,10 @@ function createSetupStore() {
         );
         logger.debug("[SetupStore] Flash message set in sessionStorage");
       }
+
+      // Wizard state must not survive a successful setup: purge secrets + resume data.
+      purgePersistedWizardState();
+      clear();
 
       // Clear store state locally — prefer server redirectPath; never fall back to
       // collectionbuilder (cold-boot 500). /login is always valid with a session.
@@ -804,6 +835,27 @@ function createSetupStore() {
   }
 
   // --- CLEAR METHOD ---
+  /**
+   * Remove every persisted wizard key and the "setup active" session flag.
+   * Also suspends the persistence writer, which would otherwise re-create the keys
+   * when `clear()` resets the reactive state on the success path.
+   */
+  function purgePersistedWizardState() {
+    persistenceSuspended = true;
+    if (storage) {
+      for (const key of Object.values(KEYS)) {
+        storage.removeItem(key);
+      }
+    }
+    if (typeof sessionStorage !== "undefined") {
+      try {
+        sessionStorage.removeItem(SETUP_SESSION_KEY);
+      } catch {
+        // catch-allow: sessionStorage can be blocked in privacy-restricted contexts
+      }
+    }
+  }
+
   function clear() {
     const initialState = {
       dbConfig: { ...initialDbConfig },
@@ -848,7 +900,13 @@ function createSetupStore() {
 
       const rawAdmin = storage.getItem(KEYS.admin);
       if (rawAdmin && rawAdmin !== "undefined" && rawAdmin !== "null") {
-        wizard.adminUser = { ...initialAdminUser, ...JSON.parse(rawAdmin) };
+        // Passwords are never restored; blanking them also rewrites (heals) a stale entry.
+        wizard.adminUser = {
+          ...initialAdminUser,
+          ...JSON.parse(rawAdmin),
+          password: "",
+          confirmPassword: "",
+        };
       }
 
       const rawSystem = storage.getItem(KEYS.system);

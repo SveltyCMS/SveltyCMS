@@ -434,42 +434,50 @@ export class MediaService {
       relPath,
       tenantId,
       onVariants: async (variants) => {
-        try {
-          // Patch only the keys this job owns. A whole-blob write here raced
-          // share-link creation and other metadata edits: the job's snapshot
-          // predated them, so writing it back silently deleted their keys.
-          const patch: Record<string, unknown> = {
-            processingStatus:
-              variants.length > 0 ? MediaProcessingStatus.Ready : MediaProcessingStatus.Failed,
-          };
-          if (variants.length > 0) {
-            patch.imageVariants = variants.map((v) => ({
-              preset: v.preset,
-              width: v.width,
-              height: v.height,
-              format: v.format,
-              quality: v.quality,
-              path: v.path,
-              size: v.size,
-            }));
-            patch.processingError = null;
-          } else {
-            patch.processingError = "No variants generated";
-          }
+        // The raster row was inserted as `processing`; this subscriber is the one
+        // place that settles it. Both branches below MUST terminate the status —
+        // a row left in `processing` never recovers on its own (the gallery keeps
+        // painting the spinner for the life of the asset).
+        const ready = variants.length > 0;
+        // Patch only the keys this job owns. A whole-blob write here raced
+        // share-link creation and other metadata edits: the job's snapshot
+        // predated them, so writing it back silently deleted their keys.
+        const patch: Record<string, unknown> = {
+          processingStatus: ready ? MediaProcessingStatus.Ready : MediaProcessingStatus.Failed,
+          processingError: ready ? null : "No variants generated",
+        };
+        if (ready) {
+          patch.imageVariants = variants.map((v) => ({
+            preset: v.preset,
+            width: v.width,
+            height: v.height,
+            format: v.format,
+            quality: v.quality,
+            path: v.path,
+            size: v.size,
+          }));
+        }
 
+        try {
           await this.patchMetadata(String(recordId), patch, tenantId);
           logger.debug("[Media] Variants generated for streamed upload", {
             hash: hash.slice(0, 12),
             count: variants.length,
-            status: variants.length > 0 ? "ready" : "failed",
+            status: ready ? "ready" : "failed",
           });
         } catch (err) {
+          // Failure branch: the row is STILL `processing`, so the in-process settle
+          // could not be written. Hand it to the durable `process-media` queue —
+          // its handler always settles the status (`ready` or `failed`) and runs
+          // outside this process, so the asset cannot stay stuck.
           logger.warn(
-            "[Media] Background variant generation for streamed upload failed — original intact",
+            "[Media] Variant settle failed for streamed upload — falling back to the durable queue",
             {
+              fileId: String(recordId),
               error: err instanceof Error ? err.message : String(err),
             },
           );
+          this.queueMediaProcessing(recordId, tenantId);
         }
       },
     });
@@ -477,8 +485,9 @@ export class MediaService {
 
   /**
    * Queue the `process-media` background job for work the synchronous upload
-   * path cannot cover: documents streamed above the buffering threshold and
-   * videos (which get no preview during upload).
+   * path cannot cover: documents streamed above the buffering threshold,
+   * videos (which get no preview during upload), and a raster row whose
+   * in-process variant settle could not be written.
    *
    * Loaded dynamically — `job-queue-service` imports every job handler, so a
    * static import here would pull the worker graph into the upload module.

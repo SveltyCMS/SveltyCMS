@@ -146,6 +146,8 @@ export class TransactionModule {
       timeout?: number;
       isolationLevel?: string;
       isWrite?: boolean;
+      /** Bind `app.tenant_id` for this transaction instead of the process-global tenant. */
+      tenantId?: string;
     },
   ): Promise<DatabaseResult<T>> {
     // 🛡️ SAFE CONNECTION CHECK: `core.db` is a throwing getter when disconnected —
@@ -168,7 +170,10 @@ export class TransactionModule {
           }
         : undefined;
     const timeoutMs = Number(options?.timeout);
-    const tenantId = this.core.currentTenantId;
+    // An explicit tenant wins over the process-global "current tenant": the RLS
+    // wrapper passes it per call, so two concurrent requests for different
+    // tenants cannot bind each other's context.
+    const tenantId = options?.tenantId ?? this.core.currentTenantId;
 
     try {
       return await this.core.db.transaction(async (tx) => {

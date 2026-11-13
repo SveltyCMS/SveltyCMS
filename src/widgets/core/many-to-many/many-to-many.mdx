@@ -1,0 +1,155 @@
+---
+path: "src/widgets/core/many-to-many/many-to-many.mdx"
+title: "ManyToMany Widget"
+description: "Normalized many-to-many relations with per-link ordering/metadata, reverse queries and cascade cleanup"
+order: 104
+icon: "mdi:relation-many-to-many"
+author: "admin"
+created: "2026-11-11"
+updated: "2026-11-11"
+tags:
+  - widget
+  - core
+  - relation
+  - many-to-many
+  - junction
+  - database
+---
+
+# ManyToMany Widget
+
+<blockquote>
+  **Normalized many-to-many.** One junction row per link, instead of an array of ids inside the
+  document. Use it when a relation needs per-link data (order, label, role), reverse lookups, or
+  referential cleanup.
+</blockquote>
+
+## Relation vs. ManyToMany
+
+| Capability                | `Relation { multiple: true }` | `ManyToMany`                           |
+| :------------------------ | :---------------------------- | :------------------------------------- |
+| Storage                   | id array in the document      | one row per edge (`content_relations`) |
+| Read cost                 | part of the row               | one batched query per field per page   |
+| Per-link metadata / order | ✗                             | ✓ (`sort`, `metadata`)                 |
+| Reverse query             | array scan                    | indexed lookup (`getReverseLinks`)     |
+| Cascade on delete         | ✗ (dangling ids possible)     | ✓ (source + target cleanup)            |
+| Large relation sets       | rewrites the whole array      | row inserts/deletes                    |
+
+Both widgets use the same picker UI; the difference is persistence.
+
+## Configuration
+
+```typescript
+import { widgets } from "@widgets";
+
+export const posts = {
+  _id: "posts",
+  name: "Posts",
+  fields: [
+    {
+      db_fieldName: "tags",
+      label: "Tags",
+      widget: widgets.ManyToMany,
+      collection: "tags",
+      displayField: "name",
+      min: 1,
+      max: 10,
+      // Optional: expose the extra per-link fields stored in `metadata`.
+      metadataFields: [{ name: "label" }, { name: "role" }],
+    },
+  ],
+};
+```
+
+### Properties
+
+| Property         | Type       | Required | Default            | Description                                     |
+| :--------------- | :--------- | :------- | :----------------- | :---------------------------------------------- |
+| `collection`     | `string`   | ✅       | —                  | Target collection id                            |
+| `displayField`   | `string`   | ✅       | —                  | Field shown in the picker                       |
+| `min` / `max`    | `number`   | ❌       | —                  | Selection bounds                                |
+| `required`       | `boolean`  | ❌       | `false`            | At least one edge required                      |
+| `through`        | `string`   | ❌       | `contentRelations` | Junction collection (advanced)                  |
+| `metadataFields` | `object[]` | ❌       | —                  | Declares the per-link fields kept in `metadata` |
+
+## Payload shapes
+
+The write path accepts both forms:
+
+```jsonc
+// UI picker (ids only) — order is the array order.
+{ "tags": ["tag_1", "tag_2"] }
+
+// API with per-link data.
+{
+  "tags": [
+    { "id": "tag_1", "sort": 0, "metadata": { "label": "Pinned", "role": "primary" } },
+    { "id": "tag_2", "sort": 1 }
+  ]
+}
+```
+
+The field is **not stored in the document**. On write the ids are extracted,
+the document is written without the field, then the edges are synced: only
+removed edges are deleted and only new/changed edges are written (an unchanged
+save issues no link write). On read the field is hydrated back to an ordered id
+array, so list/detail/GraphQL/populate behaviour matches a multiple relation.
+When any edge carries metadata, the read also exposes
+`_relation_<fieldName> = [{ id, sort, metadata }]`.
+
+## Storage model
+
+`content_relations` (all four adapters):
+
+| Column             | Purpose                        |
+| :----------------- | :----------------------------- |
+| `_id`              | Deterministic UUID of the edge |
+| `tenantId`         | Tenant scope                   |
+| `sourceCollection` | Logical source collection id   |
+| `sourceId`         | Source row id                  |
+| `fieldName`        | Field `db_fieldName`           |
+| `targetCollection` | Logical target collection id   |
+| `targetId`         | Target row id                  |
+| `sortOrder`        | Position in the relation       |
+| `metadata`         | Per-link JSON (label, role, …) |
+
+Edge ids are `sha256(tenantId + source + field + sourceId + targetId)`, so a
+retry after a partial failure converges instead of duplicating rows.
+
+## Reverse queries and cascades
+
+```typescript
+import { getReverseLinks } from "@src/services/core/relation-link-service";
+
+// Which posts link to this tag through the `tags` field?
+const edges = await getReverseLinks(dbAdapter, {
+  tenantId,
+  targetCollection: "tags",
+  targetId: "tag_1",
+  fieldName: "tags",
+  sourceCollection: "posts",
+});
+```
+
+Deleting an entry removes the edges it owns (as source) **and** the edges that
+point at it (as target). Both are awaited on the delete path but never fail the
+delete itself.
+
+## Known limitations (v1)
+
+- Bulk create/update **reject** a `ManyToMany` field (`JUNCTION_FIELD_BULK_UNSUPPORTED`)
+  instead of persisting it as an array; use the single-entry lane. Bulk delete
+  cascades the edges, so deleting through it stays consistent.
+- The background import worker and content-package import do not sync junction
+  edges: an import payload that includes a `ManyToMany` field writes the row but
+  not the edges. Keep junction fields out of import payloads until that lane is
+  wired.
+- Target-side cleanup uses a process-local registry of target collections,
+  populated when a source schema is first planned. A cold process that deletes a
+  target before any source read may leave reverse edges; they are removed the
+  next time that source field is written.
+- List filters using the relation operators (`$some`/`$none`/`$every`) target
+  the in-document array; for junction fields use `getReverseLinks` (or filter
+  the source ids it returns).
+- `through` accepts a custom collection only if it exposes the columns above.
+- Deleting an edge is a row delete; there is no per-link revision history.

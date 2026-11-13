@@ -14,8 +14,8 @@
         "src/databases/auth/permission-catalog.ts"
       ],
       "model": "docs/security/threat-models/api-dispatch.mdx",
-      "reviewed_at": "2026-11-09",
-      "fingerprint": "3c1c8e65a17cbe65b56a04366ba75d315a13210a5a37510354309a92a534ded7"
+      "reviewed_at": "2026-11-13",
+      "fingerprint": "18ff9c098ec9f999a70a5288928013397e738f4e8d6d44dcd49e5de32bf59e9d"
     },
     {
       "id": "auth-session",
@@ -37,8 +37,8 @@
         "src/routes/api/[...path]/handlers/scim.ts"
       ],
       "model": "docs/security/threat-models/auth-session.mdx",
-      "reviewed_at": "2026-11-09",
-      "fingerprint": "d9c8a78ad395978dcf22c201a6d3786c41f473d590297313bdc3c5ba057886e5"
+      "reviewed_at": "2026-11-13",
+      "fingerprint": "c2d64ad4eed3d98ada50868a7047162df13fecdb401f3d1b20a54b5a5a6e90db"
     },
     {
       "id": "content-write",
@@ -57,8 +57,8 @@
         "src/hooks/handle-collection-write-lane.ts"
       ],
       "model": "docs/security/threat-models/content-write.mdx",
-      "reviewed_at": "2026-11-09",
-      "fingerprint": "0e021c5a7948d477e9be07d3b6ea133bbdb502393c86a0c13d2e176bdd5964b1"
+      "reviewed_at": "2026-11-13",
+      "fingerprint": "16d5aab05d044aae36f2c5f1d17fb6d39069956699f66f2ff933c34c344016b5"
     },
     {
       "id": "media-files",
@@ -74,8 +74,8 @@
         "src/routes/api/[...path]/handlers/media-transcode.ts"
       ],
       "model": "docs/security/threat-models/media-files.mdx",
-      "reviewed_at": "2026-11-09",
-      "fingerprint": "ce3afd3f48682dd500da32e87e5a42dca2e142b4e608318c8d5bfe1e676dd060"
+      "reviewed_at": "2026-11-13",
+      "fingerprint": "85dd8f4dfb0ae087c4396940d2b869fb9076366f7e0c0c025f19b47039c68abd"
     },
     {
       "id": "admin-pages",
@@ -90,8 +90,8 @@
         "src/utils/page-guards.server.ts"
       ],
       "model": "docs/security/threat-models/admin-pages.mdx",
-      "reviewed_at": "2026-11-09",
-      "fingerprint": "da916fc16e19830ad991f5224f076025c9706be87b54768aeb4d6bbb79a5d485"
+      "reviewed_at": "2026-11-13",
+      "fingerprint": "7ee45cdd6dee1f36740bbb3fef0f1ff59174a549e11bbd22863176b8a627c55c"
     },
     {
       "id": "system-ops",
@@ -131,8 +131,8 @@
         "src/utils/test-bypass.server.ts"
       ],
       "model": "docs/security/threat-models/system-ops.mdx",
-      "reviewed_at": "2026-11-09",
-      "fingerprint": "20e3a8ca9a8f903c9b378727a105163818affeca3208fdeca9ac7555f59f7eeb"
+      "reviewed_at": "2026-11-13",
+      "fingerprint": "0e632d53779cfa0debdd5f68e2a92984834a70adee01857a3e6d48955754e0ba"
     }
   ]
 }

@@ -17,6 +17,8 @@
  * - Reads the floor from `engines.node` so the manifest and the gate cannot drift
  * - Compares the running Node binary, not a system/shared library
  * - Explains the nginx-brotli misconception in the failure output
+ * - `SKIP_NODE_RUNTIME_CHECK` is honoured for local dev only — CI and production
+ *   always verify the runtime and say why the override was ignored
  * - Import-safe: `main()` only runs when the file is executed directly
  *
  * Usage: `node scripts/security/check-node-runtime.ts`
@@ -52,6 +54,28 @@ export function parseNodeFloor(enginesNode: string | undefined): Semver | null {
 
 function formatVersion(version: Semver): string {
   return `${version.major}.${version.minor}.${version.patch}`;
+}
+
+/** True when the operator asked to skip the runtime floor check. */
+export function isSkipRequested(env: NodeJS.ProcessEnv = process.env): boolean {
+  return (
+    env.SKIP_NODE_RUNTIME_CHECK === "true" ||
+    env.SKIP_NODE_RUNTIME_CHECK === "1" ||
+    env.SKIP_NODE_CHECK === "1"
+  );
+}
+
+/**
+ * The skip override is a local-dev convenience. CI and production are the two
+ * places the floor actually protects, so neither may talk its way out of it.
+ */
+export function skipOverrideAllowed(env: NodeJS.ProcessEnv = process.env): boolean {
+  return !(env.CI === "true" || env.NODE_ENV === "production");
+}
+
+/** Whether the skip override applies (requested AND not CI/production). */
+export function shouldSkipNodeRuntimeCheck(env: NodeJS.ProcessEnv = process.env): boolean {
+  return isSkipRequested(env) && skipOverrideAllowed(env);
 }
 
 /** Returns a process exit code (0 = runtime is at or above the floor). */
@@ -108,13 +132,16 @@ export function checkNodeRuntime(
 }
 
 function main(): number {
-  if (
-    process.env.SKIP_NODE_RUNTIME_CHECK === "true" ||
-    process.env.SKIP_NODE_RUNTIME_CHECK === "1" ||
-    process.env.SKIP_NODE_CHECK === "1"
-  ) {
-    console.log("ℹ Node runtime check skipped via SKIP_NODE_RUNTIME_CHECK.");
-    return 0;
+  if (isSkipRequested()) {
+    if (skipOverrideAllowed()) {
+      console.log("ℹ Node runtime check skipped via SKIP_NODE_RUNTIME_CHECK.");
+      return 0;
+    }
+    console.error(
+      "✖ SKIP_NODE_RUNTIME_CHECK / SKIP_NODE_CHECK is ignored in CI and production —\n" +
+        "  CVE-2026-111497 (Brotli decoder in the Node binary) must be verified on every deploy,\n" +
+        "  so the runtime check runs anyway.",
+    );
   }
 
   let enginesNode: string | undefined;

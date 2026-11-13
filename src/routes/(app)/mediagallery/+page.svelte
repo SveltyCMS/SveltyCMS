@@ -971,6 +971,13 @@
 				files = files.filter((f) => !deletedKeys.has(mediaFileKey(f)));
 				for (const key of deletedKeys) selectedFiles.delete(key);
 				await refreshAll();
+				// A confirmed delete is authoritative: if the refreshed listing still carries
+				// one of those rows it was served from a stale cache window, not restored on
+				// the server. Keep them out so a partial failure cannot resurrect a deleted
+				// asset in the grid.
+				if (deletedKeys.size > 0) {
+					files = files.filter((f) => !deletedKeys.has(mediaFileKey(f)));
+				}
 
 				if (failedNames.length === 0) {
 					toast.success('Batch delete complete');
@@ -1107,37 +1114,54 @@
 		input.value = '';
 	}
 
-	async function handleCreateFolder() {
+	/**
+	 * `validationMessage` is set when the prompt is re-opened after an empty
+	 * submit: the dialog closes itself before the page can inspect the field, so
+	 * the message is what tells the user why the previous confirm did nothing.
+	 */
+	async function handleCreateFolder(validationMessage?: string) {
 		const { default: ModalPrompt } = await import('@components/modal-prompt.svelte');
 		modalState.trigger(
 			ModalPrompt as any,
 			{
 				title: mediagallery_new_folder(),
-				body: 'Enter a name for the new folder:',
+				body: validationMessage ?? 'Enter a name for the new folder:',
 				value: '',
 				type: 'text',
 				size: 'md',
 				contentClass: 'min-w-80 sm:min-w-sm'
 			},
 			async (name: string | null) => {
-				if (!name?.trim()) return;
+				if (name === null) return; // Cancelled — nothing to validate.
+
+				const folderName = name.trim();
+				if (!folderName) {
+					// An empty name used to close the dialog and return silently, so the
+					// click looked like a no-op. Re-open the prompt with the reason.
+					// `ModalManager.close()` detaches the dialog before firing this
+					// response, so triggering the next prompt from here is safe.
+					void handleCreateFolder('A folder name is required. Enter a name for the new folder:');
+					return;
+				}
 
 				try {
 					const response = await fetch('/api/system-virtual-folder', {
 						method: 'POST',
 						headers: clientJsonHeaders(page.data.csrfToken),
 						body: JSON.stringify({
-							name: name.trim(),
+							name: folderName,
 							parent: data.currentFolder?._id
 						})
 					});
 					if (response.ok) {
 						toast.success('Folder created');
 						// The sidebar owns its own data: `media-folders.svelte` listens for
-						// `folderCreated` and reloads only the folder tree. Re-running every
-						// page load (`refreshAll`) here re-fetched the whole media listing,
-						// counts, and layout data for a change that touches none of them.
+						// `folderCreated` and reloads only the folder tree.
 						document.dispatchEvent(new CustomEvent('folderCreated'));
+						// The listing, the breadcrumb trail and the empty state come from the
+						// page load, not from the sidebar tree — without re-running it the grid
+						// kept painting "No media found" after the folder was created.
+						await refreshAll();
 					} else {
 						const result = await response.json().catch(() => null);
 						toast.error(result?.error?.message || result?.message || 'Folder creation failed');
@@ -1264,7 +1288,7 @@
 			<Button
 				variant="surface"
 				size="sm"
-				onclick={handleCreateFolder}
+				onclick={() => handleCreateFolder()}
 				aria-label={mediagallery_create_folder()}
 				data-testid="media-create-folder"
 				class="h-9 gap-1.5 px-2 sm:px-3"
@@ -1550,6 +1574,7 @@
 							bind:value={globalSearchValue}
 							type="search"
 							placeholder={mediagallery_search_modf()}
+							title="Ctrl/⌘ + F"
 							class="w-full ps-9 pe-11 dark:border-surface-500/40 focus-visible:ring-1"
 							aria-label={mediagallery_search_assets()}
 						/>
@@ -1696,6 +1721,7 @@
 						bind:value={globalSearchValue}
 						type="search"
 						placeholder={mediagallery_search_modf()}
+						title="Ctrl/⌘ + F"
 						class="w-full ps-9 pe-11 dark:border-surface-500/40 focus-visible:ring-1"
 						aria-label={mediagallery_search_assets()}
 					/>
@@ -1863,7 +1889,7 @@
 						{publishedMediaIds}
 						{hasActiveFilters}
 						onClearFilters={clearMediaFilters}
-						onCreateFolder={handleCreateFolder}
+						onCreateFolder={() => handleCreateFolder()}
 						serverHasMore={mediaPagination.hasNextPage}
 						{isLoadingMore}
 						isRefreshing={isSearching}

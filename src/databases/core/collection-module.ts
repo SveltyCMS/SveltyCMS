@@ -19,6 +19,18 @@ import { logger } from "@src/utils/logger";
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import type { ColumnSpec } from "../system-schema-spec";
 
+/** Runtime-only marker on the physical-table stub produced by `listSchemas`. */
+export const PHYSICAL_TABLE_FALLBACK = "_physicalTableFallback";
+
+/** `notifications` / `my_pages` → `Notifications` / `My Pages`. */
+function humanizeCollectionName(name: string): string {
+  return name
+    .split(/[_-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICollectionAdapter {
   private get crud() {
     return this.adapter.crud;
@@ -423,13 +435,24 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
           } catch {
             // Field discovery is best-effort; fall through with empty fields
           }
+          const humanName = humanizeCollectionName(collectionName);
           return {
             _id: collectionName,
-            name: collectionName,
+            // A physical-table stub has no translations to borrow a label from, so
+            // the raw identifier (`notifications`) used to leak into the sidebar.
+            // Keep `_id`/`slug` as the table identifier (routing, access rules and
+            // adapter lookups resolve through them) and humanise the display name.
+            name: humanName,
+            label: humanName,
             slug: collectionName,
+            icon: "mdi:table",
             fields,
             status: "publish",
-          } as Schema;
+            // Runtime-only marker: underscore keys are stripped from the persisted
+            // collection literal. `refreshCollectionsCache` uses it to prefer a
+            // definition-backed schema over this stub on a merge tie.
+            [PHYSICAL_TABLE_FALLBACK]: true,
+          } as unknown as Schema;
         }),
       );
     }, "LIST_SCHEMAS_FAILED");

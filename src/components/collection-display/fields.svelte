@@ -43,7 +43,12 @@
 	import Tooltip from '@components/ui/tooltip.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import HelpIcon from '@src/components/ui/help-icon.svelte';
-	import { applayout_version, button_edit, Fields_no_widgets_found } from '@src/paraglide/messages';
+	import {
+		applayout_version,
+		button_edit,
+		Fields_no_widgets_found,
+		validation_fix_before_save
+	} from '@src/paraglide/messages';
 	import type { Locale } from '@src/paraglide/runtime';
 	// Stores
 	import { setCollectionValue, collections } from '@src/stores/collection-store.svelte';
@@ -72,6 +77,7 @@
 	// Plugin Slot System
 	import { slotRegistry } from '@src/plugins/slot-registry.svelte.ts';
 	import { activeInput } from '@src/stores/active-input-store.svelte';
+	import { insertTokenAtSelection } from '@src/services/token/insert-token';
 
 	// Token Picker
 	function openTokenPicker(field: any, e: MouseEvent) {
@@ -88,6 +94,10 @@
 				| HTMLTextAreaElement
 				| null);
 
+		const selection = el ? { start: el.selectionStart, end: el.selectionEnd } : null;
+		// The picker is a modal: read the field's text now, splice on insert.
+		const baseValue = el?.value ?? '';
+
 		if (el) {
 			el.focus();
 		}
@@ -96,17 +106,18 @@
 			element: el,
 			field,
 			onInsert: (tokenValue: string) => {
+				const next = insertTokenAtSelection(baseValue, tokenValue, selection).value;
 				if (field.translated) {
 					const targetLocale = fieldLocaleOverrides.get(fieldName) ?? currentContentLanguage;
 					const existing = currentCollectionValue[fieldName];
 					const record = isLocaleRecord(existing) ? { ...existing } : {};
-					record[targetLocale] = tokenValue;
+					record[targetLocale] = next;
 					currentCollectionValue[fieldName] = record;
 				} else {
-					currentCollectionValue[fieldName] = tokenValue;
+					currentCollectionValue[fieldName] = next;
 				}
 				if (el) {
-					el.value = tokenValue;
+					el.value = next;
 					el.dispatchEvent(new Event('input', { bubbles: true }));
 					el.dispatchEvent(new Event('change', { bubbles: true }));
 				}
@@ -571,6 +582,29 @@
 		return errors;
 	});
 
+	/**
+	 * Every failing field, whatever widget rendered it.
+	 *
+	 * Required-field errors land in `validationStore`, but only the core Input
+	 * widget renders them. SEO, rich-text and Select fields therefore blocked
+	 * Save with no visible reason — this summary is the shared surface, and the
+	 * sidebar's disabled Save points at it via `aria-describedby`.
+	 */
+	const validationIssues = $derived.by(() => {
+		const issues: Array<{ field: string; text: string }> = [];
+		for (const [fieldName, message] of Object.entries(validationStore.errors)) {
+			if (!message) continue;
+			const field = filteredFields.find((f) => getFieldName(f, false) === fieldName);
+			const label = field?.label || field?.db_fieldName || fieldName;
+			// Required errors already name the field (`Title is required`).
+			const text = message.toLowerCase().includes(label.toLowerCase())
+				? message
+				: `${label}: ${message}`;
+			issues.push({ field: fieldName, text });
+		}
+		return issues;
+	});
+
 	$effect(() => {
 		const errors = requiredFieldErrors;
 		const fields = filteredFields;
@@ -602,7 +636,9 @@
 
 	$effect(() => {
 		if (collections.activeValue?._id) {
-			apiUrl = `${location.origin}/api/collection/${activeCollection?._id}/${collections.activeValue._id}`;
+			// The dispatcher exposes the plural `collections` namespace only; a
+			// singular `/api/collection/...` is unmapped and fails closed (403).
+			apiUrl = `${location.origin}/api/collections/${activeCollection?._id}/${collections.activeValue._id}`;
 		}
 	});
 
@@ -755,6 +791,27 @@
 				class="rounded border border-(--admin-border-default) bg-(--admin-bg-card) px-3 py-4 sm:px-4"
 			>
 				<div class="flex w-full flex-col gap-1">
+					{#if validationIssues.length > 0}
+						<!-- Shared error surface: required-field errors also reach widgets (SEO,
+						     rich text, select) that do not render their own message. -->
+						<div
+							id="entry-validation-summary"
+							role="alert"
+							aria-live="polite"
+							class="mb-2 rounded border border-error-500/30 bg-error-500/10 px-3 py-2 text-xs text-error-500 dark:border-error-500/40 dark:bg-error-900/20"
+						>
+							<p class="mb-1 flex items-center gap-1.5 font-semibold">
+								<iconify-icon icon="mdi:alert-circle-outline" width="14" aria-hidden="true"
+								></iconify-icon>
+								{validation_fix_before_save()}
+							</p>
+							<ul class="list-disc space-y-0.5 ps-5">
+								{#each validationIssues as issue (issue.field)}
+									<li>{issue.text}</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
 					{#each filteredFields as field (field.db_fieldName || field.id || field.label || field.name)}
 						{#if field.widget && isFieldVisible(field, currentCollectionValue)}
 							{@const fieldIcon = resolveFieldIcon(field)}

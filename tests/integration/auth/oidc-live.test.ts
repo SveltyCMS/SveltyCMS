@@ -293,7 +293,14 @@ describe("back-channel logout", () => {
   it("terminates only the sessions owned by the signing provider", async () => {
     await setSsoSessionMetadata(
       "sess-live-1",
-      { provider: PROVIDER_ID, createdAt: "2026-01-01T00:00:00.000Z" },
+      // The logout token identifies the session by `sid` (fallback `sub`); a session
+      // without those claims cannot be targeted and is deliberately left alive.
+      {
+        provider: PROVIDER_ID,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        oidcSid: "sid-live-1",
+        oidcSubject: server.subject,
+      },
       "global",
     );
     await setSsoSessionMetadata(

@@ -442,7 +442,8 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 				// Rate limit / unavailable auth service — surface the reason instead of
 				// pretending the request was accepted.
 				forgotNotice = result.message || 'Password reset is currently unavailable.';
-				toast.error({ title: 'Reset unavailable', description: forgotNotice });
+				// Single notice: the inline `role="status"` panel below the field owns this text
+				// (it used to be duplicated as a toast on top of it, SV-049).
 				wiggle(forgotFormElement);
 				return;
 			}
@@ -469,12 +470,10 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 			forgotNotice =
 				result?.message ||
 				'Password reset by email is unavailable. Ask an administrator to set a new password for you.';
-			toast.info({ description: forgotNotice, duration: 10000 });
 		} catch (error: any) {
 			isSubmitting = false;
 			const errorMessage = error?.message || 'Password reset failed';
 			forgotNotice = errorMessage;
-			toast.error({ title: 'Reset failed', description: errorMessage });
 			wiggle(forgotFormElement);
 		}
 	}
@@ -643,6 +642,11 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 
 	function handleBack(event: Event) {
 		event.stopPropagation();
+		// Carry the address the user just typed back to Sign In instead of dropping it
+		// (SV-049): going back used to leave the sign-in email field empty.
+		if (P_WFORGOT && forgotForm.data.email) {
+			loginForm.data.email = forgotForm.data.email;
+		}
 		if (P_WFORGOT && P_WRESET) {
 			P_WRESET = false;
 		} else if (P_WFORGOT) {
@@ -1023,17 +1027,29 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 							label={email()}
 							required
 							icon="mdi:email"
+							// Always-white Sign In canvas: without the explicit light surface this field
+							// resolved the `dark:bg-[#242728]` branch and turned dark on focus (SV-049).
+							iconColor={ink}
+							textColor={ink}
 							invalid={!!forgotForm.errors.email}
 							errorMessage={forgotForm.errors.email?.[0] || ''}
 						/>
 
 						{#if forgotNotice}
+							<!-- One notice, readable size, body text on the warning wash (the old 12px
+							     `text-warning-500` line failed contrast and was also fired as a toast). -->
 							<p
-								class="rounded border border-warning-500/30 bg-warning-500/10 p-2 text-start text-xs text-warning-500"
-								role="status"
+								class="flex items-start gap-2 rounded border border-warning-500/40 bg-warning-500/10 p-2.5 text-start text-sm text-surface-900"
+								role="alert"
 								data-testid="forgot-password-notice"
 							>
-								{forgotNotice}
+								<iconify-icon
+									icon="material-symbols:info-outline"
+									width="18"
+									class="mt-px shrink-0 text-warning-500"
+									aria-hidden="true"
+								></iconify-icon>
+								<span>{forgotNotice}</span>
 							</p>
 						{/if}
 
@@ -1051,24 +1067,8 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 									></div>
 								{/if}
 							</Button>
-
-							<Button
-								variant="surface"
-								type="button"
-								aria-label="Back to sign in"
-								onclick={() => {
-									P_WFORGOT = false;
-									P_WRESET = false;
-								}}
-								class="p-0! min-w-0 rounded-full"
-							>
-								<iconify-icon
-									icon="mdi:arrow-left-circle"
-									width={24}
-									class="rtl:scale-x-[-1]"
-									aria-hidden="true"
-								></iconify-icon>
-							</Button>
+							<!-- The header back button already answers "back" for every sub-form;
+							     the extra squashed pill beside Submit was a second affordance (SV-049). -->
 						</div>
 					</form>
 				{/if}
@@ -1219,24 +1219,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 									></div>
 								{/if}
 							</Button>
-
-							<Button
-								variant="surface"
-								type="button"
-								aria-label={button_back()}
-								onclick={() => {
-									P_WFORGOT = false;
-									P_WRESET = false;
-								}}
-								class="p-0! min-w-0"
-							>
-								<iconify-icon
-									icon="mdi:arrow-left-circle"
-									width={24}
-									class="rtl:scale-x-[-1]"
-									aria-hidden="true"
-								></iconify-icon>
-							</Button>
+							<!-- Back is owned by the single header control (it steps Reset → Forgot → Sign In). -->
 						</div>
 					</form>
 				{/if}

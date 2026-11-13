@@ -149,6 +149,11 @@ function isDigit(code: number): boolean {
   return code >= 48 && code <= 57;
 }
 
+/** `'` (39) or `"` (34) — quoted SQLi operands. */
+function isQuote(code: number): boolean {
+  return code === 39 || code === 34;
+}
+
 function cap(value: string): string {
   return value.length > MAX_SCAN_LENGTH ? value.slice(0, MAX_SCAN_LENGTH) : value;
 }
@@ -391,7 +396,12 @@ function hasEncodedOrRawTag(lower: string, tag: string): boolean {
     lower.includes(`</${tag}`) ||
     lower.includes(`%3c${tag}`) ||
     lower.includes(`%3c/${tag}`) ||
-    lower.includes(`%3c%2f${tag}`)
+    lower.includes(`%3c%2f${tag}`) ||
+    // Escaped `<` restored to a real tag by a downstream JSON/JS decode.
+    lower.includes(`\\u003c${tag}`) ||
+    lower.includes(`\\u003c/${tag}`) ||
+    lower.includes(`\\x3c${tag}`) ||
+    lower.includes(`\\x3c/${tag}`)
   );
 }
 
@@ -510,7 +520,7 @@ function hasWafSqli(lower: string): boolean {
     return true;
   }
   if (hasWord(lower, "or") !== -1) {
-    // `\b(or|and)\s+\d+=\d+`
+    // `\b(or|and)\s+['"]?\d+['"]?\s*=\s*['"]?\d+` — quoted operands included
     let i = 0;
     while (i < lower.length) {
       const orAt = hasWord(lower, "or", i);
@@ -528,10 +538,15 @@ function hasWafSqli(lower: string): boolean {
       }
       let j = at + wordLen;
       while (j < lower.length && (lower.charCodeAt(j) === 32 || lower.charCodeAt(j) === 9)) j++;
+      if (j < lower.length && isQuote(lower.charCodeAt(j))) j++;
       if (j < lower.length && isDigit(lower.charCodeAt(j))) {
         while (j < lower.length && isDigit(lower.charCodeAt(j))) j++;
+        if (j < lower.length && isQuote(lower.charCodeAt(j))) j++;
+        while (j < lower.length && (lower.charCodeAt(j) === 32 || lower.charCodeAt(j) === 9)) j++;
         if (j < lower.length && lower.charCodeAt(j) === 61) {
           j++;
+          while (j < lower.length && (lower.charCodeAt(j) === 32 || lower.charCodeAt(j) === 9)) j++;
+          if (j < lower.length && isQuote(lower.charCodeAt(j))) j++;
           if (j < lower.length && isDigit(lower.charCodeAt(j))) return true;
         }
       }

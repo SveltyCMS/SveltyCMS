@@ -1,167 +1,194 @@
 /**
  * @file tests/unit/scripts/scan-secret-misuse.test.ts
- * @description Tests that the secret misuse scanner correctly detects
- * forbidden key access and API key exposure patterns.
+ * @description Fixtures for the secret misuse scanner: forbidden key access,
+ * exposure patterns, comment handling, multi-line splits and hardcoded
+ * credential comparisons.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import {
+  ALL_FORBIDDEN_KEYS,
+  isServerFile,
+  scanSource,
+} from "../../../scripts/security/scan-secret-misuse";
 
-const BOOTSTRAP_SECRETS = [
-  "DB_TYPE",
-  "DB_HOST",
-  "DB_PORT",
-  "DB_NAME",
-  "DB_USER",
-  "DB_PASSWORD",
-  "DB_RETRY_ATTEMPTS",
-  "DB_RETRY_DELAY",
-  "JWT_SECRET_KEY",
-  "ENCRYPTION_KEY",
-  "MULTI_TENANT",
-  "DEMO",
-];
+/** Scan a fixture as a client-side source file (never allowlisted). */
+const scan = (source: string, path = "src/lib/fixture.ts") => scanSource(source, path);
 
-const PRIVATE_SECRETS = [
-  "RATE_LIMIT_SECRET",
-  "SAML_CLIENT_SECRET_VERIFIER",
-  "SAML_ENCRYPTION_KEY",
-  "SAML_JWT_SIGNING_PRIVATE_KEY",
-  "SAML_JWT_SIGNING_PUBLIC_KEY",
-  "SMTP_PASS",
-  "SMTP_PASSWORD",
-  "GOOGLE_CLIENT_SECRET",
-  "REDIS_PASSWORD",
-  "TEST_API_SECRET",
-  "CF_API_TOKEN",
-  "MAPBOX_API_TOKEN",
-  "SECRET_MAPBOX_API_TOKEN",
-  "TWITCH_TOKEN",
-  "TIKTOK_TOKEN",
-  "PREVIEW_SECRET",
-];
+const messages = (source: string, path?: string) => scan(source, path).map((f) => f.message);
 
-const ALL_KEYS = [...BOOTSTRAP_SECRETS, ...PRIVATE_SECRETS];
+const repeat = (char: string, length: number) => char.repeat(length);
 
-function isServerFile(path: string): boolean {
-  return (
-    path.endsWith(".server.ts") ||
-    path.endsWith(".ws.ts") ||
-    path.endsWith(".remote.ts") ||
-    path.includes("/hooks/") ||
-    path.includes("/api/") ||
-    path.includes("/databases/") ||
-    path.includes("/services/")
-  );
-}
-
-function detectForbiddenKey(lines: string[], filePath: string): string[] {
-  const results: string[] = [];
-  if (isServerFile(filePath)) return results;
-  for (const key of ALL_KEYS) {
-    const regex = new RegExp(`getPrivateSetting(Sync)?\\s*\\(\\s*["'\`]${key}["'\`]`, "gi");
-    for (let i = 0; i < lines.length; i++) {
-      if (regex.test(lines[i])) {
-        results.push(`L${i + 1}: ${key} in non-server file`);
-      }
+describe("ALL_FORBIDDEN_KEYS", () => {
+  it("exports the canonical secret env/key names", () => {
+    for (const key of [
+      "DB_PASSWORD",
+      "JWT_SECRET_KEY",
+      "ENCRYPTION_KEY",
+      "SMTP_PASS",
+      "SMTP_PASSWORD",
+      "REDIS_PASSWORD",
+      "SAML_CLIENT_SECRET_VERIFIER",
+      "GOOGLE_CLIENT_SECRET",
+      "CF_API_TOKEN",
+      "CLOUDFLARE_API_TOKEN",
+      "AWS_SECRET_ACCESS_KEY",
+      "S3_SECRET_ACCESS_KEY",
+      "R2_SECRET_ACCESS_KEY",
+    ]) {
+      expect(ALL_FORBIDDEN_KEYS).toContain(key);
     }
-  }
-  return results;
-}
-
-function detectExposure(lines: string[]): string[] {
-  const results: string[] = [];
-  const patterns: { pattern: RegExp; name: string }[] = [
-    { pattern: /console\.(log|warn|error)\([^)]*DB_PASSWORD/i, name: "DB_PASSWORD exposed" },
-    { pattern: /console\.(log|warn|error)\([^)]*JWT_SECRET/i, name: "JWT_SECRET_KEY exposed" },
-    { pattern: /console\.(log|warn|error)\([^)]*ENCRYPTION_KEY/i, name: "ENCRYPTION_KEY exposed" },
-    { pattern: /console\.(log|warn|error)\([^)]*sck_/i, name: "API key exposed" },
-  ];
-  for (const { pattern, name } of patterns) {
-    for (let i = 0; i < lines.length; i++) {
-      if (pattern.test(lines[i])) results.push(`L${i + 1}: ${name}`);
-    }
-  }
-  return results;
-}
-
-describe("Secret Misuse Scanner", () => {
-  describe("Bootstrap secrets", () => {
-    it("should include all 12 bootstrap keys", () => {
-      expect(BOOTSTRAP_SECRETS).toHaveLength(12);
-    });
-
-    it("should include DB credentials and JWT", () => {
-      expect(BOOTSTRAP_SECRETS).toContain("DB_PASSWORD");
-      expect(BOOTSTRAP_SECRETS).toContain("JWT_SECRET_KEY");
-      expect(BOOTSTRAP_SECRETS).toContain("ENCRYPTION_KEY");
-    });
   });
 
-  describe("Server file detection", () => {
-    it(".server.ts", () => expect(isServerFile("src/db/index.server.ts")).toBe(true));
-    it(".ws.ts", () => expect(isServerFile("src/hooks.ws.ts")).toBe(true));
-    it(".remote.ts", () => expect(isServerFile("src/routes/login/auth.remote.ts")).toBe(true));
-    it("/hooks/ path", () => expect(isServerFile("src/hooks/auth.ts")).toBe(true));
-    it("/api/ path", () => expect(isServerFile("src/routes/api/+server.ts")).toBe(true));
-    it("/services/ path", () => expect(isServerFile("src/services/core/svc.ts")).toBe(true));
-    it("NOT .svelte", () => expect(isServerFile("src/routes/+page.svelte")).toBe(false));
-    it("NOT component", () => expect(isServerFile("src/components/btn.svelte")).toBe(false));
+  it("has no duplicate entries", () => {
+    expect(new Set(ALL_FORBIDDEN_KEYS).size).toBe(ALL_FORBIDDEN_KEYS.length);
+  });
+});
+
+describe("isServerFile", () => {
+  it("accepts server-only module suffixes", () => {
+    expect(isServerFile("src/db/index.server.ts")).toBe(true);
+    expect(isServerFile("src/hooks.ws.ts")).toBe(true);
+    expect(isServerFile("src/routes/login/auth.remote.ts")).toBe(true);
   });
 
-  describe("Forbidden key detection", () => {
-    it("detects getPrivateSettingSync in non-server file", () => {
-      const code = ['const s = getPrivateSettingSync("DB_PASSWORD");'];
-      expect(detectForbiddenKey(code, "src/lib/bad.ts")).toHaveLength(1);
-    });
-
-    it("detects getPrivateSetting in non-server file", () => {
-      const code = ['const k = await getPrivateSetting("JWT_SECRET_KEY");'];
-      expect(detectForbiddenKey(code, "src/lib/danger.ts")).toHaveLength(1);
-    });
-
-    it("skips server files", () => {
-      const code = ['getPrivateSettingSync("DB_PASSWORD");'];
-      expect(detectForbiddenKey(code, "src/hooks/auth.ts")).toHaveLength(0);
-      expect(detectForbiddenKey(code, "src/routes/api/test.ts")).toHaveLength(0);
-      expect(detectForbiddenKey(code, "src/databases/db.server.ts")).toHaveLength(0);
-    });
-
-    it("does not flag public settings in any context", () => {
-      const code = ['getPublicSettingSync("SITE_NAME");'];
-      expect(detectForbiddenKey(code, "src/components/info.ts")).toHaveLength(0);
-      expect(detectForbiddenKey(code, "src/hooks/info.ts")).toHaveLength(0);
-    });
+  it("accepts server-only path segments", () => {
+    expect(isServerFile("src/hooks/auth.ts")).toBe(true);
+    expect(isServerFile("src/routes/api/+server.ts")).toBe(true);
+    expect(isServerFile("src/databases/db.ts")).toBe(true);
   });
 
-  describe("Exposure detection", () => {
-    it("detects console.log with DB_PASSWORD", () => {
-      expect(detectExposure(['console.log("DB_PASSWORD=", val)'])).toHaveLength(1);
-    });
+  it("rejects client components and pages", () => {
+    expect(isServerFile("src/routes/+page.svelte")).toBe(false);
+    expect(isServerFile("src/components/btn.svelte")).toBe(false);
+  });
+});
 
-    it("detects console.warn with JWT_SECRET_KEY", () => {
-      expect(detectExposure(["console.warn(JWT_SECRET_KEY)"])).toHaveLength(1);
-    });
-
-    it("detects console.log with sck_ API key", () => {
-      const result = detectExposure(['console.log("key:", sck_abc123)']);
-      expect(result.length).toBeGreaterThanOrEqual(1);
-    });
-
-    it("skips innocent logs", () => {
-      expect(detectExposure(['console.log("User logged in")'])).toHaveLength(0);
-    });
+describe("forbidden key access", () => {
+  it("flags getPrivateSettingSync in a non-server file", () => {
+    const found = scan('const s = getPrivateSettingSync("DB_PASSWORD");', "src/lib/bad.ts");
+    expect(found).toHaveLength(1);
+    expect(found[0].message).toContain("DB_PASSWORD");
   });
 
-  describe("API key safety", () => {
-    it("detects hardcoded sck_ key pattern", () => {
-      const hardcoded: RegExp = /['"`]sck_[A-Za-z0-9_-]{40,}['"`]/;
-      const key = '"sck_' + "a".repeat(40) + '"';
-      expect(hardcoded.test(key)).toBe(true);
-    });
+  it("flags the async getPrivateSetting in a non-server file", () => {
+    const found = scan('const k = await getPrivateSetting("JWT_SECRET_KEY");', "src/lib/bad.ts");
+    expect(found).toHaveLength(1);
+  });
 
-    it("rejects short sck_ strings as false positives", () => {
-      const hardcoded: RegExp = /['"`]sck_[A-Za-z0-9_-]{40,}['"`]/;
-      expect(hardcoded.test('"sck_short"')).toBe(false);
-    });
+  it("skips server files", () => {
+    expect(messages('getPrivateSettingSync("DB_PASSWORD");', "src/hooks/auth.ts")).toEqual([]);
+  });
+
+  it("does not flag public settings", () => {
+    expect(messages('getPublicSettingSync("SITE_NAME");', "src/components/info.ts")).toEqual([]);
+  });
+});
+
+describe("exposure patterns", () => {
+  it("flags console.log of DB_PASSWORD", () => {
+    expect(messages('console.log("DB_PASSWORD=", val);')).toHaveLength(1);
+  });
+
+  it("flags a hardcoded sck_ key", () => {
+    expect(messages(`const k = "sck_${repeat("a", 40)}";`).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("ignores innocent logs", () => {
+    expect(messages('console.log("User logged in");')).toEqual([]);
+  });
+});
+
+describe("comment handling", () => {
+  it("still reports a token inside an https:// URL", () => {
+    const source = `const u = "https://x.example.com/cb?access_token=ghp_${repeat("a", 36)}";`;
+    expect(messages(source).some((m) => m.includes("GitHub Token (classic)"))).toBe(true);
+  });
+
+  it("does not report a clean https:// URL", () => {
+    expect(scan('const u = "https://example.com/api/v1/health";')).toEqual([]);
+  });
+
+  it("skips a match inside a trailing line comment", () => {
+    expect(scan(`const port = 5432; // ghp_${repeat("a", 36)}`)).toEqual([]);
+  });
+
+  it("skips a match inside a block comment", () => {
+    expect(scan(`/* legacy: ghp_${repeat("a", 36)} */`)).toEqual([]);
+  });
+});
+
+describe("multi-line secrets", () => {
+  it("reports a PEM header split across a concatenation", () => {
+    const source = [
+      'const pem = "-----BEGIN RSA " +',
+      '  "PRIVATE KEY-----\\nMIIEowIBAAKCAQEA";',
+    ].join("\n");
+    const found = scan(source);
+    expect(found).toHaveLength(1);
+    expect(found[0].line).toBe(1);
+    expect(found[0].message).toContain("Private Key Block");
+  });
+
+  it("still reports a single-line PEM header", () => {
+    expect(messages('const pem = "-----BEGIN PRIVATE KEY-----";')).toHaveLength(1);
+  });
+
+  it("reports a Stripe key split across a concatenation", () => {
+    const source = 'const k = "sk_live_" + "0123456789abcdefghijklmn";';
+    const found = scan(source);
+    expect(found).toHaveLength(1);
+    expect(found[0].message).toContain("Stripe Live Secret");
+  });
+});
+
+describe("hardcoded credential comparisons", () => {
+  it("flags the postfix comparison", () => {
+    expect(messages('if (password === "hunter2") {')).toHaveLength(1);
+  });
+
+  it("flags the Yoda comparison", () => {
+    expect(messages('if ("hunter2" === password) {')).toHaveLength(1);
+  });
+
+  it("flags .includes with a literal", () => {
+    expect(messages('if (token.includes("hardcoded-secret")) {')).toHaveLength(1);
+  });
+
+  it("accepts a hash-algorithm prefix check", () => {
+    expect(scan('if (!password.startsWith("$argon2")) {')).toEqual([]);
+  });
+
+  it("accepts a typeof guard", () => {
+    expect(scan('if (typeof password === "string") {')).toEqual([]);
+  });
+});
+
+describe("credential shapes", () => {
+  it("flags a DB connection string with embedded credentials", () => {
+    expect(messages('const db = "postgres://admin:s3cretPass@db.internal:5432/cms";')).toContain(
+      "Hardcoded DB Connection String detected",
+    );
+  });
+
+  it("ignores a DB URL built from template interpolation", () => {
+    expect(scan("const url = `mongodb://${user}:${encoded}@${host}:${port}`;")).toEqual([]);
+  });
+
+  it("flags a SendGrid key", () => {
+    const key = `SG.${repeat("a", 22)}.${repeat("b", 43)}`;
+    expect(messages(`const key = "${key}";`)).toContain("Hardcoded SendGrid API Key detected");
+  });
+
+  it("flags a Resend key", () => {
+    expect(messages(`const key = "re_${repeat("a", 24)}";`)).toContain(
+      "Hardcoded Resend API Key detected",
+    );
+  });
+
+  it("flags an npm token", () => {
+    expect(messages(`const key = "npm_${repeat("a", 36)}";`)).toContain(
+      "Hardcoded npm Token detected",
+    );
   });
 });

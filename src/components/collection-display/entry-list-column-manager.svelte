@@ -24,7 +24,7 @@ Features:
 	import { SMART_TABLE_COLUMN_MANAGER } from '@components/ui/smart-table/chrome';
 	import { CONTENT_PADDING } from './content-classes';
 	import type { TableHeader } from '@src/content/types';
-	import { entrylist_all, entrylist_dnd } from '@src/paraglide/messages';
+	import { entrylist_all, entrylist_dnd, entrylist_reset_view } from '@src/paraglide/messages';
 	import { draggable, droppable, type DragDropState } from '@thisux/sveltednd';
 	import { flip } from 'svelte/animate';
 
@@ -105,7 +105,7 @@ Features:
 				<Button
 					variant="outline"
 					onclick={onResetView}
-					aria-label="reset-view"
+					aria-label={entrylist_reset_view()}
 					class="bg-surface-400 text-white"
 				>
 					<iconify-icon icon="material-symbols-light:device-reset" width={24}></iconify-icon>

@@ -3,6 +3,8 @@
  * @description Draft-mode handshake for live preview (sets cookies, redirects to target page).
  */
 
+// public-endpoint: authenticates with previewService.validateToken (signed, expiring token) — no session required
+
 import { previewService } from "@src/services/content/preview-service";
 import { redirect } from "@sveltejs/kit";
 import { raise } from "@utils/error-handling";

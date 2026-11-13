@@ -47,12 +47,38 @@ export function markMutationExecuted(query: string, variables?: Record<string, u
   return true;
 }
 
-export function createDepthLimitRule(maxDepth: number = 8) {
+/**
+ * Options for the depth limit rule.
+ */
+export interface DepthLimitOptions {
+  /**
+   * Do not count the introspection subtree (`__schema` / `__type`) toward the
+   * limit. GraphiQL's own introspection query nests ≥9 levels (`__schema →
+   * types → fields → type → ofType → …`), so a flat Field counter rejects it.
+   * Production keeps introspection blocked by `NoSchemaIntrospectionCustomRule`
+   * before this rule can matter.
+   */
+  exemptIntrospection?: boolean;
+}
+
+const isIntrospectionRoot = (name: string): boolean => name === "__schema" || name === "__type";
+
+export function createDepthLimitRule(maxDepth: number = 8, options: DepthLimitOptions = {}) {
   return (context: ValidationContext): ASTVisitor => {
     let currentDepth = 0;
+    // >0 while inside an introspection subtree; those fields are neither counted
+    // nor depth-checked, and every leave inside the subtree decrements it.
+    let introspectionDepth = 0;
     return {
       Field: {
         enter(node) {
+          if (
+            options.exemptIntrospection &&
+            (introspectionDepth > 0 || isIntrospectionRoot(node.name.value))
+          ) {
+            introspectionDepth++;
+            return;
+          }
           currentDepth++;
           if (currentDepth > maxDepth) {
             context.reportError(
@@ -66,6 +92,10 @@ export function createDepthLimitRule(maxDepth: number = 8) {
           }
         },
         leave() {
+          if (introspectionDepth > 0) {
+            introspectionDepth--;
+            return;
+          }
           currentDepth--;
         },
       },

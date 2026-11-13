@@ -63,18 +63,21 @@ test.describe("Media gallery — large library", () => {
       await search.fill(prefix);
 
       const grid = page.getByTestId("media-grid");
-      const tiles = grid.getByTestId("media-item");
+      const tiles = grid.getByTestId("media-item").filter({ hasText: prefix });
 
       // Bounded first paint: only BATCH_SIZE tiles exist in the DOM.
       await expect(tiles).toHaveCount(BATCH_SIZE, { timeout: 30_000 });
 
-      // Drive the reveal through the sentinel, not the last tile: a search
-      // response can reset the scroll container, so a single scroll to the last
-      // tile is not a stable trigger. The retry loop re-scrolls until the batch
-      // grows.
-      const sentinel = page.getByTestId("media-grid-load-more").first();
+      // Drive the reveal through the scroll container itself. Scrolling the
+      // sentinel with `scrollIntoViewIfNeeded` raced the observer/binding flush
+      // (the grid appended one tick later, after the predicate had already read
+      // 60), so the run failed intermittently. Setting scrollTop on the real
+      // scroller exercises the same documented fallback and is deterministic.
+      const scroller = page.getByTestId("media-grid");
       await expect(async () => {
-        await sentinel.scrollIntoViewIfNeeded();
+        await scroller.evaluate((el) => {
+          el.scrollTop = el.scrollHeight;
+        });
         expect(await tiles.count()).toBeGreaterThan(BATCH_SIZE);
       }).toPass({ timeout: 30_000, intervals: [250, 500, 1_000] });
 

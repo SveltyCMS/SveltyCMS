@@ -96,6 +96,37 @@ export interface AdminUser {
   password: string;
 }
 
+/**
+ * Databases this setup session created and seeded (SV-003). Re-testing one of them
+ * must not be reported as a foreign, non-empty database that offers "PERMANENTLY
+ * DELETE" — the wizard's own system tables are what makes it non-empty.
+ *
+ * Fingerprints are config identity only (engine/host/port/name/user) — never a
+ * password — and live in process memory, so a restart simply falls back to the
+ * normal "database not empty" classification.
+ */
+const wizardOwnedDatabases = new Set<string>();
+
+/** Structural subset shared by the wizard payload and the parsed `databaseConfigSchema`. */
+interface DatabaseIdentity {
+  type: string;
+  host: string;
+  port?: number | string | null;
+  name: string;
+  user?: string;
+}
+
+function databaseFingerprint(dbConfig: DatabaseIdentity): string {
+  return [dbConfig.type, dbConfig.host, dbConfig.port, dbConfig.name, dbConfig.user ?? ""]
+    .map((part) => String(part ?? "").trim())
+    .join("|");
+}
+
+/** True when this setup session already created/seeded the exact target. */
+function isWizardOwnedDatabase(dbConfig: DatabaseIdentity): boolean {
+  return wizardOwnedDatabases.has(databaseFingerprint(dbConfig));
+}
+
 async function verifyDiskSpace() {
   try {
     const fs = await import("node:fs/promises");
@@ -119,9 +150,11 @@ async function verifyDiskSpace() {
  * Error matcher for a target database/schema that simply does not exist yet.
  *
  * Kept deliberately narrower than `classifyDatabaseError`'s DB_NOT_FOUND bucket:
- * PostgreSQL/MySQL authenticate before resolving the database name, so this
- * message means "credentials are fine, the target is missing" — not an auth
- * failure. SQLite has no auth at all (the file check happens before connect).
+ * SQLite has no auth at all (the file check happens before connect), and the SQL
+ * engines authenticate before resolving the database name. A match is therefore a
+ * *candidate* for "target missing, credentials fine" — not proof. Callers must
+ * confirm the credentials against a maintenance database before treating it as one
+ * (see `proveCredentialsOnMaintenanceDatabase`).
  */
 function isMissingDatabaseError(err: unknown, type: string): boolean {
   const errObj = typeof err === "object" && err !== null ? (err as Record<string, unknown>) : null;
@@ -139,8 +172,99 @@ function isMissingDatabaseError(err: unknown, type: string): boolean {
 }
 
 /**
- * Probe a database connection **without mutating it**.
+ * Maintenance databases that exist in every fresh SQL server install.
  *
+ * "Database ... does not exist" only proves the target *name* was unresolved. Both
+ * engines authenticate before resolving it, but the probe has not verified that the
+ * supplied role/password are the ones that were accepted — QA reproduced a false
+ * "willCreate" success with a non-existent PostgreSQL role and a dummy password.
+ * Connecting to a database that always exists, with the SAME credentials, is proof.
+ */
+const MAINTENANCE_DATABASES = {
+  postgresql: ["template1", "postgres"],
+  mariadb: ["mysql"],
+} as const;
+
+type MaintenanceProbeEngine = keyof typeof MAINTENANCE_DATABASES;
+
+function isMaintenanceProbeEngine(type: string): type is MaintenanceProbeEngine {
+  return type === "postgresql" || type === "mariadb";
+}
+
+/** Strips the configured password out of any string bound for a log or a client payload. */
+function redactSecret(value: string, secret?: string): string {
+  if (!secret) return value;
+  return value.split(secret).join("[redacted]");
+}
+
+/**
+ * Redacts the password from a probe error, keeping it usable for classification.
+ *
+ * The error is returned unchanged when it cannot leak the secret, so the original
+ * `code` (3D000, 28P01, ER_ACCESS_DENIED_ERROR, …) still reaches the classifier.
+ */
+function sanitizeProbeError(err: unknown, password?: string): unknown {
+  const message = err instanceof Error ? err.message : String(err);
+  const redacted = redactSecret(message, password);
+  if (redacted === message) return err;
+
+  const sanitized = new Error(redacted);
+  sanitized.name = err instanceof Error ? err.name : "DatabaseProbeError";
+  if (typeof err === "object" && err !== null && "code" in err) {
+    (sanitized as Error & { code?: unknown }).code = (err as { code?: unknown }).code;
+  }
+  return sanitized;
+}
+
+/**
+ * Proves the supplied credentials by connecting to a maintenance database.
+ *
+ * Reuses the setup adapter factory with a target override (`name`), so the probe
+ * applies exactly the connection options a real connection uses (host, port, user,
+ * password, TLS/transport rules) and runs the adapter's own `SELECT 1` handshake —
+ * one short-lived connection, disconnected on every path, never provisioning.
+ */
+async function proveCredentialsOnMaintenanceDatabase(
+  dbConfig: DatabaseConfig,
+): Promise<{ ok: true } | { ok: false; error: unknown }> {
+  const targets = MAINTENANCE_DATABASES[dbConfig.type as MaintenanceProbeEngine];
+  const utils = await import("./setup-utils");
+  let firstError: unknown;
+
+  for (const name of targets) {
+    let dbAdapter: IDBAdapter | undefined;
+    try {
+      logger.debug(
+        `[Setup] Database "${dbConfig.name}" is missing; proving credentials against "${name}"`,
+      );
+      const connection = await utils.getSetupDatabaseAdapter(
+        { ...dbConfig, name },
+        {
+          createIfMissing: false, // a proof must never create anything
+          skipModuleInit: true,
+          readOnlyProbe: true, // skip connect-time schema bootstrap
+        },
+      );
+      dbAdapter = connection.dbAdapter;
+      const health = await dbAdapter.getConnectionHealth();
+      if (!health.success) throw new Error(health.message);
+      return { ok: true };
+    } catch (err) {
+      firstError ??= sanitizeProbeError(err, dbConfig.password);
+    } finally {
+      if (dbAdapter) {
+        await dbAdapter.disconnect().catch((disconnectErr: unknown) => {
+          logger.debug("[Setup] Maintenance probe disconnect failed", disconnectErr);
+        });
+      }
+    }
+  }
+
+  return { ok: false, error: firstError };
+}
+
+/**
+ * Probe a database connection **without mutating it**.
  * Validates connectivity/authentication and inspects whether the target is empty.
  * It never creates the database file/schema, never seeds system data and never
  * writes `config/private.ts` — those writes run on the wizard's explicit
@@ -175,9 +299,18 @@ export async function testDatabaseConnection(
 
   const start = performance.now();
   const missingMessage = `Database "${dbConfig.name}" does not exist yet. It will be created when you continue setup.`;
+  // The wizard's own database (created + seeded on the Next step) is expected to be
+  // non-empty on a re-test. Only a *foreign* non-empty target should trip the guard.
+  let wizardOwned = ownsDatabase || isWizardOwnedDatabase(dbConfig);
   try {
     const utils = await import("./setup-utils");
-    if (allowOverwrite) await dropDatabase(dbConfig);
+    if (allowOverwrite) {
+      await dropDatabase(dbConfig);
+      // The confirmed overwrite destroyed the previous contents — this session no
+      // longer owns a database whose system data is gone.
+      wizardOwnedDatabases.delete(databaseFingerprint(dbConfig));
+      wizardOwned = false;
+    }
 
     // SQLite: connecting creates the file, so check the target on disk first.
     // A missing file is a valid configuration — just not materialized yet.
@@ -206,7 +339,7 @@ export async function testDatabaseConnection(
     }
 
     const isEmptyRes = await dbAdapter.isEmpty();
-    if (isEmptyRes.success && !isEmptyRes.data && !allowOverwrite && !ownsDatabase) {
+    if (isEmptyRes.success && !isEmptyRes.data && !allowOverwrite && !wizardOwned) {
       // In test mode, the test harness resets the DB before each file — skip the
       // emptiness warning to avoid false positives from test collection seeding.
       const isTest = process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true";
@@ -227,20 +360,40 @@ export async function testDatabaseConnection(
       success: true,
       message: willCreate
         ? "Database connected. System tables and data will be initialized when you continue setup."
-        : "Database connected successfully!",
+        : wizardOwned
+          ? "Database connected — created by this setup session. Its tables hold your setup data."
+          : "Database connected successfully!",
       willCreate,
+      wizardOwned,
       latencyMs: Math.round(performance.now() - start),
     };
   } catch (err) {
-    // A missing target is not an error: credentials were accepted and setup will
-    // create it at the explicit provisioning step.
+    // A missing target is not an error *if* the credentials are valid: setup will
+    // create it at the explicit provisioning step. "Database does not exist" alone
+    // is not that proof — with a non-existent role and a dummy password it still
+    // produced a false success — so the credentials are proven against a
+    // maintenance database before `willCreate` is promised. A failed proof reports
+    // the real error through the normal classification path.
     if (isMissingDatabaseError(err, dbConfig.type)) {
-      return {
-        success: true,
-        message: missingMessage,
-        willCreate: true,
-        latencyMs: Math.round(performance.now() - start),
-      };
+      const proof = isMaintenanceProbeEngine(dbConfig.type)
+        ? await proveCredentialsOnMaintenanceDatabase(dbConfig)
+        : ({ ok: true } as const);
+
+      if (proof.ok) {
+        return {
+          success: true,
+          message: missingMessage,
+          willCreate: true,
+          latencyMs: Math.round(performance.now() - start),
+        };
+      }
+
+      const { classifyDatabaseError, SetupDatabaseError } = await import("./error-classifier");
+      const proofError = proof.error ?? err;
+      return new SetupDatabaseError(
+        classifyDatabaseError(proofError, dbConfig.type, dbConfig),
+        proofError,
+      ).toClientPayload();
     }
     const { classifyDatabaseError, SetupDatabaseError } = await import("./error-classifier");
     return new SetupDatabaseError(
@@ -304,6 +457,9 @@ export async function seedDatabase(configData: DbConfig, systemData: SystemSetti
         await dbAdapter.disconnect();
       });
     });
+    // This session created/seeded the target: a later re-test must not offer to
+    // permanently delete the wizard's own database (SV-003).
+    wizardOwnedDatabases.add(databaseFingerprint(dbConfig));
     return {
       success: true,
       message: "Database configuration saved. Seeding started!",
@@ -463,6 +619,23 @@ export async function completeSetup(
         legalSlug: market.legalSlug,
         legalBody: legalPageBody(system.siteName || "SveltyCMS", market.homeCountry),
       });
+
+      // The blueprint promises "taken to your new site", but a seeded `home` page
+      // only renders at `/` while the public site starter is on. `SITE_STARTER_ENABLED`
+      // defaults to false so headless presets stay headless (SV-046); write it through
+      // the normal settings writer so guests get the homepage instead of `/login`.
+      // `isSiteStarterEnabled()` reads the global scope (no tenant argument), so the
+      // flag is written there — a tenant-scoped row would never be consulted.
+      try {
+        const { setPublicSetting, invalidateSettingsCache } = await loadSettingsServiceModule();
+        await setPublicSetting("SITE_STARTER_ENABLED", true);
+        invalidateSettingsCache();
+      } catch (err) {
+        logger.warn(
+          "[Setup] Failed to enable the public site starter for the website preset:",
+          err,
+        );
+      }
     }
 
     if (system.preset === "ecommerce") {

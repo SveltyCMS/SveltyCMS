@@ -42,7 +42,7 @@ export const updateProfile = command(
   },
 );
 
-export const verifyPassword = query(
+export const verifyPassword = command(
   "unchecked",
   async (password: string): Promise<{ valid: boolean }> => {
     const event = getRequestEvent();
@@ -63,7 +63,7 @@ export const verifyPassword = query(
   },
 );
 
-export const deleteUser = query(
+export const deleteUser = command(
   "unchecked",
   async (userIds: string[]): Promise<{ success: boolean; message?: string; error?: string }> => {
     try {
@@ -149,7 +149,7 @@ export const revokeSession = query(
   },
 );
 
-export const reauthForSessionManagement = query(
+export const reauthForSessionManagement = command(
   "unchecked",
   async (password: string): Promise<{ token?: string; error?: string }> => {
     try {

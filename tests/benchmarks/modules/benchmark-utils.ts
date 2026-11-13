@@ -1777,7 +1777,19 @@ export async function setupBenchmarkServer() {
   }
   process.env.RATE_LIMIT_MAX_REQUESTS = process.env.RATE_LIMIT_MAX_REQUESTS || "200000";
 
-  const { printBenchmarkIsolationBanner } = await import("@utils/benchmark-sandbox");
+  const {
+    printBenchmarkIsolationBanner,
+    assertBenchmarkIsolation,
+    getLocalSandboxMediaRoot,
+    getLocalSandboxConfigSyncRoot,
+  } = await import("@utils/benchmark-sandbox");
+
+  // Fail closed before the server (or its workers) can resolve a live path.
+  // Media and Config-Sync default to the sandbox roots unless the caller chose
+  // an isolated root explicitly; the DB name is asserted below.
+  process.env.MEDIA_FOLDER ??= getLocalSandboxMediaRoot();
+  process.env.SVELTY_CONFIG_SYNC_DIR ??= getLocalSandboxConfigSyncRoot();
+  assertBenchmarkIsolation(process.env);
   printBenchmarkIsolationBanner(dbType);
 
   if (dbType === "postgresql") {

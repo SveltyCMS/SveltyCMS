@@ -22,5 +22,6 @@
 
 <div class="prose dark:prose-invert max-w-none">
 	<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+	<!-- slop:suppress security — parseMarkdown escapes every text run before emitting markup (parse-markdown.ts escapeHtml) -->
 	{@html parseMarkdown(rawText)}
 </div>

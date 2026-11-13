@@ -101,6 +101,15 @@ function startPreview(): ChildProcess {
 async function main(): Promise<void> {
   console.log("\n🚪 Deploy /api/testing Backdoor Probe (A01)\n");
 
+  // The deploy artifact must not ship source maps: they leak the server source and
+  // `verify-prod-build-backdoor --mode=deploy` rejects them. CI already builds
+  // without maps (`sourcemap: !process.env.CI`); mirror that for a local probe.
+  process.env.BUILD_SOURCEMAP ??= "false";
+
+  // The harness config must exist before the build/verification step reads it,
+  // otherwise deploy mode reports a missing config as a hard failure.
+  ensureProbeConfig();
+
   if (!SKIP_BUILD) {
     console.log("  Building deploy-safe artifact (no COMPILE_ALL_ADAPTERS)...");
     if (run("bun", ["run", "build"]) !== 0) {
@@ -117,8 +126,6 @@ async function main(): Promise<void> {
   ) {
     process.exit(1);
   }
-
-  ensureProbeConfig();
 
   console.log(`  Starting deploy preview on ${BASE}...`);
   const server = startPreview();

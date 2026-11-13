@@ -16,9 +16,15 @@ It handles token creation, updates, and deletion with proper validation and erro
 - `token` {string} - Existing token (default: '')
 - `user_id` {string} - User ID (default: '')
 - `email` {string} - Associated email (default: '')
-- `role` {string} - Token role (default: 'admin')
+- `role` {string} - Token role (default: the least-privileged available role)
 - `expires` {string} - Expiration date (default: '2 days')
 
+### Features:
+- Seeded form state with legacy expiration format conversion
+- Token creation with copyable invitation link and raw token fallback
+- Token update and deletion with CSRF protection
+- Least-privilege default role for new invitations (never Administrator unless
+  Administrator is the only role)
 -->
 
 <script lang="ts">
@@ -36,6 +42,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 		modal_token_deleted_successfully,
 		modaltokenuser_tokenvalidity,
 		role as m_role,
+		useradmin_send_invite,
 		usertoken_close,
 		usertoken_copied_description,
 		usertoken_copied_title,
@@ -85,6 +92,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import { dateToISODateString } from '@utils/date';
 	import { convertExpiresToHours, convertLegacyExpiresFormat } from '../user-remote-utils';
+	import { resolveDefaultInviteRole } from '@utils/user-role-defaults';
 
 	// Props
 	interface Props {
@@ -101,18 +109,23 @@ It handles token creation, updates, and deletion with proper validation and erro
 		token = '',
 		user_id = '',
 		email = '',
-		role = 'admin',
+		role = '',
 		expires = '',
 		roles = page.data.roles,
 		close
 	}: Props = $props();
+
+	/** Least-privilege default for a NEW invitation token (see @utils/user-role-defaults). */
+	function effectiveRole(): string {
+		return role || resolveDefaultInviteRole(roles ?? []);
+	}
 
 	function resolveInitialValues() {
 		return {
 			user_id: user_id ?? '',
 			email: email ?? '',
 			token: token ?? '',
-			role: role || 'admin',
+			role: effectiveRole(),
 			expiresIn: !expires || expires === '' ? '2 days' : convertLegacyExpiresFormat(expires)
 		};
 	}
@@ -435,7 +448,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 			</div>
 
 			<footer
-				class="modal-footer flex flex-wrap items-center justify-between gap-4 border-t border-surface-500/20 pt-6 mt-2"
+				class="modal-footer sticky z-10 -bottom-4 -mx-4 mt-2 flex flex-wrap items-center justify-between gap-4 border-t border-(--admin-border-default) bg-(--admin-bg-card) p-4 sm:-bottom-6 sm:-mx-6"
 			>
 				<div class="flex items-center gap-4">
 					<!-- Cancel -->
@@ -452,9 +465,13 @@ It handles token creation, updates, and deletion with proper validation and erro
 					{/if}
 				</div>
 
-				<!-- Save -->
+				<!-- Create = send an invitation; edit = save the token data (SV-085) -->
 				<Button variant="tertiary" type="submit" form="token-form" class="px-10">
-					{tokenForm.submitting ? '...' : button_save()}
+					{tokenForm.submitting
+						? '...'
+						: tokenForm.data.token
+							? button_save()
+							: useradmin_send_invite()}
 				</Button>
 			</footer>
 		</form>

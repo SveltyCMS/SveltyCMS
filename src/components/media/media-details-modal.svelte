@@ -51,7 +51,8 @@
 		mediagallery_alt_suggestion,
 		mediagallery_alt_undo,
 		mediagallery_alt_undo_aria,
-		mediagallery_alt_use_suggestion
+		mediagallery_alt_use_suggestion,
+		media_root_title
 	} from '@src/paraglide/messages';
 
 	// Props
@@ -179,6 +180,33 @@
 
 	const canGenerateAltText = $derived(file?.type === 'image' && canWriteMedia);
 
+	/**
+	 * Adopt the record the PATCH returned, or keep the open one.
+	 *
+	 * `PATCH /api/media/:id` answers with `{ success, data: <record> }`. The old
+	 * `file = body?.data ?? body ?? file` adopted the *envelope* whenever `data` was
+	 * missing (`{ success: true }`), which replaced the open asset with an object
+	 * that has no `_id`/`filename` — the modal blanked on the first alt-text save.
+	 * A payload that carries no `_id` can never replace the record, and the stored
+	 * row is merged over the tile-shaped object so the gallery-only view fields
+	 * (`type`, `thumbnail`, `name`) the row does not store survive the save.
+	 */
+	function adoptSavedFile(body: unknown, metadataPatch: Record<string, unknown>): any {
+		const payload = (body as { data?: unknown } | null | undefined)?.data;
+		const record =
+			payload && typeof payload === 'object' && '_id' in (payload as Record<string, unknown>)
+				? (payload as Record<string, unknown>)
+				: null;
+		if (!file) return record ?? file;
+		if (!record) return { ...file, metadata: { ...file.metadata, ...metadataPatch } };
+
+		const merged: Record<string, unknown> = { ...file };
+		for (const [key, value] of Object.entries(record)) {
+			if (value !== undefined) merged[key] = value;
+		}
+		return merged;
+	}
+
 	// Tab State
 	let activeTab = $state<'info' | 'versions' | 'references' | 'share'>('info');
 
@@ -222,15 +250,15 @@
 			});
 			const body = await response.json();
 			if (response.ok) {
-				file = body?.data ?? body ?? file;
+				file = adoptSavedFile(body, { alt: editAlt });
 				onUpdate(file);
 				altSaveStatus = 'saved';
 			} else {
 				toast.error(body?.error || 'Failed to save alt text');
 				altSaveStatus = 'idle';
 			}
-		} catch (err: any) {
-			toast.error(err?.message || 'Failed to save alt text');
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : 'Failed to save alt text');
 			altSaveStatus = 'idle';
 		}
 	}, 300);
@@ -246,15 +274,15 @@
 			});
 			const body = await response.json();
 			if (response.ok) {
-				file = body?.data ?? body ?? file;
+				file = adoptSavedFile(body, { name: editName });
 				onUpdate(file);
 				nameSaveStatus = 'saved';
 			} else {
 				toast.error(body?.error || 'Failed to save name');
 				nameSaveStatus = 'idle';
 			}
-		} catch (err: any) {
-			toast.error(err?.message || 'Failed to save name');
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : 'Failed to save name');
 			nameSaveStatus = 'idle';
 		}
 	}, 300);
@@ -270,15 +298,15 @@
 			});
 			const body = await response.json();
 			if (response.ok) {
-				file = body?.data ?? body ?? file;
+				file = adoptSavedFile(body, { caption: editCaption });
 				onUpdate(file);
 				captionSaveStatus = 'saved';
 			} else {
 				toast.error(body?.error || 'Failed to save caption');
 				captionSaveStatus = 'idle';
 			}
-		} catch (err: any) {
-			toast.error(err?.message || 'Failed to save caption');
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : 'Failed to save caption');
 			captionSaveStatus = 'idle';
 		}
 	}, 300);
@@ -1297,7 +1325,7 @@
 							<div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
 								<dt class="text-(--admin-text-muted)">Folder</dt>
 								<dd class="min-w-0 text-end break-all text-surface-600 dark:text-surface-100">
-									{file.folder || 'global'}
+									{file.folder || media_root_title()}
 								</dd>
 							</div>
 							<div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">

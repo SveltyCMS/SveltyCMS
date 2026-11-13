@@ -73,6 +73,28 @@ const FORBIDDEN_COLLECTIONS = new Set([
 /** Job type identifier for sync background tasks. */
 const SYNC_JOB_TYPE = "content-sync";
 
+/**
+ * Sentinel a dispatcher persists when it cannot name an operator. It is
+ * deliberately NOT resolvable as a user — see `executeSyncJob`.
+ */
+const SYSTEM_ACTOR_SENTINEL = "system";
+
+/**
+ * Returns the operator id a sync job may act as, or `undefined` when the job
+ * carries no real identity.
+ *
+ * Only a non-empty id that is not the system sentinel counts: `pushContent`/
+ * `pullContent` fall back to `"system"` when the caller supplied no user, and a
+ * job requeued without a payload user has none either. Substituting an
+ * administrator for those would silently bypass the publication gate that
+ * `applyImport` enforces, so they stay anonymous instead.
+ */
+function resolveSyncOperatorId(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const id = value.trim();
+  return id.length > 0 && id !== SYSTEM_ACTOR_SENTINEL ? id : undefined;
+}
+
 // ---------------------------------------------------------------------------
 // Interfaces
 // ---------------------------------------------------------------------------
@@ -645,12 +667,36 @@ export class ContentSyncService {
   // BACKGROUND JOB HANDLER
   // =========================================================================
 
-  /** Background job handler registered with JobQueueService. */
+  /**
+   * Background job handler registered with JobQueueService.
+   *
+   * ### Sync actor
+   *
+   * A channel sync has exactly one honest identity: the operator recorded in the
+   * job payload (`userId`), written by `pushContent`/`pullContent` from the
+   * authenticated admin who started the sync. Channels themselves have no owner
+   * field — they are tenant-to-tenant configuration, not user-owned — and a
+   * scheduled run has no request user, so there is nothing else to resolve.
+   * That id is passed to both `planImport` and `applyImport`.
+   *
+   * When the payload only carries the `"system"` sentinel (or nothing), no actor
+   * is passed. We deliberately do NOT substitute an admin: `applyImport` runs the
+   * same `assertPublishAllowed` gate as a normal write and fails closed without a
+   * resolvable actor, and inventing one here would turn that gate into a silent
+   * bypass. A gate rejection is instead surfaced as an explicit job failure that
+   * names the channel and tells the operator to start the sync from an
+   * authenticated admin session. Collections without a publication-gated
+   * workflow are unaffected: the gate never runs for them, so the sync proceeds
+   * exactly as before.
+   */
   private async executeSyncJob(payload: Record<string, unknown>): Promise<void> {
     const channelId = payload.channelId as string;
     const direction = payload.direction as "push" | "pull";
     const anonymized = payload.anonymized as boolean;
     const collections = payload.collections as string[];
+    const operatorId = resolveSyncOperatorId(payload.userId);
+    const duplicateStrategy =
+      (payload.duplicateStrategy as ContentSyncChannel["conflictStrategy"] | undefined) ?? "skip";
 
     logger.info(
       `[ContentSync] Executing background sync — channel ${channelId}, ` +
@@ -676,17 +722,38 @@ export class ContentSyncService {
         finalPackage = await anonymizeContentPackage(pkg);
       }
 
-      // Step 3: Import into target
+      // Step 3: Import into target. The plan and the apply must present the same
+      // actor — applyImport rejects a plan that belongs to another user.
       const plan = await contentPackageService.planImport(finalPackage, {
-        duplicateStrategy: (payload.duplicateStrategy as any) ?? "skip",
+        duplicateStrategy,
         tenantId: targetTenant,
+        ...(operatorId ? { userId: operatorId } : {}),
       });
 
-      await contentPackageService.applyImport(plan.planId, {
-        duplicateStrategy: (payload.duplicateStrategy as any) ?? "skip",
+      const importResult = await contentPackageService.applyImport(plan.planId, {
+        duplicateStrategy,
         tenantId: targetTenant,
         background: false,
+        ...(operatorId ? { userId: operatorId } : {}),
       });
+
+      // applyImport prefixes every publication-gate rejection with "Import
+      // blocked:" and returns (not throws) it, so without this the job would be
+      // reported as completed after writing nothing. Partial-import results
+      // ("Import complete: …") keep their historical handling.
+      if (!importResult.success && importResult.message.startsWith("Import blocked:")) {
+        const actorHint = operatorId
+          ? ""
+          : ` The sync job carries no operator identity: "${SYSTEM_ACTOR_SENTINEL}" is the job-queue sentinel, not a user, so a workflow-gated publication cannot be authorized. Start the sync from an authenticated admin session (POST /api/content-sync/push or /pull) so the job records the operator id.`;
+        throw new Error(
+          `[ContentSync] Channel "${channel.label}" (${channelId}) was blocked while importing into tenant "${targetTenant}": ${importResult.message}.${actorHint}`,
+        );
+      }
+      if (!importResult.success) {
+        logger.warn(
+          `[ContentSync] Channel "${channel.label}" (${channelId}) import finished with errors: ${importResult.message}`,
+        );
+      }
 
       await this.touchChannelLastSync(channelId);
 

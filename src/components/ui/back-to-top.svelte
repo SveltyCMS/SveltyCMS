@@ -10,6 +10,9 @@ Appears after scrolling 200px. Fully accessible.
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { fade, scale } from 'svelte/transition';
+	import { page } from '$app/state';
+	import { ui } from '@src/stores/ui-store.svelte';
+	import { screen } from '@src/stores/screen-size-store.svelte';
 
 	interface Props {
 		targetId?: string; // Optional: specific scroll container ID
@@ -18,6 +21,22 @@ Appears after scrolling 200px. Fully accessible.
 
 	let isVisible = $state(false);
 	let scrollContainer = $state<HTMLElement | null>(null);
+
+	/**
+	 * The desktop inspector (`w-64`) occupies the inline-end edge, so the fixed
+	 * button sat on top of its Created/Updated footer. Shift it into the content
+	 * column while that sidebar is open instead of stacking over the metadata.
+	 * An edit/create route opens the inspector on desktop even before the store
+	 * says so (see the `(app)` layout), hence the route check.
+	 */
+	const editingRoute = $derived(
+		page.url.searchParams.has('edit') || page.url.searchParams.get('create') === 'true'
+	);
+	const inlineEnd = $derived(
+		screen.isDesktop && (ui.isRightSidebarVisible || editingRoute)
+			? 'calc(16rem + 0.75rem)'
+			: '0.5rem'
+	);
 
 	onMount(() => {
 		const handleScroll = (e: Event) => {
@@ -54,13 +73,14 @@ Appears after scrolling 200px. Fully accessible.
 {#if isVisible}
 	<button
 		type="button"
-		class="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+4.5rem)] inset-e-2 z-50 flex h-12 w-12 items-center justify-center rounded-full
+		class="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+4.5rem)] z-50 flex h-12 w-12 items-center justify-center rounded-full
 		       bg-white/90 dark:bg-zinc-900/90
 		       shadow-lg shadow-black/10 dark:shadow-black/50
 		       ring-1 ring-zinc-950/5 dark:ring-white/10
 		       backdrop-blur-xl
 		       transition-all duration-300 hover:scale-105 hover:shadow-xl active:scale-95
 		       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+		style:inset-inline-end={inlineEnd}
 		onclick={scrollToTop}
 		aria-label="Scroll back to top"
 		title="Back to top"

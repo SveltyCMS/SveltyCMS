@@ -24,7 +24,6 @@ None (reads `page` rune from `$app/state`).
 	import {
 		error_goback,
 		error_go_dashboard,
-		error_page_moved,
 		error_reload_view,
 		error_title_suffix
 	} from '@src/paraglide/messages';
@@ -40,11 +39,17 @@ None (reads `page` rune from `$app/state`).
 
 <AdminPageShell
 	title="{status} — {errorDisplay.title}"
-	icon="material-symbols:error-outline"
 	description="An error occurred while processing this administrative view."
 >
 	<AdminCard class="p-6 sm:p-8">
 		<div class="flex flex-col items-center text-center">
+			<!-- Warning/error, never the accent green the shell icon default used (SV-087). -->
+			<iconify-icon
+				icon={status >= 500 ? 'material-symbols:error-outline' : 'material-symbols:warning-outline'}
+				width="48"
+				class="mb-3 {status >= 500 ? 'text-error-500' : 'text-warning-500'}"
+				aria-hidden="true"
+			></iconify-icon>
 			<span
 				class="mb-4 inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold {status >=
 				500
@@ -54,11 +59,8 @@ None (reads `page` rune from `$app/state`).
 				HTTP {status}
 			</span>
 
-			<h2 class="text-2xl font-bold text-surface-900 dark:text-surface-100 sm:text-3xl">
-				{errorDisplay.title}
-			</h2>
-
-			<p class="mt-3 max-w-xl text-base text-surface-600 dark:text-surface-400">
+			<!-- One heading: PageTitle above already renders "{status} — {title}". -->
+			<p class="max-w-xl text-base text-surface-600 dark:text-surface-400">
 				{errorDisplay.summary}
 			</p>
 
@@ -68,12 +70,6 @@ None (reads `page` rune from `$app/state`).
 				>
 					<span class="truncate">{page.url.pathname}{page.url.search}</span>
 				</div>
-			{/if}
-
-			{#if errorDisplay.showPageMoved}
-				<p class="mt-4 text-xs text-surface-500 dark:text-surface-400">
-					{error_page_moved()}
-				</p>
 			{/if}
 
 			<div class="mt-8 flex flex-wrap items-center justify-center gap-3">

@@ -24,10 +24,15 @@
 		button_delete,
 		button_next,
 		button_save,
+		sidebar_created,
 		sidebar_createdby,
+		sidebar_updated,
 		sidebar_will_publish_on,
 		siedabar_publish_options,
+		status_clone,
 		status_publish,
+		status_state_published,
+		status_state_unpublished,
 		status_unpublish,
 		validation_fix_before_save
 	} from '@src/paraglide/messages';
@@ -50,6 +55,7 @@
 	import { cloneCurrentEntry, deleteCurrentEntry, saveEntry } from '../utils/entry-actions';
 
 	interface Entry {
+		_id?: string;
 		_scheduled?: string | number | Date;
 		createdAt?: string;
 		createdBy?: string;
@@ -158,7 +164,7 @@
 		return value;
 	}
 
-	function formatDate(dateStr: string | undefined | null): string {
+	function formatDate(dateStr: string | Date | number | undefined | null): string {
 		if (!dateStr) {
 			return '-';
 		}
@@ -172,9 +178,27 @@
 		return formatted === 'Invalid Date' ? '-' : formatted;
 	}
 
+	/**
+	 * Rows handed to the editor are a widget projection and can drop the system
+	 * timestamps, which left a saved entry showing "-" for Created/Updated. Fall
+	 * back to the SSR list row for the same `_id` — same data, already on the page.
+	 */
+	const listEntries = $derived(
+		((page.data as { entries?: unknown } | null)?.entries as Entry[] | undefined) ?? []
+	);
+
+	function timestampOf(key: 'createdAt' | 'updatedAt'): string | Date | number | undefined {
+		const direct = currentEntry?.[key];
+		if (direct) return direct;
+		const id = currentEntry?._id;
+		if (!id) return undefined;
+		const row = listEntries.find((entry) => String(entry?._id) === String(id));
+		return row?.[key];
+	}
+
 	let dates = $derived({
-		created: formatDate(currentEntry?.createdAt as string),
-		updated: formatDate(currentEntry?.updatedAt as string)
+		created: formatDate(timestampOf('createdAt')),
+		updated: formatDate(timestampOf('updatedAt'))
 	});
 
 	// --- Actions ---
@@ -326,7 +350,7 @@
 							</p>
 						</div>
 						<Badge variant={collections.isPublish ? 'success' : 'warning'} size="sm">
-							{collections.isPublish ? status_publish() : status_unpublish()}
+							{collections.isPublish ? status_state_published() : status_state_unpublished()}
 						</Badge>
 					</div>
 
@@ -335,12 +359,25 @@
 						type="button"
 						onclick={save}
 						disabled={!isFormValid || !canWrite}
+						aria-describedby={!isFormValid ? 'entry-save-blocked' : undefined}
 						title={!isFormValid ? 'Fix validation errors before saving' : 'Save changes'}
 						class="w-full gap-2"
 					>
 						<iconify-icon icon="material-symbols:save" width="20"></iconify-icon>
 						{button_save()}
 					</Button>
+
+					{#if !isFormValid}
+						<p
+							id="entry-save-blocked"
+							class="mt-2 flex items-start gap-1.5 text-xs text-error-500"
+							role="status"
+						>
+							<iconify-icon icon="mdi:alert-circle-outline" width="14" aria-hidden="true"
+							></iconify-icon>
+							<span>{validation_fix_before_save()}</span>
+						</p>
+					{/if}
 
 					<div
 						class="mt-3 rounded-lg border border-(--admin-border-default) bg-(--admin-bg-chip) px-2 py-1.5"
@@ -369,7 +406,7 @@
 							class="w-full justify-start gap-2"
 						>
 							<iconify-icon icon="bi:clipboard-data" width="16"></iconify-icon>
-							<span class="truncate">Clone {currentCollection?.name}</span>
+							<span class="truncate">{status_clone()}</span>
 						</Button>
 
 						<Button
@@ -464,26 +501,14 @@
 				<footer class="mt-auto shrink-0 border-t border-(--admin-border-default) pt-3">
 					<div class="space-y-1.5 text-xs">
 						<div class="flex items-center justify-between gap-2">
-							<span class="text-(--admin-text-muted)">Created</span>
+							<span class="text-(--admin-text-muted)">{sidebar_created()}</span>
 							<span class="font-medium text-(--admin-text-body)">{dates.created}</span>
 						</div>
 						<div class="flex items-center justify-between gap-2">
-							<span class="text-(--admin-text-muted)">Updated</span>
+							<span class="text-(--admin-text-muted)">{sidebar_updated()}</span>
 							<span class="font-medium text-(--admin-text-body)">{dates.updated}</span>
 						</div>
 					</div>
-
-					{#if currentMode === 'create'}
-						<div class="mt-2 text-center text-xs text-(--admin-text-muted)">
-							{formatDisplayDate(Date.now(), undefined, {
-								year: 'numeric',
-								month: 'short',
-								day: 'numeric',
-								hour: '2-digit',
-								minute: '2-digit'
-							})}
-						</div>
-					{/if}
 				</footer>
 			{/if}
 		{/if}

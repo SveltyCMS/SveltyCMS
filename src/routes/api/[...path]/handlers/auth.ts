@@ -55,6 +55,8 @@ import {
   generateSAMLAuthUrl,
   createSAMLConnection,
   getSAMLConnectionConfig,
+  handleSAMLSLOEvent,
+  buildSAMLLogoutRequestUrl,
 } from "@src/databases/auth/saml-auth";
 import { getAllPermissions, hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import type { User } from "@src/databases/auth/types";
@@ -224,7 +226,7 @@ export async function handleAuthUserRoutes(
       case "2fa":
         return handle2FARoutes(event, cms, tenantId, user, segments);
       case "saml":
-        return handleSAMLRoutes(event, tenantId, segments);
+        return handleSAMLRoutes(event, cms, tenantId, segments);
       case "user":
         return handleUserSpecificRoutes(event, cms, tenantId, user, method, segments);
       case "permission":
@@ -635,8 +637,24 @@ export async function handleOidcLoginStart(event: RequestEvent, tenantId?: Datab
   }
 
   const origin = event.url.origin;
-  const redirectUri =
-    event.url.searchParams.get("redirect_uri") || `${origin}/api/auth/oidc-callback`;
+  const requestedRedirect = event.url.searchParams.get("redirect_uri");
+  let redirectUri = `${origin}/api/auth/oidc-callback`;
+
+  if (requestedRedirect) {
+    // Same-origin only. A foreign `redirect_uri` makes the login start an open redirect
+    // and, against an OP that allows it, delivers the authorization code to that host.
+    let parsed: URL | undefined;
+    try {
+      parsed = new URL(requestedRedirect, origin);
+    } catch {
+      raise(400, "redirect_uri is not a valid URL");
+    }
+    if (parsed.origin !== origin) raise(400, "redirect_uri must be a same-origin URL");
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      raise(400, "redirect_uri must use http or https");
+    }
+    redirectUri = parsed.toString();
+  }
   const state = generateSecureToken(16);
   const nonce = generateSecureToken(16);
   const { codeVerifier, codeChallenge } = generatePkce();
@@ -875,6 +893,14 @@ export async function handleOidcLoginCallback(
 
   if (exchanged.idToken) {
     try {
+      // The id_token payload is already verified by exchangeOidcCode. Record the
+      // OP's `sid`/`sub` so a later front-/back-channel logout message — which
+      // carries only those claims, never our cookie — can identify this exact
+      // session. Tokens without them behave exactly as before.
+      const oidcSid =
+        typeof exchanged.payload?.sid === "string" ? exchanged.payload.sid : undefined;
+      const oidcSubject =
+        typeof exchanged.payload?.sub === "string" ? exchanged.payload.sub : undefined;
       await setSsoSessionMetadata(
         sessionId,
         {
@@ -882,6 +908,8 @@ export async function handleOidcLoginCallback(
           tenantId: tenantId ? String(tenantId) : undefined,
           idTokenHint: exchanged.idToken,
           createdAt: nowISODateString(),
+          oidcSid,
+          oidcSubject,
         },
         tenantId,
       );
@@ -1623,6 +1651,7 @@ export async function handle2FARoutes(
  */
 export async function handleSAMLRoutes(
   event: RequestEvent,
+  cms: LocalCMS,
   tenantId: DatabaseId,
   segments: string[],
 ) {
@@ -1632,6 +1661,38 @@ export async function handleSAMLRoutes(
     case "acs":
       if (event.request.method !== "POST") throw notAllowed();
       return await handleSAMLResponse(event, tenantId as string);
+
+    // Single Logout: IdP-initiated LogoutRequest (both bindings) and the
+    // LogoutResponse that answers our own SP-initiated logout.
+    case "slo":
+      if (event.request.method !== "GET" && event.request.method !== "POST") throw notAllowed();
+      return await handleSAMLSLOEvent(event, tenantId as string);
+
+    // SP-initiated logout: send a LogoutRequest to the IdP, then fall back to
+    // the ordinary local logout for sessions SAML did not create.
+    case "logout": {
+      if (event.request.method !== "GET" && event.request.method !== "POST") throw notAllowed();
+      const isSecureRequest = event.url.protocol === "https:";
+      const sessionId = readSessionCookie(event.cookies, isSecureRequest);
+
+      if (sessionId) {
+        const relayState =
+          event.request.method === "GET"
+            ? event.url.searchParams.get("RelayState") || ""
+            : String((await event.request.formData().catch(() => null))?.get("RelayState") || "");
+        const result = await buildSAMLLogoutRequestUrl(sessionId, tenantId as string, relayState);
+        if (result.url) {
+          invalidateSessionCache(sessionId, tenantId);
+          clearSessionCookies(event);
+          return new Response(null, {
+            status: 302,
+            headers: { Location: result.url, "Cache-Control": "no-store" },
+          });
+        }
+      }
+
+      return await handleLogout(event, cms, tenantId, event.cookies);
+    }
 
     case "login":
       if (event.request.method !== "GET" && event.request.method !== "POST") {

@@ -47,11 +47,14 @@ dismiss button, action button, shrink timer bar, and pause-on-hover.
 		ALLOWED_ATTR: ['href', 'title', 'rel', 'target']
 	};
 
-	let sanitize = $state<(str: string) => string>((str) => str);
+	// Fail closed: until DOMPurify is loaded, the message is rendered as TEXT instead
+	// of injected as HTML. The old identity fallback meant markup present between the
+	// toast appearing and the dynamic import resolving was rendered raw.
+	let sanitizeHtml = $state<((str: string) => string) | null>(null);
 
 	onMount(async () => {
 		const { default: DOMPurify } = await import('dompurify');
-		sanitize = (str: string) => DOMPurify.sanitize(str, TOAST_SANITIZE_CONFIG);
+		sanitizeHtml = (str: string) => DOMPurify.sanitize(str, TOAST_SANITIZE_CONFIG);
 	});
 
 	// Calculate the item's distance from the top foreground item
@@ -106,7 +109,11 @@ dismiss button, action button, shrink timer bar, and pause-on-hover.
 					{/if}
 					<p class="text-xs sm:text-sm font-medium opacity-95 wrap-break-word leading-relaxed">
 						<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-						{@html sanitize(t.message)}
+						{#if sanitizeHtml}
+							{@html sanitizeHtml(t.message)}
+						{:else}
+							{t.message}
+						{/if}
 					</p>
 
 					{#if t.action}

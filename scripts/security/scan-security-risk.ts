@@ -11,13 +11,30 @@
  *   `author__not_in` SQLi class. Values must be bound parameters (`?`, `$1`)
  *   or tagged templates (sql`...`, raw`...`).
  * - **SQL string concatenation** of values into statements.
+ * - **Multi-line SQL templates** (AST) — a statement whose verb sits on a
+ *   different line from the interpolation no longer escapes the line-based pass
+ *   (`sql-template-value-interpolation`).
  * - **MongoDB `$where` / `$function` / `$accumulator`** — server-side JS
  *   execution (RCE class).
  * - **Dynamic code execution** — `eval(` / `new Function(` (RCE sinks).
+ * - **Prototype pollution** — `Object.assign`/spread/`deepMerge` of request JSON
+ *   without a `__proto__`/`constructor`/`prototype` strip
+ *   (`prototype-pollution-request-merge`).
+ * - **Timing-unsafe secret comparison** — `===`/`!==`/`.includes`/`.startsWith`
+ *   between secret-named identifiers without `timingSafeEqual`
+ *   (`timing-unsafe-comparison`).
+ * - **Insecure randomness** — `Math.random()` on auth/security/session paths
+ *   (`insecure-randomness`).
+ * - **Open redirect** — 3xx `redirect()`/`Response.redirect()` to a
+ *   request-derived target without a same-origin validation (`open-redirect`).
+ * - **Missing auth guard** — route modules reading request input with no
+ *   `locals.user`/permission guard (`missing-auth-guard`).
  * - **SvelteKit CSRF protection disabled** (`checkOrigin: false`, `csrf: false`).
  * - **Non-httpOnly cookies** (session tokens must be httpOnly).
- * - **Unguarded SSRF** — bare `fetch(url)` / `fetch(remoteUrl)` on server
- *   routes without `validateEgressUrl` / `safeFetch` in the same file.
+ * - **Unguarded SSRF** — `fetch(<identifier|property>)` / `event.fetch(...)` on
+ *   server routes without `validateEgressUrl` / `safeFetch` / `saveRemoteMedia`
+ *   in the same file (request-derived or unresolved target; per-line
+ *   `// ssrf-allow: <reason>` escape hatch).
  * - **Privilege-field API writes** — `updateUserAttributes` / user PUT/PATCH
  *   paths that accept request JSON without `stripPrivilegedUserFields` /
  *   `sanitizeClientUserAttributePatch` / adapter `allowPrivilegeEscalation`.
@@ -39,6 +56,13 @@
  * ### Usage
  *   bun run scripts/scan-security-risk.ts          # scan (warnings tolerated)
  *   bun run scripts/scan-security-risk.ts --strict # exit 1 on any finding
+ *
+ * ### Suppressions (line-scoped, never file-scoped)
+ * `// slop:suppress` (optionally `slop:suppress <rule-id>`) suppresses a finding
+ * only on the offending line or the line directly above it. A marker with prose
+ * instead of a rule id (the existing `slop:suppress — <reason>` convention) covers
+ * its own line pair; it no longer skips the file. `// ssrf-allow: <reason>` is the
+ * SSRF-specific escape hatch.
  */
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
@@ -88,6 +112,169 @@ function stripComments(line: string): string {
   return line.replace(/\/\/.*$/, "").replace(/\/\*[\s\S]*?\*\//g, "");
 }
 
+/** Rule ids accepted by `slop:suppress <rule-id>` — prose is never a rule id. */
+const RULE_IDS = new Set([
+  "dynamic-code-execution",
+  "shell-interpolation",
+  "shell-enabled",
+  "path-interpolation",
+  "ssrf-fetch",
+  "ssrf-unguarded-fetch",
+  "xss-sink",
+  "ip-spoofing-x-forwarded-for",
+  "blocking-redis-keys",
+  "loopback-prefix-bypass",
+  "tenant-spoofing-x-tenant-id",
+  "test-mode-bare-node-env",
+  "privilege-field-write",
+  "privilege-adapter-unguarded",
+  "svg-stream-bypass",
+  "setup-complete-unguarded",
+  "setup-api-public-after-install",
+  "ssrf-remote-upload-unguarded",
+  "media-action-missing-write-permission",
+  "admin-role-fragmentation",
+  "cookie-clear-fragmentation",
+  "collection-path-fragmentation",
+  "legacy-store-fragmentation",
+  "sql-value-interpolation",
+  "sql-template-value-interpolation",
+  "sql-concat-interpolation",
+  "sql-identifier-interpolation",
+  "mongodb-js-execution",
+  "regex-interpolation",
+  "sveltekit-csrf-disabled",
+  "cookie-not-httponly",
+  "batch-size-unbounded",
+  "prototype-pollution-request-merge",
+  "timing-unsafe-comparison",
+  "insecure-randomness",
+  "open-redirect",
+  "missing-auth-guard",
+]);
+
+/** Request input accessors — the taint sources of a SvelteKit request. */
+const REQUEST_INPUT =
+  /(?:request\.json\s*\(|request\.formData\s*\(|request\.text\s*\(|formData\.get\s*\(|\.formData\s*\(|searchParams\.get\s*\()/;
+
+/**
+ * Scoped suppression check: a violation is suppressed only by `slop:suppress`
+ * on the offending line or the line immediately above it, optionally narrowed
+ * to one or more rule ids (`// slop:suppress ssrf-unguarded-fetch`). A marker
+ * with prose instead of a rule id suppresses that line only — never the file.
+ */
+export function isSuppressed(lines: string[], index: number, category: string): boolean {
+  for (const candidate of [index, index - 1]) {
+    if (candidate < 0 || candidate >= lines.length) continue;
+    const marker = lines[candidate].match(/slop:suppress\b([^\n]*)/);
+    if (!marker) continue;
+    const ids = marker[1]
+      .split(/[\s,]+/)
+      .map((token) => token.replace(/[^A-Za-z0-9-]/g, ""))
+      .filter((token) => RULE_IDS.has(token));
+    if (ids.length === 0 || ids.includes(category)) return true;
+  }
+  return false;
+}
+
+/** Per-line escape hatch (`// ssrf-allow: <reason>`) on this or the previous line. */
+function hasLineEscape(lines: string[], index: number, marker: string): boolean {
+  const rx = new RegExp(`${marker}\\s*:\\s*\\S`, "i");
+  return [index, index - 1].some((i) => i >= 0 && i < lines.length && rx.test(lines[i]));
+}
+
+/**
+ * Direct seeds: names bound from request.json / formData / searchParams.
+ */
+function seedRequestDerived(lines: string[]): Set<string> {
+  const derived = new Set<string>();
+  for (const line of lines) {
+    if (!REQUEST_INPUT.test(line)) continue;
+    for (const m of line.matchAll(/(?:const|let|var)\s*\{([^}]*)\}\s*=\s*([^;\n]*)/g)) {
+      for (const part of m[1].split(",")) {
+        const name = part
+          .split(":")[0]
+          .trim()
+          .replace(/^\.\.\./, "");
+        if (/^[A-Za-z_$][\w$]*$/.test(name)) derived.add(name);
+      }
+    }
+    for (const m of line.matchAll(/(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*([^;\n]*)/g)) {
+      derived.add(m[1]);
+    }
+  }
+  return derived;
+}
+
+/** Names assigned straight from request input (no local propagation). */
+export function collectDirectRequestDerived(content: string): Set<string> {
+  return seedRequestDerived(content.split("\n"));
+}
+
+/**
+ * Identifiers whose value originates from request input (request.json / formData /
+ * searchParams), including local value-shaping propagation. Function calls are
+ * not followed — `authUrl = generateOAuthUrl(token)` is server-built, not attacker-
+ * controlled, so call laundering must not taint the result.
+ */
+export function collectRequestDerived(content: string): Set<string> {
+  const lines = content.split("\n");
+  const derived = seedRequestDerived(lines);
+  for (let pass = 0; pass < 2; pass++) {
+    for (const line of lines) {
+      const m = line.match(/(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*([^;\n]*)/);
+      if (!m) continue;
+      const rhs = m[2];
+      if (/[A-Za-z_$][\w$]*\s*\(/.test(rhs)) continue; // value shaping only, never a call
+      const words = rhs.split(/[^A-Za-z0-9_$]+/);
+      if (words.some((word) => derived.has(word))) derived.add(m[1]);
+    }
+  }
+  return derived;
+}
+
+/** Names bound anywhere in the file (declarations, imports, parameters). */
+export function collectDeclaredIdentifiers(content: string): Set<string> {
+  const names = new Set<string>();
+  for (const m of content.matchAll(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)) names.add(m[1]);
+  for (const m of content.matchAll(/\bimport\s+(?:type\s+)?\{([^}]*)\}\s+from\b/g)) {
+    for (const part of m[1].split(",")) {
+      const name =
+        part
+          .trim()
+          .replace(/^type\s+/, "")
+          .split(/\s+as\s+/)
+          .pop() ?? "";
+      if (/^[A-Za-z_$][\w$]*$/.test(name)) names.add(name);
+    }
+  }
+  for (const m of content.matchAll(/\bimport\s+(?:type\s+)?([A-Za-z_$][\w$]*)\s*(?:,|from)\b/g)) {
+    names.add(m[1]);
+  }
+  for (const m of content.matchAll(/\b(?:function|class)\s+([A-Za-z_$][\w$]*)/g)) names.add(m[1]);
+  for (const m of content.matchAll(/\(([^()]*)\)\s*(?:=>|\{)/g)) {
+    for (const part of m[1].split(",")) {
+      const name = part
+        .split(/[:=]/)[0]
+        .trim()
+        .replace(/^\.\.\./, "");
+      if (/^[A-Za-z_$][\w$]*$/.test(name)) names.add(name);
+    }
+  }
+  return names;
+}
+
+/** In-file initializers for a name (`const x = ...`), used to spot `/`-relative targets. */
+function initializersOf(lines: string[], name: string): string[] {
+  const found: string[] = [];
+  const rx = new RegExp(`(?:const|let|var)\\s+${name}\\s*=\\s*(.+)$`);
+  for (const line of lines) {
+    const m = line.match(rx);
+    if (m) found.push(m[1]);
+  }
+  return found;
+}
+
 /**
  * Global rules — command injection, dynamic code execution, path traversal,
  * SSRF, XSS sinks, privilege-field writes, SVG stream bypass. Exported for unit tests.
@@ -108,11 +295,10 @@ export function scanGlobalRisk(relPath: string, content: string): RiskViolation[
     /(\+server\.|\.server\.|hooks[\\/]|services[\\/]|databases[\\/]|setup[\\/]|plugins[\\/]|routes[\\/].*[\\/]handlers[\\/])/.test(
       relPath,
     ) || /[\\/]routes[\\/].*[\\/]\+page\.server\.ts$/.test(relPath);
-  // File accepts remote/user-supplied absolute URLs (remote upload, HTML harvest, webhooks)
-  const acceptsRemoteUrls =
-    /\bremoteUrls?\b|\bremoteUpload\b|formData\.get\s*\(\s*["']remote|\bexternalUrl\b|\bwebhook\.url\b/.test(
-      content,
-    );
+  const hasRequestInput = REQUEST_INPUT.test(content);
+  // Lazily built taint sets — only server files without an egress guard pay for them.
+  let requestDerived: Set<string> | undefined;
+  let declaredNames: Set<string> | undefined;
 
   for (let i = 0; i < lines.length; i++) {
     const line = stripComments(lines[i]);
@@ -207,25 +393,30 @@ export function scanGlobalRisk(relPath: string, content: string): RiskViolation[
       });
     }
 
-    // ── SSRF (error): bare fetch(userControlledVar) without egress guard in file.
-    // Catches remote upload SSRF: `const response = await fetch(url)` where url
-    // comes from form data / remoteUrls. Relative same-origin and event.fetch skip.
-    if (isServerFile && !hasEgressGuard && acceptsRemoteUrls) {
-      const bareFetch = line.match(/(?<![.\w])(?:await\s+)?fetch\s*\(\s*([A-Za-z_][\w]*)\s*[,)]/);
-      if (bareFetch) {
-        const varName = bareFetch[1];
-        // Names that typically carry absolute http(s) targets from user input
-        if (
-          /^(url|uri|href|endpoint|target|host|remoteUrl|remoteUrls|assetUrl|imageUrl|mediaUrl|src|link|callback|redirect|webhook|webhookUrl|externalUrl)$/i.test(
-            varName,
-          ) ||
-          /Url$|URL$|Href$|Endpoint$|Uri$/.test(varName)
-        ) {
+    // ── SSRF (error): fetch(<identifier|property>) / event.fetch(...) in a server
+    // file without an egress guard. No variable-name allowlist: the target is
+    // flagged when it is request-derived (request.json/formData/searchParams) or
+    // when it is unresolved in a file that reads request input. String literals,
+    // `new URL(...)` literals, `/`-relative values, configured constants and
+    // `// ssrf-allow: <reason>` lines pass.
+    if (isServerFile && !hasEgressGuard && !hasLineEscape(lines, i, "ssrf-allow")) {
+      const callArg =
+        line.match(/\bevent\.fetch\s*\(\s*([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\s*[,)]/) ??
+        line.match(/(?<![.\w])fetch\s*\(\s*([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\s*[,)]/);
+      if (callArg) {
+        const argName = callArg[1];
+        const root = argName.split(".")[0];
+        requestDerived ??= collectRequestDerived(content);
+        declaredNames ??= collectDeclaredIdentifiers(content);
+        const relativeTarget = initializersOf(lines, root).some((init) => /^\s*["'`]\//.test(init));
+        const constantTarget = /^[A-Z][A-Z0-9_]*$/.test(root);
+        const derived = requestDerived.has(root) || (hasRequestInput && !declaredNames.has(root));
+        if (derived && !relativeTarget && !constantTarget) {
           violations.push({
             path: relPath,
             line: i + 1,
             category: "ssrf-unguarded-fetch",
-            message: `fetch(${varName}) on a remote-URL server path without validateEgressUrl/safeFetch/saveRemoteMedia — user-controlled URLs must go through the egress guard (blocks private IPs, metadata, DNS rebinding)`,
+            message: `fetch(${argName}) on a server path without validateEgressUrl/safeFetch/saveRemoteMedia — request-controlled targets must go through the egress guard (blocks private IPs, metadata, DNS rebinding)`,
             severity: "error",
           });
         }
@@ -492,7 +683,7 @@ export function scanGlobalRisk(relPath: string, content: string): RiskViolation[
   // ── Code Fragmentation Detection & Prevention ──────────────────────────────
   const isTestOrDocFile = /[\\/](tests|docs|scripts)[\\/]|\.(?:test|spec)\.[tj]sx?$/.test(relPath);
 
-  if (!isTestOrDocFile && !content.includes("slop:suppress")) {
+  if (!isTestOrDocFile) {
     // 1. Ad-hoc admin check fragmentation
     const isAuthDefinitionFile =
       /databases[\\/]auth[\\/]constants\.ts|databases[\\/]database-resilience\.ts|databases[\\/]core[\\/]relational-auth\.ts|utils[\\/]theme-merge\.ts|routes[\\/]login[\\/]auth\.remote\.ts/.test(
@@ -768,14 +959,19 @@ export function scanSvelteKitRisk(relPath: string, content: string): RiskViolati
 }
 
 /**
- * Context-aware AST security analysis using the TypeScript compiler API.
- * Catches complex patterns that line-based regex cannot reliably analyze.
+ * AST SQL scan — multi-line statements.
+ *
+ * The line-based rules in `scanDbRisk` only see one physical line, so a
+ * statement whose verb (`SELECT`, `INSERT`, `UPDATE`, `DELETE`, `WHERE`, `SET`,
+ * `FROM`) sits on a different line from the interpolation escapes them. This
+ * pass walks `ts.TemplateExpression` / `ts.BinaryExpression` (`+`) nodes so the
+ * verb and the interpolation are judged together.
+ *
+ * Exported for unit tests.
  */
-export function scanAstRisk(relPath: string, content: string): RiskViolation[] {
+export function scanAstSqlRisk(relPath: string, content: string): RiskViolation[] {
   const violations: RiskViolation[] = [];
-  const normPath = relPath.replace(/\\/g, "/");
-  const isApiHandler = normPath.includes("routes/api/");
-  if (!isApiHandler || !normPath.endsWith(".ts")) return violations;
+  if (!relPath.endsWith(".ts")) return violations;
 
   let sourceFile: ts.SourceFile;
   try {
@@ -784,32 +980,332 @@ export function scanAstRisk(relPath: string, content: string): RiskViolation[] {
     return violations;
   }
 
-  function visit(node: ts.Node) {
-    // ── Rule: Unbounded Batch Action Blocks
-    // Detects `if (action === "batch")` or `if (method === "batch")` in API handlers
-    // and asserts that a batch size ceiling (MAX_.*BATCH or .length > N) is enforced.
-    if (ts.isIfStatement(node)) {
+  const hasGuard = IDENTIFIER_GUARD.test(content);
+  const seen = new Set<string>();
+  const push = (node: ts.Node, expression: string) => {
+    const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+    const key = `${line}:${expression}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    violations.push({
+      path: relPath,
+      line: line + 1,
+      category: "sql-template-value-interpolation",
+      message: `SQL value interpolation (\${${expression}}) in a multi-line statement — bind as a parameter (? / $1) or use a tagged template instead of string-interpolating values`,
+      severity: "error",
+    });
+  };
+
+  /** Uppercase names are compile-time constants, and calls are validated helpers. */
+  const isSafeExpression = (expression: string): boolean =>
+    SAFE_EXPR.test(expression) ||
+    !SIMPLE_EXPR.test(expression) ||
+    /^[A-Z][A-Z0-9_]*$/.test(expression) ||
+    (hasGuard && /^[A-Za-z_][A-Za-z0-9_.]*$/.test(expression));
+
+  const flattenPlus = (node: ts.Expression): ts.Expression[] => {
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+      return [...flattenPlus(node.left), ...flattenPlus(node.right)];
+    }
+    return [node];
+  };
+
+  const visit = (node: ts.Node) => {
+    // Template literal whose head carries the SQL verb (possibly lines below the
+    // backtick) and whose interpolation lands in a quoted value position.
+    if (ts.isTemplateExpression(node) && !ts.isTaggedTemplateExpression(node.parent)) {
+      const head = node.head.text;
+      if (SQL_VERB.test(head)) {
+        let previous = head;
+        for (const span of node.templateSpans) {
+          const expression = span.expression.getText(sourceFile).trim();
+          const quotedValue = /["']\s*$/.test(previous);
+          if (quotedValue && expression && !isSafeExpression(expression)) push(node, expression);
+          previous = span.literal.text;
+        }
+      }
+    }
+
+    // Cross-line concatenation: `"... WHERE id = '" + id + "'"`.
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+      if (SQL_VERB.test(node.getText(sourceFile))) {
+        const operands = flattenPlus(node);
+        for (let index = 0; index < operands.length - 1; index++) {
+          const current = operands[index];
+          const currentText = current.getText(sourceFile);
+          if (!/["']\s*$/.test(currentText)) continue;
+          if (!ts.isStringLiteral(current) && !ts.isNoSubstitutionTemplateLiteral(current))
+            continue;
+          const next = operands[index + 1];
+          if (ts.isStringLiteral(next) || ts.isNoSubstitutionTemplateLiteral(next)) continue;
+          const nextText = next.getText(sourceFile).trim();
+          if (isSafeExpression(nextText)) continue;
+          push(node, nextText);
+        }
+      }
+    }
+
+    ts.forEachChild(node, visit);
+  };
+
+  visit(sourceFile);
+  return violations;
+}
+
+/** Secret-ish identifiers whose comparison must be constant-time. */
+const SECRET_IDENTIFIER = /(?:secret|token|signature|hmac|apiKey|api_key|csrf|otp|hash)/i;
+/** Credential nouns — a bare content-hash identity check is not an oracle. */
+const CREDENTIAL_IDENTIFIER = /(?:secret|token|signature|hmac|apiKey|api_key|csrf|otp)/i;
+
+/** `hashedToken` vs `token` decides which column to read — not a secret compare. */
+function isHashOfSelf(a: string, b: string): boolean {
+  const left = a.toLowerCase();
+  const right = b.toLowerCase();
+  return (
+    (left.startsWith("hashed") || left.startsWith("hash")) &&
+    right.length > 0 &&
+    left.endsWith(right)
+  );
+}
+
+/**
+ * Context-aware AST security analysis using the TypeScript compiler API.
+ * Catches complex patterns that line-based regex cannot reliably analyze:
+ * unbounded batch blocks, prototype pollution, timing-unsafe secret
+ * comparison, insecure randomness, open redirect, and missing route guards.
+ */
+export function scanAstRisk(relPath: string, content: string): RiskViolation[] {
+  const violations: RiskViolation[] = [];
+  const normPath = relPath.replace(/\\/g, "/");
+  const isApiHandler = normPath.includes("routes/api/");
+  if (!normPath.endsWith(".ts")) return violations;
+
+  let sourceFile: ts.SourceFile;
+  try {
+    sourceFile = ts.createSourceFile(relPath, content, ts.ScriptTarget.Latest, true);
+  } catch {
+    return violations;
+  }
+
+  const seen = new Set<string>();
+  const pushAst = (node: ts.Node, category: string, message: string) => {
+    const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+    const key = `${line}:${category}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    violations.push({ path: relPath, line: line + 1, category, message, severity: "error" });
+  };
+
+  // ── Rule: missing auth/tenant guard on a route module that reads request input.
+  const isRouteModule = /\/(?:\+server|\+page\.server)\.ts$/.test(normPath);
+  const isExemptRoute =
+    /\/(?:auth|setup|login)\//.test(normPath) ||
+    /(?:^|\/)public(?:\/|\.)/.test(normPath) ||
+    /\/\/\s*public-endpoint:\s*\S/.test(content);
+  const hasAuthGuard =
+    /\blocals\??\.(?:user|tenantId)\b|\bgetAuthenticatedUser\b|\brequirePermission\b|\brequirePagePermission\b|\bcheckEndpointPermission\b|\}\s*=\s*(?:event\.)?locals\b/.test(
+      content,
+    );
+  if (isRouteModule && !isExemptRoute && !hasAuthGuard && REQUEST_INPUT.test(content)) {
+    violations.push({
+      path: relPath,
+      line: 1,
+      category: "missing-auth-guard",
+      message:
+        "Route module reads request input without an auth/tenant guard — require locals.user/tenantId, getAuthenticatedUser, requirePermission, requirePagePermission or checkEndpointPermission (declare `// public-endpoint: <reason>` for intentionally public routes)",
+      severity: "error",
+    });
+  }
+
+  const tainted = collectRequestDerived(content);
+  const directlyTainted = collectDirectRequestDerived(content);
+  const hasMergeGuard =
+    /__proto__|sanitizeMerge|safeAssign|PROTO_KEYS|UNSAFE_(?:OBJECT_)?KEYS|hasPrototypePollution/.test(
+      content,
+    );
+  const hasTimingSafe = /\btimingSafeEqual\b|\bconstantTime\w*Equal\b/.test(content);
+  const hasRedirectGuard =
+    /\bsafeRedirect\b|\bisSafeRedirect\b|\bsanitizeRedirect\b|\.origin\s*===|\bstartsWith\s*\(\s*["']\/[^"']*["']\s*\)/.test(
+      content,
+    );
+  const isSecurityPath = /(?:auth|security|token|session|csrf|otp|password|reset)/i.test(normPath);
+
+  /** Unwrap wrappers and decide whether a node's value came from the request. */
+  const fromRequest = (node: ts.Node): boolean => {
+    if (
+      ts.isParenthesizedExpression(node) ||
+      ts.isAsExpression(node) ||
+      ts.isNonNullExpression(node) ||
+      ts.isAwaitExpression(node) ||
+      ts.isTypeAssertionExpression(node)
+    ) {
+      return fromRequest(node.expression);
+    }
+    if (ts.isIdentifier(node)) return tainted.has(node.text);
+    if (ts.isPropertyAccessExpression(node)) return fromRequest(node.expression);
+    if (ts.isElementAccessExpression(node)) return fromRequest(node.expression);
+    if (ts.isCallExpression(node)) {
+      const callee = node.expression.getText(sourceFile);
+      return (
+        /\.(?:get|json|formData|text)$/.test(callee) && /searchParams|request|url/.test(callee)
+      );
+    }
+    return false;
+  };
+
+  const isNumeric3xx = (node: ts.Node): boolean =>
+    ts.isNumericLiteral(node) && /^3\d\d$/.test(node.text);
+
+  const visit = (node: ts.Node) => {
+    // ── Rule: Unbounded Batch Action Blocks (API handlers only).
+    if (isApiHandler && ts.isIfStatement(node)) {
       const condText = node.expression.getText(sourceFile);
       if (/action\s*===?\s*["']batch["']|method\s*===?\s*["']batch["']/.test(condText)) {
         const blockText = node.thenStatement.getText(sourceFile);
         const hasUpperLimit =
           /\.length\s*>\s*\d+|\.length\s*>=\s*\d+|MAX_.*BATCH|INVALID_BATCH_SIZE/.test(blockText);
         if (!hasUpperLimit) {
-          const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
-          violations.push({
-            path: relPath,
-            line: line + 1,
-            category: "batch-size-unbounded",
-            message:
-              "Batch action block lacks an upper-bound array length check (e.g. ids.length > MAX_BATCH_SIZE) — vulnerable to payload exhaustion DoS",
-            severity: "error",
-          });
+          pushAst(
+            node,
+            "batch-size-unbounded",
+            "Batch action block lacks an upper-bound array length check (e.g. ids.length > MAX_BATCH_SIZE) — vulnerable to payload exhaustion DoS",
+          );
+        }
+      }
+    }
+
+    if (ts.isCallExpression(node)) {
+      const callee = node.expression.getText(sourceFile);
+
+      // ── Rule: prototype pollution via Object.assign / deepMerge of request data.
+      if (!hasMergeGuard) {
+        if (callee === "Object.assign" && node.arguments.slice(1).some(fromRequest)) {
+          pushAst(
+            node,
+            "prototype-pollution-request-merge",
+            "Object.assign(<target>, request data) copies `__proto__` through [[Set]] — strip __proto__/constructor/prototype (or use safeAssign/sanitizeMerge)",
+          );
+        }
+        if (/^(?:\w+\.)?deepMerge$/.test(callee) && node.arguments.some(fromRequest)) {
+          pushAst(
+            node,
+            "prototype-pollution-request-merge",
+            "deepMerge() merging request data — recursively copying attacker keys can pollute Object.prototype; strip __proto__/constructor/prototype first",
+          );
+        }
+      }
+
+      // ── Rule: insecure randomness on security-sensitive paths.
+      if (callee === "Math.random" && isSecurityPath) {
+        pushAst(
+          node,
+          "insecure-randomness",
+          "Math.random() on an auth/security/token/session path — use crypto.getRandomValues()/randomUUID() (Math.random is not a CSPRNG)",
+        );
+      }
+
+      // ── Rule: timing-unsafe secret comparison via .includes / .startsWith.
+      if (!hasTimingSafe) {
+        const method = /^([A-Za-z_$][\w$]*)\.(?:includes|startsWith)$/.exec(callee);
+        const arg = node.arguments[0];
+        if (method && SECRET_IDENTIFIER.test(method[1]) && arg && ts.isIdentifier(arg)) {
+          if (SECRET_IDENTIFIER.test(arg.text) && !isHashOfSelf(method[1], arg.text)) {
+            pushAst(
+              node,
+              "timing-unsafe-comparison",
+              `${method[1]}.${callee.split(".").pop()}(...) compares a secret — use timingSafeEqual (node:crypto) to avoid a byte-by-byte timing oracle`,
+            );
+          }
+        }
+      }
+
+      // ── Rule: open redirect to a request-derived target.
+      if (!hasRedirectGuard) {
+        if (
+          callee === "redirect" &&
+          node.arguments.length >= 2 &&
+          isNumeric3xx(node.arguments[0]) &&
+          fromRequest(node.arguments[1])
+        ) {
+          pushAst(
+            node,
+            "open-redirect",
+            'redirect(3xx, request-derived target) without a same-origin check — validate with safeRedirect or `target.startsWith("/")`',
+          );
+        }
+        if (
+          /^(?:Response|Response\.prototype)\.redirect$/.test(callee) &&
+          node.arguments.length >= 2 &&
+          fromRequest(node.arguments[0]) &&
+          isNumeric3xx(node.arguments[1])
+        ) {
+          pushAst(
+            node,
+            "open-redirect",
+            'Response.redirect request-derived target without a same-origin check — validate with safeRedirect or `target.startsWith("/")`',
+          );
+        }
+      }
+    }
+
+    // ── Rule: timing-unsafe `secret === candidate` comparison.
+    if (
+      !hasTimingSafe &&
+      ts.isBinaryExpression(node) &&
+      (node.operatorToken.kind === ts.SyntaxKind.EqualsEqualsEqualsToken ||
+        node.operatorToken.kind === ts.SyntaxKind.ExclamationEqualsEqualsToken)
+    ) {
+      const { left, right } = node;
+      if (ts.isIdentifier(left) && ts.isIdentifier(right)) {
+        const pair = [left.text, right.text];
+        const credentialPair = pair.every((name) => SECRET_IDENTIFIER.test(name));
+        const hasCredentialNoun = pair.some((name) => CREDENTIAL_IDENTIFIER.test(name));
+        // Compile-time constants are sentinels/masks, and `hash === hash` is a
+        // content-identity check — neither is a server-held secret oracle.
+        const compileTimeConstant = pair.some((name) => /^[A-Z][A-Z0-9_]*$/.test(name));
+        const hashOfSelf =
+          isHashOfSelf(left.text, right.text) || isHashOfSelf(right.text, left.text);
+        if (credentialPair && hasCredentialNoun && !compileTimeConstant && !hashOfSelf) {
+          pushAst(
+            node,
+            "timing-unsafe-comparison",
+            `${left.text} ${node.operatorToken.getText(sourceFile)} ${right.text} compares a secret with an early-exit operator — use timingSafeEqual (node:crypto)`,
+          );
+        }
+      }
+    }
+
+    // ── Rule: prototype pollution via object spread of request data.
+    // Object spread itself uses CreateDataProperty, so only a stored merge (two or
+    // more members, spread onto an existing shape, not a call argument the callee
+    // maps itself) of directly request-derived data is reported.
+    if (
+      !hasMergeGuard &&
+      ts.isObjectLiteralExpression(node) &&
+      node.properties.length >= 2 &&
+      !ts.isCallExpression(node.parent)
+    ) {
+      for (const property of node.properties) {
+        if (!ts.isSpreadAssignment(property)) continue;
+        const expression = property.expression;
+        const spreadIdentifier =
+          ts.isIdentifier(expression) && directlyTainted.has(expression.text);
+        const inlineJson =
+          /request\.json\s*\(|\.json\s*\(/.test(expression.getText(sourceFile)) &&
+          !ts.isReturnStatement(node.parent);
+        if (spreadIdentifier || inlineJson) {
+          pushAst(
+            node,
+            "prototype-pollution-request-merge",
+            "Object spread-merge of request JSON into a persisted object — strip __proto__/constructor/prototype (or use safeAssign/sanitizeMerge) before merging",
+          );
+          break;
         }
       }
     }
 
     ts.forEachChild(node, visit);
-  }
+  };
 
   visit(sourceFile);
   return violations;
@@ -838,11 +1334,17 @@ function main() {
     const rel = relative(ROOT, file);
     if (EXCLUDED.some((rx) => rx.test(rel))) continue;
     const content = readFileSync(file, "utf8");
-    if (content.includes("slop:suppress")) continue;
-    violations.push(...scanDbRisk(rel, content));
-    violations.push(...scanGlobalRisk(rel, content));
-    violations.push(...scanSvelteKitRisk(rel, content));
-    violations.push(...scanAstRisk(rel, content));
+    const lines = content.split("\n");
+    const fileViolations = [
+      ...scanDbRisk(rel, content),
+      ...scanAstSqlRisk(rel, content),
+      ...scanGlobalRisk(rel, content),
+      ...scanSvelteKitRisk(rel, content),
+      ...scanAstRisk(rel, content),
+    ];
+    // Scoped suppressions: `slop:suppress [rule-id]` covers the offending line or
+    // the line directly above it — never the whole file.
+    violations.push(...fileViolations.filter((v) => !isSuppressed(lines, v.line - 1, v.category)));
   }
 
   const errors = violations.filter((v) => v.severity === "error");

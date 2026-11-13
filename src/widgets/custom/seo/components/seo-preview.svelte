@@ -131,11 +131,14 @@
 			<!-- Device Toggle: Desktop -->
 			<SystemTooltip title={common_desktop_view()}>
 				<Button
-					variant="tertiary"
+					variant={!SeoPreviewToggle ? 'tertiary' : 'ghost'}
 					type="button"
 					onclick={() => (SeoPreviewToggle = false)}
 					aria-label={common_desktop_view()}
-					class="p-0! min-w-0 {!SeoPreviewToggle ? ' dark: ' : ' '}"
+					aria-pressed={!SeoPreviewToggle}
+					class="p-0! min-w-0 {!SeoPreviewToggle
+						? 'bg-tertiary-500/10 text-tertiary-500 dark:bg-tertiary-900/20'
+						: 'text-(--admin-text-muted)'}"
 				>
 					<iconify-icon icon="mdi:monitor" width={24}></iconify-icon>
 				</Button>
@@ -144,11 +147,14 @@
 			<!-- Device Toggle: Mobile -->
 			<SystemTooltip title={common_mobile_view()}>
 				<Button
-					variant="tertiary"
+					variant={SeoPreviewToggle ? 'tertiary' : 'ghost'}
 					type="button"
 					onclick={() => (SeoPreviewToggle = true)}
 					aria-label={common_mobile_view()}
-					class="p-0! min-w-0 {SeoPreviewToggle ? ' dark: ' : ' '}"
+					aria-pressed={SeoPreviewToggle}
+					class="p-0! min-w-0 {SeoPreviewToggle
+						? 'bg-tertiary-500/10 text-tertiary-500 dark:bg-tertiary-900/20'
+						: 'text-(--admin-text-muted)'}"
 				>
 					<iconify-icon icon="mdi:cellphone" width={24}></iconify-icon>
 				</Button>
@@ -176,16 +182,14 @@
 			? 'max-w-93.75 mx-auto'
 			: 'w-full'}"
 	>
-		<!-- URL Line -->
+		<!-- URL Line: the host is rendered once — the preview URL already carries it -->
 		<div class="mb-1 flex items-center gap-2 text-xs text-surface-500 dark:text-surface-50">
 			<div class="flex h-6 w-6 items-center justify-center rounded-full bg-(--admin-bg-chip)">
 				<iconify-icon icon="mdi:earth" width={24}></iconify-icon>
 			</div>
-			<div class="flex flex-col leading-none">
-				<span class="font-bold text-(--admin-text-muted)">{publicEnv.HOST_PROD || 'Your Site'}</span
-				>
-				<span class="truncate text-[10px]">{hostUrl}</span>
-			</div>
+			<span class="truncate font-bold text-(--admin-text-muted)">
+				{hostUrl || publicEnv.HOST_PROD || 'Your Site'}
+			</span>
 		</div>
 
 		<!-- Title -->

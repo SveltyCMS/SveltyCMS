@@ -15,6 +15,7 @@
 import {
   db_error_description,
   db_error_title,
+  error_page_moved,
   error_pagenotfound,
   error_wrong,
 } from "@src/paraglide/messages";
@@ -60,7 +61,9 @@ export function resolveErrorDisplay(status: number, errorMessage?: string): Erro
     : isSetupMode
       ? "System in Setup Mode"
       : status === 404
-        ? error_pagenotfound()
+        ? // The title already *is* "Page not found" — repeating it as the summary made the
+          // error page say the same sentence three times (SV-087). The summary explains it.
+          error_page_moved()
         : status === 403
           ? errorMessage || "You do not have permission to access this resource (Forbidden)."
           : status === 401

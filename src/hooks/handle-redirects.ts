@@ -21,7 +21,7 @@ import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
 import { getRequestFlags } from "@utils/hook-utils";
 import { locales } from "@src/paraglide/runtime";
-import { findRegexRedirect } from "@utils/redirects-utils";
+import { canonicalRedirectPath, findRegexRedirect } from "@utils/redirects-utils";
 
 /** Pattern rules are cached in-process per tenant; saves invalidate the entry. */
 const REGEX_RULE_CACHE_TTL_MS = 60_000;
@@ -280,7 +280,18 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
   }
 
   if (hasRedirect && redirectEntry) {
-    return applyRedirect(event.url, redirectEntry);
+    // 🛡️ SELF-REDIRECT GUARD: a row written straight to the DB (or saved by an
+    // older build) can point back at its own source. Following it traps the
+    // browser in a redirect loop, so fall through and resolve the path instead.
+    const target = redirectEntry.target ?? redirectEntry.to;
+    if (
+      typeof target === "string" &&
+      canonicalRedirectPath(target) === canonicalRedirectPath(path)
+    ) {
+      logger.warn(`[Redirects] Ignored self-referencing redirect for ${path}`);
+    } else {
+      return applyRedirect(event.url, redirectEntry);
+    }
   }
 
   // Only record a 404 after the route is known to be missing. Logging a hit

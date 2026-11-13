@@ -40,6 +40,11 @@
 	// lift the banner above the wizard footer and dock it to the content column.
 	const onSetup = $derived(page.url.pathname.startsWith('/setup'));
 
+	// The admin backend owns its own diagnostics/cookie settings; advertising a marketing
+	// consent prompt there is wrong copy AND its fixed bottom-start dock overlapped the
+	// sidebar footer controls. Consent is only asked on the public site (SV-051).
+	const inAdminBackend = $derived(page.route?.id?.startsWith('/(app)') ?? false);
+
 	// Trigger banner appearance after a short delay if no response yet.
 	// The setup wizard is deliberately excluded: its API surface sits behind the
 	// system-state gate (POST /api/plugins/cookie-consent/consent ⇒ 503 while the
@@ -47,7 +52,7 @@
 	// site exists. After setup the banner appears on every other route, so GDPR
 	// audit logging is unaffected.
 	$effect(() => {
-		if (onSetup || consentStore.responded) {
+		if (onSetup || inAdminBackend || consentStore.responded) {
 			showBanner = false;
 			return;
 		}
@@ -89,7 +94,7 @@
 	}
 </script>
 
-{#if showBanner && !consentStore.responded}
+{#if showBanner && !inAdminBackend && !consentStore.responded}
 	<div
 		transition:fade={{ duration: 300 }}
 		class="fixed inset-x-0 z-9999 p-2 sm:p-4 md:w-full md:max-w-md {onSetup

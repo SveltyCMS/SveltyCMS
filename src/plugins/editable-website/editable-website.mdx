@@ -7,7 +7,7 @@ icon: "mdi:web"
 author: "SveltyCMS Team"
 pricing: "Paid plugin — license required, no free tier"
 created: "2025-10-05"
-updated: "2026-07-10"
+updated: "2026-11-11"
 tags:
   - "plugin"
   - "editable-website"
@@ -53,17 +53,41 @@ if (!status.active) {
 
 ## Features
 
-| Feature            | Description                                                                           |
-| :----------------- | :------------------------------------------------------------------------------------ |
-| Live preview       | Real-time content preview in an iframe as you edit                                    |
-| Bidirectional sync | Preview → CMS via `svelty:save` and `svelty:document:update` (v1.2)                   |
-| Visual editing     | Click-to-edit — `data-svelty-field` markers focus the CMS form                        |
-| Site starter       | Same-origin preview with [Website Starter](/docs/development/site-starter.mdx) preset |
-| Dynamic origin     | `livePreview` URL pattern — relative or absolute frontend URL                         |
-| Preview tokens     | Signed tokens via `POST /api/preview/authorize`                                       |
-| Handshake protocol | Framework-agnostic `postMessage` (SvelteKit, Astro, React, Vue)                       |
-| Multi-collection   | Per-collection via `livePreview` + `plugins: ["editable-website"]`                    |
-| 14-day trial       | Full access for 14 days from first admin registration                                 |
+| Feature            | Description                                                                                        |
+| :----------------- | :------------------------------------------------------------------------------------------------- |
+| Live preview       | Real-time content preview in an iframe as you edit                                                 |
+| Bidirectional sync | Preview → CMS via `svelty:save` and `svelty:document:update` (v1.2)                                |
+| Visual editing     | Click-to-edit — `data-svelty-field` markers focus the CMS form                                     |
+| Reverse highlight  | Focusing a CMS field scrolls to and highlights the matching preview element                        |
+| Block palette      | Add / move / delete hero, paragraph, CTA and image blocks; flip paragraph ↔ hero ↔ CTA             |
+| Media on page      | Drop or pick an image; upload runs through `/api/media/upload`; focal point by click or arrow keys |
+| Mobile edit mode   | Hold the bottom pill to toggle editing ↔ read-only preview on touch devices                        |
+| Autosave & publish | Debounced autosave or one-click publish; both go through the workflow-gated save lane              |
+| Split canvas       | Desktop + mobile frames receive every update (one post per frame)                                  |
+| Site starter       | Same-origin preview with [Website Starter](/docs/development/site-starter.mdx) preset              |
+| Dynamic origin     | `livePreview` URL pattern — relative or absolute frontend URL                                      |
+| Preview tokens     | Signed tokens via `POST /api/preview/authorize`                                                    |
+| Agent access       | WebMCP `get_live_preview_url` returns a signed draft URL after `update_entry` writes               |
+| Handshake protocol | Framework-agnostic `postMessage` (SvelteKit, Astro, React, Vue)                                    |
+| Multi-collection   | Per-collection via `livePreview` + `plugins: ["editable-website"]`                                 |
+| 14-day trial       | Full access for 14 days from first admin registration                                              |
+
+---
+
+## Dashboards
+
+The plugin contributes two admin pages under `/plugin` (sidebar group **Editing**).
+Both read from one shared matrix module (`capabilities.ts`), so a capability cannot
+say "Yes" in one place and "No" in another.
+
+| Page        | Route                                  | What it shows                                                                                        |
+| :---------- | :------------------------------------- | :--------------------------------------------------------------------------------------------------- |
+| Overview    | `/plugin/editable-website`             | License/trial state, protocol version, collections with `livePreview`, capability status, open gaps  |
+| Competitive | `/plugin/editable-website/competitive` | Weighted coverage bars (SveltyCMS / Payload·Directus·Strapi / Editable.website) plus the full matrix |
+
+Coverage scoring is explicit: `yes` = 1, `partial` = 0.5, `no` = 0, `n/a` excluded.
+Competitor columns quote their public documentation as of **November 2026** and are
+always rendered with that qualifier (EU Directive 2006/114/EC, UWG §6).
 
 ---
 
@@ -72,8 +96,8 @@ if (!status.active) {
 1. **Collection schema** sets `livePreview` (URL pattern) and `plugins: ["editable-website"]`
 2. **Preview URL** — `POST /api/preview/authorize` returns a signed `previewUrl`
 3. **Handshake** — iframe sends `svelty:init`; CMS responds with `svelty:update`
-4. **CMS → preview** — every form edit pushes fresh entry data to the iframe
-5. **Preview → CMS** — field clicks focus the form; save messages merge into the entry (save in CMS to persist)
+4. **CMS → preview** — form edits are coalesced (60 ms) and posted to every mounted frame
+5. **Preview → CMS** — field clicks focus the form; document/save messages merge into the entry and can autosave or publish through the workflow-gated lane
 
 ---
 

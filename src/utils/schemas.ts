@@ -62,18 +62,32 @@ const emailSchema = pipe(
 );
 
 // --- Reusable Password Schemas ---
-// Structured as a pipe rather than a custom function for performance
+// Escape `]` so the character class is not closed early (would reject all valid passwords).
+const passwordCharacterClassPattern =
+  /^(?=.*[A-Za-z])(?=.*[0-9])(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>?]).+$/;
+
+/**
+ * Single combined password issue: a pipe would short-circuit on the first failure, so the
+ * user only ever saw the length rule and never the character-class rule.
+ */
 const passwordSchema = pipe(
   string(),
   trim(),
-  minLength(
-    getMinPasswordLength(),
-    `Password must be at least ${getMinPasswordLength()} characters.`,
-  ),
-  // Escape `]` so the character class is not closed early (would reject all valid passwords).
-  regex(
-    /^(?=.*[A-Za-z])(?=.*[0-9])(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>?]).+$/,
-    "Password must include a letter, number, and special character.",
+  check(
+    (value) => value.length >= getMinPasswordLength() && passwordCharacterClassPattern.test(value),
+    (issue) => {
+      const value = typeof issue.input === "string" ? issue.input : "";
+      const failedRules: string[] = [];
+      if (value.length < getMinPasswordLength()) {
+        failedRules.push(`at least ${getMinPasswordLength()} characters`);
+      }
+      if (!passwordCharacterClassPattern.test(value)) {
+        failedRules.push("a letter, a number, and a special character");
+      }
+      return failedRules.length > 0
+        ? `Password must include ${failedRules.join(" and ")}.`
+        : "Invalid password.";
+    },
   ),
 );
 
@@ -193,7 +207,11 @@ export const setupAdminSchema = pipe(
     password: passwordSchema,
     confirmPassword: confirmPasswordSchema,
   }),
-  check((input) => input.password === input.confirmPassword, "The passwords do not match."),
+  // Field path keeps the mismatch on the Confirm Password input instead of the form root.
+  forward(
+    check((input) => input.password === input.confirmPassword, "The passwords do not match."),
+    ["confirmPassword"],
+  ),
 );
 
 // --- SMTP Configuration Schemas ---

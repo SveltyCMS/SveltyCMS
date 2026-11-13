@@ -32,6 +32,13 @@
 		brokenAt: number | null;
 		totalEntries: number;
 		tamperedEntries: number;
+		/** Set by `verifyChain()` so a bare "valid" cannot hide a stale checkpoint. */
+		checkpointPersistence?: {
+			healthy: boolean;
+			consecutiveFailures: number;
+			lastFailureAt: string | null;
+			lastMessage: string | null;
+		};
 		details?: string[];
 	}
 
@@ -168,7 +175,32 @@
 	</div>
 
 	<!-- Verification result -->
-	{#if verifyResult}
+	{#if verifyResult && verifyResult.valid && verifyResult.totalEntries === 0}
+		<!-- Neutral empty state: an empty chain has nothing to verify. Rendering the
+		     red "Chain Broken" block here made a fresh install look tampered. -->
+		<div
+			class="rounded border border-surface-500/30 bg-surface-500/10 p-2 text-xs text-(--admin-text-muted) dark:border-surface-500/40"
+			role="status"
+			aria-live="polite"
+			aria-atomic="true"
+			data-testid="audit-chain-empty"
+		>
+			<div class="flex items-center gap-1.5 font-semibold">
+				<span aria-hidden="true">📋</span>
+				No audit entries yet
+			</div>
+			<div class="mt-1 ps-4 text-[11px] opacity-80">
+				The audit chain is empty, so there is nothing to verify.
+			</div>
+			{#if verifyResult.details && verifyResult.details.length > 0}
+				<div class="mt-1 space-y-0.5 ps-4">
+					{#each verifyResult.details as detail, i (i)}
+						<div class="text-[11px] opacity-80">{detail}</div>
+					{/each}
+				</div>
+			{/if}
+		</div>
+	{:else if verifyResult}
 		<div
 			class="rounded border p-2 text-xs {verifyResult.valid
 				? 'border-success-500/30 bg-success-500/10 text-success-600 dark:border-success-500/40 dark:bg-success-900/20 dark:text-success-400'
@@ -182,6 +214,24 @@
 					<span>✅</span>
 					Chain Valid — {verifyResult.totalEntries} entries verified
 				</div>
+				{#if verifyResult.checkpointPersistence && !verifyResult.checkpointPersistence.healthy}
+					<div
+						class="mt-1 flex flex-col gap-0.5 ps-4 text-[11px]"
+						data-testid="audit-checkpoint-warning"
+					>
+						<span class="font-semibold">
+							Checkpoint not persisted — tail truncation may go unnoticed
+						</span>
+						<span class="opacity-80">
+							{verifyResult.checkpointPersistence.consecutiveFailures} consecutive write failure(s){verifyResult
+								.checkpointPersistence.lastFailureAt
+								? `, last at ${verifyResult.checkpointPersistence.lastFailureAt}`
+								: ''}{verifyResult.checkpointPersistence.lastMessage
+								? `: ${verifyResult.checkpointPersistence.lastMessage}`
+								: ''}
+						</span>
+					</div>
+				{/if}
 			{:else}
 				<div class="flex flex-col gap-1">
 					<div class="flex items-center gap-1.5 font-semibold">

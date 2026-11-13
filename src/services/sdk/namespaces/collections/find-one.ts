@@ -31,6 +31,7 @@ import { widgetRegistryService } from "@src/services/core/widget-registry-servic
 import { getRequestCache, setRequestCache } from "./request-cache";
 import { applyWidgetPipeline } from "./write-pipeline";
 import { presentRead, readEncryptionContext } from "./read-pipeline";
+import { hydrateJunctionFields } from "./junction-fields";
 
 /** What the point-read lane needs from the namespace — no class instance required. */
 export interface FindOneContext {
@@ -132,6 +133,9 @@ async function loadOneById(
       });
       item = payload[0] ?? item;
     }
+
+    // 🔗 Hydrate junction (many-to-many) fields before caching/presenting.
+    await hydrateJunctionFields(ctx._dbAdapter, schema, [item], tenantId);
 
     item._collection = (schema as { _collectionMeta?: unknown })._collectionMeta || {
       id: schema._id,

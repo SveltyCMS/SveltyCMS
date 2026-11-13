@@ -838,11 +838,12 @@ describe("exchangeOidcCode", () => {
 });
 
 describe("handleFrontChannelLogout", () => {
-  it("clears matching sessions by issuer and returns 200 with no-cache headers", async () => {
+  it("clears the session matching the OP sid and returns 200 with no-cache headers", async () => {
     registerSsoProvider(PROVIDER);
     await setSsoSessionMetadata("front-sess-1", {
       provider: "acme",
       createdAt: "2026-10-18T00:00:00.000Z",
+      oidcSid: "front-sid-1",
     });
 
     const resp = await handleFrontChannelLogout("https://id.acme.test", "front-sid-1");
@@ -900,7 +901,7 @@ describe("handleBackChannelLogout", () => {
     });
   });
 
-  it("verifies signed logout token and terminates matching sessions", async () => {
+  it("verifies signed logout token and terminates the session for its subject", async () => {
     const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
     const jwk = publicKey.export({ format: "jwk" }) as any;
     jwk.kid = "bcl-kid";
@@ -918,6 +919,8 @@ describe("handleBackChannelLogout", () => {
     await setSsoSessionMetadata("bcl-sess-1", {
       provider: "bcl-prov",
       createdAt: "2026-10-18T00:00:00.000Z",
+      // The token carries `sub` only; the stored subject is what selects this session.
+      oidcSubject: "user-target",
     });
 
     h.safeFetch.mockImplementation(async (url: string) => {

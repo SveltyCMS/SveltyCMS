@@ -1623,7 +1623,7 @@ export interface ISqlAdapter extends BaseAdapter {
   jsonKeyPatchSetValue(table: any, column: string, patch: Record<string, unknown>): unknown;
   transaction<T>(
     fn: (transaction: DatabaseTransaction) => Promise<DatabaseResult<T>>,
-    options?: { timeout?: number; isolationLevel?: string; isWrite?: boolean },
+    options?: { timeout?: number; isolationLevel?: string; isWrite?: boolean; tenantId?: string },
   ): Promise<DatabaseResult<T>>;
   raw: {
     execute: (sql: string, params?: any[]) => Promise<any>;
@@ -1759,7 +1759,7 @@ export interface IDBAdapter {
   // Transaction Support
   transaction<T>(
     fn: (transaction: DatabaseTransaction) => Promise<DatabaseResult<T>>,
-    options?: { timeout?: number; isolationLevel?: string; isWrite?: boolean },
+    options?: { timeout?: number; isolationLevel?: string; isWrite?: boolean; tenantId?: string },
   ): Promise<DatabaseResult<T>>;
 
   // Database Agnostic Utilities

@@ -23,8 +23,10 @@
 	import Textarea from '@components/ui/textarea.svelte';
 	import { replaceTokens, TokenRegistry } from '@src/services/token/engine';
 	import { modifierMetadata } from '@src/services/token/modifiers';
+	import { insertTokenAtSelection, type TokenSelection } from '@src/services/token/insert-token';
 	import type { ModifierMetadata, TokenDefinition } from '@src/services/token/types';
 	import { activeInput } from '@src/stores/active-input-store.svelte';
+	import { suppressTokenPickerOnFocus } from '@src/services/token/token-target';
 	import { collections } from '@src/stores/collection-store.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { ui } from '@src/stores/ui-store.svelte';
@@ -193,22 +195,74 @@
 	// Smart editable preview handling
 	$effect(() => {
 		const currentToken = tokenResult;
-		const active = activeInput.current;
 
-		if (currentToken !== previousTokenResult) {
-			if (previousTokenResult && editablePreview.includes(previousTokenResult)) {
-				editablePreview = editablePreview.replace(previousTokenResult, currentToken);
-			} else if (!editablePreview && active?.element) {
-				const el = active.element;
-				const start = el.selectionStart ?? el.value.length;
-				editablePreview =
-					el.value.slice(0, start) + currentToken + el.value.slice(el.selectionEnd ?? start);
-			} else if (!editablePreview) {
-				editablePreview = currentToken;
-			}
-			previousTokenResult = currentToken;
+		if (currentToken === previousTokenResult) return;
+
+		if (previousTokenResult && editablePreview.includes(previousTokenResult)) {
+			editablePreview = editablePreview.replace(previousTokenResult, currentToken);
+		} else {
+			// Only ever hold the token itself. The old shape spliced the caret into
+			// `el.value` and handed the whole string back to `onInsert`, so a
+			// field that already said "static" became "staticstatic".
+			editablePreview = currentToken;
 		}
+		previousTokenResult = currentToken;
 	});
+
+	// Selection captured when the picker opened — the modal steals focus and the
+	// browser may not keep `selectionStart` on the field, so remember it up front.
+	let openedSelection = $state<TokenSelection | null>(null);
+	let capturedElement: HTMLInputElement | HTMLTextAreaElement | null = null;
+
+	$effect(() => {
+		const active = activeInput.current;
+		if (!active) {
+			openedSelection = null;
+			capturedElement = null;
+			return;
+		}
+		if (capturedElement === active.element) return;
+		capturedElement = active.element;
+		const el = active.element;
+		openedSelection = el ? { start: el.selectionStart, end: el.selectionEnd } : null;
+	});
+
+	function focusField(el: HTMLInputElement | HTMLTextAreaElement | null, caret?: number) {
+		if (!el) return;
+		// The rich-text bridge input is a hidden, aria-hidden proxy — focusing it
+		// would pull the caret out of the editor that owns the real document.
+		if (el.getAttribute('aria-hidden') === 'true') return;
+		el.focus();
+		if (typeof caret === 'number') {
+			try {
+				el.setSelectionRange(caret, caret);
+			} catch (err) {
+				// `input[type=number]` has no selection API — the value + focus are enough.
+				logger.debug('Token picker: cannot restore caret for this input type', err);
+			}
+		}
+	}
+
+	/** Close the picker and hand focus (and the caret) back to the field. */
+	function closePicker() {
+		const el = activeInput.current?.element ?? null;
+		const range = openedSelection;
+		activeInput.set(null);
+		if (!el) return;
+		suppressTokenPickerOnFocus(el);
+		requestAnimationFrame(() => {
+			// Focus (and the caret) go back to the field so the user keeps typing
+			// where they left off instead of hunting for the input again.
+			focusField(el, range?.start ?? undefined);
+		});
+	}
+
+	function handleKeydown(event: KeyboardEvent) {
+		if (event.key !== 'Escape' || !activeInput.current) return;
+		event.preventDefault();
+		event.stopPropagation();
+		closePicker();
+	}
 
 	// Actions
 	function selectToken(t: TokenDefinition) {
@@ -219,17 +273,18 @@
 		if (active.onInsert) {
 			active.onInsert(tokenString);
 			activeInput.set(null);
+			suppressTokenPickerOnFocus(active.element);
+			focusField(active.element);
 			return;
 		}
 
 		const el = active.element;
 		if (!el) return;
 
-		const start = el.selectionStart ?? el.value.length;
-		const end = el.selectionEnd ?? start;
-		el.value = el.value.slice(0, start) + tokenString + el.value.slice(end);
-		el.focus();
-		el.setSelectionRange(start + tokenString.length, start + tokenString.length);
+		const inserted = insertTokenAtSelection(el.value, tokenString, openedSelection);
+		el.value = inserted.value;
+		suppressTokenPickerOnFocus(el);
+		focusField(el, inserted.caret);
 		el.dispatchEvent(new Event('input', { bubbles: true }));
 		el.dispatchEvent(new Event('change', { bubbles: true }));
 
@@ -263,6 +318,8 @@
 		if (active.onInsert) {
 			active.onInsert(editablePreview.trim());
 			activeInput.set(null);
+			suppressTokenPickerOnFocus(active.element);
+			focusField(active.element);
 			return;
 		}
 
@@ -271,9 +328,12 @@
 			return;
 		}
 
-		el.value = editablePreview.trim();
-		el.focus();
-		el.setSelectionRange(el.value.length, el.value.length);
+		// Insert at the caret like `selectToken` — replacing the whole value
+		// discarded everything the user had already typed in the field.
+		const inserted = insertTokenAtSelection(el.value, editablePreview.trim(), openedSelection);
+		el.value = inserted.value;
+		suppressTokenPickerOnFocus(el);
+		focusField(el, inserted.caret);
 		el.dispatchEvent(new Event('input', { bubbles: true }));
 		el.dispatchEvent(new Event('change', { bubbles: true }));
 
@@ -345,6 +405,8 @@
 	}
 </script>
 
+<svelte:window onkeydown={handleKeydown} />
+
 {#if activeInput.current}
 	<div
 		class="token-window fixed z-9999 flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded border border-(--admin-border-default) bg-(--admin-bg-card) p-4 shadow-xl text-(--admin-text-body)"
@@ -375,8 +437,8 @@
 			<Button
 				variant="transparent"
 				rounded
-				onclick={() => activeInput.set(null)}
-				aria-label="Close"
+				onclick={closePicker}
+				aria-label="Close token picker"
 				class="inline-flex size-8 items-center justify-center bg-transparent p-0! min-w-0 text-(--admin-text-muted) hover:bg-surface-500/10 hover:text-(--admin-text-body)"
 			>
 				<iconify-icon icon="mdi:close"></iconify-icon>

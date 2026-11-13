@@ -56,6 +56,26 @@ describe("WafGuard (Layer 0 WAF Middleware)", () => {
     expect(res2.threatType).toBe("SQLI");
   });
 
+  it("blocks quoted boolean SQLi payloads", () => {
+    for (const payload of ["' OR '1'='1", '" OR "1"="1', "1' OR 1=1 --"]) {
+      const res = waf.inspectRequest(`/api/content/${payload}`, `id=${payload}`, {});
+      expect(res.blocked, payload).toBe(true);
+      expect(res.threatType, payload).toBe("SQLI");
+    }
+  });
+
+  it("blocks unicode-escaped script tags", () => {
+    const payload = "\\u003cscript\\u003ealert(1)\\u003c/script\\u003e";
+    const res = waf.inspectRequest("/api/search", `q=${payload}`, {});
+    expect(res.blocked).toBe(true);
+    expect(res.threatType).toBe("XSS");
+  });
+
+  it("does not block prose that merely contains the word or", () => {
+    const res = waf.inspectRequest("/api/content", "q=choose+red+or+blue", {});
+    expect(res.blocked).toBe(false);
+  });
+
   it("blocks header splitting attempts", () => {
     const res = waf.inspectRequest("/api/headers", "", {
       "x-custom-header": "test\r\nSet-Cookie: session=evil",

@@ -91,6 +91,7 @@ import {
   writeTouchesActiveWidgets,
 } from "./collections/write-pipeline";
 import { compileRelationFilters } from "./collections/relation-filter";
+import { collectJunctionPayload, syncJunctionLinks } from "./collections/junction-fields";
 import { ownershipFilter, ownerValue, stripUnownedRows } from "./collections/access-filter";
 export { ownershipFilter, ownerValue, stripUnownedRows };
 import {
@@ -288,6 +289,44 @@ function scheduleIndexNowPing(
     )
     .catch((err) => {
       logger.debug("[IndexNow] Publish ping scheduling failed (non-fatal)", { error: err });
+    });
+}
+
+/** Lazy audit-service handle — the audit graph must not be an eager namespace dependency. */
+let auditServiceModulePromise:
+  | Promise<typeof import("@src/services/security/audit-service")>
+  | undefined;
+
+function loadAuditServiceModule() {
+  return (auditServiceModulePromise ??= import("@src/services/security/audit-service"));
+}
+
+/** Resolve the actor fields the audit row carries, never the whole user object. */
+function contentAuditActor(
+  user: { _id?: unknown; email?: unknown; role?: unknown } | null | undefined,
+  system?: boolean,
+) {
+  return {
+    id: typeof user?._id === "string" ? user._id : null,
+    email: typeof user?.email === "string" ? user.email : system ? "system@svelty.cms" : "unknown",
+    role: typeof user?.role === "string" ? user.role : undefined,
+  };
+}
+
+/**
+ * Queue a content audit entry for the entry's "Audit History" panel.
+ *
+ * Detached on purpose: `auditService.log()` runs the Merkle-chain append, and the
+ * write path already handed its row back. Awaiting here put the chain read on the
+ * create/update latency budget; a failure is logged and never fails the write.
+ */
+function scheduleContentAudit(
+  input: import("@src/services/security/audit-service").ContentAuditInput,
+): void {
+  void loadAuditServiceModule()
+    .then(({ auditService }) => auditService.recordContentChange(input))
+    .catch((err) => {
+      logger.debug("[collections] content audit entry skipped (non-fatal)", { error: err });
     });
 }
 
@@ -1024,6 +1063,11 @@ export class CollectionsNamespace {
     m2?.();
     markWritePhase(options, "prep", tPrep);
 
+    // 🔗 Junction (many-to-many) fields: extract the desired edges and keep them
+    // out of the row. The edges are written after the row is durable.
+    const junction = collectJunctionPayload(schema, finalData as Record<string, unknown>);
+    if (junction.present.length > 0) finalData = junction.stripped;
+
     const collectionName = this.getCollectionName(schema._id as string);
     const encCtx = plan.hasEncryption
       ? fieldEncryptionContext(schema, tenantId)
@@ -1067,6 +1111,39 @@ export class CollectionsNamespace {
       options.skipReturning || !plan.hasEncryption
         ? result
         : decryptReadResult(result, hot, encCtx, DECRYPT_CLONE_OPTIONS);
+
+    // 🔗 Persist the junction edges for this row. Idempotent (deterministic edge
+    // ids), so a retry after a partial failure converges.
+    if (junction.present.length > 0 && result?.success) {
+      const createdId = String(
+        (result.data as { _id?: unknown } | null)?._id ??
+          (finalData as { _id?: unknown })._id ??
+          "",
+      );
+      if (createdId) {
+        await syncJunctionLinks(this._dbAdapter, {
+          tenantId,
+          sourceCollection: String(schema._id),
+          sourceId: createdId,
+          links: junction.present,
+          transaction,
+        });
+        // Return the values the caller sent (the row itself no longer holds them).
+        for (const link of junction.present) {
+          const ids = link.desired.map((entry) => entry.id);
+          if (result.data && typeof result.data === "object") {
+            (result.data as Record<string, unknown>)[link.fieldName] = ids;
+          }
+          if (decryptedCreate?.data && typeof decryptedCreate.data === "object") {
+            (decryptedCreate.data as Record<string, unknown>)[link.fieldName] = ids;
+          }
+        }
+      } else {
+        logger.warn(
+          `[collections] Cannot link many-to-many field(s) on ${String(schema._id)}: the adapter returned no _id (skipReturning).`,
+        );
+      }
+    }
     if (result && result.success && result.data) {
       const createdId = result.data!._id as string;
       // Resolved once — the three side-effect schedules below shared the same
@@ -1075,6 +1152,21 @@ export class CollectionsNamespace {
       // ⚡ Response-path: never await side effects — concurrent create RPS depends on this.
       // Inside a transaction they are queued and replayed only after COMMIT.
       runAfterCommit(options, () => {
+        // Audit trail: without this, content mutations never reached `audit_logs`
+        // (the HTTP hook only sees `/api/*` and is off under TEST_MODE), so the
+        // entry's "Audit History" panel was always empty. Inside a transaction
+        // this runs after COMMIT, so a rolled-back create leaves no audit row.
+        if (!shouldSkipWriteSideEffects(options)) {
+          scheduleContentAudit({
+            action: isPublishing ? "publish" : "create",
+            collectionId: String(schema._id ?? collectionId),
+            collectionName: typeof schema.name === "string" ? schema.name : undefined,
+            entryId: createdId,
+            tenantId,
+            actor: contentAuditActor(effectiveUser, system),
+            status: (postWriteDoc as { status?: string } | null)?.status ?? requestedStatus,
+          });
+        }
         schedulePostWrite(
           this._dbAdapter,
           "create",
@@ -1293,6 +1385,11 @@ export class CollectionsNamespace {
     m2u?.();
     markWritePhase(options, "prep", tPrep);
 
+    // 🔗 Junction fields present in this request are extracted and stripped; an
+    // omitted field leaves its existing edges untouched.
+    const junction = collectJunctionPayload(schema, finalData as Record<string, unknown>);
+    if (junction.present.length > 0) finalData = junction.stripped;
+
     // 🛡️ REVISION TRACKING: for revision-enabled collections, snapshot the entry
     // BEFORE the write so the update can persist the previous version. Best-effort
     // — a failed snapshot must never fail the update itself.
@@ -1435,6 +1532,26 @@ export class CollectionsNamespace {
       options.skipReturning || !plan.hasEncryption
         ? result
         : decryptReadResult(result, hot, encCtx, DECRYPT_CLONE_OPTIONS);
+
+    // 🔗 Sync the junction edges the request supplied.
+    if (junction.present.length > 0 && result?.success) {
+      await syncJunctionLinks(this._dbAdapter, {
+        tenantId,
+        sourceCollection: String(schema._id),
+        sourceId: entryId,
+        links: junction.present,
+        transaction,
+      });
+      for (const link of junction.present) {
+        const ids = link.desired.map((entry) => entry.id);
+        if (result.data && typeof result.data === "object") {
+          (result.data as Record<string, unknown>)[link.fieldName] = ids;
+        }
+        if (decryptedUpdate?.data && typeof decryptedUpdate.data === "object") {
+          (decryptedUpdate.data as Record<string, unknown>)[link.fieldName] = ids;
+        }
+      }
+    }
     if (result && result.success && result.data) {
       // 🛡️ REVISION TRACKING: persist the pre-write snapshot before the request
       // returns. The write itself is already durable, but a fire-and-forget call
@@ -1461,6 +1578,17 @@ export class CollectionsNamespace {
       // ⚡ Response-path: never await side effects — concurrent update RPS depends on this.
       // Inside a transaction they are queued and replayed only after COMMIT.
       runAfterCommit(options, () => {
+        if (!shouldSkipWriteSideEffects(options)) {
+          scheduleContentAudit({
+            action: explicitPublish ? "publish" : "update",
+            collectionId: String(schema._id ?? collectionId),
+            collectionName: typeof schema.name === "string" ? schema.name : undefined,
+            entryId,
+            tenantId,
+            actor: contentAuditActor(effectiveUser, system),
+            status: (postWriteDoc as { status?: string } | null)?.status ?? requestedStatus,
+          });
+        }
         schedulePostWrite(
           this._dbAdapter,
           "update",
@@ -1542,7 +1670,20 @@ export class CollectionsNamespace {
     entryId: string,
     options: LocalApiOptions & { permanent?: boolean } = {},
   ) {
-    return executeDelete(this, collectionId, entryId, options);
+    const result = await executeDelete(this, collectionId, entryId, options);
+    if (result?.success && !shouldSkipWriteSideEffects(options)) {
+      // `peekReadySchema` is a cache read — no extra DB round-trip for the name.
+      const schema = peekReadySchema(options.tenantId, collectionId);
+      scheduleContentAudit({
+        action: "delete",
+        collectionId: String(schema?._id ?? collectionId),
+        collectionName: typeof schema?.name === "string" ? schema.name : undefined,
+        entryId,
+        tenantId: options.tenantId,
+        actor: contentAuditActor(options.system ? null : options.user, options.system),
+      });
+    }
+    return result;
   }
 
   /**

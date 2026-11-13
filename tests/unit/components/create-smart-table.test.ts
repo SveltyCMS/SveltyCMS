@@ -34,6 +34,21 @@ describe("createSmartTable", () => {
     expect(onQueryChange).toHaveBeenCalledWith(expect.objectContaining({ page: 2 }));
   });
 
+  it("exposes viewMode as a writable accessor so `bind:viewMode` works", () => {
+    // The controller used to return a getter-only `viewMode`; the view-toggle
+    // passed it to `bind:viewMode`, so clicking "Switch to Card View" threw
+    // `TypeError: Cannot set property viewMode of #<Object> which has only a getter`.
+    const table = createSmartTable({ mode: "client" });
+    const descriptor = Object.getOwnPropertyDescriptor(table, "viewMode");
+    expect(typeof descriptor?.set).toBe("function");
+
+    table.viewMode = "card";
+    expect(table.viewMode).toBe("card");
+
+    table.viewMode = "table";
+    expect(table.viewMode).toBe("table");
+  });
+
   it("setSort can restore an absolute direction without cycling", () => {
     const onQueryChange = vi.fn();
     const table = createSmartTable({

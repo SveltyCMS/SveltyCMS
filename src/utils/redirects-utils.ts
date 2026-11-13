@@ -159,14 +159,103 @@ export function normalizeRedirectType(type: unknown): RedirectTypeCode {
 }
 
 /**
- * Validate a full draft; returns field → error map (empty if valid).
+ * Normalize a redirect path for identity comparison: strip query/hash, a
+ * trailing slash (except for `/`), and reduce a same-origin absolute URL to its
+ * pathname. Case is preserved (paths are case-sensitive).
  */
-export function validateRedirectDraft(draft: RedirectDraft): Record<string, string> {
+export function canonicalRedirectPath(path: string): string {
+  if (!path) return "";
+  let value = path.trim();
+  if (!value) return "";
+  if (ABSOLUTE_URL.test(value) || value.startsWith("//")) {
+    try {
+      value = new URL(value.startsWith("//") ? `https:${value}` : value).pathname;
+    } catch {
+      // Unparseable absolute URL — compare it as written.
+      return value;
+    }
+  }
+  const hashIndex = value.indexOf("#");
+  if (hashIndex >= 0) value = value.slice(0, hashIndex);
+  const queryIndex = value.indexOf("?");
+  if (queryIndex >= 0) value = value.slice(0, queryIndex);
+  if (!value) return "/";
+  if (!value.startsWith("/")) value = `/${value}`;
+  if (value.length > 1) value = value.replace(/\/+$/, "") || "/";
+  return value;
+}
+
+/** Upper bound of hops followed when detecting a redirect cycle. */
+const MAX_REDIRECT_LOOP_HOPS = 8;
+
+/**
+ * Detect a redirect that dead-ends in a loop.
+ *
+ * Returns the loop chain (`/a → /b → /a`) or `null` when the redirect is safe.
+ * A rule whose target equals its own source is a single-element loop; longer
+ * chains are found by following the target through the existing (active,
+ * non-regex) rules, excluding the rule currently being saved.
+ */
+export function findRedirectLoop(
+  draft: Pick<RedirectDraft, "id" | "from" | "to" | "isRegex">,
+  existing: readonly RedirectDraft[] = [],
+): string[] | null {
+  const from = canonicalRedirectPath(draft.from);
+  const to = canonicalRedirectPath(draft.to);
+  if (!from || !to) return null;
+
+  // A regex source matches a family of paths; only its literal target can be
+  // compared, and "pattern equals target" is still a guaranteed loop.
+  if (to === from) return [from];
+  if (draft.isRegex || existing.length === 0) return null;
+
+  const nextBySource = new Map<string, string>();
+  for (const row of existing) {
+    if (!row || row.isRegex || row.active === false) continue;
+    if (draft.id && row.id === draft.id) continue;
+    const source = canonicalRedirectPath(row.from);
+    if (!source || nextBySource.has(source)) continue;
+    nextBySource.set(source, canonicalRedirectPath(row.to));
+  }
+
+  const chain: string[] = [from];
+  let cursor = to;
+  for (let hop = 0; hop < MAX_REDIRECT_LOOP_HOPS; hop++) {
+    chain.push(cursor);
+    if (cursor === from) return chain;
+    const next = nextBySource.get(cursor);
+    if (!next) return null;
+    cursor = next;
+  }
+  return null;
+}
+
+/**
+ * Validate a full draft; returns field → error map (empty if valid).
+ *
+ * `existing` enables cycle detection across saved rules; the server passes the
+ * tenant's current rules so `/a → /b` cannot be saved next to `/b → /a`.
+ */
+export function validateRedirectDraft(
+  draft: RedirectDraft,
+  existing: readonly RedirectDraft[] = [],
+): Record<string, string> {
   const errors: Record<string, string> = {};
   const fromErr = validateRedirectFrom(draft.from, draft.isRegex);
   if (fromErr) errors.from = fromErr;
   const toErr = validateRedirectTo(draft.to);
   if (toErr) errors.to = toErr;
+
+  if (!fromErr && !toErr) {
+    const loop = findRedirectLoop(draft, existing);
+    if (loop) {
+      errors.to =
+        loop.length < 3
+          ? "From and To resolve to the same path — a self-referencing redirect would loop"
+          : `Redirect would loop: ${loop.join(" → ")}`;
+    }
+  }
+
   return errors;
 }
 

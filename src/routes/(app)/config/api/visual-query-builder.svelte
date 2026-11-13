@@ -301,8 +301,8 @@
 							id="query-sort-order"
 							value={sortOrder}
 							options={[
-								{ value: 'desc', label: 'Descending (Newest first)' },
-								{ value: 'asc', label: 'Ascending (Oldest first)' }
+								{ value: 'desc', label: 'Descending' },
+								{ value: 'asc', label: 'Ascending' }
 							]}
 							onchange={(val: string) => (sortOrder = val as 'desc' | 'asc')}
 						/>

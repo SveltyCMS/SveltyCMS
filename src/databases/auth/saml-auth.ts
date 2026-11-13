@@ -19,8 +19,15 @@ import { raise, rethrow } from "@utils/error-handling";
 import { dbAdapter } from "@src/databases/db";
 import type { DatabaseId } from "@src/databases/db-interface";
 import { json } from "@sveltejs/kit";
-import { dateToISODateString } from "@utils/date";
+import { dateToISODateString, nowISODateString } from "@utils/date";
 import { getSessionCookieName, isSecureCookieContext } from "./constants";
+import {
+  findSamlSessions,
+  getSsoSessionMetadata,
+  SAML_SSO_PROVIDER_ID,
+  setSsoSessionMetadata,
+  terminateSessionAndMetadata,
+} from "./sso-session";
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -33,7 +40,20 @@ interface SAMLConnectionConfig {
   audience?: string;
   wantAssertionsSigned?: boolean;
   redirectUrl?: string;
+  /** IdP Single Logout endpoint (defaults to `entryPoint`). */
+  logoutUrl?: string;
+  /** SP private key used to sign LogoutRequest/LogoutResponse messages. */
+  privateKey?: string;
+  /** Our SLO endpoint — the `Destination` an IdP logout message must carry. */
+  logoutCallbackUrl?: string;
 }
+
+/**
+ * node-saml types the logout helpers with a full `Profile`, but a LogoutRequest
+ * only carries `ID` (+ NameID/SessionIndex). This alias keeps the calls typed
+ * without inventing the rest of a profile.
+ */
+type SamlLogoutProfile = Parameters<SAML["getLogoutResponseUrlAsync"]>[0];
 
 /** Result of SP-initiated SSO URL generation — the ID is bound to the ACS cookie. */
 export interface SAMLAuthUrl {
@@ -77,7 +97,36 @@ export function isSamlConfigured(tenant?: string | null): boolean {
   );
 }
 
-/** Reads the tenant's IdP configuration from private settings. */
+const TRUE_SETTING_VALUES = new Set(["1", "true", "yes", "on"]);
+
+/** Reads a boolean private setting. Absent / unparsable values are `false`. */
+function readBooleanSetting(key: string, tenant?: string | null): boolean {
+  const raw = readPrivateSetting(key, tenant) as unknown;
+  if (typeof raw === "boolean") return raw;
+  if (typeof raw === "number") return raw === 1;
+  if (typeof raw === "string") return TRUE_SETTING_VALUES.has(raw.trim().toLowerCase());
+  return false;
+}
+
+/**
+ * True when an unsolicited (IdP-initiated) `SAMLResponse` may be accepted at the
+ * ACS endpoint.
+ *
+ * Default is **false (fail closed)**: a response that no login in this browser
+ * started is not bound to anything, so it must be an explicit opt-in. Both the
+ * schema key `SAML_ALLOW_IDP_INITIATED` and the `samlAllowIdpInitiated` alias
+ * are honoured so operators can use either spelling.
+ */
+export function isIdpInitiatedLoginAllowed(tenant?: string | null): boolean {
+  return (
+    readBooleanSetting("SAML_ALLOW_IDP_INITIATED", tenant) ||
+    readBooleanSetting("samlAllowIdpInitiated", tenant)
+  );
+}
+
+/**
+ * Reads the tenant's IdP configuration from private settings.
+ */
 function getSAMLConfig(tenant?: string | null, product?: string | null): SAMLConnectionConfig {
   const storedEntryPoint =
     readPrivateSetting("SAML_ENTRY_POINT", tenant) || "https://idp.example.com/sso";
@@ -91,6 +140,8 @@ function getSAMLConfig(tenant?: string | null, product?: string | null): SAMLCon
     readPrivateSetting("SAML_ISSUER", tenant) || readPrivateSetting("SAML_SP_ENTITY_ID", tenant);
   const configuredAudience =
     readPrivateSetting("SAML_AUDIENCE", tenant) || readPrivateSetting("SAML_SP_ENTITY_ID", tenant);
+  const configuredLogoutUrl = readPrivateSetting("SAML_LOGOUT_URL", tenant);
+  const configuredPrivateKey = readPrivateSetting("SAML_SP_PRIVATE_KEY", tenant);
 
   return {
     tenant: tenant || "sveltycms",
@@ -101,6 +152,9 @@ function getSAMLConfig(tenant?: string | null, product?: string | null): SAMLCon
     audience: configuredAudience,
     wantAssertionsSigned: true,
     redirectUrl: `${externalUrl}/api/auth/saml/acs`,
+    logoutUrl: configuredLogoutUrl || storedEntryPoint,
+    logoutCallbackUrl: `${externalUrl}/api/auth/saml/slo`,
+    ...(configuredPrivateKey ? { privateKey: configuredPrivateKey } : {}),
   };
 }
 
@@ -127,6 +181,11 @@ function buildSAMLOptions(
   // Only send an audience when explicitly configured — existing deployments
   // rely on node-saml's default behaviour.
   if (config.audience) options.audience = config.audience;
+  if (config.logoutUrl) options.logoutUrl = config.logoutUrl;
+  if (config.logoutCallbackUrl) options.logoutCallbackUrl = config.logoutCallbackUrl;
+  // Only present when the deployment configured an SP key: node-saml signs
+  // LogoutRequest and LogoutResponse messages whenever it sees one.
+  if (config.privateKey) options.privateKey = config.privateKey;
   if (generateUniqueId) options.generateUniqueId = generateUniqueId;
   return options;
 }
@@ -325,14 +384,13 @@ export function parseIdPMetadata(rawMetadata: string): ParsedSAMLMetadata {
 }
 
 /**
- * Reads the `InResponseTo` attribute from a base64-encoded SAMLResponse.
- * node-saml 5.1.0's `validatePostResponseAsync` does not accept a caller
- * supplied request ID, so the ACS handler performs this stateless check
- * against the `saml_request_id` cookie before delegating signature validation.
+ * Decodes a base64 SAML message into a DOM, refusing DTD/entity declarations.
+ * Returns null (never throws) for input that cannot be read, so callers can
+ * treat a malformed message as "no message context".
  */
-function extractInResponseTo(samlResponse: string): string | null {
-  if (!samlResponse) return null;
-  const xml = Buffer.from(samlResponse, "base64").toString("utf8");
+function decodeSamlXml(base64: string): XmlDomDocument | null {
+  if (!base64) return null;
+  const xml = Buffer.from(base64, "base64").toString("utf8");
   if (!xml.trim() || /<!DOCTYPE|<!ENTITY/i.test(xml)) return null;
 
   let parseError: string | null = null;
@@ -345,12 +403,28 @@ function extractInResponseTo(samlResponse: string): string | null {
     }).parseFromString(xml, "text/xml");
   } catch (err) {
     rethrow(err);
-    logger.debug("SAMLResponse XML could not be parsed", err);
+    logger.debug("SAML message XML could not be parsed", err);
     return null;
   }
 
-  if (parseError) return null;
-  const root = document.documentElement;
+  if (parseError || !document.documentElement) return null;
+  return document;
+}
+
+/** Root element local name of a base64-encoded SAML message ("" when unreadable). */
+function getSAMLRootLocalName(base64: string): string {
+  const root = decodeSamlXml(base64)?.documentElement;
+  return root ? localName(root) : "";
+}
+
+/**
+ * Reads the `InResponseTo` attribute from a base64-encoded SAMLResponse.
+ * node-saml 5.1.0's `validatePostResponseAsync` does not accept a caller
+ * supplied request ID, so the ACS handler performs this stateless check
+ * against the `saml_request_id` cookie before delegating signature validation.
+ */
+function extractInResponseTo(samlResponse: string): string | null {
+  const root = decodeSamlXml(samlResponse)?.documentElement;
   if (!root || localName(root) !== "Response") return null;
   return root.getAttribute("InResponseTo")?.trim() || null;
 }
@@ -396,10 +470,21 @@ export async function processSAMLResponse(
   relayState: string,
   tenantId?: string | null,
   requestId?: string,
+  options: { idpInitiated?: boolean } = {},
 ) {
-  // Defence in depth for direct callers — the ACS route already returns a 403
-  // before reaching this function when the cookie does not match.
-  if (requestId) assertInResponseTo(samlResponse, requestId);
+  if (options.idpInitiated) {
+    // An unsolicited response must not answer a request. A present InResponseTo
+    // means the IdP is answering *some* AuthnRequest — never treat that as
+    // IdP-initiated, or a captured response could be replayed at will.
+    if (extractInResponseTo(samlResponse)) {
+      logger.error("SAML Authentication Failed: unsolicited response carries InResponseTo");
+      raise(403, "SAML InResponseTo mismatch", "SAML_IN_RESPONSE_TO_MISMATCH");
+    }
+  } else if (requestId) {
+    // Defence in depth for direct callers — the ACS route already returns a 403
+    // before reaching this function when the cookie does not match.
+    assertInResponseTo(samlResponse, requestId);
+  }
 
   const saml = getSAML(tenantId);
 
@@ -473,6 +558,24 @@ export async function processSAMLResponse(
 
   if (!sessionResult.success) throw new Error("Failed to create SSO session");
 
+  // Record the SAML identity so an IdP-initiated LogoutRequest — which carries
+  // only NameID + SessionIndex — can find and destroy this session later.
+  try {
+    await setSsoSessionMetadata(
+      String(sessionResult.data._id),
+      {
+        provider: SAML_SSO_PROVIDER_ID,
+        createdAt: nowISODateString(),
+        ...(tenantId ? { tenantId } : {}),
+        ...(profile.nameID ? { samlNameId: profile.nameID } : {}),
+        ...(profile.sessionIndex ? { samlSessionIndex: profile.sessionIndex } : {}),
+      },
+      tenantId ?? undefined,
+    );
+  } catch (err) {
+    logger.warn("SAML session metadata could not be recorded", err);
+  }
+
   return { user, session: sessionResult.data };
 }
 
@@ -486,17 +589,12 @@ export async function handleSAMLACS(request: Request, cookies?: any, tenantId?: 
   const SAMLResponse = typeof rawSAMLResponse === "string" ? rawSAMLResponse : "";
   const RelayState = typeof rawRelayState === "string" ? rawRelayState : "";
 
-  // Validate state to prevent CSRF attacks — a missing cookie must also be
-  // rejected (fail closed), not treated as an empty state that skips the check.
   const stateCookie = cookies?.get("saml_state");
-  if (!stateCookie || stateCookie !== RelayState) {
-    logger.error("SAML Authentication Failed: CSRF State mismatch");
-    return json({ success: false, message: "CSRF State mismatch" }, { status: 403 });
-  }
-
-  // Read and consume both one-time cookies. A response is only accepted when
-  // its InResponseTo matches the ID generated for this browser's login flow.
   const requestIdCookie = cookies?.get("saml_request_id");
+  const flowCookiePresent = Boolean(stateCookie) || Boolean(requestIdCookie);
+  const spInitiated = Boolean(stateCookie) && stateCookie === RelayState;
+
+  // Read and consume both one-time cookies.
   if (cookies) {
     cookies.delete("saml_state", { path: "/" });
     cookies.delete("saml_request_id", { path: "/" });
@@ -508,9 +606,33 @@ export async function handleSAMLACS(request: Request, cookies?: any, tenantId?: 
   }
 
   const inResponseTo = extractInResponseTo(SAMLResponse);
-  if (!requestIdCookie || !inResponseTo || inResponseTo !== requestIdCookie) {
-    logger.error("SAML Authentication Failed: InResponseTo request ID mismatch");
-    return json({ success: false, message: "SAML InResponseTo mismatch" }, { status: 403 });
+
+  // Decide whether this response answers a login this browser started.
+  let idpInitiated = false;
+  if (spInitiated) {
+    if (!requestIdCookie || !inResponseTo || inResponseTo !== requestIdCookie) {
+      logger.error("SAML Authentication Failed: InResponseTo request ID mismatch");
+      return json({ success: false, message: "SAML InResponseTo mismatch" }, { status: 403 });
+    }
+  } else if (flowCookiePresent) {
+    // Flow cookies exist but do not bind to this message. Never fall back to the
+    // unsolicited path here: that is exactly the replayed-CSRF case the cookies
+    // are meant to catch.
+    logger.error("SAML Authentication Failed: CSRF State mismatch");
+    return json({ success: false, message: "CSRF State mismatch" }, { status: 403 });
+  } else if (!isIdpInitiatedLoginAllowed(tenantId)) {
+    logger.error(
+      "SAML Authentication Failed: no login was started by this browser and IdP-initiated " +
+        "login is disabled (set SAML_ALLOW_IDP_INITIATED to enable); CSRF State mismatch",
+    );
+    return json({ success: false, message: "CSRF State mismatch" }, { status: 403 });
+  } else {
+    if (inResponseTo) {
+      logger.error("SAML Authentication Failed: unsolicited response carries InResponseTo");
+      return json({ success: false, message: "SAML InResponseTo mismatch" }, { status: 403 });
+    }
+    idpInitiated = true;
+    logger.info("SAML Authentication: accepting an IdP-initiated (unsolicited) response");
   }
 
   try {
@@ -518,7 +640,8 @@ export async function handleSAMLACS(request: Request, cookies?: any, tenantId?: 
       SAMLResponse,
       RelayState,
       tenantId,
-      requestIdCookie,
+      idpInitiated ? undefined : (requestIdCookie as string),
+      { idpInitiated },
     );
 
     // Set Session Cookie — mirror the canonical cookie policy (see
@@ -558,6 +681,306 @@ export async function handleSAMLACS(request: Request, cookies?: any, tenantId?: 
  */
 export async function handleSAMLResponse(event: any, tenantId?: string | null) {
   return handleSAMLACS(event.request, event.cookies, tenantId);
+}
+
+// ─── Single Logout (SLO) ─────────────────────────────────────────────
+
+/** Outcome of an IdP-initiated LogoutRequest. */
+export interface SamlSloResult {
+  success: boolean;
+  message: string;
+  /** Session ids whose CMS row *and* SSO metadata were destroyed. */
+  terminatedSessionIds: string[];
+  relayState: string;
+  /** HTTP-Redirect URL carrying a signed LogoutResponse (SP signing key set). */
+  redirectUrl?: string;
+  /** HTTP-POST fallback: auto-submitting form for the IdP's SLO endpoint. */
+  formPost?: { url: string; samlResponse: string };
+}
+
+function escapeXmlAttribute(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+/**
+ * Builds the answer to an IdP LogoutRequest.
+ *
+ * A signed answer needs an SP private key (`SAML_SP_PRIVATE_KEY`); node-saml
+ * then emits it over the HTTP-Redirect binding. Without a key the SP cannot
+ * sign, so an unsigned Status=Success response is returned over the HTTP-POST
+ * binding instead of no answer at all. IdPs that insist on a signed response
+ * will reject that one — the local session is destroyed either way, which is
+ * the security-relevant half of logout.
+ */
+async function buildSAMLLogoutResponse(
+  logoutRequest: { ID?: unknown } | null,
+  relayState: string,
+  tenantId?: string | null,
+): Promise<Pick<SamlSloResult, "redirectUrl" | "formPost">> {
+  const config = getSAMLConfig(tenantId);
+  const destination = config.logoutUrl || config.entryPoint;
+
+  if (config.privateKey) {
+    try {
+      const url = await getSAML(tenantId).getLogoutResponseUrlAsync(
+        (logoutRequest ?? {}) as unknown as SamlLogoutProfile,
+        relayState,
+        {},
+        true,
+      );
+      if (url) return { redirectUrl: url };
+    } catch (err) {
+      logger.warn("SAML LogoutResponse could not be signed; sending an unsigned one", err);
+    }
+  }
+
+  const responseId = `_${globalThis.crypto.randomUUID()}`;
+  const inResponseTo = logoutRequest?.ID
+    ? ` InResponseTo="${escapeXmlAttribute(String(logoutRequest.ID))}"`
+    : "";
+  const xml =
+    `<samlp:LogoutResponse xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"` +
+    ` xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" ID="${responseId}" Version="2.0"` +
+    ` IssueInstant="${nowISODateString()}"` +
+    ` Destination="${escapeXmlAttribute(destination)}"${inResponseTo}>` +
+    `<saml:Issuer>${escapeXmlAttribute(config.issuer || "sveltycms")}</saml:Issuer>` +
+    `<samlp:Status><samlp:StatusCode Value="urn:oasis:names:tc:SAML:2.0:status:Success"/></samlp:Status>` +
+    `</samlp:LogoutResponse>`;
+
+  return {
+    formPost: {
+      url: destination,
+      samlResponse: Buffer.from(xml, "utf8").toString("base64"),
+    },
+  };
+}
+
+/**
+ * Handles an IdP-initiated LogoutRequest (HTTP-Redirect or HTTP-POST binding).
+ *
+ * node-saml validates the signature, the issuer and `NotBefore`/`NotOnOrAfter`
+ * before this function destroys anything, so a forged or replayed request
+ * terminates nothing. Sessions are located by the request's `NameID`
+ * (+ `SessionIndex` when present) because the IdP has no access to our session
+ * cookie. A request that matches no session still succeeds — logout must be
+ * idempotent for an IdP that retries.
+ */
+export async function handleSAMLLogoutRequest(params: {
+  /** Base64 `SAMLRequest` from the HTTP-POST binding. */
+  samlRequest?: string;
+  /** Raw (still URL-encoded) query string for the HTTP-Redirect binding. */
+  rawQuery?: string;
+  relayState?: string;
+  tenantId?: string | null;
+}): Promise<SamlSloResult> {
+  const { samlRequest, rawQuery, tenantId } = params;
+  const relayState = params.relayState ?? "";
+  const saml = getSAML(tenantId);
+
+  let profile: { ID?: string; nameID?: string; sessionIndex?: string } | null = null;
+  try {
+    if (samlRequest) {
+      if (getSAMLRootLocalName(samlRequest) !== "LogoutRequest") {
+        return {
+          success: false,
+          message: "SAMLRequest is not a LogoutRequest",
+          terminatedSessionIds: [],
+          relayState,
+        };
+      }
+      profile = (
+        await saml.validatePostRequestAsync({ SAMLRequest: samlRequest, RelayState: relayState })
+      ).profile;
+    } else if (rawQuery) {
+      profile = (await saml.validateRedirectAsync(rawQuery)).profile;
+    } else {
+      return {
+        success: false,
+        message: "Missing SAMLRequest",
+        terminatedSessionIds: [],
+        relayState,
+      };
+    }
+  } catch (err) {
+    logger.error("SAML LogoutRequest rejected", err);
+    return {
+      success: false,
+      message: `SAML LogoutRequest rejected: ${err instanceof Error ? err.message : "invalid message"}`,
+      terminatedSessionIds: [],
+      relayState,
+    };
+  }
+
+  const nameId = profile?.nameID ?? "";
+  if (!nameId) {
+    return {
+      success: false,
+      message: "SAML LogoutRequest has no NameID",
+      terminatedSessionIds: [],
+      relayState,
+    };
+  }
+
+  const terminatedSessionIds: string[] = [];
+  // Distributed lookup: the SAML session may have been created on another node.
+  for (const target of await findSamlSessions(nameId, profile?.sessionIndex, tenantId)) {
+    await terminateSessionAndMetadata(target.sessionId, target.tenantId ?? tenantId);
+    terminatedSessionIds.push(target.sessionId);
+  }
+
+  logger.info(
+    `[SAML SLO] IdP-initiated logout for ${nameId.slice(0, 3)}…: ${terminatedSessionIds.length} session(s) terminated`,
+  );
+
+  return {
+    success: true,
+    message: `IdP-initiated logout processed (${terminatedSessionIds.length} sessions terminated)`,
+    terminatedSessionIds,
+    relayState,
+    ...(await buildSAMLLogoutResponse(profile, relayState, tenantId)),
+  };
+}
+
+/** HTML auto-submitting form carrying a LogoutResponse (HTTP-POST binding). */
+function renderSamlPostForm(
+  target: { url: string; samlResponse: string },
+  relayState: string,
+): string {
+  const relayInput = relayState
+    ? `<input type="hidden" name="RelayState" value="${escapeXmlAttribute(relayState)}" />`
+    : "";
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Signing out</title></head>
+<body onload="document.forms[0].submit()">
+<noscript><p>Press the button to finish signing out.</p></noscript>
+<form method="post" action="${escapeXmlAttribute(target.url)}">
+<input type="hidden" name="SAMLResponse" value="${escapeXmlAttribute(target.samlResponse)}" />
+${relayInput}
+<noscript><input type="submit" value="Continue" /></noscript>
+</form>
+<script>document.forms[0].style.display = "none";</script>
+</body></html>`;
+}
+
+/** Maps an SLO result onto the response the IdP's user-agent receives. */
+function samlSloResponse(result: SamlSloResult): Response {
+  if (!result.success) {
+    return json({ success: false, message: result.message }, { status: 400 });
+  }
+  if (result.formPost) {
+    return new Response(renderSamlPostForm(result.formPost, result.relayState), {
+      status: 200,
+      headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
+    });
+  }
+  if (result.redirectUrl) {
+    return new Response(null, {
+      status: 302,
+      headers: { location: result.redirectUrl, "cache-control": "no-store" },
+    });
+  }
+  return json({
+    success: true,
+    message: result.message,
+    terminated: result.terminatedSessionIds.length,
+  });
+}
+
+/**
+ * SLO endpoint.
+ *
+ * - GET: HTTP-Redirect binding LogoutRequest (or LogoutResponse).
+ * - POST: HTTP-POST binding LogoutRequest, or the LogoutResponse that answers
+ *   our own SP-initiated LogoutRequest.
+ *
+ * A message that fails validation terminates nothing and is reported as such.
+ */
+export async function handleSAMLSLO(request: Request, tenantId?: string | null): Promise<Response> {
+  const method = request.method.toUpperCase();
+
+  if (method === "GET") {
+    const rawQuery = new URL(request.url).search.replace(/^\?/, "");
+    return samlSloResponse(await handleSAMLLogoutRequest({ rawQuery, tenantId }));
+  }
+
+  if (method !== "POST") {
+    return json({ success: false, message: "Method not allowed" }, { status: 405 });
+  }
+
+  const form = await request.formData();
+  const samlRequest =
+    typeof form.get("SAMLRequest") === "string" ? (form.get("SAMLRequest") as string) : "";
+  const samlResponse =
+    typeof form.get("SAMLResponse") === "string" ? (form.get("SAMLResponse") as string) : "";
+  const relayState =
+    typeof form.get("RelayState") === "string" ? (form.get("RelayState") as string) : "";
+
+  // A LogoutResponse answers a LogoutRequest we sent: verify it and report the
+  // IdP's status. The local session was already destroyed when we sent it.
+  if (samlResponse) {
+    if (getSAMLRootLocalName(samlResponse) !== "LogoutResponse") {
+      return json(
+        { success: false, message: "SAMLResponse is not a LogoutResponse" },
+        { status: 400 },
+      );
+    }
+    try {
+      await getSAML(tenantId).validatePostResponseAsync({
+        SAMLResponse: samlResponse,
+        RelayState: relayState,
+      });
+      return json({ success: true, message: "LogoutResponse accepted" });
+    } catch (err) {
+      logger.error("SAML LogoutResponse rejected", err);
+      return json({ success: false, message: "SAML LogoutResponse rejected" }, { status: 400 });
+    }
+  }
+
+  return samlSloResponse(await handleSAMLLogoutRequest({ samlRequest, relayState, tenantId }));
+}
+
+/**
+ * SP-initiated logout: builds a (signed when an SP key is configured)
+ * LogoutRequest for the IdP and destroys the local session.
+ *
+ * Returns no URL for a session that was not created by SAML, so the caller can
+ * fall back to the ordinary local logout.
+ */
+export async function buildSAMLLogoutRequestUrl(
+  sessionId: string,
+  tenantId?: string | null,
+  relayState?: string,
+): Promise<{ url?: string; message: string }> {
+  const metadata = await getSsoSessionMetadata(sessionId, tenantId ?? undefined);
+  if (!metadata || metadata.provider !== SAML_SSO_PROVIDER_ID || !metadata.samlNameId) {
+    return { message: "Session is not a SAML session" };
+  }
+
+  try {
+    const url = await getSAML(tenantId).getLogoutUrlAsync(
+      {
+        nameID: metadata.samlNameId,
+        ...(metadata.samlSessionIndex ? { sessionIndex: metadata.samlSessionIndex } : {}),
+      } as unknown as SamlLogoutProfile,
+      relayState ?? "",
+      {},
+    );
+    await terminateSessionAndMetadata(sessionId, metadata.tenantId ?? tenantId);
+    return { url, message: "Redirecting to the IdP for federated logout" };
+  } catch (err) {
+    logger.error("SAML LogoutRequest could not be built", err);
+    return { message: "SAML LogoutRequest could not be built" };
+  }
+}
+
+/** Public wrapper for the SLO route (expected by the router). */
+export async function handleSAMLSLOEvent(event: { request: Request }, tenantId?: string | null) {
+  return handleSAMLSLO(event.request, tenantId);
 }
 
 /**

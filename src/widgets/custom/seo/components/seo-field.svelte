@@ -7,6 +7,7 @@
 	import type { FieldInstance } from '@src/content/types';
 	import type { Locale } from '@src/paraglide/runtime';
 	import { tokenTarget } from '@src/services/token/token-target';
+	import { insertTokenAtSelection, type TokenSelection } from '@src/services/token/insert-token';
 	import { activeInput } from '@src/stores/active-input-store.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import HelpIcon from '@src/components/ui/help-icon.svelte';
@@ -50,28 +51,60 @@
 
 	// Element references
 	let inputRef = $state<HTMLInputElement | HTMLTextAreaElement | undefined>();
+	// Caret captured when the picker opens — the modal steals focus, so the
+	// selection has to be remembered to insert at the caret instead of replacing.
+	let pendingSelection = $state<TokenSelection | null>(null);
+
+	function tokenElement(): HTMLInputElement | HTMLTextAreaElement | null {
+		return type === 'textarea'
+			? (document.getElementById(id) as HTMLTextAreaElement | null)
+			: (inputRef ?? null);
+	}
 
 	$effect(() => {
-		const el =
-			type === 'textarea' ? (document.getElementById(id) as HTMLTextAreaElement | null) : inputRef;
+		const el = tokenElement();
 		if (!el) return;
 		const inst = tokenTarget(el, {
 			name: field.db_fieldName,
 			label: field.label,
 			collection: field.collection as string,
-			onInsert: (token: string) => {
-				onUpdate(token);
-			}
+			// Only the `{}` button opens the picker; typing into the field must not.
+			openOnFocus: false,
+			onInsert: (token: string) => insertToken(token)
 		});
 		return () => inst.destroy();
 	});
+
+	function insertToken(token: string) {
+		const next = insertTokenAtSelection(value ?? '', token, pendingSelection);
+		value = next.value;
+		pendingSelection = null;
+		onUpdate(next.value);
+	}
+
+	/**
+	 * Caret to insert at, or append when the field never had one. An input that was
+	 * never focused reports `0,0`, which would prepend the token to existing text.
+	 */
+	function caretSelection(
+		el: HTMLInputElement | HTMLTextAreaElement,
+		current: string
+	): TokenSelection {
+		const start = el.selectionStart;
+		const end = el.selectionEnd;
+		if (start === null || end === null || (start === 0 && end === 0 && current.length > 0)) {
+			return { start: current.length, end: current.length };
+		}
+		return { start, end };
+	}
 
 	function openTokenPicker(e: MouseEvent) {
 		e.preventDefault();
 		e.stopPropagation();
 
-		const el =
-			type === 'textarea' ? (document.getElementById(id) as HTMLTextAreaElement | null) : inputRef;
+		const el = tokenElement();
+		const current = value ?? '';
+		pendingSelection = el ? caretSelection(el, current) : null;
 		if (el) {
 			el.focus();
 		}
@@ -83,15 +116,7 @@
 				label: label || field.label,
 				collection: field.collection as string
 			},
-			onInsert: (tokenValue: string) => {
-				value = tokenValue;
-				onUpdate(tokenValue);
-				if (el) {
-					el.value = tokenValue;
-					el.dispatchEvent(new Event('input', { bubbles: true }));
-					el.dispatchEvent(new Event('change', { bubbles: true }));
-				}
-			}
+			onInsert: (tokenValue: string) => insertToken(tokenValue)
 		});
 	}
 

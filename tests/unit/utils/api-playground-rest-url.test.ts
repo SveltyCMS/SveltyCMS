@@ -14,6 +14,7 @@ import {
   type PlaygroundFilterRow,
 } from "@utils/api-playground/rest-query-url";
 import { parseCollectionQueryParams } from "@utils/api-params";
+import { ENDPOINT_PERMISSIONS } from "@src/routes/api/[...path]/endpoint-permissions";
 
 /** Decode a built URL the way the collections handler does. */
 function parseBuiltUrl(url: string) {
@@ -43,6 +44,16 @@ describe("buildCollectionRestPath", () => {
   it("encodes the collection id and rejects an empty one", () => {
     expect(buildCollectionRestPath("blog posts")).toBe("/api/collections/blog%20posts");
     expect(() => buildCollectionRestPath("  ")).toThrow();
+  });
+
+  it("targets a namespace the dispatcher actually maps (no fail-closed 403)", () => {
+    const segments = buildCollectionRestPath("posts").split("/").filter(Boolean);
+
+    expect(segments).toEqual(["api", "collections", "posts"]);
+    // The singular `/api/collection/{id}/{entryId}` namespace some surfaces still
+    // advertise is not in the map — the dispatcher rejects it fail-closed.
+    expect(ENDPOINT_PERMISSIONS).toHaveProperty(segments[1]);
+    expect(ENDPOINT_PERMISSIONS).not.toHaveProperty("collection");
   });
 });
 

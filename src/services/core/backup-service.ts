@@ -64,6 +64,10 @@ import {
 } from "@utils/security/envelope";
 import { createCipheriv, createDecipheriv, createHash, hkdfSync, randomBytes } from "node:crypto";
 import { jobQueue } from "@src/services/background/jobs/job-queue-service";
+import type {
+  BackupCreateJobPayload,
+  BackupRestoreJobPayload,
+} from "@src/services/background/jobs/import-jobs";
 import { logger } from "@utils/logger";
 import { nowISODateString } from "@utils/date";
 
@@ -646,6 +650,12 @@ export interface BackupArtifact {
   encrypted: boolean;
 }
 
+/** One collection's rows as stored in an archive (decrypted and parsed). */
+export interface BackupCollectionEntries {
+  collection: string;
+  entries: Record<string, unknown>[];
+}
+
 // ---------------------------------------------------------------------------
 // BackupService
 // ---------------------------------------------------------------------------
@@ -718,6 +728,9 @@ export class BackupService {
     const shouldBackground = options.background ?? totalEntries > 5000;
 
     if (shouldBackground) {
+      // The `import-data` worker owns the long-running lane; its `backupTask`
+      // branch runs this backup in-process (`background: false`) so the task
+      // cannot re-queue itself.
       const jobId = await jobQueue.dispatch(
         "import-data",
         {
@@ -728,8 +741,7 @@ export class BackupService {
           encryptionKey,
           storageDir,
           label,
-          backupDir,
-        },
+        } satisfies BackupCreateJobPayload,
         tenantId,
       );
 
@@ -1389,6 +1401,76 @@ export class BackupService {
     return { success: true, plan, message: `Restore plan created: ${planId}` };
   }
 
+  /**
+   * Reads one collection's rows out of an archive: decrypt (AAD-bound to the
+   * artifact path), then parse the NDJSON.
+   *
+   * Shared by the restore writer and by `readBackupCollections` so the AAD and
+   * the parse cannot diverge between "what is written" and "what is gated".
+   */
+  private async readCollectionFile(
+    collectionsDir: string,
+    file: string,
+    decryptionKey: string | undefined,
+  ): Promise<Record<string, unknown>[]> {
+    const raw = await fs.readFile(path.join(collectionsDir, file));
+    const ndjsonRaw = decryptionKey
+      ? await decryptBackupData(
+          raw,
+          decryptionKey,
+          backupArtifactAad(`database/collections/${file}`),
+        )
+      : raw.toString("utf-8");
+
+    return ndjsonRaw
+      .split("\n")
+      .filter((line) => line.trim())
+      .map((line) => JSON.parse(line));
+  }
+
+  /**
+   * Re-reads an archive's collection rows without writing anything.
+   *
+   * A background restore authorizes its publish transitions before it starts,
+   * and gating after the first collection was cleared would already have lost
+   * data — so the worker needs exactly the rows a restore would write, read
+   * through the same decryption path the restore uses.
+   */
+  public async readBackupCollections(
+    backupPath: string,
+    options: { decryptionKey?: string; collections?: string[]; storageDir?: string } = {},
+  ): Promise<BackupCollectionEntries[]> {
+    const resolvedPath = await resolveBackupPath(backupPath, options.storageDir);
+    if (!resolvedPath) {
+      raise(400, "Invalid backup path", "INVALID_BACKUP_PATH");
+    }
+
+    const collectionsDir = path.join(resolvedPath, "database", "collections");
+    let collectionFiles: string[] = [];
+    try {
+      collectionFiles = (await fs.readdir(collectionsDir)).filter((f) => f.endsWith(".ndjson"));
+    } catch (err) {
+      // No collections directory: nothing to restore (the archive itself was
+      // already validated when it was created).
+      logger.debug(`[BackupService] No collections directory in archive:`, err);
+      return [];
+    }
+
+    if (options.collections?.length) {
+      const requestedSet = new Set(options.collections);
+      collectionFiles = collectionFiles.filter((f) => requestedSet.has(f.replace(".ndjson", "")));
+    }
+
+    const collections: BackupCollectionEntries[] = [];
+    for (const file of collectionFiles) {
+      collections.push({
+        collection: file.replace(".ndjson", ""),
+        entries: await this.readCollectionFile(collectionsDir, file, options.decryptionKey),
+      });
+    }
+    return collections;
+  }
+
   // =========================================================================
   // RESTORE: Apply
   // =========================================================================
@@ -1467,18 +1549,25 @@ export class BackupService {
     const shouldBackground = options.background ?? manifest.resources.entries > 5000;
 
     if (shouldBackground) {
+      // A restore writes content, so it runs through the import worker's
+      // publication gate: the worker re-reads the archive, authorizes every
+      // publish transition for `userId` and only then applies the restore.
+      // No `"system"` fallback — that sentinel is not a resolvable user, so a
+      // missing actor must stay missing for the gate to fail closed with a
+      // clear "no importing user" outcome instead of a lookup miss.
       const jobId = await jobQueue.dispatch(
         "import-data",
         {
           backupTask: "restore",
           backupPath: resolvedPath,
           targetTenant,
-          userId: options.userId ?? "system",
+          userId: options.userId,
           decryptionKey: options.decryptionKey,
           superAdminOverride: options.superAdminOverride ?? false,
           collections: options.collections ?? [],
+          storageDir: options.storageDir,
           manifest,
-        },
+        } satisfies BackupRestoreJobPayload,
         targetTenant,
       );
 
@@ -1580,27 +1669,14 @@ export class BackupService {
     // Clear existing data per collection before restore (destructive)
     for (const file of collectionFiles) {
       const colName = file.replace(".ndjson", "");
-      let ndjsonRaw: string;
+      let entries: Record<string, unknown>[];
 
       try {
-        const filePath = path.join(collectionsDir, file);
-        const raw = await fs.readFile(filePath);
-        ndjsonRaw = decryptionKey
-          ? await decryptBackupData(
-              raw,
-              decryptionKey,
-              backupArtifactAad(`database/collections/${file}`),
-            )
-          : raw.toString("utf-8");
+        entries = await this.readCollectionFile(collectionsDir, file, decryptionKey);
       } catch (err) {
         logger.error(`[BackupService] Failed to read backup data for "${colName}":`, err);
         continue;
       }
-
-      const entries = ndjsonRaw
-        .split("\n")
-        .filter((line) => line.trim())
-        .map((line) => JSON.parse(line)) as Record<string, unknown>[];
 
       logger.debug(
         `[BackupService] Restoring ${entries.length} entries to collection "${colName}"`,

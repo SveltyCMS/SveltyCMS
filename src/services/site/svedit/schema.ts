@@ -11,7 +11,7 @@ export const sitePageDocumentSchema = define_document_schema({
     properties: {
       body: {
         type: "node_array",
-        node_types: ["hero", "paragraph", "cta"],
+        node_types: ["hero", "paragraph", "image", "cta"],
         default_node_type: "paragraph",
       },
     },
@@ -36,6 +36,15 @@ export const sitePageDocumentSchema = define_document_schema({
         type: "text",
         allow_newlines: true,
       },
+    },
+  },
+  image: {
+    kind: "block",
+    properties: {
+      src: { type: "string", default: "" },
+      alt: { type: "text", allow_newlines: false },
+      focalX: { type: "number", default: 50 },
+      focalY: { type: "number", default: 50 },
     },
   },
   cta: {

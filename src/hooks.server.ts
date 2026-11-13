@@ -873,6 +873,13 @@ export const handle: Handle = async ({ event, resolve }) => {
   );
   (event.locals as any).lane = lane;
 
+  // 📊 Request counter on the hot path (SV-079). One integer increment — no
+  // allocation, no string building, O(1). Static asset lanes are skipped so the
+  // monitor reports real traffic instead of every hashed chunk fetch.
+  if (lane !== RequestLane.FAST_STATIC) {
+    metricsService.incrementRequests(event.locals.tenantId);
+  }
+
   if (lane === RequestLane.FAST_STATIC) {
     if (event.url.pathname === "/favicon.ico")
       return withLane(new Response(null, { status: 204 }), lane);

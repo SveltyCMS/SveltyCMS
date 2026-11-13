@@ -499,7 +499,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 	</form>
 
 	<footer
-		class="modal-footer flex flex-wrap items-center justify-between gap-4 border-t border-surface-500/20 pt-4"
+		class="modal-footer sticky z-10 -bottom-4 -mx-4 mt-2 flex flex-wrap items-center justify-between gap-4 border-t border-surface-500/20 bg-(--admin-bg-card) p-4 sm:-bottom-6 sm:-mx-6"
 	>
 		<div class="flex items-center gap-4">
 			<!-- Cancel -->

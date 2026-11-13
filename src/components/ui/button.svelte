@@ -7,7 +7,7 @@ Polymorphic button/a element with 9 variants, 4 sizes, loading state, icon suppo
 and full ARIA accessibility. Supports progressive corner-shape angled corners.
 
 ### Props
-- `variant` ('primary' | 'secondary' | 'tertiary' | 'surface' | 'success' | 'warning' | 'error' | 'ghost' | 'outline' | 'transparent'): Visual style. `transparent` = no chrome at all (inherits text color, ideal for icon buttons on tinted surfaces).
+- `variant` ('primary' | 'secondary' | 'tertiary' | 'surface' | 'success' | 'warning' | 'error' | 'danger' | 'ghost' | 'outline' | 'transparent'): Visual style. `primary` = the brand accent (green, ink text); `secondary` = soft neutral fill; `tertiary` = neutral outline for third-level actions; `danger` (alias of the destructive `error` fill) for confirmations that destroy data. `transparent` = no chrome at all (inherits text color, ideal for icon buttons on tinted surfaces).
 - `size` ('sm' | 'md' | 'lg' | 'xl'): Size variant.
 - `href` (string): Render as anchor link.
 - `type` ('button' | 'submit' | 'reset'): Button type attribute.
@@ -34,6 +34,7 @@ and full ARIA accessibility. Supports progressive corner-shape angled corners.
 			| 'success'
 			| 'warning'
 			| 'error'
+			| 'danger'
 			| 'ghost'
 			| 'outline'
 			| 'transparent';
@@ -109,14 +110,20 @@ and full ARIA accessibility. Supports progressive corner-shape angled corners.
 		if (isCustomColor) return 'preset-custom';
 		switch (variant) {
 			case 'primary':
-				// Brand accent: tertiary blue in light, primary green in dark. The light
-				// fill is 600, not 500: white on tertiary-500 (#0378ef) is 4.25:1 and
-				// fails WCAG AA 4.5:1 (blocking Axe in the Auth & Branding / Media shards).
-				return 'preset-filled-tertiary-600 shadow-tertiary-600/20 dark:preset-filled-primary-500 dark:shadow-primary-500/20';
+				// ONE accent in both modes (SV-025): the brand green. Its fill is bright by
+				// design, so the recipe carries dark ink — white on primary-500 is 1.94:1
+				// while surface-950 on it is 10:1 (SV-023).
+				return 'preset-filled-primary-500 shadow-primary-500/20';
 			case 'secondary':
-				return 'preset-filled-secondary-500 shadow-secondary-500/20';
+				// Soft neutral fill: a secondary action must not compete with the accent.
+				return 'preset-filled-surface-200';
 			case 'tertiary':
-				return 'preset-filled-tertiary-500 shadow-tertiary-500/20';
+				// Neutral outline, not a second accent fill. Blue `tertiary-500` used to
+				// render Previous/Close/Cancel as if they were primary CTAs (SV-025).
+				return 'preset-outlined-surface-500 hover:bg-surface-500/10 dark:hover:bg-surface-500/20';
+			case 'danger':
+				// Destructive confirmation. White on error-500 measures 4.63:1.
+				return 'preset-filled-error-500 shadow-error-500/20';
 			case 'success':
 				return 'preset-filled-success-500 shadow-success-500/20';
 			case 'warning':

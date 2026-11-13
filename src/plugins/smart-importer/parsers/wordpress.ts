@@ -1,6 +1,4 @@
 /**
- * slop:suppress — XML tag/attr names in extract helpers come from hardcoded
- * parser call sites (e.g. "content:encoded"), not user input.
  * @file src/plugins/smart-importer/parsers/wordpress.ts
  * @description WordPress WXR (WordPress eXtended RSS) parser.
  *
@@ -330,6 +328,7 @@ function parseWPComments(itemXml: string): Array<{
 
 function extractTag(xml: string, tag: string): string {
   // Match both <tag>value</tag> and <tag><![CDATA[value]]></tag>
+  // slop:suppress security — tag names come from hardcoded parser call sites, not user input
   const regex = new RegExp(
     `<${tag}[^>]*>` + // Opening tag with possible attributes
       `(?:<!\\[CDATA\\[)?` + // Optional CDATA start
@@ -344,6 +343,7 @@ function extractTag(xml: string, tag: string): string {
 
 function extractCData(xml: string, tag: string): string {
   // Try CDATA first, then regular
+  // slop:suppress security — tag names come from hardcoded parser call sites, not user input
   const cdataRegex = new RegExp(
     `<${tag}[^>]*>\\s*<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>\\s*<\\/${tag}>`,
     "i",
@@ -355,6 +355,7 @@ function extractCData(xml: string, tag: string): string {
 }
 
 function extractAttr(xml: string, attr: string): string {
+  // slop:suppress security — attr names come from hardcoded parser call sites
   const regex = new RegExp(`${attr}="([^"]*)"`, "i");
   const match = regex.exec(xml);
   return match ? match[1] : "";

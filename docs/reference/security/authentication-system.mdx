@@ -50,6 +50,15 @@ SveltyCMS uses high-entropy, cryptographically secure random tokens for session 
 - **Stored directly** in secure cookies and the database.
 - **Rotated automatically** on login and renewal. On password change or explicit logout, all active sessions across all devices are immediately invalidated.
 
+### Session caching is tenant-keyed
+
+The in-memory session tiers are keyed by `${tenantId ?? "global"}:${sessionId}`, matching the
+distributed cache. A session id is a client-supplied cookie value, so keying the local LRU by the
+bare id let a request in tenant B read the snapshot cached for tenant A before the tenant-mismatch
+check ran. Invalidation without a tenant drops the id from every namespace; the rate-limit adaptive
+tier peek is tenant-aware too (it returns `null` without a tenant rather than reading another
+tenant's entry). Pinned by `tests/unit/hooks/session-cache-tenant-key.test.ts`.
+
 ### Revocation Epoch (instant logout, zero DB lookups)
 
 `src/databases/auth/revocation-epoch.ts` keeps three process-local monotonic
@@ -180,16 +189,24 @@ Integrated via **@node-saml/node-saml (latest)**, a lightweight SAML SP implemen
 
 Full **authorization-code** relying-party flow plus **RP-Initiated Logout**, implemented in `src/databases/auth/sso-session.ts` and `handlers/auth.ts`.
 
-| Capability       | Detail                                                                                                 |
-| :--------------- | :----------------------------------------------------------------------------------------------------- |
-| **Login**        | `GET /api/auth/oidc-login?provider=` → 302 to OP authorize; HttpOnly `state`/`nonce` cookie            |
-| **Callback**     | `GET /api/auth/oidc-callback` — code exchange, **JWKS** id_token verify, local session                 |
-| **Logout**       | `GET\|POST /api/auth/oidc-logout` — local session clear + optional OP `end_session_endpoint`           |
-| **Discovery**    | `/.well-known/openid-configuration` (cached) fills authorize/token/jwks/logout endpoints               |
-| **Providers**    | Multi-provider registry via `SSO_PROVIDERS` setting (`SsoProviderConfig`)                              |
-| **Provisioning** | Email claim must match an **existing** local user (or invite flow) — no silent create on OIDC callback |
+| Capability              | Detail                                                                                                                                                             |
+| :---------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Login**               | `GET /api/auth/oidc-login?provider=` → 302 to OP authorize; HttpOnly `state`/`nonce` cookie                                                                        |
+| **Callback**            | `GET /api/auth/oidc-callback` — code exchange, **JWKS** id_token verify, local session                                                                             |
+| **Logout**              | `GET\|POST /api/auth/oidc-logout` — local session clear + optional OP `end_session_endpoint`                                                                       |
+| **OP-initiated logout** | Front- and back-channel messages terminate only the session they name, resolved through a shared index — a logout that lands on another node still finds the login |
+| **Discovery**           | `/.well-known/openid-configuration` (cached) fills authorize/token/jwks/logout endpoints                                                                           |
+| **Providers**           | Multi-provider registry via `SSO_PROVIDERS` setting (`SsoProviderConfig`)                                                                                          |
+| **Provisioning**        | Email claim must match an **existing** local user (or invite flow) — no silent create on OIDC callback                                                             |
 
 Also supports social OAuth-style providers (**Google**, **GitHub**) where configured as OIDC/OAuth clients in settings. See [Auth API — OIDC](../api/auth.mdx#4-oidc-sso-openid-connect) for request parameters and security notes.
+
+**Multi-node logout.** `sid`/`sub`/`NameID` are recorded at login and written to a shared index
+(`sso:index:{sid,sub,nameid}` → `sso:directory:<sessionId>`, `src/databases/auth/sso-session.ts`).
+Every logout lookup merges that index with the process-local map, so an IdP message routed to a
+different worker than the login still terminates the session. The residual caveat is a **warm**
+session cache on the peer (no revocation marker is published for a single-session logout) and the
+cache-down fallback, which degrades to the local map rather than failing the logout.
 
 ---
 

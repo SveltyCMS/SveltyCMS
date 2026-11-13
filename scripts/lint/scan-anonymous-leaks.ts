@@ -136,6 +136,8 @@ const PUBLIC_EXACT_ROUTES = new Set([
   "/api/security/csp-report",
   "/api/auth/saml/acs",
   "/api/auth/saml/login",
+  "/api/auth/saml/slo",
+  "/api/auth/saml/logout",
 ]);
 
 const PUBLIC_PREFIX_ROUTES = [

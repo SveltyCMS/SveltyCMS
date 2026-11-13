@@ -48,6 +48,7 @@ import {
   generateContentEtag,
   collectionResponseCacheTags,
 } from "@src/services/cache/response-cache";
+import { assertTenantRequired } from "@utils/security/tenant-required.server";
 
 // Static ESM binding for hot domain handlers (collections, content, auth, system, tokens, media, dashboard)
 // eliminates dynamic import resolution overhead entirely on 95%+ of API traffic.
@@ -545,6 +546,16 @@ export const _handler = async (event: RequestEvent) => {
       throw new AppError("Forbidden: Insufficient permissions", 403, "FORBIDDEN");
     }
   }
+
+  // 🔒 TENANT FAIL-CLOSED (request boundary): a tenant-owned namespace must never
+  // be served while MULTI_TENANT is on and the request resolved no tenant. A `null`
+  // tenant reaches the DB layer as the *explicit global scope* (`tenantId IS NULL`),
+  // so /api/collections, /api/content, /api/webhooks … would silently read the
+  // global layer instead of being rejected. Global/system namespaces (health,
+  // theme, settings/public, version, …) are not in the gated set, and safe-query's
+  // documented explicit-global-scope read is untouched. Hot path: one truthiness
+  // check when a tenant is bound; no allocation on either branch.
+  assertTenantRequired(tenantId, namespace);
 
   // --- CSRF Protection ---
   // Guest commerce mutations are public but still CSRF-gated. Stripe webhooks

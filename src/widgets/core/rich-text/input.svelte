@@ -479,7 +479,7 @@
 
 	// Undo/redo arrows are directional — mirror them in RTL layouts.
 	function mirrorDirIcon(icon: string): string {
-		return icon === 'arrow-u-left-top' || icon === 'arrow-u-right-top' ? 'rtl:-scale-x-[-1]' : '';
+		return icon === 'arrow-u-left-top' || icon === 'arrow-u-right-top' ? 'rtl:-scale-x-100' : '';
 	}
 
 	onMount(() => {

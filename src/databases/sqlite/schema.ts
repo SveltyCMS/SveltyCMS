@@ -241,6 +241,42 @@ export const contentRevisions = sqliteTable(
   }),
 );
 
+// Content Relations Table (generic many-to-many junction)
+export const contentRelations = sqliteTable(
+  "content_relations",
+  {
+    _id: uuidPk(),
+    tenantId: tenantField(),
+    sourceCollection: text("sourceCollection", { length: 255 }).notNull(),
+    sourceId: text("sourceId", { length: 255 }).notNull(),
+    fieldName: text("fieldName", { length: 255 }).notNull(),
+    targetCollection: text("targetCollection", { length: 255 }).notNull(),
+    targetId: text("targetId", { length: 255 }).notNull(),
+    sortOrder: integer("sortOrder").notNull().default(0),
+    metadata: text("metadata", { mode: "json" }),
+    ...timestamps,
+  },
+  (table) => ({
+    uniqueEdge: unique("content_relations_unique").on(
+      table.tenantId,
+      table.sourceCollection,
+      table.fieldName,
+      table.sourceId,
+      table.targetId,
+    ),
+    sourceIdx: index("idx_content_relations_source").on(
+      table.tenantId,
+      table.sourceCollection,
+      table.sourceId,
+    ),
+    targetIdx: index("idx_content_relations_target").on(
+      table.tenantId,
+      table.targetCollection,
+      table.targetId,
+    ),
+  }),
+);
+
 // Themes Table
 export const themes = sqliteTable(
   "themes",
@@ -612,6 +648,7 @@ export const auditLogs = sqliteTable(
     tenantId: tenantField(),
     previousHash: text("previousHash"),
     chainHash: text("chainHash"),
+    chainScope: text("chainScope"),
     ...timestamps,
   },
   (table) => ({
@@ -766,6 +803,7 @@ export const schema = {
   contentNodes,
   contentDrafts,
   contentRevisions,
+  contentRelations,
   themes,
   widgets,
   mediaItems,

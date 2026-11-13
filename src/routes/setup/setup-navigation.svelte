@@ -73,7 +73,8 @@ Features:
 						aria-label={button_previous?.() || 'Go to previous step'}
 						class="flex items-center gap-2"
 					>
-						<iconify-icon icon="mdi:arrow-left-bold" class="h-5 w-5"></iconify-icon>
+						<iconify-icon icon="mdi:arrow-left-bold" class="h-5 w-5 rtl:-scale-x-100"
+						></iconify-icon>
 						<span class="inline">{button_previous()}</span>
 					</Button>
 				</SystemTooltip>
@@ -117,7 +118,8 @@ Features:
 							{/if}
 						{:else}
 							<span class="inline">{button_next()}</span>
-							<iconify-icon icon="mdi:arrow-right-bold" class="h-5 w-5"></iconify-icon>
+							<iconify-icon icon="mdi:arrow-right-bold" class="h-5 w-5 rtl:-scale-x-100"
+							></iconify-icon>
 						{/if}
 					</Button>
 				</SystemTooltip>

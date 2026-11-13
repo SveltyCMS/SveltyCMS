@@ -17,6 +17,14 @@
  *   bun run scripts/security/scan-osv.ts          # check (warnings tolerated)
  *   bun run scripts/security/scan-osv.ts --strict # exit 1 on any vulnerability
  *   bun run scripts/security/scan-osv.ts --fresh  # ignore the 24h cache
+ *
+ * ### Features:
+ * - Batch query of the OSV API from SBOM purls (one request per 1000 packages)
+ * - Bounded retries (3 attempts, 300ms/900ms backoff) for transient outages
+ * - Response-shape validation before parsing (an error page must not look clean)
+ * - Fail-closed on CI / `--strict`: an unreachable API fails the audit instead of
+ *   silently passing; offline laptops keep the historical warn-and-continue path
+ * - 24h per-purl cache so the pre-commit gate stays fast
  */
 
 import { readFileSync, mkdirSync, writeFileSync, existsSync } from "node:fs";
@@ -29,6 +37,11 @@ const OSV_API = "https://api.osv.dev/v1/querybatch";
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const CACHE_PATH = join(ROOT, "node_modules", ".cache", "osv-cache.json");
 
+/** Total attempts per batch (first try + 2 retries). */
+export const OSV_ATTEMPTS = 3;
+/** Backoff before retry 2 and retry 3. */
+export const OSV_RETRY_DELAYS_MS = [300, 900] as const;
+
 export interface OsvVuln {
   id: string;
   summary?: string;
@@ -40,32 +53,141 @@ export interface OsvResult {
   vulns: OsvVuln[];
 }
 
+export interface OsvQueryBatch {
+  package: { purl: string };
+}
+
 /**
  * Build query payloads from SBOM purls. Exported for unit tests.
  */
-export function buildQueries(purls: string[], batchSize = 1000): { package: { purl: string } }[][] {
-  const queries: { package: { purl: string } }[][] = [];
+export function buildQueries(purls: string[], batchSize = 1000): OsvQueryBatch[][] {
+  const queries: OsvQueryBatch[][] = [];
   for (let i = 0; i < purls.length; i += batchSize) {
     queries.push(purls.slice(i, i + batchSize).map((purl) => ({ package: { purl } })));
   }
   return queries;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+/** A querybatch response is only usable when it is an object with a `results` array. */
+export function isOsvResponse(body: unknown): body is { results: unknown[] } {
+  return isRecord(body) && Array.isArray(body.results);
+}
+
 /**
  * Parse a querybatch response into per-purl findings. Exported for unit tests.
+ *
+ * Tolerant by design: a missing/malformed entry degrades to "no findings" for that
+ * purl only. Callers must validate the envelope first (`isOsvResponse`) so a
+ * transport error page can never be mistaken for a clean dependency tree.
  */
-export function parseOsvResponse(purls: string[], body: any): OsvResult[] {
+export function parseOsvResponse(purls: string[], body: unknown): OsvResult[] {
   const results: OsvResult[] = [];
-  const entries = Array.isArray(body?.results) ? body.results : [];
+  const entries: unknown[] = isOsvResponse(body) ? body.results : [];
   purls.forEach((purl, i) => {
-    const vulns = (entries[i]?.vulns ?? []).map((v: any) => ({
-      id: v.id ?? "UNKNOWN",
-      summary: v.summary,
-      severity: v.severity?.[0]?.score ? undefined : v.severity,
-    }));
+    const entry = entries[i];
+    const rawVulns = isRecord(entry) && Array.isArray(entry.vulns) ? entry.vulns : [];
+    const vulns: OsvVuln[] = rawVulns.map((raw) => {
+      const v = isRecord(raw) ? raw : {};
+      return {
+        id: typeof v.id === "string" ? v.id : "UNKNOWN",
+        summary: typeof v.summary === "string" ? v.summary : undefined,
+        severity: typeof v.severity === "string" ? v.severity : undefined,
+      };
+    });
     if (vulns.length > 0) results.push({ purl, vulns });
   });
   return results;
+}
+
+export interface OsvRequestInit {
+  method: "POST";
+  headers: { "Content-Type": string };
+  body: string;
+  signal: AbortSignal;
+}
+
+/** Narrow transport signature so tests can inject a stub without faking `fetch`. */
+export type OsvFetchLike = (url: string, init: OsvRequestInit) => Promise<Response>;
+
+export interface OsvFetchDeps {
+  /** Injectable transport (tests stub this — no network in unit runs). */
+  fetchImpl?: OsvFetchLike;
+  sleep?: (ms: number) => Promise<void>;
+  attempts?: number;
+}
+
+export interface OsvFetchOutcome {
+  ok: boolean;
+  /** Parsed, shape-validated body — present only when `ok`. */
+  body?: unknown;
+  error?: string;
+  attempts: number;
+}
+
+/**
+ * POST one batch with bounded exponential backoff.
+ *
+ * A 429/timeout/HTML error page is indistinguishable from "no findings" once the
+ * body is parsed, so every failure is retried and finally reported — never cached.
+ */
+export async function fetchOsvBatch(
+  queries: OsvQueryBatch[],
+  deps: OsvFetchDeps = {},
+): Promise<OsvFetchOutcome> {
+  const fetchImpl = deps.fetchImpl ?? fetch;
+  const sleep =
+    deps.sleep ??
+    ((ms: number) =>
+      new Promise<void>((resolve) => {
+        setTimeout(resolve, ms);
+      }));
+  const attempts = deps.attempts ?? OSV_ATTEMPTS;
+  let lastError = "unknown error";
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const res = await fetchImpl(OSV_API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ queries }),
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (!res.ok) {
+        lastError = `OSV API returned ${res.status}`;
+      } else {
+        const body: unknown = await res.json();
+        if (isOsvResponse(body)) return { ok: true, body, attempts: attempt };
+        lastError = "OSV API returned a malformed payload (no results array)";
+      }
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err);
+    }
+
+    const delay = OSV_RETRY_DELAYS_MS[attempt - 1];
+    if (attempt < attempts && delay !== undefined) {
+      console.warn(
+        `⚠️  OSV batch attempt ${attempt}/${attempts} failed (${lastError}) — retrying in ${delay}ms`,
+      );
+      await sleep(delay);
+    }
+  }
+
+  return { ok: false, error: lastError, attempts };
+}
+
+/**
+ * CI and `--strict` must fail closed: a skipped dependency audit is not a pass.
+ * Offline developer machines keep the historical warn-and-continue behaviour.
+ */
+export function shouldFailClosed(
+  env: NodeJS.ProcessEnv = process.env,
+  strict: boolean = STRICT,
+): boolean {
+  return strict || env.CI === "true";
 }
 
 function severityLabel(v: OsvVuln): string {
@@ -89,10 +211,11 @@ async function main() {
     console.error("❌ sbom.json missing — run `bun run audit:sbom` first");
     process.exit(1);
   }
-  const sbom = JSON.parse(readFileSync(sbomPath, "utf8"));
-  const purls: string[] = (sbom.components ?? [])
-    .map((c: any) => c.purl)
-    .filter((p: unknown): p is string => typeof p === "string" && p.startsWith("pkg:npm/"));
+  const sbom: unknown = JSON.parse(readFileSync(sbomPath, "utf8"));
+  const components = isRecord(sbom) && Array.isArray(sbom.components) ? sbom.components : [];
+  const purls: string[] = components
+    .map((c) => (isRecord(c) ? c.purl : undefined))
+    .filter((p): p is string => typeof p === "string" && p.startsWith("pkg:npm/"));
 
   if (purls.length === 0) {
     console.error("❌ No npm purls found in sbom.json");
@@ -117,36 +240,23 @@ async function main() {
   const results: OsvResult[] = [];
   if (fresh.length > 0) {
     const queries = buildQueries(fresh);
-    let failed = false;
+    let failure: string | null = null;
     for (const batch of queries) {
-      try {
-        const res = await fetch(OSV_API, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ queries: batch }),
-          signal: AbortSignal.timeout(30_000),
-        });
-        if (!res.ok) {
-          console.warn(`⚠️  OSV API returned ${res.status} — treating as unreachable`);
-          failed = true;
-          break;
-        }
-        const body = await res.json();
-        const batchResults = parseOsvResponse(
-          batch.map((q) => q.package.purl),
-          body,
-        );
-        results.push(...batchResults);
-        for (const r of batchResults) {
-          cache[r.purl] = { checkedAt: Date.now(), vulns: r.vulns };
-        }
-        for (const p of batch.map((q) => q.package.purl)) {
-          if (!cache[p]) cache[p] = { checkedAt: Date.now(), vulns: [] };
-        }
-      } catch (err) {
-        console.warn(`⚠️  OSV API unreachable (${(err as Error).message}) — skipping global check`);
-        failed = true;
+      const outcome = await fetchOsvBatch(batch);
+      if (!outcome.ok) {
+        failure = outcome.error ?? "unknown error";
         break;
+      }
+      const batchResults = parseOsvResponse(
+        batch.map((q) => q.package.purl),
+        outcome.body,
+      );
+      results.push(...batchResults);
+      for (const r of batchResults) {
+        cache[r.purl] = { checkedAt: Date.now(), vulns: r.vulns };
+      }
+      for (const p of batch.map((q) => q.package.purl)) {
+        if (!cache[p]) cache[p] = { checkedAt: Date.now(), vulns: [] };
       }
     }
     try {
@@ -155,13 +265,17 @@ async function main() {
     } catch {
       /* cache write is best-effort */
     }
-    if (failed) {
-      console.log("ℹ️  Global vulnerability check skipped (network unavailable)");
-      if (STRICT) {
-        // Do not block commits on transient network issues; CI runs the same
-        // check where the network is guaranteed.
-        console.log("ℹ️  (non-fatal in --strict for offline development)");
+    if (failure) {
+      if (shouldFailClosed()) {
+        console.error(`❌ OSV global vulnerability check could not run: ${failure}`);
+        console.error(
+          "   CI / --strict is fail-closed: an unreachable or rate-limited OSV API means the\n" +
+            "   dependency audit did not happen, so the gate must not report success.",
+        );
+        process.exit(1);
       }
+      console.log(`ℹ️  Global vulnerability check skipped (${failure})`);
+      console.log("ℹ️  (non-fatal outside CI/--strict — offline development)");
     }
   }
 

@@ -146,6 +146,12 @@
 	const pathname = $derived(page.url.pathname);
 	const isFavorited = $derived(floatingNavStore.isActive(pathname));
 	const isFixedNavItem = $derived(floatingNavStore.isFixed(pathname));
+	/**
+	 * Error boundaries render this header too. Pinning a 404/500 into the radial is
+	 * meaningless (the route id is the error boundary, not the missing page), so the
+	 * star is withheld there (SV-087).
+	 */
+	const isErrorPage = $derived((page.status ?? 200) >= 400 || Boolean(page.error));
 
 	function toggleFavorite() {
 		if (isFixedNavItem) return; // Home / Settings always stay on the radial
@@ -248,28 +254,31 @@
 						</span>
 					</h1>
 
-					<!-- Floating-nav pin lives outside h1 so heading accessible name stays clean for E2E/a11y -->
-					<SystemTooltip title={favoriteTooltip}>
-						<button
-							type="button"
-							onclick={toggleFavorite}
-							aria-label={favoriteTooltip}
-							aria-pressed={isFavorited}
-							disabled={isFixedNavItem}
-							class="title-star ms-0.5 inline-flex shrink-0 items-center justify-center rounded-sm p-0.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tertiary-500 dark:focus-visible:outline-primary-500 {isFavorited
-								? 'text-warning-500 opacity-100'
-								: 'opacity-60 hover:opacity-100 hover:text-warning-500'} {isFixedNavItem
-								? 'cursor-default'
-								: ''}"
-							style={isFavorited ? undefined : 'color: var(--admin-text-muted)'}
-						>
-							<iconify-icon
-								icon={isFavorited ? 'mdi:star' : 'mdi:star-outline'}
-								width={compact ? '22' : '32'}
-								aria-hidden="true"
-							></iconify-icon>
-						</button>
-					</SystemTooltip>
+					<!-- Floating-nav pin lives outside h1 so heading accessible name stays clean for E2E/a11y.
+					     Withheld on error pages: there is no page to pin (SV-087). -->
+					{#if !isErrorPage}
+						<SystemTooltip title={favoriteTooltip}>
+							<button
+								type="button"
+								onclick={toggleFavorite}
+								aria-label={favoriteTooltip}
+								aria-pressed={isFavorited}
+								disabled={isFixedNavItem}
+								class="title-star ms-0.5 inline-flex shrink-0 items-center justify-center rounded-sm p-0.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tertiary-500 dark:focus-visible:outline-primary-500 {isFavorited
+									? 'text-warning-500 opacity-100'
+									: 'opacity-60 hover:opacity-100 hover:text-warning-500'} {isFixedNavItem
+									? 'cursor-default'
+									: ''}"
+								style={isFavorited ? undefined : 'color: var(--admin-text-muted)'}
+							>
+								<iconify-icon
+									icon={isFavorited ? 'mdi:star' : 'mdi:star-outline'}
+									width={compact ? '22' : '32'}
+									aria-hidden="true"
+								></iconify-icon>
+							</button>
+						</SystemTooltip>
+					{/if}
 				</div>
 
 				{#if subtitle}
@@ -300,7 +309,11 @@
 		{/if}
 
 		{#if showBackButton}
-			<div class="max-md:col-start-3 max-md:row-start-1 max-md:justify-self-end">
+			<!-- Phones only: the sidebar owns the collapse arrow on tablet/desktop, so a second
+			     round back control in the header duplicated it (SV-052). On phones the sidebar is
+			     an overlay with no edge control, and the title sits in grid column 2, so the
+			     control can never collide with the header text. -->
+			<div class="hidden max-md:col-start-3 max-md:row-start-1 max-md:flex max-md:justify-self-end">
 				{#if backUrl}
 					<SystemTooltip title={error_goback()} role={null} tabindex={null}>
 						<a
