@@ -5,6 +5,7 @@
 
 import type { SNCEntry, FieldMapping } from "./types";
 import { inferTargetCollectionFromMigration } from "./infer-collection";
+import { formatNumber } from "@utils/format-date";
 
 // ============================================================================
 // Types
@@ -212,7 +213,7 @@ export function calculateMigrationHealth(
       level: "info",
       category: "performance",
       title: "Large import detected",
-      description: `${entries.length.toLocaleString("en-US")} entries — consider CLI.`,
+      description: `${formatNumber(entries.length)} entries — consider CLI.`,
       action: "Use CLI for large imports",
       impact: "low",
     });
@@ -299,7 +300,7 @@ function generateHealthSummary(
   entryCount: number,
   mappingCount: number,
 ): string {
-  const base = `${entryCount.toLocaleString("en-US")} entries, ${mappingCount} field mappings. `;
+  const base = `${formatNumber(entryCount)} entries, ${mappingCount} field mappings. `;
   switch (status) {
     case "excellent":
       return base + "Your migration is well-configured and ready to import.";

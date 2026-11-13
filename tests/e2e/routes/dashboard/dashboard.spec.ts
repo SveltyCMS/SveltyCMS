@@ -418,4 +418,69 @@ test.describe("Dashboard widget reorder", () => {
     expect(after[0]).not.toBe(before[0]);
     expect([...after].sort()).toEqual([...before].sort());
   });
+
+  /**
+   * AUD-001: the click that opens a menu must not also be read as a click-away.
+   *
+   * The empty-state button shares its surface with the toolbar button. The old
+   * dismiss predicate named only the toolbar testid, so the empty state opened
+   * `dashboard-widget-menu` and closed it in the same event loop tick. The unit
+   * scanner (`lint-click-away`) rejects testid deny-lists statically; this test
+   * proves the behaviour in a real browser, for every trigger of that surface.
+   */
+  test("AUD-001: every add-widget trigger opens a menu that survives the click", async ({
+    page,
+  }) => {
+    await goDashboard(page);
+
+    /** Two animation frames + a task: enough for Svelte's flush and any deferred
+     *  document listener to run. Not a fixed sleep — the assertion follows it. */
+    const settle = () =>
+      page.evaluate(
+        () =>
+          new Promise<void>((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+          ),
+      );
+
+    const menu = page.getByTestId("dashboard-widget-menu");
+    const toolbarTrigger = page.getByTestId("dashboard-add-widget");
+
+    await expect(toolbarTrigger).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await toolbarTrigger.click();
+    await expect(menu).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await settle();
+    await expect(menu).toBeVisible();
+    await expect(toolbarTrigger).toHaveAttribute("aria-expanded", "true");
+
+    // Opening the sibling menu closes this one — one surface at a time, and a
+    // trigger click is still a trigger click rather than a dismissal.
+    const presetsTrigger = page.getByTestId("dashboard-presets-btn");
+    const presetsMenu = page.getByTestId("dashboard-presets-menu");
+    await presetsTrigger.click();
+    await expect(presetsMenu).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await expect(menu).toHaveCount(0, { timeout: ACTION_TIMEOUT });
+
+    // The same trigger closes its own surface.
+    await presetsTrigger.click();
+    await expect(presetsMenu).toHaveCount(0, { timeout: ACTION_TIMEOUT });
+
+    // Reproduce the empty state deterministically: resetting the layout clears
+    // the stored widgets. If the board is already empty the reset is absent.
+    const reset = page.getByTestId("dashboard-reset-widgets");
+    if (await reset.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await reset.click();
+    }
+    await expect(page.getByTestId("dashboard-empty-state")).toBeVisible({
+      timeout: ACTION_TIMEOUT,
+    });
+
+    const emptyTrigger = page.getByTestId("dashboard-add-first-widget");
+    await expect(emptyTrigger).toBeVisible();
+    await emptyTrigger.click();
+    await expect(menu).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await settle();
+    await expect(menu).toBeVisible();
+    await expect(emptyTrigger).toHaveAttribute("aria-expanded", "true");
+  });
 });

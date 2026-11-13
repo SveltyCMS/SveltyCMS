@@ -284,6 +284,23 @@ export function formatNumber(
 }
 
 /**
+ * Compact a dashboard metric for display: `1.2M`, `12.4k`, `1,234`.
+ *
+ * The single implementation for analytics cards, chart axes and the collection
+ * figure widget — three copies existed before the 2026-11-13 UI audit. Values
+ * below {@link METRIC_COMPACT_MIN} keep locale-aware grouping via
+ * {@link formatNumber} instead of being rounded to a suffix.
+ */
+export const METRIC_COMPACT_MIN = 10_000;
+
+export function formatMetricNumber(val: number, fractionDigits = 2): string {
+  if (!Number.isFinite(val)) return "0";
+  if (Math.abs(val) >= 1_000_000) return `${(val / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(val) >= METRIC_COMPACT_MIN) return `${(val / 1_000).toFixed(1)}k`;
+  return Number.isInteger(val) ? formatNumber(val) : val.toFixed(fractionDigits);
+}
+
+/**
  * Format a date as relative time ("2 hours ago").
  *
  * The single implementation for the app: resolves the locale through

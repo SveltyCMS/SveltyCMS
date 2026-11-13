@@ -37,6 +37,7 @@ Supports time-series binning and categorical distributions with live drill-down.
 
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { formatMetricNumber } from '@utils/format-date';
 	import type { DashboardWidgetConfig, WidgetSize } from '@src/content/types';
 	import BaseWidget from '../../base-widget.svelte';
 	import { systemPreferences } from '../../dashboard-preferences.svelte';
@@ -296,9 +297,7 @@ Supports time-series binning and categorical distributions with live drill-down.
 	});
 
 	function formatDisplayValue(val: number): string {
-		if (val >= 1_000_000) return (val / 1_000_000).toFixed(1) + 'M';
-		if (val >= 10_000) return (val / 1_000).toFixed(1) + 'k';
-		return Number.isInteger(val) ? val.toLocaleString('en-US') : val.toFixed(1);
+		return formatMetricNumber(val, 1);
 	}
 
 	function getAccentColorClasses(accent: string) {

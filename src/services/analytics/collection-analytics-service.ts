@@ -19,6 +19,7 @@ import type { DatabaseId, FieldInstance } from "@src/content/types";
 import type { LocalCMS } from "@src/services/sdk";
 import { contentStore } from "@src/stores/content-registry.svelte";
 import { toISOString } from "@src/utils/date";
+import { formatDate, formatMetricNumber } from "@src/utils/format-date";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
 import { buildCollectionCacheTags } from "@src/databases/core/collection-name";
@@ -184,17 +185,7 @@ function resolvePreviousRange(
   return { prevStart, prevEnd };
 }
 
-/** Format numbers with appropriate unit compacting (e.g. 1.2K, 3.4M) */
-function formatMetricNumber(val: number): string {
-  if (!Number.isFinite(val)) return "0";
-  if (Math.abs(val) >= 1_000_000) {
-    return (val / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
-  }
-  if (Math.abs(val) >= 1_000) {
-    return (val / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
-  }
-  return Number.isInteger(val) ? val.toLocaleString("en-US") : val.toFixed(2);
-}
+/** Format numbers with appropriate unit compacting (e.g. 1.2k, 3.4M). */
 
 class CollectionAnalyticsService {
   /**
@@ -521,7 +512,7 @@ class CollectionAnalyticsService {
             } else if (timeGranularity === "year") {
               key = String(d.getFullYear());
             } else {
-              key = d.toLocaleString("en-US", { month: "short" });
+              key = formatDate(d, { month: "short" });
             }
           }
         }

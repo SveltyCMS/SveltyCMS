@@ -1,6 +1,6 @@
 /**
  * @file tests/unit/scripts/run-source-lints.test.ts
- * @description Pins the single-process aggregation of the nine source lints.
+ * @description Pins the single-process aggregation of the source lints.
  *
  * Each rule has its own fixture suite; this test proves the shared gate surfaces
  * the offenses with the expected prefix and fails closed, so folding a rule out
@@ -42,21 +42,25 @@ const CSS = [file("src/app.css", SAFELIST_CSS)];
 
 describe("run-source-lints", () => {
   it("passes a clean source set", () => {
-    const report = runSourceLints([
-      file(
-        "src/services/clean.ts",
-        "import { nowISODateString } from '@utils/date';\nexport const t = nowISODateString();\n",
-      ),
-    ]);
+    const report = runSourceLints(
+      [
+        file(
+          "src/services/clean.ts",
+          "import { nowISODateString } from '@utils/date';\nexport const t = nowISODateString();\n",
+        ),
+      ],
+      { designCssSources: CSS },
+    );
 
     expect(report.ok).toBe(true);
     expect(report.violations).toEqual([]);
   });
 
   it("surfaces a direct ISO-now call with the date-helpers prefix", () => {
-    const report = runSourceLints([
-      file("src/services/clock.ts", "export const t = new Date().toISOString();\n"),
-    ]);
+    const report = runSourceLints(
+      [file("src/services/clock.ts", "export const t = new Date().toISOString();\n")],
+      { designCssSources: CSS },
+    );
 
     expect(report.ok).toBe(false);
     expect(report.dateCallOffenses).toHaveLength(1);
@@ -64,9 +68,10 @@ describe("run-source-lints", () => {
   });
 
   it("surfaces an ungated module-scope timer", () => {
-    const report = runSourceLints([
-      file("src/services/timers.ts", "setInterval(() => {}, 1000);\n"),
-    ]);
+    const report = runSourceLints(
+      [file("src/services/timers.ts", "setInterval(() => {}, 1000);\n")],
+      { designCssSources: CSS },
+    );
 
     expect(report.ok).toBe(false);
     expect(report.timerOffenses.length).toBeGreaterThan(0);
@@ -76,10 +81,13 @@ describe("run-source-lints", () => {
   });
 
   it("reports every rule family in one pass", () => {
-    const report = runSourceLints([
-      file("src/services/a.ts", "export const t = new Date().toISOString();\n"),
-      file("src/services/b.ts", "setInterval(() => {}, 1000);\n"),
-    ]);
+    const report = runSourceLints(
+      [
+        file("src/services/a.ts", "export const t = new Date().toISOString();\n"),
+        file("src/services/b.ts", "setInterval(() => {}, 1000);\n"),
+      ],
+      { designCssSources: CSS },
+    );
 
     expect(report.ok).toBe(false);
     expect(report.violations.length).toBeGreaterThanOrEqual(2);

@@ -10,10 +10,12 @@
  * - Ignores technical tags (code, pre, svg, script, style), expressions ({...}), numbers, punctuation
  * - Supports suppression comments: `<!-- copy:ignore -->` or `<!-- hardcoded-copy:ignore -->`
  * - Supports file suppression: `<!-- copy:ignore-file -->`
+ * - `--check` ratchets against a recorded fingerprint baseline: a *new* string fails,
+ *   a pre-existing one does not. `--update` re-records after a reviewed change.
  * - Exit code 0 if clean, 1 with file/line/snippet breakdown on failure in strict mode
  */
 
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { parse } from "svelte/compiler";
 
@@ -22,6 +24,45 @@ interface Offense {
   line: number;
   snippet: string;
   reason: string;
+}
+
+export type { Offense };
+
+/** Recorded set of accepted unlocalized strings: `relative/path.svelte::snippet`. */
+export const BASELINE_RELATIVE_PATH = "scripts/check/hardcoded-copy-baseline.json";
+
+export interface CopyBaseline {
+  generatedAt: string;
+  note: string;
+  /** Sorted `file::snippet` fingerprints. */
+  entries: string[];
+}
+
+/** Stable identity of one offense: path + the (already truncated) snippet. */
+export function copyFingerprint(offense: Offense, root = process.cwd()): string {
+  return `${relative(root, offense.file).replace(/\\/g, "/")}::${offense.snippet}`;
+}
+
+/**
+ * Pure ratchet comparison — fixtures in `tests/unit/scripts/check-hardcoded-copy.test.ts`.
+ *
+ * `added` is the failure set (copy that was not reviewed when the baseline was
+ * recorded); `stale` is informational (the baseline keeps fingerprints the scan
+ * no longer produces, so `--update` can prune them).
+ */
+export function compareToBaseline(
+  offenses: readonly Offense[],
+  baseline: CopyBaseline,
+): { added: Offense[]; stale: string[] } {
+  const recorded = new Set(baseline.entries);
+  const current = new Set<string>();
+
+  for (const offense of offenses) current.add(copyFingerprint(offense));
+
+  return {
+    added: offenses.filter((offense) => !recorded.has(copyFingerprint(offense))),
+    stale: [...recorded].filter((entry) => !current.has(entry)).sort(),
+  };
 }
 
 const ALLOWED_TECHNICAL_TOKENS = new Set([
@@ -305,6 +346,8 @@ if (import.meta.main) {
   const args = process.argv.slice(2);
   const targetDir = args.find((a) => !a.startsWith("-")) || join("src", "routes", "(app)");
   const isStrict = args.includes("--strict");
+  const isCheck = args.includes("--check");
+  const isUpdate = args.includes("--update");
 
   const targetFiles = walkDir(targetDir, ".svelte");
   const allOffenses: Offense[] = [];
@@ -312,6 +355,54 @@ if (import.meta.main) {
   for (const file of targetFiles) {
     const offenses = scanFile(file);
     allOffenses.push(...offenses);
+  }
+
+  if (isUpdate) {
+    const baseline: CopyBaseline = {
+      generatedAt: new Date().toISOString().slice(0, 10),
+      note: "Unlocalized admin copy accepted as of the recorded date. Remove entries by localizing the string; never add one without a review.",
+      entries: [...new Set(allOffenses.map((offense) => copyFingerprint(offense)))].sort(),
+    };
+    writeFileSync(BASELINE_RELATIVE_PATH, `${JSON.stringify(baseline, null, 2)}\n`);
+    console.log(
+      `\x1b[32m✅ hardcoded-copy baseline updated: ${baseline.entries.length} entries in ${BASELINE_RELATIVE_PATH}\x1b[0m`,
+    );
+    process.exit(0);
+  }
+
+  if (isCheck) {
+    let baseline: CopyBaseline;
+    try {
+      baseline = JSON.parse(readFileSync(BASELINE_RELATIVE_PATH, "utf8")) as CopyBaseline;
+    } catch {
+      console.error(
+        `\x1b[31m❌ hardcoded-copy: missing baseline ${BASELINE_RELATIVE_PATH} (run: bun run ${import.meta.path} --update)\x1b[0m`,
+      );
+      process.exit(1);
+    }
+
+    const { added, stale } = compareToBaseline(allOffenses, baseline);
+
+    if (added.length > 0) {
+      console.error(
+        `\n\x1b[31m❌ hardcoded-copy: ${added.length} new unlocalized string(s)\x1b[0m\n`,
+      );
+      for (const offense of added) {
+        console.error(
+          `  \x1b[36m${relative(process.cwd(), offense.file).replace(/\\/g, "/")}:${offense.line}\x1b[0m "${offense.snippet}"`,
+        );
+      }
+      console.error(
+        "\n  Key the string with Paraglide, add `<!-- copy:ignore -->` for a reviewed exception,\n" +
+          "  or record the whole set with `--update` after review.\n",
+      );
+      process.exit(1);
+    }
+
+    console.log(
+      `\x1b[32m✅ hardcoded-copy: no new strings — ${allOffenses.length} accepted, ${stale.length} stale baseline entr${stale.length === 1 ? "y" : "ies"} (${targetFiles.length} files).\x1b[0m`,
+    );
+    process.exit(0);
   }
 
   if (allOffenses.length === 0) {

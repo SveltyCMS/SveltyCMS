@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
 /**
  * @file scripts/check/run-source-lints.ts
- * @description The nine source linters in one process over one workspace read.
+ * @description The twelve source linters in one process over one workspace read.
  *
- * Nine rules share this gate. Five of them were folded in first; `lint-design`,
+ * Twelve rules share this gate. Five of them were folded in first; `lint-design`,
  * `lint-duplicate-testids`, `scan-anonymous-leaks` and `lint-rule-budgets` used
  * to be their own `FAST_CHECKS` entries, so every run paid four extra process
- * spawns and four extra tree reads. All nine now share
+ * spawns and four extra tree reads. All twelve now share
  * `loadWorkspaceSources()` — one read for all nine — while staying a separate
  * registry entry from `check-ast-gates`. Keeping them separate preserves
  * wall-clock parallelism: the runner executes this gate and the module-graph
@@ -22,7 +22,7 @@
  * the gate that `bun run check` executes.
  *
  * ### Features:
- * - single workspace read shared by all nine rules
+ * - single workspace read shared by all twelve rules
  * - one aggregated violation list with per-rule prefixes, deterministic order
  * - exported pure core for fixture tests (disk inputs are injectable)
  */
@@ -53,6 +53,9 @@ import {
   findRemoteTransportOffenses,
   type RemoteTransportOffense,
 } from "../lint/scan-remote-transport";
+import { findLocaleFormatCalls, type LocaleFormatOffense } from "../lint/lint-locale-format";
+import { findCssTokenOffenses, type CssTokenOffense } from "../lint/lint-css-tokens";
+import { findUnguardedClickAway, type ClickAwayOffense } from "../lint/lint-click-away";
 import {
   BUDGET_BASELINE_RELATIVE_PATH,
   checkRuleBudgets,
@@ -72,6 +75,9 @@ export interface SourceLintReport {
   duplicateTestIdOffenses: TestIdOffense[];
   anonymousLeakOffenses: AnonymousLeak[];
   remoteTransportOffenses: RemoteTransportOffense[];
+  localeFormatOffenses: LocaleFormatOffense[];
+  cssTokenOffenses: CssTokenOffense[];
+  clickAwayOffenses: ClickAwayOffense[];
   designResult: DesignLintResult;
   budgetViolations: BudgetViolation[];
   /** The ratchet file was unreadable, so the budget rule failed closed. */
@@ -131,6 +137,8 @@ export function runSourceLints(
 ): SourceLintReport {
   const files = sources.map(({ path, source }) => ({ path, source }));
   const dateCallOffenses = findDirectIsoNow(files);
+  const localeFormatOffenses = findLocaleFormatCalls(files);
+  const clickAwayOffenses = findUnguardedClickAway(files);
   const silentCatchOffenses = findSilentCatches(files);
   const livePathOffenses = findLivePathReferences(files);
   const transientOffenses = findUnclassifiedDeletes(files);
@@ -157,6 +165,11 @@ export function runSourceLints(
     options.designCssSources ?? loadDesignCssSources(),
   );
 
+  const cssTokenOffenses = findCssTokenOffenses(
+    files,
+    options.designCssSources ?? loadDesignCssSources(),
+  );
+
   const budgetFiles = (options.budgetSources ?? sources).map(({ path, source }) => ({
     path,
     source,
@@ -170,6 +183,11 @@ export function runSourceLints(
   for (const offense of dateCallOffenses) {
     violations.push(
       `date-helpers ${offense.file}:${offense.line} — direct new Date().toISOString()`,
+    );
+  }
+  for (const offense of localeFormatOffenses) {
+    violations.push(
+      `locale-format ${offense.file}:${offense.line} — ${offense.call}() bypasses @utils/format-date`,
     );
   }
   for (const offense of silentCatchOffenses) {
@@ -211,6 +229,12 @@ export function runSourceLints(
   for (const offense of designResult.unresolvedPresetOffenses) {
     violations.push(`design ${offense.file}:${offense.line} — undefined preset '${offense.name}'`);
   }
+  for (const offense of cssTokenOffenses) {
+    violations.push(`css-tokens ${offense.file}:${offense.line} — ${offense.reason}`);
+  }
+  for (const offense of clickAwayOffenses) {
+    violations.push(`click-away ${offense.file}:${offense.line} — ${offense.reason}`);
+  }
   for (const violation of designResult.cardViolations) {
     violations.push(
       `design ${violation.file}:${violation.line} — AdminCard ${violation.attribute}`,
@@ -237,6 +261,9 @@ export function runSourceLints(
     ok: violations.length === 0,
     remoteTransportOffenses,
     dateCallOffenses,
+    localeFormatOffenses,
+    cssTokenOffenses,
+    clickAwayOffenses,
     silentCatchOffenses,
     livePathOffenses,
     transientOffenses,
@@ -280,7 +307,7 @@ if (import.meta.main) {
     `🧹 Source lints — ${sources.length} files (${inclusiveSources.length} with generated)`,
   );
   console.log(
-    `  date-helpers=${result.dateCallOffenses.length} silent-catch=${result.silentCatchOffenses.length} live-paths=${result.livePathOffenses.length} transient=${result.transientOffenses.length} global-timers=${result.timerOffenses.length} duplicate-testids=${result.duplicateTestIdOffenses.length} anonymous-leaks=${result.anonymousLeakOffenses.length} design=${designViolationCount(result.designResult)} rule-budgets=${
+    `  date-helpers=${result.dateCallOffenses.length} locale-format=${result.localeFormatOffenses.length} css-tokens=${result.cssTokenOffenses.length} click-away=${result.clickAwayOffenses.length} silent-catch=${result.silentCatchOffenses.length} live-paths=${result.livePathOffenses.length} transient=${result.transientOffenses.length} global-timers=${result.timerOffenses.length} duplicate-testids=${result.duplicateTestIdOffenses.length} anonymous-leaks=${result.anonymousLeakOffenses.length} design=${designViolationCount(result.designResult)} rule-budgets=${
       result.budgetViolations.length + (result.budgetBaselineMissing ? 1 : 0)
     }`,
   );

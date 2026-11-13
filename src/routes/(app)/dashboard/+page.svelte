@@ -865,22 +865,24 @@
 
 		const handleClickAway = (e: MouseEvent) => {
 			const target = e.target as HTMLElement | null;
-			if (
-				dropdownOpen &&
-				target &&
-				!target.closest('.widget-dropdown') &&
-				!target.closest('[data-testid="dashboard-add-widget"]')
-			) {
-				dropdownOpen = false;
+			if (!target) return;
+
+			// A click inside an open surface belongs to that surface.
+			if (target.closest('[role="menu"]')) return;
+
+			// A trigger owns exactly one menu: it opens its own and dismisses the
+			// other. Keying on the declared owner (not on a testid list) is what
+			// keeps every trigger — including the empty-state button — working.
+			const owner = target.closest<HTMLElement>('[data-dashboard-menu]');
+			if (owner) {
+				const menu = owner.dataset.dashboardMenu;
+				if (menu !== 'widget') dropdownOpen = false;
+				if (menu !== 'presets') presetsOpen = false;
+				return;
 			}
-			if (
-				presetsOpen &&
-				target &&
-				!target.closest('.presets-dropdown') &&
-				!target.closest('[data-testid="dashboard-presets-btn"]')
-			) {
-				presetsOpen = false;
-			}
+
+			dropdownOpen = false;
+			presetsOpen = false;
 		};
 		document.addEventListener('click', handleClickAway);
 
@@ -983,6 +985,7 @@
 						aria-label={dashboard_layout_presets()}
 						aria-haspopup="true"
 						aria-expanded={presetsOpen}
+						data-dashboard-menu="presets"
 						data-testid="dashboard-presets-btn"
 						class="w-10 p-0! min-w-0"
 					>
@@ -993,6 +996,7 @@
 					<div
 						class="presets-dropdown absolute inset-e-0 z-30 mt-2 w-72 rounded-(--admin-radius-card) border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) p-1.5 shadow-2xl dark:border-surface-500/40 dark:bg-surface-900"
 						role="menu"
+						data-testid="dashboard-presets-menu"
 					>
 						<div
 							class="px-2.5 py-1.5 text-xs font-semibold uppercase tracking-wider text-(--admin-text-muted)"
@@ -1112,6 +1116,7 @@
 						aria-haspopup="true"
 						aria-expanded={dropdownOpen}
 						aria-label={dashboard_add_widget()}
+						data-dashboard-menu="widget"
 						data-testid="dashboard-add-widget"
 					>
 						<iconify-icon icon="mdi:plus" width={18} class="me-2"></iconify-icon>
@@ -1401,6 +1406,9 @@
 							variant="outline"
 							onclick={() => (dropdownOpen = true)}
 							aria-label={dashboard_add_first_widget()}
+							aria-haspopup="true"
+							aria-expanded={dropdownOpen}
+							data-dashboard-menu="widget"
 							data-testid="dashboard-add-first-widget"
 							class="mb-8 rounded-full bg-tertiary-500 px-6 py-3 text-lg font-semibold text-white shadow-lg dark:bg-primary-500"
 						>

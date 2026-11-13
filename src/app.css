@@ -57,7 +57,7 @@
 /* ========================================================================
    🎨 DESIGN TOKENS
    ======================================================================== */
-@theme {
+@theme static {
   /* Modern system-first stack — Segoe UI Variable (Win11), SF Pro (macOS),
      then generic fallbacks. --font-display drives headings for a designed
      rhythm without shipping font assets. */

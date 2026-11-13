@@ -38,6 +38,7 @@ goal progress, and micro SVG sparklines for any collection in the CMS.
 
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { formatMetricNumber } from '@utils/format-date';
 	import type { DashboardWidgetConfig, WidgetSize } from '@src/content/types';
 	import BaseWidget from '../../base-widget.svelte';
 	import { systemPreferences } from '../../dashboard-preferences.svelte';
@@ -276,9 +277,7 @@ goal progress, and micro SVG sparklines for any collection in the CMS.
 
 	// Formatting helpers
 	function formatDisplayValue(val: number): string {
-		if (val >= 1_000_000) return (val / 1_000_000).toFixed(1) + 'M';
-		if (val >= 10_000) return (val / 1_000).toFixed(1) + 'k';
-		return Number.isInteger(val) ? val.toLocaleString('en-US') : val.toFixed(2);
+		return formatMetricNumber(val, 2);
 	}
 
 	function getAccentColorClasses(accent: string) {

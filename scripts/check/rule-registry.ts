@@ -120,6 +120,13 @@ export const FAST_CHECKS: readonly CheckSpec[] = [
     owner: "architecture",
   },
   {
+    id: "check-hardcoded-copy",
+    script: "scripts/check/check-hardcoded-copy.ts",
+    args: ["--check"],
+    kind: "policy",
+    owner: "i18n",
+  },
+  {
     id: "check-source-lints",
     script: "scripts/check/run-source-lints.ts",
     kind: "ast",
