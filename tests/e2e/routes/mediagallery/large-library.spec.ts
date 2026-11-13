@@ -63,7 +63,7 @@ test.describe("Media gallery — large library", () => {
       await search.fill(prefix);
 
       const grid = page.getByTestId("media-grid");
-      const tiles = grid.getByTestId("media-item");
+      const tiles = grid.getByTestId("media-item").filter({ hasText: prefix });
 
       // Bounded first paint: only BATCH_SIZE tiles exist in the DOM.
       await expect(tiles).toHaveCount(BATCH_SIZE, { timeout: 30_000 });

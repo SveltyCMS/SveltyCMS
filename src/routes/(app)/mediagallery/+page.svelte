@@ -971,6 +971,13 @@
 				files = files.filter((f) => !deletedKeys.has(mediaFileKey(f)));
 				for (const key of deletedKeys) selectedFiles.delete(key);
 				await refreshAll();
+				// A confirmed delete is authoritative: if the refreshed listing still carries
+				// one of those rows it was served from a stale cache window, not restored on
+				// the server. Keep them out so a partial failure cannot resurrect a deleted
+				// asset in the grid.
+				if (deletedKeys.size > 0) {
+					files = files.filter((f) => !deletedKeys.has(mediaFileKey(f)));
+				}
 
 				if (failedNames.length === 0) {
 					toast.success('Batch delete complete');
