@@ -892,8 +892,9 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		{/if}
 	</form>
 
-	<!-- DB test result (success/error) — sits between the test button and Redis caching -->
-	{#if (wizard.successMessage || wizard.errorMessage) && wizard.lastDbTestResult && !setupStore.dbConfigChangedSinceTest}
+	<!-- DB test result — each banner is tied to the gate it describes, so the UI can
+	     never show "connection OK" while Next is disabled (SV-018). -->
+	{#if wizard.lastDbTestResult && !setupStore.dbConfigChangedSinceTest && (wizard.dbTestPassed ? Boolean(wizard.successMessage) : Boolean(wizard.errorMessage))}
 		<div
 			class="mt-6 flex flex-col rounded border-s-4 p-0 text-sm overflow-hidden"
 			class:border-primary-500={!!wizard.successMessage}

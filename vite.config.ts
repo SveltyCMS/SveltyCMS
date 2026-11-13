@@ -1667,7 +1667,7 @@ export default defineConfig(() => {
               toggleKeyCombo: "alt-x",
               holdMode: false,
               showToggleButton: "always",
-              toggleButtonPos: "bottom-right",
+              toggleButtonPos: "top-right",
             }
           : false,
         adapter: adapter({ out: "build", precompress: platform() !== "win32" }),

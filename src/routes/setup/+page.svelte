@@ -441,6 +441,17 @@
 
 	// --- 7. UI HANDLERS ---
 	function selectLanguage(lang: string) {
+		// A UI-language switch is not a configuration change: the DB probe result and its
+		// gate must survive it (SV-018). Snapshot the probe state, apply the locale, then
+		// restore, so nothing a locale re-render does can leave "next disabled but banner
+		// still green".
+		const probe = {
+			dbTestPassed: wizard.dbTestPassed,
+			successMessage: wizard.successMessage,
+			errorMessage: wizard.errorMessage,
+			lastDbTestResult: wizard.lastDbTestResult
+		};
+
 		// Both the locale store and the header tag are typed to the compiled paraglide
 		// locales, so only adopt a tag that exists there; the document-level application
 		// still runs for any tag (`applySystemLanguage` falls back to "en" itself).
@@ -449,6 +460,13 @@
 			currentLanguageTag = lang;
 		}
 		applySystemLanguage(lang);
+
+		void tick().then(() => {
+			wizard.dbTestPassed = probe.dbTestPassed;
+			wizard.successMessage = probe.successMessage;
+			wizard.errorMessage = probe.errorMessage;
+			wizard.lastDbTestResult = probe.lastDbTestResult;
+		});
 	}
 </script>
 

@@ -1567,6 +1567,7 @@
 							bind:value={globalSearchValue}
 							type="search"
 							placeholder={mediagallery_search_modf()}
+							title="Ctrl/⌘ + F"
 							class="w-full ps-9 pe-11 dark:border-surface-500/40 focus-visible:ring-1"
 							aria-label={mediagallery_search_assets()}
 						/>
@@ -1713,6 +1714,7 @@
 						bind:value={globalSearchValue}
 						type="search"
 						placeholder={mediagallery_search_modf()}
+						title="Ctrl/⌘ + F"
 						class="w-full ps-9 pe-11 dark:border-surface-500/40 focus-visible:ring-1"
 						aria-label={mediagallery_search_assets()}
 					/>

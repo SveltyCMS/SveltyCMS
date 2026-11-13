@@ -127,4 +127,20 @@ test.describe("QA audit regressions — browser-only", () => {
     const headings = page.getByRole("heading", { name: /page not found|seite nicht gefunden/i });
     await expect(headings).toHaveCount(1, { timeout: 20_000 });
   });
+
+  test("SV-072: the media toolbar fits a phone viewport", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 800 });
+    await page.goto("/mediagallery", { waitUntil: "domcontentloaded" });
+
+    // The search field is the control the audit saw truncated to "Search media... (".
+    await expect(page.locator("#media-gallery-search")).toBeVisible({ timeout: 30_000 });
+
+    // A wrapped toolbar is fine; a horizontally scrolling page is not.
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow, `page overflows horizontally by ${overflow}px at 375px`).toBeLessThanOrEqual(
+      1,
+    );
+  });
 });

@@ -73,7 +73,7 @@
 	};
 </script>
 
-<Badge variant={roleVariant(value)} class="text-white">
+<Badge variant={roleVariant(value)} class="gap-1.5 text-white">
 	{#if iconForRole(value)}
 		<iconify-icon icon={iconForRole(value)} width="20"></iconify-icon>
 		{roleName(value)}

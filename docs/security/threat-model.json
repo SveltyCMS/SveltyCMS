@@ -74,8 +74,8 @@
         "src/routes/api/[...path]/handlers/media-transcode.ts"
       ],
       "model": "docs/security/threat-models/media-files.mdx",
-      "reviewed_at": "2026-11-12",
-      "fingerprint": "e3476dffc416981dbd7dfd80028d5204070cb613d84c692395477282222c76bb"
+      "reviewed_at": "2026-11-13",
+      "fingerprint": "38aa16ed8159a63030d30833f7c72a2dc6ffa6b983986ee9835eedbe49da476f"
     },
     {
       "id": "admin-pages",
@@ -131,8 +131,8 @@
         "src/utils/test-bypass.server.ts"
       ],
       "model": "docs/security/threat-models/system-ops.mdx",
-      "reviewed_at": "2026-11-12",
-      "fingerprint": "566a091f48074f30014ab10b3cb5988e641fb96dd0e54aa65607d3b0450c99fe"
+      "reviewed_at": "2026-11-13",
+      "fingerprint": "aed6bb7a519aba968e2a1ab34968f2b63e7de2c8adfcb6c889ae42975712cf2a"
     }
   ]
 }
