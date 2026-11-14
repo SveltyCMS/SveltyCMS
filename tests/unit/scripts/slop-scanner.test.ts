@@ -630,4 +630,95 @@ describe("slop-scanner — credential autofill hints", () => {
       ).toBe(false);
     }
   });
+
+  it("flags current-password on system-settings SMTP/secret fields (AUD-004)", async () => {
+    const violations = await scanSvelteContent(
+      "src/routes/(app)/config/system-settings/+page.svelte",
+      passwordMarkup,
+    );
+    expect(violations.some((v) => v.category === "credential-autofill")).toBe(true);
+  });
+
+  it("flags type='password' on a non-login secret field when autocomplete is omitted completely (SV-011 / AUD-004)", async () => {
+    const violations = await scanSvelteContent(
+      "src/routes/setup/database-config.svelte",
+      '<Input id="redis-password" type="password" label="Redis Password" />',
+    );
+    expect(violations.some((v) => v.category === "credential-autofill")).toBe(true);
+  });
+
+  it("flags dynamic type={show ? 'text' : 'password'} on a non-login secret field without autocomplete (SV-011 / AUD-004)", async () => {
+    const violations = await scanSvelteContent(
+      "src/routes/setup/email-config.svelte",
+      '<Input id="smtp-password" type={showPassword ? "text" : "password"} label="SMTP Password" />',
+    );
+    expect(violations.some((v) => v.category === "credential-autofill")).toBe(true);
+  });
+
+  it("passes type='password' on a non-login secret field with autocomplete='new-password'", async () => {
+    const violations = await scanSvelteContent(
+      "src/routes/setup/database-config.svelte",
+      '<Input id="redis-password" type="password" autocomplete="new-password" label="Redis Password" />',
+    );
+    expect(violations.some((v) => v.category === "credential-autofill")).toBe(false);
+  });
+});
+
+describe("slop-scanner — audit regression guards (AUD-008 & SV-060)", () => {
+  it("flags unguarded event.key method access (AUD-008)", async () => {
+    const code = [
+      '<script lang="ts">',
+      "  function onKey(e: KeyboardEvent) {",
+      "    if (e.key.toLowerCase() === 't') {}",
+      "  }",
+      "</script>",
+    ].join("\n");
+    const violations = await scanSvelteContent("src/routes/+layout.svelte", code);
+    expect(
+      violations.some((v) => v.category === "unguarded-event-key" && v.severity === "error"),
+    ).toBe(true);
+  });
+
+  it("passes optional-chained event.key?.toLowerCase() (AUD-008)", async () => {
+    const code = [
+      '<script lang="ts">',
+      "  function onKey(e: KeyboardEvent) {",
+      "    if (e.key?.toLowerCase() === 't') {}",
+      "  }",
+      "</script>",
+    ].join("\n");
+    const violations = await scanSvelteContent("src/routes/+layout.svelte", code);
+    expect(violations.some((v) => v.category === "unguarded-event-key")).toBe(false);
+  });
+
+  it("flags native <button> with href attribute (SV-060)", async () => {
+    const code = '<button href="/mediagallery">Media Gallery</button>';
+    const violations = await scanSvelteContent("src/routes/page.svelte", code);
+    expect(
+      violations.some(
+        (v) =>
+          v.category === "accessibility" &&
+          v.severity === "error" &&
+          v.message.includes("Native <button> has an href"),
+      ),
+    ).toBe(true);
+  });
+
+  it("flags unchecked await fetch(POST) that discards the HTTP response", async () => {
+    const code = [
+      '<script lang="ts">',
+      "  async function submitOrder() {",
+      "    await fetch('/api/commerce/confirm', {",
+      "      method: 'POST',",
+      "      headers: clientJsonHeaders(),",
+      "      body: JSON.stringify({ id: 1 })",
+      "    });",
+      "  }",
+      "</script>",
+    ].join("\n");
+    const violations = await scanSvelteContent("src/plugins/stripe/ui/payment-form.svelte", code);
+    expect(
+      violations.some((v) => v.category === "unchecked-mutation-fetch" && v.severity === "error"),
+    ).toBe(true);
+  });
 });

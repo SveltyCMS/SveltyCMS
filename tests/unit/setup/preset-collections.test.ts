@@ -1,4 +1,17 @@
+/**
+ * @file tests/unit/setup/preset-collections.test.ts
+ * @description Unit & contract tests for setup presets, blueprint-to-schema compilation,
+ * client/server metadata parity, widget catalog coverage, and live-data protection.
+ *
+ * Features:
+ * - Verifies `PRESET_METADATA` (client) and `PRESETS` (server) stay in 1:1 lockstep (`SV-036`, `SV-038`)
+ * - Verifies every field across every starter blueprint resolves to a valid core widget and complete config (`AUD-025`)
+ * - Verifies revision history defaults, relation wiring, and generated `.ts` collection code
+ * - Pins `LiveDataGuard` so automated test harnesses can never purge or write `config/collections`
+ */
+
 import { describe, expect, it } from "vitest";
+import fs from "node:fs";
 import path from "node:path";
 import {
   assertHarnessCollectionsWritable,
@@ -9,7 +22,8 @@ import {
   purgeBenchmarkCollectionArtifacts,
 } from "@src/services/setup/preset-collections.server";
 import { isBenchmarkArtifact } from "@utils/benchmark-runtime";
-import { PRESETS } from "@src/services/setup/presets.server";
+import { PRESET_METADATA } from "@src/services/setup/preset-meta";
+import { PRESETS, type FieldTemplate } from "@src/services/setup/presets.server";
 
 interface NamedField {
   db_fieldName?: string;
@@ -294,5 +308,117 @@ describe("preset-collections.server", () => {
       await fs.rm(liveMarker, { force: true }).catch(() => {});
       await fs.rm(testMarker, { force: true }).catch(() => {});
     }
+  });
+
+  it("keeps client PRESET_METADATA and server PRESETS in 1:1 lockstep (SV-036, SV-038)", () => {
+    expect(PRESET_METADATA.map((p) => p.id)).toEqual(PRESETS.map((p) => p.id));
+
+    for (const serverPreset of PRESETS) {
+      const clientPreset = PRESET_METADATA.find((p) => p.id === serverPreset.id);
+      expect(clientPreset, `Missing PRESET_METADATA for ${serverPreset.id}`).toBeDefined();
+      expect(clientPreset!.title).toBe(serverPreset.title);
+      expect(clientPreset!.description).toBe(serverPreset.description);
+      expect(clientPreset!.icon).toBe(serverPreset.icon);
+      expect(clientPreset!.complexity).toBe(serverPreset.complexity);
+      expect(clientPreset!.features).toEqual(serverPreset.features);
+
+      const serverColNames = (serverPreset.collections ?? []).map((c) => c.name);
+      const clientColNames = (clientPreset!.collections ?? []).map((c) => c.name);
+      for (const clientColName of clientColNames) {
+        expect(
+          serverColNames,
+          `Client preset ${serverPreset.id} advertises collection '${clientColName}' missing from server PRESETS`,
+        ).toContain(clientColName);
+      }
+    }
+  });
+
+  it("validates every field in every starter blueprint against the widget catalog and structural rules (AUD-025)", () => {
+    const VALID_WIDGET_NAMES = new Set([
+      "Input",
+      "RichText",
+      "Slug",
+      "MediaUpload",
+      "Relation",
+      "Number",
+      "Select",
+      "SEO",
+      "Repeater",
+      "DateTime",
+      "Checkbox",
+      "Tags",
+    ]);
+
+    function assertFieldTemplate(field: FieldTemplate, pathLabel: string): void {
+      expect(field.db_fieldName, `${pathLabel} missing db_fieldName`).toMatch(
+        /^[A-Za-z_][A-Za-z0-9_]*$/,
+      );
+      expect(field.label?.trim().length, `${pathLabel} missing label`).toBeGreaterThan(0);
+      expect(field.helper?.trim().length, `${pathLabel} missing helper`).toBeGreaterThan(0);
+
+      if (field.type === "select") {
+        expect(
+          field.options?.length,
+          `${pathLabel} (select) must define non-empty options`,
+        ).toBeGreaterThan(0);
+      }
+      if (field.type === "repeater") {
+        expect(
+          field.fields?.length,
+          `${pathLabel} (repeater) must define non-empty child fields (AUD-025)`,
+        ).toBeGreaterThan(0);
+        for (const child of field.fields ?? []) {
+          assertFieldTemplate(child, `${pathLabel}.${child.db_fieldName}`);
+        }
+      }
+      if (field.type === "reference") {
+        expect(
+          field.collection?.trim().length,
+          `${pathLabel} (reference) must specify target collection`,
+        ).toBeGreaterThan(0);
+        expect(
+          field.displayField?.trim().length,
+          `${pathLabel} (reference) must specify displayField`,
+        ).toBeGreaterThan(0);
+      }
+    }
+
+    for (const preset of PRESETS) {
+      for (const collection of preset.collections ?? []) {
+        const prefix = `${preset.id}/${collection.name}`;
+        expect(collection.fields.length, `${prefix} has no fields`).toBeGreaterThan(0);
+
+        for (const field of collection.fields) {
+          assertFieldTemplate(field, `${prefix}.${field.db_fieldName}`);
+        }
+
+        const schema = collectionPresetToSchema(collection);
+        for (const rawField of (schema.fields ?? []) as NamedField[]) {
+          const widgetName = rawField.widget?.Name ?? "";
+          expect(
+            VALID_WIDGET_NAMES.has(widgetName),
+            `${prefix}.${rawField.db_fieldName} resolved to unknown widget '${widgetName}'`,
+          ).toBe(true);
+        }
+
+        const emitted = generateCollectionFileContent(collection);
+        expect(emitted, `${prefix} generated file missing default export`).toContain(
+          "export default {",
+        );
+        expect(emitted, `${prefix} generated file missing _id`).toContain(
+          `_id: "${collection.name}"`,
+        );
+      }
+    }
+  });
+
+  it("pins PageTitle <svelte:head><title> contract so every route sets <Page> · <SiteName> (AUD-041)", () => {
+    const pageTitleSource = fs.readFileSync(
+      path.resolve("src/components/page-title.svelte"),
+      "utf-8",
+    );
+    expect(pageTitleSource).toContain("<svelte:head>");
+    expect(pageTitleSource).toContain("<title>{documentTitle}</title>");
+    expect(pageTitleSource).toContain("`${name.trim()} · ${siteName}`");
   });
 });

@@ -402,6 +402,7 @@ export function createFastHeaders(record: Record<string, string | string[]>): He
     [Symbol.iterator](): IterableIterator<[string, string]> {
       return facade.entries();
     },
+    __backingRecord: record,
   };
   return facade as unknown as Headers;
 }

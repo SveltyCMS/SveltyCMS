@@ -396,11 +396,11 @@
 		}
 
 		const matchedConfig = ACTION_CONFIGS.find((config) => {
-			if (!config.shortcutKey) {
+			if (!config.shortcutKey || !e.key) {
 				return false;
 			}
 			return (
-				e.key.toLowerCase() === config.shortcutKey.toLowerCase() || e.key === config.shortcutKey
+				e.key?.toLowerCase() === config.shortcutKey.toLowerCase() || e.key === config.shortcutKey
 			);
 		});
 

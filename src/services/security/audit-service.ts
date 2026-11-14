@@ -53,8 +53,22 @@ function redactValue(v: unknown): unknown {
 
 export function redactSensitiveDetails(details: Record<string, unknown>): Record<string, unknown> {
   if (!details || typeof details !== "object") return details;
+  const keys = Object.keys(details);
+  let needsRedactionOrClone = false;
+  for (let i = 0; i < keys.length; i++) {
+    const k = keys[i];
+    const v = details[k];
+    if (SENSITIVE_KEY_RE.test(k) || (v !== null && typeof v === "object")) {
+      needsRedactionOrClone = true;
+      break;
+    }
+  }
+  if (!needsRedactionOrClone) return details;
+
   const clean: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(details)) {
+  for (let i = 0; i < keys.length; i++) {
+    const k = keys[i];
+    const v = details[k];
     if (SENSITIVE_KEY_RE.test(k)) {
       clean[k] = "[REDACTED]";
     } else {
@@ -405,7 +419,10 @@ export class AuditService {
         // is the only thing that makes a *truncated* tail detectable (a hash chain
         // cannot see its own end). Once per flush, never per entry, and a failure
         // here must not fail the flush — the count only goes up after a write.
-        await this.commitCheckpoints(checkpointBatch);
+        // When `insertBatch` succeeds on attempt 1 without throwing, all rows in
+        // `checkpointBatch` landed atomically; only re-verify stored IDs after a
+        // partial-failure retry (`attempt > 1`).
+        await this.commitCheckpoints(checkpointBatch, attempt > 1);
         return true;
       } catch (error) {
         lastError = error;
@@ -419,7 +436,7 @@ export class AuditService {
           const remaining = await this.dropAlreadyStored(attempted);
           if (remaining.length === 0) {
             // Every row landed despite the error; only the checkpoint is missing.
-            await this.commitCheckpoints(attempted);
+            await this.commitCheckpoints(attempted, true);
             return true;
           }
           // Another process appended first and the unique (chainScope, previousHash)
@@ -589,9 +606,12 @@ export class AuditService {
    * an accumulated counter drifts and a drifted counter makes truncation detection raise
    * false alarms. Counting the batch's own ids is one query and exact.
    */
-  private async commitCheckpoints(entries: BufferedAuditEntry[]): Promise<void> {
+  private async commitCheckpoints(
+    entries: BufferedAuditEntry[],
+    verifyStoredIds = false,
+  ): Promise<void> {
     if (entries.length === 0) return;
-    const stored = await this.storedIdsOf(entries);
+    const stored = verifyStoredIds ? await this.storedIdsOf(entries) : null;
     const tails = new Map<string | null, { count: number; headHash: string }>();
     for (const entry of entries) {
       const headHash = entry.chainHash as string | undefined;

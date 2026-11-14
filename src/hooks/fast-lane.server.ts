@@ -237,26 +237,26 @@ function responseToLaneResult(
 ): FastLaneResult | Promise<FastLaneResult> {
   const fastHeaders = (out as unknown as { __fastHeaders?: Record<string, string | string[]> })
     .__fastHeaders;
-  // Merge the LIVE response headers, not just the snapshot `buildJsonResponse`
-  // captured. The lane mutates `res.headers` after construction (security
-  // headers, `x-svelty-lane`, `x-srv-split`/`x-srv-dur`, etag, 304 validators);
-  // serving `__fastHeaders` alone dropped every one of them on the raw
-  // transport while the bridged path kept them — a security-header divergence,
-  // not just a diagnostics gap. The snapshot object is copied because the
-  // lane's `__fastHeaders` may carry a multi-value `set-cookie` array.
-  const headers: Record<string, string | string[]> = fastHeaders ? { ...fastHeaders } : {};
-  // Duck-typed fast-lane responses carry a header bag rather than a real
-  // `Headers` (see `createFastHeaders`). Feature-check the merge so a third
-  // shape degrades to the snapshot instead of throwing inside the lane and
-  // silently falling back to the bridged pipeline.
   const liveHeaders = out.headers as unknown as {
+    __backingRecord?: Record<string, string | string[]>;
     forEach?: (callback: (value: string, name: string) => void) => void;
   };
-  if (typeof liveHeaders.forEach === "function") {
-    liveHeaders.forEach((value, name) => {
-      if (name === "set-cookie" && headers[name] !== undefined) return;
-      headers[name] = value;
-    });
+  let headers: Record<string, string | string[]>;
+  if (fastHeaders && liveHeaders?.__backingRecord === fastHeaders) {
+    // Zero-copy fast path: `createFastHeaders(fastRecord)` mutates `fastHeaders`
+    // in place, so all live header mutations (`x-svelty-lane`, security headers,
+    // `x-srv-split`/`x-srv-dur`, etag) are already in `fastHeaders`.
+    headers = fastHeaders;
+  } else {
+    // Merge the LIVE response headers over the snapshot `buildJsonResponse`
+    // captured when `out` is a standard `Response` with its own `Headers` bag.
+    headers = fastHeaders ? { ...fastHeaders } : {};
+    if (typeof liveHeaders?.forEach === "function") {
+      liveHeaders.forEach((value, name) => {
+        if (name === "set-cookie" && headers[name] !== undefined) return;
+        headers[name] = value;
+      });
+    }
   }
   if (lane && !headers["x-svelty-lane"]) {
     headers["x-svelty-lane"] = lane;

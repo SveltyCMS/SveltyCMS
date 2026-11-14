@@ -548,6 +548,7 @@
 					<Input
 						id="sso-client-secret"
 						type="password"
+						autocomplete="new-password"
 						bind:value={formClientSecret}
 						placeholder="••••••••"
 						aria-label={sso_client_secret_aria()}

@@ -1702,6 +1702,7 @@
 							/>
 							<Input
 								type="password"
+								autocomplete="new-password"
 								bind:value={sharePassword}
 								label="Password (optional)"
 								inputClass="h-10 text-sm"

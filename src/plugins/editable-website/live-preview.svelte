@@ -182,7 +182,11 @@
 			.filter(Boolean)
 			.map((url) => {
 				try {
-					const normalized = url!.startsWith('http') ? url! : `http://localhost:5173${url}`;
+					const fallbackOrigin =
+						typeof window !== 'undefined'
+							? window.location.origin
+							: publicEnv.HOST_PROD || (import.meta.env.DEV ? 'http://localhost:5173' : '');
+					const normalized = url!.startsWith('http') ? url! : `${fallbackOrigin}${url}`;
 					return new URL(normalized).origin;
 				} catch {
 					return null;

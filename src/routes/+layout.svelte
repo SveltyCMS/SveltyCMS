@@ -416,8 +416,10 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 	// Derived State
 	// ============================================================================
 
-	// Get the site name from publicEnv store (safer for SSR/CSR transitions)
-	const siteName = $derived(publicEnv?.SITE_NAME || 'SveltyCMS');
+	// Get the site name from SSR page.data.settings first so SSR and hydration never flash (AUD-009)
+	const siteName = $derived(
+		(page.data?.settings?.SITE_NAME as string | undefined) || publicEnv?.SITE_NAME || 'SveltyCMS'
+	);
 
 	// Global Keyboard Shortcuts
 	onMount(() => {
@@ -457,7 +459,7 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 					}
 
 					// 'Alt + T' to toggle theme
-					if (e.altKey && e.key.toLowerCase() === 't') {
+					if (e.altKey && e.key?.toLowerCase() === 't') {
 						e.preventDefault();
 						// Based on themeStore.svelte.ts, the function is toggleDarkMode
 						import('@src/stores/theme-store.svelte').then(({ toggleDarkMode }) => {

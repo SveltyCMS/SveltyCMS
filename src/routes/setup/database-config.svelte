@@ -1122,6 +1122,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 							id="redis-password"
 							bind:value={systemSettings.redisPassword}
 							type="password"
+							autocomplete="new-password"
 							data-1p-ignore
 							label="Redis Password (Optional)"
 							placeholder="••••••••"

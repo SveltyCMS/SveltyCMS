@@ -17,6 +17,12 @@ import { integer, SQLiteSyncDialect, sqliteTable, text } from "drizzle-orm/sqlit
 import { SqlQueryBuilder, SQLITE_DIALECT } from "@src/databases/core/sql-query-builder";
 import { mapQuery } from "@src/databases/core/drizzle-sql-helpers";
 import { MongoAdapterCore } from "@src/databases/mongodb/adapter-core";
+import {
+  compileBooleanFilterGroup,
+  parseBooleanFilterGroup,
+  type BooleanFilterGroup,
+} from "@utils/boolean-filter";
+import { whitelistFilterParams } from "@utils/collection-query-filters.server";
 import type { BaseEntity, IBatchAdapter, ICrudAdapter } from "@src/databases/db-interface";
 
 // ─── Shared fixtures ──────────────────────────────────────────────────────────
@@ -138,5 +144,75 @@ describe("portable filter vocabulary → Mongo", () => {
   it("maps bare `gt`/`lt` to strict `$gt`/`$lt`", () => {
     expect(core.mapQuery({ views: { gt: 10 } })).toEqual({ views: { $gt: 10 } });
     expect(core.mapQuery({ views: { lt: 100 } })).toEqual({ views: { $lt: 100 } });
+  });
+});
+
+// ─── Full end-to-end filter operator parity (boolean-filter → whitelist → SQL/Mongo) ─
+
+describe("end-to-end filter operator parity across URL compiler, whitelist, SQL, and MongoDB", () => {
+  const allowed = new Set(["status", "views", "title"]);
+  const mongoCore = new TestMongoCore();
+
+  it("preserves all 8 portable operator shapes in whitelistFilterParams and strips unauthorized fields", () => {
+    const whitelisted = whitelistFilterParams(
+      {
+        title: { contains: " svelte " },
+        status: { ne: "archived" },
+        views: { gt: 5 },
+        $where: "1 === 1",
+        unlisted_field: { eq: "secret" },
+      },
+      allowed,
+    );
+
+    expect(whitelisted).toEqual({
+      title: { contains: "svelte" },
+      status: { ne: "archived" },
+      views: { gt: 5 },
+    });
+    expect(Object.keys(whitelisted)).not.toContain("$where");
+    expect(Object.keys(whitelisted)).not.toContain("unlisted_field");
+  });
+
+  it("compiles BooleanFilterGroup AND rules through whitelist into matching SQL and Mongo predicates", () => {
+    const group: BooleanFilterGroup = {
+      combinator: "AND",
+      rules: [
+        { field: "status", operator: "not_equals", value: "draft" },
+        { field: "views", operator: "gt", value: "25" },
+      ],
+    };
+
+    const compiledGroup = compileBooleanFilterGroup(group);
+    const safeFilter = whitelistFilterParams(compiledGroup.andFilter, allowed);
+
+    expect(safeFilter).toEqual({
+      status: { ne: "draft" },
+      views: { gt: "25" },
+    });
+
+    const qb = new SqlQueryBuilder<TestArticle>(createCompilableCore(), "articles", SQLITE_DIALECT);
+    qb.applyFilterAndOptions(safeFilter as never);
+    const sqlCompiled = qb.compile("count");
+    expect(sqlCompiled?.sql).toContain('"status" <> ?');
+    expect(sqlCompiled?.sql).toContain('"views" > ?');
+    expect(sqlCompiled?.params).toEqual(["draft", "25"]);
+
+    const mongoCompiled = mongoCore.mapQuery(safeFilter as Record<string, unknown>);
+    expect(mongoCompiled).toEqual({
+      status: { $ne: "draft" },
+      views: { $gt: "25" },
+    });
+  });
+
+  it("fails closed with 400 FILTER_UNSUPPORTED_OPERATOR when an unsupported operator is supplied", () => {
+    for (const forbidden of ["not_contains", "starts_with", "ends_with"]) {
+      expect(() =>
+        parseBooleanFilterGroup({
+          combinator: "AND",
+          rules: [{ field: "status", operator: forbidden, value: "pub" }],
+        }),
+      ).toThrow(/Unsupported filter operator/);
+    }
   });
 });

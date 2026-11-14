@@ -2034,14 +2034,14 @@ export const PRESETS: Preset[] = [
     id: "website",
     title: "Website Starter",
     description:
-      "Recommended: SvelteKit frontend in the same repo with Svedit inline page design. Includes a seeded homepage, Pages collection, and Live Preview. Still headless-ready — swap the frontend for Astro/React later.",
+      "Recommended: SvelteKit frontend in the same repo with Svedit inline page design. Includes a seeded homepage and a Pages collection. Live Preview ships with the Editable Website plugin and requires an active licence or the 14-day trial; the rest of the starter works without one. Still headless-ready — swap the frontend for Astro/React later.",
     icon: "mdi:web",
     recommended: true,
     features: [
       "SvelteKit Site Starter",
       "Svedit Block Editing",
       "Seeded Homepage",
-      "Live Preview Plugin",
+      "Live Preview (licence or trial)",
       "Pages Collection",
       "Legal and privacy pages",
     ],

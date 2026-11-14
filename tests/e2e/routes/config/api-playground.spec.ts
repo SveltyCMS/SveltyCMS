@@ -44,4 +44,55 @@ test.describe("API Playground — GraphQL explorer", () => {
     await expect(tile).toHaveAttribute("target", "_blank");
     await expect(tile).toContainText(/graphql/i);
   });
+
+  test("GraphQL introspection succeeds without query-depth rejection and SDK snippets use /api/collections (AUD-006, AUD-007, SV-075)", async ({
+    page,
+  }) => {
+    await loginAsAdmin(page, "/config/api");
+
+    // Standard GraphiQL introspection reaches depth 9+ on nested ofType chains;
+    // the server must exempt introspection from depth limiting for authenticated admins.
+    const introspection = await page.request.post("/api/graphql", {
+      data: {
+        query: `query IntrospectionProbe {
+          __schema {
+            queryType { name }
+            types {
+              name
+              fields {
+                name
+                type {
+                  name
+                  ofType {
+                    name
+                    ofType {
+                      name
+                      ofType {
+                        name
+                        ofType {
+                          name
+                          ofType { name }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }`,
+      },
+    });
+    expect(introspection.status()).toBe(200);
+    const body = (await introspection.json()) as {
+      data?: { __schema?: { queryType?: { name?: string } } };
+      errors?: unknown[];
+    };
+    expect(body.errors).toBeUndefined();
+    expect(body.data?.__schema?.queryType?.name).toBeTruthy();
+
+    // AUD-006: Code snippets tab must reference /api/collections/ and never /api/content/
+    const pageText = await page.locator("main").innerText();
+    expect(pageText).not.toContain("/api/content/");
+  });
 });

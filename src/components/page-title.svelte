@@ -51,6 +51,7 @@
 		floatingNavStore,
 		type NavFavoriteColor
 	} from '@src/stores/floating-nav-store.svelte.ts';
+	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { ui } from '@src/stores/ui-store.svelte.ts';
 	import {
 		error_goback,
@@ -178,7 +179,17 @@
 
 	/** Long names wrap between the menu and back buttons and leave the star in the gap. */
 	const longMobileTitle = $derived(name.trim().length > 16);
+
+	/** Route-specific document title (`<Page> · <SiteName>`) so tabs/history entries are distinct (AUD-041). */
+	const siteName = $derived(
+		(page.data?.settings?.SITE_NAME as string | undefined) || publicEnv?.SITE_NAME || 'SveltyCMS'
+	);
+	const documentTitle = $derived(name.trim() ? `${name.trim()} · ${siteName}` : siteName);
 </script>
+
+<svelte:head>
+	<title>{documentTitle}</title>
+</svelte:head>
 
 <div
 	data-testid="admin-page-title"

@@ -92,11 +92,15 @@ charges order grandTotal (F1). Display amount is optional UI only.
 				return;
 			}
 
-			await fetch('/api/commerce/confirm', {
+			const confirmRes = await fetch('/api/commerce/confirm', {
 				method: 'POST',
 				headers: clientJsonHeaders(),
 				body: JSON.stringify({ orderId, intentId: result.paymentIntent.id })
 			});
+			if (!confirmRes.ok) {
+				const errPayload = await confirmRes.json().catch(() => ({}));
+				throw new Error(errPayload.message || `Order confirmation failed (${confirmRes.status})`);
+			}
 
 			succeeded = true;
 			onSuccess?.(result.paymentIntent.id);

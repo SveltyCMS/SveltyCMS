@@ -11,6 +11,7 @@
 
 import type { Schema } from "@src/content/types";
 import { ensureSchemaHotFlags } from "./schema-store";
+import { junctionFieldsOf } from "./junction-fields";
 
 export interface RelationFieldPlan {
   readonly name: string;
@@ -20,7 +21,7 @@ export interface RelationFieldPlan {
 }
 
 export interface CollectionExecutionPlan {
-  /** True when schema has no active widgets, encryption, workflows, hooks, or relations (>80% of collections) */
+  /** True when schema has no active widgets, encryption, workflows, hooks, junctions, or relations (>80% of collections) */
   readonly isPlain: boolean;
   /** Schema has widgets requiring async modifyRequest pipeline */
   readonly hasWidgets: boolean;
@@ -30,6 +31,8 @@ export interface CollectionExecutionPlan {
   readonly hasWorkflows: boolean;
   /** Schema declares Relation or RelationList fields */
   readonly hasRelations: boolean;
+  /** Schema declares many-to-many junction fields */
+  readonly hasJunctions: boolean;
   /** Schema declares lifecycle hooks (beforeSave, resolveInput, validate, etc.) */
   readonly hasHooks: boolean;
   /** Schema has field-level permissions or visibility guards */
@@ -111,12 +114,14 @@ export function getCollectionExecutionPlan(schema: Schema): CollectionExecutionP
     }
   }
   const hasRelations = relationFields.length > 0;
+  const hasJunctions = junctionFieldsOf(schema).length > 0;
 
   const isPlain =
     !hasWidgets &&
     !hasEncryption &&
     !hasWorkflows &&
     !hasRelations &&
+    !hasJunctions &&
     !hasHooks &&
     !hasGuards &&
     !hasOwnership;
@@ -127,6 +132,7 @@ export function getCollectionExecutionPlan(schema: Schema): CollectionExecutionP
     hasEncryption,
     hasWorkflows,
     hasRelations,
+    hasJunctions,
     hasHooks,
     hasGuards,
     hasOwnership,

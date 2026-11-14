@@ -875,7 +875,7 @@ offset within the row on the native `dragover` event — that event carries
 				break;
 			}
 			default:
-				if (e.key.length === 1 && /\S/.test(e.key)) {
+				if (e.key?.length === 1 && /\S/.test(e.key)) {
 					e.preventDefault();
 					handleTypeahead(e.key, visible, currentIndex);
 				}

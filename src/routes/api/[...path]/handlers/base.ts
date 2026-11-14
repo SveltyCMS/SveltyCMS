@@ -10,6 +10,7 @@
  */
 
 import { AppError, type AppErrorCode } from "@utils/error-handling";
+import { createFastHeaders } from "@src/hooks/handle-turbo-get";
 import type { RequestEvent } from "@sveltejs/kit";
 import { safeParse, type GenericSchema, type InferOutput } from "valibot";
 
@@ -89,6 +90,18 @@ function buildJsonResponse(
         ...STATIC_JSON_HEADERS,
         "content-length": String(byteLen),
       };
+
+  if ((event?.locals as { __isFastLane?: boolean } | undefined)?.__isFastLane === true) {
+    return {
+      status,
+      ok: status >= 200 && status < 300,
+      headers: createFastHeaders(headers),
+      __fastHeaders: headers,
+      __fastBody: serialized,
+      text: async () => serialized,
+      json: async () => JSON.parse(serialized),
+    } as unknown as Response;
+  }
 
   const res = new Response(serialized, {
     status,
@@ -175,6 +188,18 @@ export function fastSuccessResponse(
         ...STATIC_JSON_HEADERS,
         "content-length": String(byteLen),
       };
+
+  if ((event?.locals as { __isFastLane?: boolean } | undefined)?.__isFastLane === true) {
+    return {
+      status,
+      ok: status >= 200 && status < 300,
+      headers: createFastHeaders(headers),
+      __fastHeaders: headers,
+      __fastBody: serialized,
+      text: async () => serialized,
+      json: async () => JSON.parse(serialized),
+    } as unknown as Response;
+  }
 
   const res = new Response(serialized, {
     status,

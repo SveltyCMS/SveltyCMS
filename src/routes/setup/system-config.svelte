@@ -487,16 +487,7 @@ Features:
 					{/if}
 				</div>
 
-				<!-- Password Minimum Length -->
 				<!-- Min Password Length moved to system settings page -->
-				<div class="hidden">
-					<input
-						aria-label="Site name"
-						id="password-min-length"
-						bind:value={systemSettings.passwordMinLength}
-						type="number"
-					/>
-				</div>
 			</div>
 		</section>
 
@@ -913,6 +904,7 @@ Features:
 							id="cf-token"
 							bind:value={systemSettings.cfApiToken}
 							type="password"
+							autocomplete="new-password"
 							placeholder="Enter API Token"
 						>
 							{#snippet labelSnippet()}

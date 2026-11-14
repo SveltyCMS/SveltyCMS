@@ -61,6 +61,8 @@ interface PendingPubSubEvent {
 
 const _pendingPubSubQueue: PendingPubSubEvent[] = [];
 let _pubSubFlushScheduled = false;
+let _pubSubRef: Awaited<ReturnType<typeof getPubSubLazy>> | null = null;
+let _responseCacheRef: Awaited<ReturnType<typeof getResponseCacheLazy>> | null = null;
 
 function queuePubSubEntryUpdated(event: PendingPubSubEvent): void {
   _pendingPubSubQueue.push(event);
@@ -72,7 +74,7 @@ function queuePubSubEntryUpdated(event: PendingPubSubEvent): void {
       if (batch.length === 0) return;
 
       try {
-        const pubSub = await getPubSubLazy();
+        const pubSub = _pubSubRef ?? (_pubSubRef = await getPubSubLazy());
         for (let i = 0; i < batch.length; i++) {
           pubSub.publish("entryUpdated", batch[i]);
         }
@@ -179,7 +181,7 @@ function queueInvalidation(
     const ids = _pendingInvalidationIds.get(requestKey);
     _pendingInvalidationIds.delete(requestKey);
     try {
-      const rc = await getResponseCacheLazy();
+      const rc = _responseCacheRef ?? (_responseCacheRef = await getResponseCacheLazy());
       if (schemaId) {
         const tagsToClear: string[] = [
           `collection:${schemaId}`,

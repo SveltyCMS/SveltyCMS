@@ -291,10 +291,16 @@
 						{#if connType === 'postgres'}
 							<Input label="Schema" bind:value={connSchema} data-testid="udh-connector-schema" />
 						{/if}
-						<Input label="Username" bind:value={connUser} data-testid="udh-connector-user" />
+						<Input
+							label="Username"
+							autocomplete="off"
+							bind:value={connUser}
+							data-testid="udh-connector-user"
+						/>
 						<Input
 							label="Password"
 							type="password"
+							autocomplete="new-password"
 							bind:value={connPassword}
 							data-testid="udh-connector-password"
 						/>
@@ -309,6 +315,7 @@
 					<Input
 						label="API key (Bearer, optional)"
 						type="password"
+						autocomplete="new-password"
 						bind:value={connApiKey}
 						data-testid="udh-connector-api-key"
 					/>

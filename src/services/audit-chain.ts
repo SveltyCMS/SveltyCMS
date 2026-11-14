@@ -27,7 +27,7 @@
  * not assumed silently.
  */
 
-import { createHash } from "node:crypto";
+import { createHash, hash as cryptoHash } from "node:crypto";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { dbAdapter as dbAdapterInstance } from "@src/databases/db";
@@ -347,9 +347,11 @@ export function canonicalAuditPayload(entry: ChainedAuditEntry): string {
  * Synchronous so the append hot path costs one hash, no event-loop hop.
  */
 export function computeChainHash(entry: ChainedAuditEntry, previousHash: string): string {
-  return createHash("sha256")
-    .update(canonicalAuditPayload(entry) + previousHash)
-    .digest("hex");
+  const input = canonicalAuditPayload(entry) + previousHash;
+  if (typeof cryptoHash === "function") {
+    return cryptoHash("sha256", input, "hex");
+  }
+  return createHash("sha256").update(input).digest("hex");
 }
 
 export class AuditChainService {
@@ -420,6 +422,22 @@ export class AuditChainService {
   async append(entry: ChainedAuditEntry): Promise<ChainedAuditEntry> {
     const tenantId = (entry.tenantId as string | null | undefined) ?? null;
     const cacheKey = AuditChainService.cacheKey(tenantId);
+    // Steady-state fast path: when no prior append is in flight for this tenant
+    // and the chain head is already cached in memory, compute and advance
+    // synchronously without allocating the 4 lock promises in `withTenantLock`.
+    if (!this.tenantLocks.has(cacheKey)) {
+      const cachedHead = this.lastHashCache.get(cacheKey);
+      if (cachedHead !== undefined) {
+        const chainHash = computeChainHash(entry, cachedHead);
+        this.lastHashCache.set(cacheKey, chainHash);
+        return {
+          ...entry,
+          chainScope: chainHashScope(tenantId),
+          previousHash: cachedHead,
+          chainHash,
+        };
+      }
+    }
     return this.withTenantLock(tenantId, async () => {
       // Steady state: the head is cached, so no DB round-trip and no extra
       // async hop on the hot path (the async read happens once per tenant).
@@ -563,9 +581,11 @@ export class AuditChainService {
         typeof raw === "string"
           ? (JSON.parse(raw) as AuditChainCheckpoint)
           : (raw as AuditChainCheckpoint);
-      return typeof parsed?.entryCount === "number" && typeof parsed?.headHash === "string"
-        ? parsed
-        : null;
+      if (typeof parsed?.entryCount === "number" && typeof parsed?.headHash === "string") {
+        this.countCache.set(AuditChainService.cacheKey(tenantId), parsed.entryCount);
+        return parsed;
+      }
+      return null;
     } catch (err) {
       logger.debug("[AuditChain] Could not read chain checkpoint", err);
       return null;

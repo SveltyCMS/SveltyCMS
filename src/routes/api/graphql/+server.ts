@@ -240,21 +240,20 @@ async function tryGraphqlFastPath(
   }
 
   // 2. Collection root query fast-path (e.g. BenchmarkStable, Articles)
-  const collections = contentStore.getCollections(ctx.tenantId as any);
-  let targetCollection: Schema | undefined;
-  for (const c of collections) {
-    if (!c._id) continue;
-    const cleanName = createCleanTypeName({ _id: c._id, name: c.name });
-    if (cleanName === matched.field || c._id === matched.field || c.name === matched.field) {
-      targetCollection = c;
-      break;
-    }
-  }
+  let targetCollection: Schema | undefined =
+    peekReadySchema(ctx.tenantId as DatabaseId, matched.field) ||
+    peekReadySchema(ctx.tenantId as DatabaseId, matched.field.toLowerCase());
 
   if (!targetCollection) {
-    targetCollection =
-      peekReadySchema(ctx.tenantId as DatabaseId, matched.field) ||
-      peekReadySchema(ctx.tenantId as DatabaseId, matched.field.toLowerCase());
+    const collections = contentStore.getCollections(ctx.tenantId as any);
+    for (const c of collections) {
+      if (!c._id) continue;
+      const cleanName = createCleanTypeName({ _id: c._id, name: c.name });
+      if (cleanName === matched.field || c._id === matched.field || c.name === matched.field) {
+        targetCollection = c;
+        break;
+      }
+    }
   }
 
   if (!targetCollection) {

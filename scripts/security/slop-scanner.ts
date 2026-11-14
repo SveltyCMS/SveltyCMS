@@ -521,29 +521,53 @@ const PASSWORD_AUTOFILL_ALLOWED: readonly RegExp[] = [
   /^src\/routes\/share\//,
   /^src\/routes\/\(app\)\/user\//,
   /^src\/components\/user\//,
-  /^src\/routes\/\(app\)\/config\/system-settings\//,
 ];
 
-/** Flags a login autofill hint reused on a service-credential field (SV-011). */
+/** Flags a login autofill hint reused on a service-credential field (SV-011 / AUD-004). */
 function scanCredentialAutofill(relPath: string, content: string, sink: Violation[]): void {
   if (!relPath.endsWith(".svelte")) return;
   const normalized = relPath.replace(/\\/g, "/");
   const lines = content.split("\n");
   for (let i = 0; i < lines.length; i++) {
     const match = /autocomplete\s*=\s*["'](username|current-password)["']/i.exec(lines[i]);
-    if (!match) continue;
-    const token = match[1].toLowerCase();
-    const allowed = token === "username" ? USERNAME_AUTOFILL_ALLOWED : PASSWORD_AUTOFILL_ALLOWED;
-    if (allowed.some((pattern) => pattern.test(normalized))) continue;
-    report(
-      relPath,
-      i + 1,
-      "credential-autofill",
-      `autocomplete="${token}" lets the browser's saved site login fill a service-credential field — use "off" (identifier) or "new-password" (secret) outside a user-password form`,
-      "error",
-      false,
-      sink,
-    );
+    if (match) {
+      const token = match[1].toLowerCase();
+      const allowed = token === "username" ? USERNAME_AUTOFILL_ALLOWED : PASSWORD_AUTOFILL_ALLOWED;
+      if (!allowed.some((pattern) => pattern.test(normalized))) {
+        report(
+          relPath,
+          i + 1,
+          "credential-autofill",
+          `autocomplete="${token}" lets the browser's saved site login fill a service-credential field — use "off" (identifier) or "new-password" (secret) outside a user-password form`,
+          "error",
+          false,
+          sink,
+        );
+      }
+      continue;
+    }
+
+    // Also flag <Input type="password"> / <input type="password"> (including dynamic
+    // type={show ? "text" : "password"}) outside user-password forms when
+    // autocomplete="new-password" / "off" is omitted completely (SV-011 / AUD-004).
+    if (
+      /(?:type\s*=\s*["']password["']|type\s*=\s*\{[^}]*["']password["'])/.test(lines[i]) &&
+      !PASSWORD_AUTOFILL_ALLOWED.some((pattern) => pattern.test(normalized)) &&
+      !/^src\/routes\/setup\/admin-config\.svelte$/.test(normalized)
+    ) {
+      const window = lines.slice(Math.max(0, i - 6), Math.min(lines.length, i + 7)).join("\n");
+      if (!/autocomplete\s*=\s*["'](?:new-password|off)["']/i.test(window)) {
+        report(
+          relPath,
+          i + 1,
+          "credential-autofill",
+          'type="password" on a non-login secret field without autocomplete="new-password" or "off" lets browsers autofill the saved site password (SV-011 / AUD-004)',
+          "error",
+          false,
+          sink,
+        );
+      }
+    }
   }
 }
 
@@ -646,6 +670,19 @@ async function scanSvelteFile(
       if (/role\s*=\s*["'](?:presentation|none)["']/i.test(attrs)) continue;
       // Bypass hidden inputs natively
       if (tagName === "input" && /type\s*=\s*["']?hidden["']?/i.test(attrs)) continue;
+
+      // SV-060: native <button> with href attribute is invalid HTML and does not navigate
+      if (tagName === "button" && /\bhref\s*=/i.test(attrs)) {
+        report(
+          relPath,
+          i + 1,
+          "accessibility",
+          "Native <button> has an href attribute — use <a href=…> or <Button href=…> for navigation (SV-060)",
+          "error",
+          false,
+          sink,
+        );
+      }
 
       // Only the opening tag's attributes may provide an accessible name —
       // `id=` alone is NOT a name (it needs a matching <label for>).
@@ -805,6 +842,20 @@ async function scanSvelteFile(
         fileLine(m.index!),
         "svelte5-legacy",
         "export let is legacy — migrate to the $props() rune",
+        "error",
+        false,
+        sink,
+      );
+    }
+    // AUD-008: Chrome autofill dispatches KeyboardEvents with event.key === undefined
+    for (const m of body.matchAll(
+      /\b(?:e|ev|evt|event)\.key\.(?:toLowerCase|toUpperCase|length|startsWith|endsWith|slice|trim)\b/g,
+    )) {
+      report(
+        relPath,
+        fileLine(m.index!),
+        "unguarded-event-key",
+        "Unguarded event.key.<prop> crashes on browser autofill KeyboardEvents (event.key is undefined) — use optional chaining (event.key?.toLowerCase()) (AUD-008)",
         "error",
         false,
         sink,
@@ -1259,6 +1310,7 @@ function checkDuplicateContent(relPath: string, content: string, cache: Map<stri
 export async function scanSvelteContent(relPath: string, content: string): Promise<Violation[]> {
   const sink: Violation[] = [];
   await scanSvelteFile(relPath, content, false, sink);
+  scanClientSecurityPatterns(relPath, content, sink);
   return sink;
 }
 
@@ -1308,6 +1360,21 @@ const SECURITY_ARCH_PATTERNS: {
     category: "body-double-clone",
     message: "Request body cloned — verify size limits are enforced to prevent OOM",
     severity: "info",
+  },
+  {
+    pattern:
+      /\b(?:e|ev|evt|event)\.key\.(?:toLowerCase|toUpperCase|length|startsWith|endsWith|slice|trim)\b/,
+    category: "unguarded-event-key",
+    message:
+      "Unguarded event.key.<prop> crashes on browser autofill KeyboardEvents (event.key is undefined) — use optional chaining (event.key?.toLowerCase()) (AUD-008)",
+    severity: "error",
+  },
+  {
+    pattern: /\/api\/content\/(?!events\b|version\b|import\b)/,
+    category: "stale-api-endpoint",
+    message:
+      "Legacy /api/content/<collection> endpoint returns 404 — use canonical /api/collections/<collection> (AUD-006)",
+    severity: "error",
   },
 ];
 
@@ -1399,7 +1466,11 @@ function scanRawSqlRisk(relPath: string, content: string) {
  * Server-only files (hooks/api/databases/services, *.server.ts) are skipped
  * for the CSRF check — server-to-server calls don't require CSRF tokens.
  */
-function scanClientSecurityPatterns(relPath: string, content: string) {
+function scanClientSecurityPatterns(
+  relPath: string,
+  content: string,
+  sink: Violation[] = violations,
+) {
   const isServerSide =
     /(^|\/)(?:api|hooks|databases|services)\//.test(relPath) ||
     /\.(?:server|remote|ws)\.(?:ts|js)$/.test(relPath);
@@ -1427,6 +1498,36 @@ function scanClientSecurityPatterns(relPath: string, content: string) {
         "warning",
       );
     }
+  }
+
+  // ── Unchecked mutating fetch() (discarded response hides HTTP 4xx/5xx failures) ──
+  const lines = contentNoCodeBlocks.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (!/^await\s+fetch\s*\(/.test(trimmed)) continue;
+    const window = lines.slice(i, Math.min(lines.length, i + 10)).join("\n");
+    const methodMatch = window.match(/method\s*:\s*["'](POST|PUT|PATCH|DELETE)["']/i);
+    if (!methodMatch) continue;
+    // Exempt fire-and-forget telemetry/cache-warmup/logout/best-effort blocks
+    const contextWindow = lines
+      .slice(Math.max(0, i - 3), Math.min(lines.length, i + 14))
+      .join("\n");
+    if (
+      /\/api\/(?:user\/logout|collections\/(?:warm-cache|reorder)|collaboration\/yjs|theme\/admin-theme|user\/update-user-attributes)|best-effort|non-critical|slop:suppress/i.test(
+        contextWindow,
+      )
+    ) {
+      continue;
+    }
+    report(
+      relPath,
+      i + 1,
+      "unchecked-mutation-fetch",
+      `Unchecked await fetch(${methodMatch[1]}) discards HTTP response — check res.ok before reporting success`,
+      "error",
+      false,
+      sink,
+    );
   }
 
   // ── new RegExp() from interpolated input (regex injection / ReDoS footgun) ──

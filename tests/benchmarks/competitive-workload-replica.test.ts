@@ -42,6 +42,7 @@ const ITERATIONS: Record<string, number> = {
   listLarge: 200,
   listPlain: 200,
   listPopulated: 200,
+  listPopulatedLarge: 150,
   findMissing: 200,
   create: 300,
   update: 300,
@@ -287,9 +288,13 @@ test("Competitive 11-Workload Replica Benchmark", async () => {
     const filterQuery = encodeURIComponent(JSON.stringify({ status: "published" }));
     const listFilterUrl = `${baseUrl}/api/collections/BenchmarkStable?limit=20&filter=${filterQuery}&sort=-views`;
     const listLargeUrl = `${baseUrl}/api/collections/BenchmarkStable?limit=100&filter=${filterQuery}&sort=-views`;
-    const listPlainUrl = `${baseUrl}/api/collections/BenchmarkStable?limit=10`;
-    const listPopulatedUrl = `${baseUrl}/api/collections/benchmark_posts?limit=20&populate=author&depth=1&fields=*,author.*`;
+    // Matches external workloads.mjs listPlain: limit=10&sort=-views (REST counterpart to GraphQL limit: 10)
+    const listPlainUrl = `${baseUrl}/api/collections/BenchmarkStable?limit=10&sort=-views`;
+    const listPopulatedUrl = `${baseUrl}/api/collections/benchmark_posts?limit=20&sort=-views&populate=author&depth=1&fields=*,author.*`;
+    const listPopulatedLargeUrl = `${baseUrl}/api/collections/benchmark_posts?limit=100&sort=-views&populate=author&depth=1&fields=*,author.*`;
     const collectionUrl = `${baseUrl}/api/collections/BenchmarkStable`;
+    const preferFullWrite =
+      process.env.BENCH_PREFER_FULL === "1" || process.env.BENCH_WRITE_READBACK === "1";
     // Valid UUIDv7 format that is guaranteed absent from the seeded pool so
     // findMissing exercises the full DB B-tree index miss (matching workloads.mjs).
     const MISSING_ID = "ffffffff-ffff-7fff-bfff-ffffffffffff";
@@ -345,6 +350,36 @@ test("Competitive 11-Workload Replica Benchmark", async () => {
           )}`,
         );
       }
+
+      // 🔎 REST ↔ GRAPHQL & 404 CONTRACT GUARD (pre-lane, zero in-loop cost):
+      // Verify GraphQL query returns valid BenchmarkStable rows with no errors
+      // and that missing-ID lookup returns 404 before timed lanes begin.
+      const [gqlProbeRes, missingProbeRes] = await Promise.all([
+        fetch(`${baseUrl}/api/graphql`, { method: "POST", headers, body: gqlBody }),
+        fetch(missingUrl, { headers }),
+      ]);
+      if (!gqlProbeRes.ok) throw new Error(`GraphQL probe HTTP ${gqlProbeRes.status}`);
+      const gqlProbeJson = (await gqlProbeRes.json()) as {
+        errors?: unknown[];
+        data?: { BenchmarkStable?: Array<Record<string, unknown>> };
+      };
+      if (gqlProbeJson.errors?.length) {
+        throw new Error(`GraphQL probe returned errors: ${JSON.stringify(gqlProbeJson.errors)}`);
+      }
+      if (!Array.isArray(gqlProbeJson.data?.BenchmarkStable)) {
+        throw new Error(`GraphQL probe missing data.BenchmarkStable array`);
+      }
+      if (missingProbeRes.status !== 404) {
+        if (!missingProbeRes.ok) {
+          throw new Error(`Missing-ID probe failed with HTTP ${missingProbeRes.status}`);
+        }
+        const missingJson = (await missingProbeRes.json()) as { data?: unknown };
+        if (missingJson.data !== null) {
+          throw new Error(
+            `Missing-ID probe expected null data on HTTP 200, got ${JSON.stringify(missingJson)}`,
+          );
+        }
+      }
     }
     // Pool excluding createdIds[0] (stableId) so update never invalidates or
     // contends with findById on the hot row (matching workloads.mjs:144-150).
@@ -379,7 +414,13 @@ test("Competitive 11-Workload Replica Benchmark", async () => {
     }
 
     // ── WORKLOAD HANDLERS (Minimal In-Loop Overhead) ──────────────────────
-    let cursor = 0;
+    // Separate cursors per workload (matching external workloads.mjs mixedIdx /
+    // createSeq / updateTarget): sharing one `cursor` between `mixed` and
+    // `create` caused `create` inside `mixed` to double-increment the cycle
+    // index and skip `MIX_CYCLE[4]` (`findByIdRandom`) on every 10-op cycle.
+    let createCursor = 0;
+    let mixedCursor = 0;
+    let mixedStableCursor = 0;
     let updateCursor = 0;
     let randomCursor = 0;
 
@@ -409,6 +450,13 @@ test("Competitive 11-Workload Replica Benchmark", async () => {
       const res = await fetch(listPopulatedUrl, { headers });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       recordSplitSample("listPopulated", res);
+      await res.arrayBuffer();
+    };
+
+    const listPopulatedLarge = async () => {
+      const res = await fetch(listPopulatedLargeUrl, { headers });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      recordSplitSample("listPopulatedLarge", res);
       await res.arrayBuffer();
     };
 
@@ -444,7 +492,7 @@ test("Competitive 11-Workload Replica Benchmark", async () => {
     };
 
     const create = async () => {
-      const seq = cursor++;
+      const seq = createCursor++;
       const payload = JSON.stringify({
         _id: generateUUID(),
         title: "Benchmark create workload",
@@ -459,10 +507,7 @@ test("Competitive 11-Workload Replica Benchmark", async () => {
       });
       const res = await fetch(collectionUrl, {
         method: "POST",
-        headers:
-          process.env.BENCH_PREFER_FULL === "1"
-            ? { ...headers, prefer: "return=representation" }
-            : headers,
+        headers: preferFullWrite ? { ...headers, prefer: "return=representation" } : headers,
         body: payload,
       });
       if (!res.ok) {
@@ -475,8 +520,15 @@ test("Competitive 11-Workload Replica Benchmark", async () => {
 
     const update = async () => {
       const step = ++updateCursor;
-      const targetId = createdIds[1 + (step % updatePoolLen)] || stableId;
-      const payload = JSON.stringify({ count: step, views: step });
+      const targetIdx = 1 + (step % updatePoolLen);
+      const targetId = createdIds[targetIdx] || stableId;
+      // Matches external workloads.mjs: single-field `{ views }` increment from
+      // the seeded row's base value so every PATCH writes a real value change.
+      const payload = JSON.stringify(
+        UPDATE_FIELDS.length > 0
+          ? { count: step, views: targetIdx * 10 + step }
+          : { views: targetIdx * 10 + step },
+      );
       // 🔭 PROJECTED-UPDATE LANE: BENCH_UPDATE_FIELDS=_id,count,updatedAt
       // measures the `?fields=` RETURNING-pruning fast path — full
       // representation headers with the read-back limited to the requested
@@ -486,17 +538,11 @@ test("Competitive 11-Workload Replica Benchmark", async () => {
       const res = await fetch(url, {
         method: "PATCH",
         // RFC 7240: minimal is now the API default, so the default lane already
-        // measures the ack path. The external harness's Keystone shim response
-        // shape has changed over time (historically an id-only ack, later the
-        // full document), so a cross-vendor update comparison is only valid when
-        // BOTH sides use the same protocol — verify the shim's current shape
-        // before quoting a delta. BENCH_PREFER_FULL=1 sends an explicit
-        // `return=representation` to match a full-document competitor row in the
-        // same session.
+        // measures the ack path. BENCH_PREFER_FULL=1 or BENCH_WRITE_READBACK=1
+        // sends an explicit `return=representation` to match a full-document
+        // competitor row in the same session.
         headers:
-          process.env.BENCH_PREFER_FULL === "1" || projected
-            ? { ...headers, prefer: "return=representation" }
-            : headers,
+          preferFullWrite || projected ? { ...headers, prefer: "return=representation" } : headers,
         body: payload,
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -509,6 +555,7 @@ test("Competitive 11-Workload Replica Benchmark", async () => {
       findByIdRandom,
       listPlain,
       listPopulated,
+      listPopulatedLarge,
       listFilterSort,
       listLarge,
       findMissing,
@@ -521,7 +568,7 @@ test("Competitive 11-Workload Replica Benchmark", async () => {
     const mixSamples: Record<string, number[]> = {};
 
     const mixed = async () => {
-      const op = MIX_CYCLE[cursor++ % MIX_CYCLE.length];
+      const op = MIX_CYCLE[mixedCursor++ % MIX_CYCLE.length];
       if (MIX_BREAKDOWN) {
         const t0 = performance.now();
         await handlers[op]();
@@ -534,7 +581,7 @@ test("Competitive 11-Workload Replica Benchmark", async () => {
 
     // Write-neutral soak mix (harness `mixed-stable`) — dataset size held constant.
     const mixedStable = async () => {
-      const op = MIX_STABLE_CYCLE[cursor++ % MIX_STABLE_CYCLE.length];
+      const op = MIX_STABLE_CYCLE[mixedStableCursor++ % MIX_STABLE_CYCLE.length];
       await handlers[op]();
     };
     handlers.mixedStable = mixedStable;
@@ -548,6 +595,7 @@ test("Competitive 11-Workload Replica Benchmark", async () => {
       { shortLabel: "listLarge", fn: listLarge },
       { shortLabel: "listPlain", fn: listPlain },
       { shortLabel: "listPopulated", fn: listPopulated },
+      { shortLabel: "listPopulatedLarge", fn: listPopulatedLarge },
       { shortLabel: "findMissing", fn: findMissing },
       { shortLabel: "create", fn: create },
       { shortLabel: "update", fn: update },
@@ -677,6 +725,8 @@ test("Competitive 11-Workload Replica Benchmark", async () => {
       }
 
       const chosen = pickMedianRound(rounds);
+      chosen.seq.layer = "HTTP";
+      chosen.con.layer = "HTTP";
       warmResults.push({ ...chosen.seq, shortLabel: `${w.shortLabel}.seq` });
       warmResults.push({ ...chosen.con, shortLabel: w.shortLabel });
       exportResult(chosen.seq);

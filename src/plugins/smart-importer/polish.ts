@@ -156,7 +156,7 @@ async function uploadToS3(
   const key = `migrated/${asset.originalId}/${sanitizeFilename(asset.externalUrl)}`;
   const buffer = Buffer.from(bodyBytes);
 
-  await fetch(`${endpoint}/${bucket}/${key}`, {
+  const res = await fetch(`${endpoint}/${bucket}/${key}`, {
     method: "PUT",
     headers: {
       "Content-Type": contentType || "application/octet-stream",
@@ -164,6 +164,9 @@ async function uploadToS3(
     },
     body: new Uint8Array(buffer),
   });
+  if (!res.ok) {
+    throw new Error(`S3 upload failed (${res.status}) for ${key}`);
+  }
 
   return `${endpoint}/${bucket}/${key}`;
 }

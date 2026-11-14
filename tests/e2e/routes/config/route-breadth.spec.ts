@@ -77,6 +77,15 @@ test.describe("Admin route breadth", () => {
         /System Error|Internal Server Error|Application Error/i,
       );
 
+      // AUD-041: every admin route must set a route-specific "<Page> · <SiteName>" document.title
+      await expect.poll(() => page.title(), { timeout: ACTION_TIMEOUT }).toMatch(/.+\s·\s.+/);
+
+      // SV-039 / SV-072 / AUD-030: no admin route may overflow the viewport horizontally
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      );
+      expect(overflow, `${route} overflows horizontally by ${overflow}px`).toBeLessThanOrEqual(1);
+
       assertNoZeroErrors(page);
     });
   }

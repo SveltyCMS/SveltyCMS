@@ -868,6 +868,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 													<div transition:slide>
 														<Input
 															type="password"
+															autocomplete="new-password"
 															bind:value={cfg.secret}
 															label="Secret (HMAC-SHA256)"
 															placeholder={automation_webhook_secret_placeholder()}

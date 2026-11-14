@@ -111,7 +111,7 @@ import {
   executeFindByIds,
   MAX_BULK_BATCH_SIZE,
 } from "./collections/bulk-operations";
-import { missingRequiredForPublish } from "./collections/bulk-validation";
+import { isMissingRequiredValue, missingRequiredForPublish } from "./collections/bulk-validation";
 export { MAX_BULK_BATCH_SIZE };
 import {
   persistWithOutbox,
@@ -207,23 +207,46 @@ function assertRequiredFieldsForPublish(hot: SchemaHotFlags, payload: unknown): 
   }
 }
 
+function conditionDependsOnField(cond: unknown, record: Record<string, unknown>): boolean {
+  if (!cond || typeof cond !== "object") return false;
+  if ("field" in cond && typeof (cond as { field: unknown }).field === "string") {
+    return Object.hasOwn(record, (cond as { field: string }).field);
+  }
+  if ("and" in cond && Array.isArray((cond as { and: unknown[] }).and)) {
+    return (cond as { and: unknown[] }).and.some((c) => conditionDependsOnField(c, record));
+  }
+  if ("or" in cond && Array.isArray((cond as { or: unknown[] }).or)) {
+    return (cond as { or: unknown[] }).or.some((c) => conditionDependsOnField(c, record));
+  }
+  return false;
+}
+
 /**
- * True when the payload writes a field the publish gate cares about.
+ * True when the payload clears a required field or modifies a condition field
+ * (`showIf` / `requiredIf`) that the publish gate depends on.
  *
- * Used to keep the existing-status read off ordinary updates: if no required
- * (or conditionally required) field is touched, an update cannot make an
- * already-published entry invalid.
+ * Used to keep the existing-status read (`loadExistingRow`) off ordinary
+ * updates: writing a non-empty value to a required field (`{ title: "New" }`)
+ * cannot make an already-published entry invalid, so no pre-read is needed.
  */
 function touchesRequiredFields(hot: SchemaHotFlags, payload: unknown): boolean {
   const record = (payload ?? {}) as Record<string, unknown>;
   for (const field of hot._requiredFields ?? []) {
-    if (Object.hasOwn(record, field.key)) return true;
+    if (field.showIf && conditionDependsOnField(field.showIf, record)) return true;
+    if (Object.hasOwn(record, field.key) && isMissingRequiredValue(record[field.key])) return true;
   }
   for (const field of hot._conditionallyRequiredFields ?? []) {
-    if (Object.hasOwn(record, field.key)) return true;
+    if (field.showIf && conditionDependsOnField(field.showIf, record)) return true;
+    if (field.requiredIf && conditionDependsOnField(field.requiredIf, record)) return true;
+    if (Object.hasOwn(record, field.key) && isMissingRequiredValue(record[field.key])) return true;
   }
   return false;
 }
+
+const EMPTY_JUNCTION_PAYLOAD = Object.freeze({
+  stripped: Object.freeze({}) as Record<string, unknown>,
+  present: Object.freeze([]) as never[],
+});
 
 let resolvedContentSystem: ContentSystem | null = null;
 
@@ -296,9 +319,15 @@ function scheduleIndexNowPing(
 let auditServiceModulePromise:
   | Promise<typeof import("@src/services/security/audit-service")>
   | undefined;
+let resolvedAuditService: import("@src/services/security/audit-service").AuditService | undefined;
 
 function loadAuditServiceModule() {
-  return (auditServiceModulePromise ??= import("@src/services/security/audit-service"));
+  return (auditServiceModulePromise ??= import("@src/services/security/audit-service").then(
+    (mod) => {
+      resolvedAuditService = mod.auditService;
+      return mod;
+    },
+  ));
 }
 
 /** Resolve the actor fields the audit row carries, never the whole user object. */
@@ -323,6 +352,12 @@ function contentAuditActor(
 function scheduleContentAudit(
   input: import("@src/services/security/audit-service").ContentAuditInput,
 ): void {
+  if (resolvedAuditService) {
+    void resolvedAuditService.recordContentChange(input).catch((err) => {
+      logger.debug("[collections] content audit entry skipped (non-fatal)", { error: err });
+    });
+    return;
+  }
   void loadAuditServiceModule()
     .then(({ auditService }) => auditService.recordContentChange(input))
     .catch((err) => {
@@ -1065,7 +1100,9 @@ export class CollectionsNamespace {
 
     // 🔗 Junction (many-to-many) fields: extract the desired edges and keep them
     // out of the row. The edges are written after the row is durable.
-    const junction = collectJunctionPayload(schema, finalData as Record<string, unknown>);
+    const junction = plan.hasJunctions
+      ? collectJunctionPayload(schema, finalData as Record<string, unknown>)
+      : EMPTY_JUNCTION_PAYLOAD;
     if (junction.present.length > 0) finalData = junction.stripped;
 
     const collectionName = this.getCollectionName(schema._id as string);
@@ -1313,39 +1350,52 @@ export class CollectionsNamespace {
       }
 
       if (schema.fields && schema.fields.length > 0) {
-        const existing = await loadExistingRow();
-        const existingData =
-          existing.success && existing.data
-            ? (existing.data as unknown as Record<string, unknown>)
-            : undefined;
-        const merged = {
-          ...existingData,
-          ...updateData,
-        };
-        // Without an explicit status the entry keeps the status it already has.
-        const effectiveStatus = explicitPublish ? "publish" : existingData?.status;
-        const staysPublished = effectiveStatus === "publish" || effectiveStatus === "published";
-        if (staysPublished) {
-          if (
-            (hot._hasRequiredFields && hot._requiredFields && hot._requiredFields.length > 0) ||
-            (hot._hasConditionallyRequiredFields &&
-              hot._conditionallyRequiredFields &&
-              hot._conditionallyRequiredFields.length > 0)
-          ) {
-            assertRequiredFieldsForPublish(hot, merged);
-          } else {
-            const { valid, missingFields } = validateRequiredFields(
-              merged,
-              schema.fields as FieldInstance[],
-            );
-            if (!valid) {
-              throw new AppError(
-                missingFields
-                  .map((f: string) => `Field '${f}' is required when publishing`)
-                  .join("; "),
-                400,
-                "FIELD_VALIDATION_ERROR",
+        const hasCompiledPlan =
+          (hot._hasRequiredFields && hot._requiredFields && hot._requiredFields.length > 0) ||
+          (hot._hasConditionallyRequiredFields &&
+            hot._conditionallyRequiredFields &&
+            hot._conditionallyRequiredFields.length > 0);
+        // Fast path: on an explicit publish where the patch itself already supplies
+        // non-empty values for every required field and there are no conditional
+        // showIf/requiredIf rules, `merged` is guaranteed valid without reading
+        // the existing row from the database.
+        const patchSelfSatisfiesPublish =
+          explicitPublish &&
+          hasCompiledPlan &&
+          !hot._hasConditionallyRequiredFields &&
+          !(hot._requiredFields ?? []).some((rf) => rf.showIf) &&
+          missingRequiredForPublish(hot, updateData).length === 0;
+
+        if (!patchSelfSatisfiesPublish) {
+          const existing = await loadExistingRow();
+          const existingData =
+            existing.success && existing.data
+              ? (existing.data as unknown as Record<string, unknown>)
+              : undefined;
+          const merged = {
+            ...existingData,
+            ...updateData,
+          };
+          // Without an explicit status the entry keeps the status it already has.
+          const effectiveStatus = explicitPublish ? "publish" : existingData?.status;
+          const staysPublished = effectiveStatus === "publish" || effectiveStatus === "published";
+          if (staysPublished) {
+            if (hasCompiledPlan) {
+              assertRequiredFieldsForPublish(hot, merged);
+            } else {
+              const { valid, missingFields } = validateRequiredFields(
+                merged,
+                schema.fields as FieldInstance[],
               );
+              if (!valid) {
+                throw new AppError(
+                  missingFields
+                    .map((f: string) => `Field '${f}' is required when publishing`)
+                    .join("; "),
+                  400,
+                  "FIELD_VALIDATION_ERROR",
+                );
+              }
             }
           }
         }
@@ -1387,7 +1437,9 @@ export class CollectionsNamespace {
 
     // 🔗 Junction fields present in this request are extracted and stripped; an
     // omitted field leaves its existing edges untouched.
-    const junction = collectJunctionPayload(schema, finalData as Record<string, unknown>);
+    const junction = plan.hasJunctions
+      ? collectJunctionPayload(schema, finalData as Record<string, unknown>)
+      : EMPTY_JUNCTION_PAYLOAD;
     if (junction.present.length > 0) finalData = junction.stripped;
 
     // 🛡️ REVISION TRACKING: for revision-enabled collections, snapshot the entry

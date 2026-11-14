@@ -109,20 +109,35 @@ const BOARD_SOURCES: Record<string, RegExp[]> = {
   findById: [
     /^HTTP: findById @ /,
     /competitive\.find_by_id/i,
+    /^findById \(Warm Concurrent/i,
     /^findById \(/i,
     /^LocalCMS findById \(cold\)$/,
   ],
   findMissing: [
     /negative-cache/i,
     /competitive\.find_missing/i,
+    /^findMissing \(Warm Concurrent/i,
     /^findMissing \(/i,
     /^LocalCMS findMissing/,
   ],
-  create: [/^HTTP: .*\bcreate\b/i, /competitive\.create/i, /^create \(/i, /^LocalCMS create$/],
-  update: [/^HTTP: .*\bupdate\b/i, /competitive\.update/i, /^update \(/i, /^LocalCMS update$/],
+  create: [
+    /^HTTP: .*\bcreate\b/i,
+    /competitive\.create/i,
+    /^create \(Warm Concurrent/i,
+    /^create \(/i,
+    /^LocalCMS create$/,
+  ],
+  update: [
+    /^HTTP: .*\bupdate\b/i,
+    /competitive\.update/i,
+    /^update \(Warm Concurrent/i,
+    /^update \(/i,
+    /^LocalCMS update$/,
+  ],
   listPlain: [
     /^Collection List /,
     /competitive\.list_plain/i,
+    /^listPlain \(Warm Concurrent/i,
     /^listPlain \(/i,
     /^FIND_MANY \(limit 50\)$/,
   ],
@@ -132,9 +147,24 @@ const BOARD_SOURCES: Record<string, RegExp[]> = {
 interface RecordedBenchEntry {
   metric?: string;
   layer?: string;
+  testFile?: string;
   rps?: number;
   db?: string;
   timestamp?: string;
+}
+
+function inferEntryLayer(entry: RecordedBenchEntry): string {
+  if (entry.layer) return entry.layer;
+  const metric = entry.metric || "";
+  if (
+    entry.testFile === "competitive-workload-replica" ||
+    entry.testFile === "rest-api-performance" ||
+    metric.startsWith("HTTP:") ||
+    /\(Warm Concurrent \d+c\)/i.test(metric)
+  ) {
+    return "HTTP";
+  }
+  return "unknown";
 }
 
 /**
@@ -150,7 +180,10 @@ function loadRecordedCmsBoard(engine: string): {
 } {
   const board: Record<string, number> = { ...DEFAULT_CMS_BOARD };
   const layers: Record<string, string> = {};
-  const newest: Record<string, { ts: number; rps: number; exact: boolean; layer: string }> = {};
+  const newest: Record<
+    string,
+    { ts: number; rps: number; exact: boolean; layer: string; rank: number }
+  > = {};
   const root = path.resolve(process.cwd(), "tests/benchmarks/results");
   if (!fs.existsSync(root)) return { board, layers };
 
@@ -161,10 +194,15 @@ function loadRecordedCmsBoard(engine: string): {
     if (Number.isNaN(ts) || now - ts > BOARD_MAX_AGE_MS) return;
     const metric = entry.metric || "";
     for (const [key, matchers] of Object.entries(BOARD_SOURCES)) {
-      if (!matchers.some((rx) => rx.test(metric))) continue;
+      const rank = matchers.findIndex((rx) => rx.test(metric));
+      if (rank < 0) continue;
       const prev = newest[key];
-      if (!prev || ts > prev.ts || (ts === prev.ts && exact && !prev.exact)) {
-        newest[key] = { ts, rps: entry.rps, exact, layer: entry.layer || "unknown" };
+      if (
+        !prev ||
+        rank < prev.rank ||
+        (rank === prev.rank && (ts > prev.ts || (ts === prev.ts && exact && !prev.exact)))
+      ) {
+        newest[key] = { ts, rps: entry.rps, exact, layer: inferEntryLayer(entry), rank };
       }
     }
   };
@@ -1534,7 +1572,7 @@ async function benchRawHttpFloor(engine: Engine): Promise<Map<string, OpSample> 
     const s = floorSamples.get(label);
     if (!s) continue;
     const cms = board[label] ?? board[op] ?? 0;
-    const layer = layers[op] || "default";
+    const layer = layers[label] || layers[op] || "default";
     // Only HTTP-layer CMS records are comparable to the HTTP floor. SDK/DB
     // records (in-process) or dated defaults would flatter the ratio.
     const comparable = layer === "HTTP" || layer === "env-override";

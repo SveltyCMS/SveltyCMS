@@ -425,4 +425,19 @@ describe("update keeps an already-published entry valid", () => {
     expect(result.success).toBe(true);
     expect(update).toHaveBeenCalledTimes(1);
   });
+
+  it("skips findOne when updating a required field to a non-empty value with status omitted", async () => {
+    const findOne = vi.fn(async () => ({
+      success: true,
+      data: { _id: "p3", title: "Existing", status: "publish" },
+    }));
+    const update = vi.fn(async () => ({ success: true, data: { _id: "p3", title: "Updated" } }));
+    const ns = new CollectionsNamespace(new TestAdapter(crudWith({ findOne, update })) as any);
+    await ns.registerSchema("Posts", requiredSchema as any);
+
+    const result = await ns.update("Posts", "p3", { title: "Updated" }, { user: ADMIN } as any);
+    expect(result.success).toBe(true);
+    expect(findOne).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledTimes(1);
+  });
 });

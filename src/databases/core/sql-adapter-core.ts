@@ -1576,6 +1576,27 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       fields?: string[];
     } = {},
   ): Promise<DatabaseResult<{ wireBody: string; etag: string } | null>> {
+    if (
+      !options.transaction &&
+      !options.requirePublished &&
+      options.sortField &&
+      options.sortField !== "_id" &&
+      options.sortField !== "updatedAt"
+    ) {
+      const dir = options.sortDirection === "asc" ? "asc" : "desc";
+      const withTenant =
+        options.tenantId !== undefined &&
+        options.tenantId !== null &&
+        options.tenantId !== "global";
+      this.noteListSort(
+        collection,
+        [
+          { name: options.sortField, direction: dir },
+          { name: "_id", direction: dir },
+        ],
+        withTenant ? ["tenantId"] : [],
+      );
+    }
     return executeFindListWireStream(this as unknown as SqlWireStreamContext, collection, options);
   }
 
