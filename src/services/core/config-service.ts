@@ -14,6 +14,18 @@ import type { Role } from "@src/databases/auth/types";
 import type { Widget, Theme } from "@src/databases/db-interface";
 import type { DatabaseId } from "@src/content/types";
 import { createChecksum } from "@utils/security/checksum";
+import { stableSerialize } from "@utils/collection-query-filter-meta";
+
+/**
+ * Key-order-stable hash for config-sync comparison.
+ *
+ * Server databases store `collectionDef` as JSONB, which reorders object keys on
+ * round-trip; hashing the raw `JSON.stringify` therefore reports a "changed"
+ * collection whose schema is identical, and the sync re-INSERTs it. Hashing the
+ * stable serialization (sorted keys) makes source and active agree across every
+ * adapter. This hash is only compared in-memory, never persisted or verified.
+ */
+const syncHash = (data: unknown): string => createChecksum(stableSerialize(data));
 import { decodePreferenceValue } from "@utils/preference-value";
 import { assertLiveDataWriteAllowed, resolveConfigSyncRoot } from "@utils/benchmark-sandbox";
 import { getSchemaPath } from "@src/content/first-collection";
@@ -528,8 +540,8 @@ export class ConfigService {
           const result = await adapter.crud.upsert(
             "content_nodes",
             {
+              _id: item.uuid,
               nodeType: "collection",
-              name: item.name,
               ...(tenantId && { tenantId }),
             } as Record<string, unknown>,
             {
@@ -793,7 +805,7 @@ export class ConfigService {
 
     const tasks = collections.map(async (collection) => {
       if (!(collection._id && collection.name)) return null;
-      const hash = await createChecksum(collection);
+      const hash = await syncHash(collection);
       return {
         uuid: String(collection._id),
         type: "collection",
@@ -817,7 +829,7 @@ export class ConfigService {
         const id = String(role._id);
         if (!id || !role.name) continue;
         const entity = role as unknown as Record<string, unknown>;
-        const hash = await createChecksum(entity);
+        const hash = await syncHash(entity);
         state.set(id, { uuid: id, type: "role", name: role.name, hash, entity });
       }
     } catch (err) {
@@ -838,7 +850,7 @@ export class ConfigService {
           if (!permId || seen.has(permId)) continue;
           seen.add(permId);
           const entity: Record<string, unknown> = { _id: permId, name: permId };
-          const hash = await createChecksum(entity);
+          const hash = await syncHash(entity);
           state.set(permId, {
             uuid: permId,
             type: "permission",
@@ -868,7 +880,7 @@ export class ConfigService {
           // Defense-in-depth: skip anything that looks secret
           if (isSecretKey(key)) continue;
           const entity = settingConfigEntity(key, value);
-          const hash = await createChecksum(entity);
+          const hash = await syncHash(entity);
           state.set(`setting:${key}`, {
             uuid: `setting:${key}`,
             type: "setting",
@@ -892,7 +904,7 @@ export class ConfigService {
           const id = String(widget._id);
           if (!id || !widget.name) continue;
           const entity = widget as unknown as Record<string, unknown>;
-          const hash = await createChecksum(entity);
+          const hash = await syncHash(entity);
           state.set(id, { uuid: id, type: "widget", name: widget.name, hash, entity });
         }
       }
@@ -911,7 +923,7 @@ export class ConfigService {
         const id = String(theme._id);
         if (!id || !theme.name) continue;
         const entity = theme as unknown as Record<string, unknown>;
-        const hash = await createChecksum(entity);
+        const hash = await syncHash(entity);
         state.set(id, { uuid: id, type: "theme", name: theme.name, hash, entity });
       }
     } catch (err) {
@@ -934,7 +946,7 @@ export class ConfigService {
           const id = String(item._id ?? "");
           const name = String(item.name ?? id);
           if (!id) continue;
-          const hash = await createChecksum(item);
+          const hash = await syncHash(item);
           state.set(id, { uuid: id, type: "webhook", name, hash, entity: item });
         }
       }
@@ -958,7 +970,7 @@ export class ConfigService {
           const id = String(item._id ?? "");
           const name = String(item.name ?? id);
           if (!id) continue;
-          const hash = await createChecksum(item);
+          const hash = await syncHash(item);
           state.set(id, { uuid: id, type: "automation", name, hash, entity: item });
         }
       }
@@ -1031,7 +1043,7 @@ export class ConfigService {
             const id = String(schema._id || node._id || "");
             const name = String(schema.name || node.name || "");
             if (!(id && name)) return null;
-            const hash = await createChecksum(schema);
+            const hash = await syncHash(schema);
             return { uuid: id, type: "collection", name, hash, entity: schema };
           },
         );
@@ -1053,7 +1065,7 @@ export class ConfigService {
         const id = String(role._id);
         if (!id || !role.name) continue;
         const entity = role as unknown as Record<string, unknown>;
-        const hash = await createChecksum(entity);
+        const hash = await syncHash(entity);
         state.set(id, { uuid: id, type: "role", name: role.name, hash, entity });
       }
     } catch (err) {
@@ -1072,7 +1084,7 @@ export class ConfigService {
           if (!permId || seen.has(permId)) continue;
           seen.add(permId);
           const entity: Record<string, unknown> = { _id: permId, name: permId };
-          const hash = await createChecksum(entity);
+          const hash = await syncHash(entity);
           state.set(permId, {
             uuid: permId,
             type: "permission",
@@ -1107,7 +1119,7 @@ export class ConfigService {
           if (isSecretKey(key)) continue;
           if (!key) continue;
           const entity = settingConfigEntity(key, setting.value);
-          const hash = await createChecksum(entity);
+          const hash = await syncHash(entity);
           state.set(`setting:${key}`, {
             uuid: `setting:${key}`,
             type: "setting",
@@ -1131,7 +1143,7 @@ export class ConfigService {
           const id = String(widget._id);
           if (!id || !widget.name) continue;
           const entity = widget as unknown as Record<string, unknown>;
-          const hash = await createChecksum(entity);
+          const hash = await syncHash(entity);
           state.set(id, { uuid: id, type: "widget", name: widget.name, hash, entity });
         }
       }
@@ -1150,7 +1162,7 @@ export class ConfigService {
         const id = String(theme._id);
         if (!id || !theme.name) continue;
         const entity = theme as unknown as Record<string, unknown>;
-        const hash = await createChecksum(entity);
+        const hash = await syncHash(entity);
         state.set(id, { uuid: id, type: "theme", name: theme.name, hash, entity });
       }
     } catch (err) {
@@ -1173,7 +1185,7 @@ export class ConfigService {
           const id = String(item._id ?? "");
           const name = String(item.name ?? id);
           if (!id) continue;
-          const hash = await createChecksum(item);
+          const hash = await syncHash(item);
           state.set(id, { uuid: id, type: "webhook", name, hash, entity: item });
         }
       }
@@ -1197,7 +1209,7 @@ export class ConfigService {
           const id = String(item._id ?? "");
           const name = String(item.name ?? id);
           if (!id) continue;
-          const hash = await createChecksum(item);
+          const hash = await syncHash(item);
           state.set(id, { uuid: id, type: "automation", name, hash, entity: item });
         }
       }
