@@ -123,6 +123,7 @@ function parseCombo(combo: string): ParsedCombo {
 /** Key match with zero per-event allocation. `KeyboardEvent.key` is compared first. */
 function keyMatches(e: KeyboardEvent, d: ParsedCombo): boolean {
   const raw = e.key;
+  if (typeof raw !== "string") return false;
   // Canonical tokens whose raw `event.key` value differs (`" "`, `"Escape"`).
   if (d.key === "space") return raw === " ";
   if (d.key === "esc") return raw === "Escape" || raw === "Esc";
