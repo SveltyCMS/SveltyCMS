@@ -89,4 +89,27 @@ describe("streamMany keyset paging on SQLite", () => {
     expect(rows).toHaveLength(ROWS);
     expect(new Set(rows.map((row) => row._id)).size).toBe(ROWS);
   });
+
+  it("executes findListWireStream with narrow subquery projection for full and projected reads", async () => {
+    const fullRes = await adapter.crud.findListWireStream?.(COLLECTION, {
+      tenantId: TENANT,
+      limit: 5,
+    });
+    expect(fullRes?.success && fullRes.data).toBeTruthy();
+    if (!fullRes?.success || !fullRes.data) return;
+    const fullParsed = JSON.parse(fullRes.data.wireBody) as Array<Record<string, unknown>>;
+    expect(fullParsed).toHaveLength(5);
+    expect(fullParsed[0]).toHaveProperty("title");
+
+    const projRes = await adapter.crud.findListWireStream?.(COLLECTION, {
+      tenantId: TENANT,
+      limit: 5,
+      fields: ["_id", "status"],
+    });
+    expect(projRes?.success && projRes.data).toBeTruthy();
+    if (!projRes?.success || !projRes.data) return;
+    const projParsed = JSON.parse(projRes.data.wireBody) as Array<Record<string, unknown>>;
+    expect(projParsed).toHaveLength(5);
+    expect(Object.keys(projParsed[0]!).sort()).toEqual(["_id", "status"]);
+  });
 });

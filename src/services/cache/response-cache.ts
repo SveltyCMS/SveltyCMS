@@ -104,8 +104,12 @@ function hashKey31(key: string, tenantId?: string | null): number {
   return (h ^ (h >>> 16)) & 0x3fffffff;
 }
 
-/** Module-scoped encoder (avoids per-set() allocation on hot paths). */
+/** Module-scoped UTF-8 encoder (prefers native Node/Bun `Buffer` for zero-copy socket writes). */
 const textEncoder = typeof TextEncoder !== "undefined" ? new TextEncoder() : null;
+function encodeUtf8Buffer(body: string): Uint8Array | null {
+  if (typeof Buffer !== "undefined") return Buffer.from(body, "utf8");
+  return textEncoder ? textEncoder.encode(body) : null;
+}
 const MAX_L1_ENTRIES = 2000;
 /** Point-reads (findById / findByIdRandom) — separate FIFO so a scan cannot evict lists. */
 const MAX_POINT_L1_ENTRIES = 2000;
@@ -895,14 +899,14 @@ class ResponseCacheService {
    * and a random id that is about to be evicted must not double its cost.
    */
   private maybeAttachBuffer(entry: CachedResponseEntry, pointReads: boolean): void {
-    if (entry.buffer || !textEncoder || !entry.body) return;
+    if (entry.buffer || !entry.body) return;
     const budget = this.l1ByteBudget(pointReads);
     const bytes = pointReads ? this.pointL1Bytes : this.l1Bytes;
     // ASCII JSON: byte length equals char length. Skip the encode when the
     // tier is already full; multibyte bodies are checked again after encode.
     if (bytes + entry.body.length > budget) return;
-    const encoded = textEncoder.encode(entry.body);
-    if (bytes + encoded.byteLength > budget) return;
+    const encoded = encodeUtf8Buffer(entry.body);
+    if (!encoded || bytes + encoded.byteLength > budget) return;
     entry.buffer = encoded;
     this.addL1Bytes(pointReads, encoded.byteLength);
   }
@@ -1458,8 +1462,9 @@ class ResponseCacheService {
     if (!testWorkerContext.getStore()) {
       const entry = cacheService.getSync<CachedResponseEntry>(`res:${key}`, tenantId);
       if (entry && !this.isExpired(entry) && this.generationMatches(entry, key, tenantId)) {
-        if (!entry.buffer && textEncoder && entry.body) {
-          entry.buffer = textEncoder.encode(entry.body);
+        if (!entry.buffer && entry.body) {
+          const encoded = encodeUtf8Buffer(entry.body);
+          if (encoded) entry.buffer = encoded;
         }
         this.staleL1.delete(fullKey);
         this.putEntry(store, fullKey, entry);
@@ -1499,8 +1504,9 @@ class ResponseCacheService {
 
     const entry = await cacheService.get<CachedResponseEntry>(`res:${key}`, tenantId);
     if (entry && !this.isExpired(entry) && this.generationMatches(entry, key, tenantId)) {
-      if (!entry.buffer && textEncoder && entry.body) {
-        entry.buffer = textEncoder.encode(entry.body);
+      if (!entry.buffer && entry.body) {
+        const encoded = encodeUtf8Buffer(entry.body);
+        if (encoded) entry.buffer = encoded;
       }
       const fullKey = this.buildKey(key, tenantId);
       const store = this.storeForUserKey(key);

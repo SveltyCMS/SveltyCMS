@@ -697,6 +697,101 @@ describe("collection read lane private-field gate", () => {
   });
 });
 
+describe("collection read lane list trimming and compression gate", () => {
+  const sessionId = "read-lane-trim-session";
+  const user = {
+    _id: "user-read-lane-trim",
+    id: "user-read-lane-trim",
+    role: "admin",
+    isAdmin: true,
+    email: "trim@test.local",
+  };
+
+  beforeEach(async () => {
+    clearTurboAuthCache();
+    await responseCache.clearLocal();
+    findMock.mockReset();
+    findByIdMock.mockReset();
+    findPointWireStreamMock.mockReset();
+    findListWireStreamMock.mockReset();
+    setTurboAuthContext(sessionId, user as never, [], null);
+    setSystemState("READY");
+  });
+
+  it("trims populated relation noise on list fallback reads and gates variant compression on Accept-Encoding", async () => {
+    const pad = "x".repeat(600);
+    const sharedAuthor = {
+      _id: "author-1",
+      name: "Grace",
+      _collection: { id: "authors" },
+      tenantId: "global",
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-02T00:00:00Z",
+      isDeleted: false,
+      locale: null,
+      publishedAt: null,
+      titlePad: pad,
+    };
+    findMock.mockResolvedValue({
+      success: true,
+      data: [
+        { _id: "p1", title: "One", _populated_author: sharedAuthor },
+        { _id: "p2", title: "Two", _populated_author: sharedAuthor },
+        { _id: "p3", title: "Three", _populated_author: sharedAuthor },
+      ],
+    });
+
+    const resolve = vi.fn(async () => new Response("pipeline"));
+    const makeReq = (headers?: Record<string, string>) =>
+      createMockEvent("/api/collections/posts?limit=10&populate=author", {
+        method: "GET",
+        sessionCookie: sessionId,
+        user,
+        ...(headers ? { headers } : {}),
+      });
+
+    const missRes = await tryCollectionReadLane({ event: makeReq(), resolve });
+    expect(missRes.headers.get("X-Cache")).toBe("MISS");
+    const parsed = JSON.parse(await missRes.text()) as {
+      data: Array<{ _populated_author: Record<string, unknown> }>;
+    };
+    expect(parsed.data[0]._populated_author).toEqual({
+      _id: "author-1",
+      name: "Grace",
+      titlePad: pad,
+    });
+    // Source object passed by SDK stays untouched.
+    expect("tenantId" in sharedAuthor).toBe(true);
+
+    // Identity HIT does not trigger background compression, even above STASH_MIN_BYTES.
+    const hitRes = await tryCollectionReadLane({ event: makeReq(), resolve });
+    expect(hitRes.headers.get("X-Cache")).toBe("TURBO-HIT");
+    await new Promise((r) => setTimeout(r, 30));
+
+    // A returning caller that negotiates gzip triggers background compression for gzip only.
+    const gzipWarmRes = await tryCollectionReadLane({
+      event: makeReq({ "accept-encoding": "gzip" }),
+      resolve,
+    });
+    expect(gzipWarmRes.headers.get("X-Cache")).toBe("TURBO-HIT");
+    expect(gzipWarmRes.headers.get("content-encoding")).toBeNull();
+    await vi.waitFor(async () => {
+      const gzipHit = await tryCollectionReadLane({
+        event: makeReq({ "accept-encoding": "gzip" }),
+        resolve,
+      });
+      expect(gzipHit.headers.get("content-encoding")).toBe("gzip");
+    });
+
+    // Unrequested algorithms (e.g. br) were NOT speculatively compressed.
+    const brRes = await tryCollectionReadLane({
+      event: makeReq({ "accept-encoding": "br" }),
+      resolve,
+    });
+    expect(brRes.headers.get("content-encoding")).toBeNull();
+  });
+});
+
 describe("collection read lane threat scan", () => {
   beforeEach(() => {
     findByIdMock.mockReset();

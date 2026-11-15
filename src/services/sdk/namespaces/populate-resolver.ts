@@ -314,28 +314,27 @@ export async function resolvePopulatedRelations(
         if (policy.attach === false) return;
 
         const targetFields = Array.isArray(targetSchema?.fields) ? targetSchema.fields : null;
+        if (targetFields && relatedMap.size > 0) {
+          // Redact each unique target entity once rather than once per parent item.
+          for (const [id, row] of relatedMap) {
+            if (row) relatedMap.set(id, redactRecord(row, targetFields, policy.user as never));
+          }
+        }
         for (let f = 0; f < fields.length; f++) {
           const fieldName = fields[f];
+          const populatedKey = `_populated_${fieldName}`;
           for (let i = 0; i < items.length; i++) {
             const item = items[i];
             const val = item[fieldName];
             if (typeof val === "string") {
-              const row = relatedMap.get(val) || null;
-              item[`_populated_${fieldName}`] =
-                row && targetFields ? redactRecord(row, targetFields, policy.user as never) : row;
+              item[populatedKey] = relatedMap.get(val) || null;
             } else if (Array.isArray(val)) {
               const populatedList: any[] = [];
               for (let v = 0; v < val.length; v++) {
                 const resolved = relatedMap.get(val[v]);
-                if (resolved) {
-                  populatedList.push(
-                    targetFields
-                      ? redactRecord(resolved, targetFields, policy.user as never)
-                      : resolved,
-                  );
-                }
+                if (resolved) populatedList.push(resolved);
               }
-              item[`_populated_${fieldName}`] = populatedList;
+              item[populatedKey] = populatedList;
             }
           }
         }

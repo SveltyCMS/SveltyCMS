@@ -53,19 +53,65 @@ const POINT_READ_DROP_ALWAYS = new Set<string>([
  * column default (pure wire noise) while a non-null value is document content.
  */
 const POINT_READ_DROP_WHEN_NULL = new Set<string>(["collection", "locale", "publishedAt"]);
+const POPULATED_PREFIX = "_populated_";
+
+function trimPopulatedValue(value: unknown, memo: Map<object, Record<string, unknown>>): unknown {
+  if (!value || typeof value !== "object") return value;
+  if (Array.isArray(value)) {
+    let changed = false;
+    const out: unknown[] = [];
+    for (let i = 0; i < value.length; i++) {
+      const el = value[i];
+      if (el && typeof el === "object" && !Array.isArray(el)) {
+        const trimmed = trimPointReadRow(el, memo);
+        out.push(trimmed);
+        if (trimmed !== el) changed = true;
+      } else {
+        out.push(el);
+      }
+    }
+    return changed ? out : value;
+  }
+  return trimPointReadRow(value, memo);
+}
 
 /**
  * Copy-trim one single-entry row. Returns a new object with the system keys
  * removed via key-skipping copy; the input row is never mutated (it may be referenced by the SDK
- * request cache or an L2 write).
+ * request cache or an L2 write). Populated relation payloads (`_populated_*`)
+ * are trimmed with the same point-read filter and memoized by reference.
  */
-function trimPointReadRow(row: unknown): Record<string, unknown> {
+function trimPointReadRow(
+  row: unknown,
+  memo?: Map<object, Record<string, unknown>>,
+): Record<string, unknown> {
+  const obj = row as object;
+  if (memo) {
+    const cached = memo.get(obj);
+    if (cached) return cached;
+  }
   const src = row as Record<string, unknown>;
   const trimmed: Record<string, unknown> = {};
+  let activeMemo = memo;
+  if (activeMemo) activeMemo.set(obj, trimmed);
   for (const key in src) {
     if (POINT_READ_DROP_ALWAYS.has(key)) continue;
-    if (src[key] === null && POINT_READ_DROP_WHEN_NULL.has(key)) continue;
-    trimmed[key] = src[key];
+    const val = src[key];
+    if (val === null && POINT_READ_DROP_WHEN_NULL.has(key)) continue;
+    if (
+      key.charCodeAt(0) === 95 &&
+      key.startsWith(POPULATED_PREFIX) &&
+      val &&
+      typeof val === "object"
+    ) {
+      if (!activeMemo) {
+        activeMemo = new Map<object, Record<string, unknown>>();
+        activeMemo.set(obj, trimmed);
+      }
+      trimmed[key] = trimPopulatedValue(val, activeMemo);
+      continue;
+    }
+    trimmed[key] = val;
   }
   return trimmed;
 }
@@ -85,26 +131,53 @@ export function trimPointReadEnvelope(envelope: unknown): unknown {
 }
 
 /**
- * Copy an object without its `_collection` key. The input row is never mutated
- * (it may be referenced by the SDK request cache or an L2 write).
+ * Copy an object without its `_collection` key, trimming any nested
+ * `_populated_*` relation payloads once per shared target instance.
  */
-function copyWithoutCollection(item: Record<string, unknown>): Record<string, unknown> {
-  const copy: Record<string, unknown> = {};
+function trimListRow(
+  item: Record<string, unknown>,
+  memo: Map<object, Record<string, unknown>> | null,
+): Record<string, unknown> | null {
+  let needsCopy = false;
   for (const key in item) {
-    if (key !== "_collection") copy[key] = item[key];
+    if (key.charCodeAt(0) !== 95) continue;
+    if (
+      key === "_collection" ||
+      (key.startsWith(POPULATED_PREFIX) && item[key] && typeof item[key] === "object")
+    ) {
+      needsCopy = true;
+      break;
+    }
+  }
+  if (!needsCopy) return null;
+
+  const copy: Record<string, unknown> = {};
+  const activeMemo = memo ?? new Map<object, Record<string, unknown>>();
+  for (const key in item) {
+    if (key === "_collection") continue;
+    const val = item[key];
+    if (
+      key.charCodeAt(0) === 95 &&
+      key.startsWith(POPULATED_PREFIX) &&
+      val &&
+      typeof val === "object"
+    ) {
+      copy[key] = trimPopulatedValue(val, activeMemo);
+      continue;
+    }
+    copy[key] = val;
   }
   return copy;
 }
 
 /**
  * Trim a `{ success, data, meta? }` SDK envelope for HTTP list serialization.
- * Strips per-row `_collection` duplications across all items and hoists
- * `meta._collection` once onto the top-level envelope.
+ * Strips per-row `_collection` duplications across all items, hoists
+ * `meta._collection` once onto the top-level envelope, and applies the
+ * point-read trim to embedded `_populated_*` relation rows.
  *
- * Fast path: when no row carries `_collection`, the input envelope is returned
- * by identity — no envelope spread, no array clone, no row clones. This is the
- * common list shape (the SDK only injects the meta on cross-collection reads),
- * so large list payloads stop paying a clone per row.
+ * Fast path: when no row carries `_collection` or `_populated_*`, the input
+ * envelope is returned by identity — no envelope spread, no array clone, no row clones.
  */
 export function trimListEnvelope(envelope: unknown): unknown {
   if (!envelope || typeof envelope !== "object" || Array.isArray(envelope)) return envelope;
@@ -112,34 +185,37 @@ export function trimListEnvelope(envelope: unknown): unknown {
   const data = env.data;
   if (!data || !Array.isArray(data) || data.length === 0) return envelope;
 
-  // Hoist from the first row exactly as before; the scan below detects whether
-  // any row (first included) actually needs trimming.
   let collectionMeta: unknown = undefined;
   let hasCollectionMeta = false;
-  const first = data[0];
-  if (first && typeof first === "object" && "_collection" in first) {
-    collectionMeta = (first as Record<string, unknown>)._collection;
-    hasCollectionMeta = true;
-  }
-
-  if (!hasCollectionMeta) {
-    for (let i = 1; i < data.length; i++) {
-      const item = data[i];
-      if (item && typeof item === "object" && "_collection" in item) {
-        hasCollectionMeta = true;
-        break;
+  let hasPopulated = false;
+  for (let i = 0; i < data.length; i++) {
+    const item = data[i];
+    if (!item || typeof item !== "object") continue;
+    const rec = item as Record<string, unknown>;
+    if (i === 0 && "_collection" in rec) {
+      collectionMeta = rec._collection;
+      hasCollectionMeta = true;
+    }
+    for (const key in rec) {
+      if (key.charCodeAt(0) !== 95) continue;
+      if (key === "_collection") hasCollectionMeta = true;
+      else if (key.startsWith(POPULATED_PREFIX) && rec[key] && typeof rec[key] === "object") {
+        hasPopulated = true;
       }
     }
+    if (hasCollectionMeta && hasPopulated) break;
   }
 
   // Nothing to trim: return the caller's envelope untouched (identity contract).
-  if (!hasCollectionMeta) return envelope;
+  if (!hasCollectionMeta && !hasPopulated) return envelope;
 
+  const memo = hasPopulated ? new Map<object, Record<string, unknown>>() : null;
   const trimmedArray: unknown[] = [];
   for (let i = 0; i < data.length; i++) {
     const item = data[i];
-    if (item && typeof item === "object" && "_collection" in item) {
-      trimmedArray.push(copyWithoutCollection(item as Record<string, unknown>));
+    if (item && typeof item === "object") {
+      const trimmedRow = trimListRow(item as Record<string, unknown>, memo);
+      trimmedArray.push(trimmedRow ?? item);
     } else {
       trimmedArray.push(item);
     }

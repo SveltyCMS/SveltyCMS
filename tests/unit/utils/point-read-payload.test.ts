@@ -186,4 +186,64 @@ describe("trimListEnvelope", () => {
     expect(trimListEnvelope(null)).toBeNull();
     expect(trimListEnvelope("nope")).toBe("nope");
   });
+
+  it("trims _populated_* object and array relation rows, deduplicates shared refs, and preserves inputs", () => {
+    const sharedAuthor = {
+      _id: "author-1",
+      name: "Ada",
+      _collection: { id: "authors" },
+      tenantId: "t1",
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-02T00:00:00Z",
+      isDeleted: false,
+      collection: null,
+      locale: null,
+      publishedAt: "2026-01-03T00:00:00Z",
+    };
+    const childTag = {
+      _id: "tag-1",
+      label: "news",
+      tenantId: "t1",
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-02T00:00:00Z",
+      isDeleted: false,
+      publishedAt: null,
+    };
+    const rows = [
+      { _id: "1", title: "A", _populated_author: sharedAuthor, _populated_tags: [childTag] },
+      { _id: "2", title: "B", _populated_author: sharedAuthor },
+      { _id: "3", title: "C" },
+    ];
+
+    const trimmed = trimListEnvelope({ success: true, data: rows }) as {
+      data: Record<string, unknown>[];
+    };
+
+    const a0 = trimmed.data[0]._populated_author as Record<string, unknown>;
+    const a1 = trimmed.data[1]._populated_author as Record<string, unknown>;
+    expect(a0).toBe(a1);
+    expect(a0).toEqual({
+      _id: "author-1",
+      name: "Ada",
+      publishedAt: "2026-01-03T00:00:00Z",
+    });
+    expect(trimmed.data[0]._populated_tags).toEqual([{ _id: "tag-1", label: "news" }]);
+    expect(trimmed.data[2]).toBe(rows[2]);
+
+    // Caller's nested objects stay intact.
+    expect("tenantId" in sharedAuthor).toBe(true);
+    expect("createdAt" in childTag).toBe(true);
+
+    // Point reads also trim nested _populated_* children.
+    const pointTrimmed = trimPointReadEnvelope({
+      success: true,
+      data: { _id: "p1", title: "Point", _populated_author: sharedAuthor },
+    }) as { data: Record<string, unknown> };
+    expect(pointTrimmed.data._populated_author).toEqual({
+      _id: "author-1",
+      name: "Ada",
+      publishedAt: "2026-01-03T00:00:00Z",
+    });
+    expect("tenantId" in sharedAuthor).toBe(true);
+  });
 });

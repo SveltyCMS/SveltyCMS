@@ -76,7 +76,7 @@ import {
   MAX_PAGE_SIZE,
   type CollectionQueryParams,
 } from "@utils/api-params";
-import { trimPointReadEnvelope } from "@utils/point-read-payload";
+import { trimPointReadEnvelope, trimListEnvelope } from "@utils/point-read-payload";
 import { versionTokenString } from "@utils/optimistic-lock";
 import { resolvePublicationFilter } from "@utils/security/publication-policy";
 import {
@@ -817,27 +817,36 @@ async function executeWarmCollectionRead(
       } else {
         responseCache.releaseSwrRefresh(pathKey, cacheTenant);
       }
-    } else if (!entryId && !cached.compressed) {
-      // Lazy variant warm-up for LISTS only: the first re-hit is the proof that
-      // a list key is actually re-read, so compressing it off the request path
-      // pays for itself on later hits. Point reads are high-cardinality — a
-      // variant is almost never re-served before the FIFO evicts the key — so
-      // they skip the stash (and the `Buffer.byteLength` walk) entirely (see
-      // response-compression-stash.ts). The stash runs after the response.
-      const bodyBytes =
-        cached.byteLength ?? cached.buffer?.byteLength ?? Buffer.byteLength(cached.body, "utf8");
-      void scheduleTurboVariantStash({
-        key: pathKey,
-        body: cached.body,
-        etag: cached.etag,
-        byteLength: bodyBytes,
-        ttlMs: cached.expiresAt ? Math.max(1_000, cached.expiresAt - Date.now()) : 300_000,
-        tenantId: cacheTenant,
-        setOptions: {
-          tags: collectionResponseCacheTags(collectionId, null).tags,
-          skipSharedL1: false,
-        },
-      });
+    } else if (!entryId && !cached.compressed && event.request.method !== "HEAD") {
+      // Lazy variant warm-up for LISTS only, and only when the returning caller
+      // actually negotiates compression (`Accept-Encoding`) — building only the
+      // negotiated encoding so plain identity callers never pay br/gzip/zstd CPU.
+      const acceptEncoding = event.request.headers.get("accept-encoding") ?? "";
+      if (acceptEncoding) {
+        const bodyBytes =
+          cached.byteLength ?? cached.buffer?.byteLength ?? Buffer.byteLength(cached.body, "utf8");
+        const wantedAlgo =
+          bodyBytes > STASH_MIN_BYTES && bodyBytes <= STASH_MAX_BYTES
+            ? negotiateEncoding(acceptEncoding, hasNativeCompression(), {
+                contentLength: bodyBytes,
+              })
+            : null;
+        if (wantedAlgo && wantedAlgo !== "deflate") {
+          void scheduleTurboVariantStash({
+            key: pathKey,
+            body: cached.body,
+            etag: cached.etag,
+            byteLength: bodyBytes,
+            ttlMs: cached.expiresAt ? Math.max(1_000, cached.expiresAt - Date.now()) : 300_000,
+            tenantId: cacheTenant,
+            setOptions: {
+              tags: collectionResponseCacheTags(collectionId, null).tags,
+              skipSharedL1: false,
+            },
+            algorithms: [wantedAlgo],
+          });
+        }
+      }
     }
     return res;
   }
@@ -1079,17 +1088,6 @@ async function rebuildWarmCollectionRead(
           },
         );
         marks?.set("cachewrite", performance.now() - cacheT0);
-        if (tags) {
-          void scheduleTurboVariantStash({
-            key: pathKey,
-            body: apiBody,
-            etag,
-            byteLength: bodyBytes,
-            ttlMs: 300_000,
-            tenantId: cacheTenant,
-            setOptions: { tags, skipSharedL1: false },
-          });
-        }
         return { body: apiBody, etag, miss: true };
       }
     }
@@ -1145,7 +1143,7 @@ async function rebuildWarmCollectionRead(
   // security-header template. A second Response here was pure overhead on a miss.
   // `trimPointReadEnvelope` / `trimListEnvelope` copies the rows, so the
   // SDK request cache / L2 never see the trimmed payload.
-  const envelope = (entryId ? trimPointReadEnvelope(record) : record) as {
+  const envelope = (entryId ? trimPointReadEnvelope(record) : trimListEnvelope(record)) as {
     data?: unknown;
     meta?: unknown;
   };
@@ -1230,20 +1228,6 @@ async function rebuildWarmCollectionRead(
     );
   }
   marks?.set("cachewrite", performance.now() - cacheT0);
-  if (tags) {
-    // Fill the remaining encodings in the background (the served one is passed
-    // in so it is never compressed twice). Point reads skip this entirely.
-    void scheduleTurboVariantStash({
-      key: pathKey,
-      body: apiBody,
-      etag,
-      byteLength: bodyBytes ?? Buffer.byteLength(apiBody, "utf8"),
-      ttlMs: 300_000,
-      tenantId: cacheTenant,
-      setOptions: { tags, skipSharedL1: false },
-      have: compressedVariants,
-    });
-  }
   return compressedVariants
     ? { body: apiBody, etag, miss: true, compressed: compressedVariants }
     : { body: apiBody, etag, miss: true };

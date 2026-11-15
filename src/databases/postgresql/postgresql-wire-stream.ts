@@ -185,30 +185,47 @@ export class PostgresWireStreamEngine {
         const safeTable = `"${assertSafeSqlIdentifier(tableName, "table")}"`;
         const hasSlugCol = !!executor.getColumn(table, "slug");
         const hasStatusCol = !!executor.getColumn(table, "status");
-        const updatedAtSelect = executor.getColumn(table, "updatedAt")
+        const hasUpdatedAtCol = !!executor.getColumn(table, "updatedAt");
+        const updatedAtSelect = hasUpdatedAtCol
           ? 'coalesce(extract(epoch from "updatedAt") * 1000, 0)'
           : "0";
 
+        const subColSet = new Set<string>();
+        if (hasUpdatedAtCol) subColSet.add('"updatedAt"');
+
         let doc: string;
         if (isProjected) {
+          for (const pf of projectedFields) {
+            subColSet.add(pf.kind === "column" ? `"${pf.name}"` : '"data"');
+          }
           doc = buildProjectedListDoc(projectedFields);
         } else {
           const matCols = collectSafeMaterializedColumns(table);
           if (!matCols) return { kind: "declined" };
+          subColSet.add('"data"');
+          subColSet.add('"_id"');
           const pairs: string[] = [`'_id', "_id"`];
-          if (hasStatusCol) pairs.push(`'status', "status"`);
-          if (hasSlugCol) pairs.push(`'slug', "slug"`);
+          if (hasStatusCol) {
+            subColSet.add('"status"');
+            pairs.push(`'status', "status"`);
+          }
+          if (hasSlugCol) {
+            subColSet.add('"slug"');
+            pairs.push(`'slug', "slug"`);
+          }
           for (const name of matCols) {
+            subColSet.add(`"${name}"`);
             pairs.push(`'${name}', "${name}"`);
           }
           const materialized = `jsonb_build_object(${pairs.join(", ")})`;
           doc = `(CASE WHEN "data" IS NULL OR "data" = '{}'::jsonb THEN ${materialized} ELSE ("data" || ${materialized}) END)`;
         }
 
-        const subSelect = `SELECT ${doc} AS doc, ${updatedAtSelect} AS updated_at FROM ${safeTable}`;
+        const subCols = subColSet.size > 0 ? Array.from(subColSet).join(", ") : '"_id"';
+        const subSelect = `SELECT ${subCols} FROM ${safeTable}`;
         const wrap = (wherePart: string, limitIdx: number, offsetIdx: number) => `
-          SELECT coalesce(jsonb_agg(sub.doc), '[]'::jsonb)::text AS wire_body,
-                 coalesce(max(sub.updated_at), 0)::text AS max_updated_at
+          SELECT coalesce(jsonb_agg(${doc}), '[]'::jsonb)::text AS wire_body,
+                 coalesce(max(${updatedAtSelect}), 0)::text AS max_updated_at
           FROM (${subSelect} ${wherePart ? `WHERE ${wherePart}` : ""} ${orderClause} LIMIT $${limitIdx} OFFSET $${offsetIdx}) sub
         `;
 

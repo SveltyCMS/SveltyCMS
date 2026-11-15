@@ -166,14 +166,19 @@ export class SqliteWireStreamEngine {
         const quoted = `"${safeTable}"`;
         const hasSlugCol = !!executor.getColumn(table, "slug");
         const hasStatusCol = !!executor.getColumn(table, "status");
-        const updatedAtSelect = executor.getColumn(table, "updatedAt") ? '"updatedAt"' : "0";
+        const hasUpdatedAtCol = !!executor.getColumn(table, "updatedAt");
+        const updatedAtSelect = hasUpdatedAtCol ? '"updatedAt"' : "0";
         const hasDeletedCol = !!executor.getColumn(table, "isDeleted");
         const boolCols = getTableBooleanColumns(tableName);
+
+        const subColSet = new Set<string>();
+        if (hasUpdatedAtCol) subColSet.add('"updatedAt"');
 
         let dataExpr: string;
         if (isProjected) {
           const pairs = dedupedProjectedCols.map((safeCol) => {
             const col = `"${safeCol}"`;
+            subColSet.add(col);
             const value = boolCols?.has(safeCol)
               ? `json(CASE WHEN ${col} = 1 THEN 'true' WHEN ${col} = 0 THEN 'false' ELSE json_quote(${col}) END)`
               : col;
@@ -183,11 +188,20 @@ export class SqliteWireStreamEngine {
         } else {
           const matCols = collectSafeMaterializedColumns(table);
           if (!matCols) return { kind: "declined" };
+          subColSet.add('"data"');
+          subColSet.add('"_id"');
           const overrides: string[] = [`'$."_id"', "_id"`];
-          if (hasStatusCol) overrides.push(`'$."status"', "status"`);
-          if (hasSlugCol) overrides.push(`'$."slug"', "slug"`);
+          if (hasStatusCol) {
+            subColSet.add('"status"');
+            overrides.push(`'$."status"', "status"`);
+          }
+          if (hasSlugCol) {
+            subColSet.add('"slug"');
+            overrides.push(`'$."slug"', "slug"`);
+          }
           for (const name of matCols) {
             const col = `"${name}"`;
+            subColSet.add(col);
             const value = boolCols?.has(name)
               ? `json(CASE WHEN ${col} = 1 THEN 'true' WHEN ${col} = 0 THEN 'false' ELSE json_quote(${col}) END)`
               : col;
@@ -196,11 +210,12 @@ export class SqliteWireStreamEngine {
           dataExpr = `json_set(COALESCE("data", '{}')${overrides.map((o) => `, ${o}`).join("")})`;
         }
 
+        const subCols = subColSet.size > 0 ? Array.from(subColSet).join(", ") : '"_id"';
         const wrap = (wherePart: string) => `
           SELECT coalesce(json_group_array(json(${dataExpr})), '[]') AS wire_body,
                  coalesce(max(${updatedAtSelect}), 0) AS max_updated_at
           FROM (
-            SELECT * FROM ${quoted}
+            SELECT ${subCols} FROM ${quoted}
             ${wherePart ? `WHERE ${wherePart}` : ""}
             ${orderClause} LIMIT ? OFFSET ?
           );

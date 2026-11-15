@@ -180,4 +180,35 @@ describe("scheduleTurboVariantStash", () => {
     });
     expect(responseCache.get(pointKey, TENANT)?.compressed).toBeUndefined();
   });
+
+  it("limits work to requested algorithms and preserves buffer + byteLength across stash updates", async () => {
+    const key = KEY("algo-subset");
+    const body = payload(200);
+    const size = Buffer.byteLength(body, "utf8");
+    expect(size).toBeLessThanOrEqual(SYNC_MAX_SIZE);
+    const variants = await buildCompressionVariants(body, size, undefined, ["gzip"]);
+    expect(Object.keys(variants)).toEqual(["gzip"]);
+
+    responseCache.set(key, { body, etag: '"v1"', byteLength: size }, 60_000, TENANT, {
+      skipSharedL1: true,
+    });
+    const initialBuffer = responseCache.get(key, TENANT)?.buffer;
+    expect(Buffer.isBuffer(initialBuffer)).toBe(true);
+
+    await scheduleTurboVariantStash({
+      key,
+      body,
+      etag: '"v1"',
+      byteLength: size,
+      ttlMs: 60_000,
+      tenantId: TENANT,
+      setOptions: { skipSharedL1: true },
+      algorithms: ["gzip"],
+    });
+
+    const updated = responseCache.get(key, TENANT);
+    expect(Object.keys(updated?.compressed ?? {})).toEqual(["gzip"]);
+    expect(updated?.buffer).toBe(initialBuffer);
+    expect(updated?.byteLength).toBe(size);
+  });
 });

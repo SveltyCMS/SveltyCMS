@@ -41,6 +41,7 @@ import {
   hasAsyncZstd,
   hasNativeCompression,
   SYNC_MAX_SIZE,
+  type CompressionAlgorithm,
 } from "./handle-compression";
 import { logger } from "@utils/logger";
 
@@ -71,14 +72,21 @@ export async function buildCompressionVariants(
   body: string,
   byteLength: number,
   have?: Record<string, Uint8Array>,
+  algorithms?: readonly CompressionAlgorithm[],
 ): Promise<Record<string, Uint8Array>> {
   const variants: Record<string, Uint8Array> = {};
   if (have) {
     for (const [algo, variant] of Object.entries(have)) variants[algo] = variant;
   }
+  const want = algorithms ? new Set<CompressionAlgorithm>(algorithms) : null;
   const tasks: Promise<void>[] = [];
 
-  if (!variants.br && hasNativeCompression() && byteLength <= SYNC_MAX_SIZE) {
+  if (
+    (!want || want.has("br")) &&
+    !variants.br &&
+    hasNativeCompression() &&
+    byteLength <= SYNC_MAX_SIZE
+  ) {
     tasks.push(
       compressAsync(body, "br", byteLength)
         .then((br) => {
@@ -87,7 +95,12 @@ export async function buildCompressionVariants(
         .catch(() => {}),
     );
   }
-  if (!variants.gzip && hasNativeCompression() && byteLength <= SYNC_MAX_SIZE) {
+  if (
+    (!want || want.has("gzip")) &&
+    !variants.gzip &&
+    hasNativeCompression() &&
+    byteLength <= SYNC_MAX_SIZE
+  ) {
     tasks.push(
       compressAsync(body, "gzip", byteLength)
         .then((gz) => {
@@ -97,7 +110,11 @@ export async function buildCompressionVariants(
     );
   }
 
-  if (!variants.zstd && (hasAsyncZstd() || byteLength <= SYNC_MAX_SIZE)) {
+  if (
+    (!want || want.has("zstd")) &&
+    !variants.zstd &&
+    (hasAsyncZstd() || byteLength <= SYNC_MAX_SIZE)
+  ) {
     tasks.push(
       compressZstd(body, byteLength)
         .then((zstd) => {
@@ -126,6 +143,8 @@ export interface VariantStashArgs {
   skipPointRead?: boolean;
   /** Variants already produced by the caller (miss-response encoding). */
   have?: Record<string, Uint8Array>;
+  /** Optional subset of algorithms to compress (e.g. only what a client negotiated). */
+  algorithms?: readonly CompressionAlgorithm[];
 }
 
 /**
@@ -137,18 +156,26 @@ export async function scheduleTurboVariantStash(args: VariantStashArgs): Promise
   if (inFlight.has(args.key)) return;
   inFlight.add(args.key);
   try {
-    const variants = await buildCompressionVariants(args.body, args.byteLength, args.have);
-    const hasVariants = Object.keys(variants).length > 0;
+    const variants = await buildCompressionVariants(
+      args.body,
+      args.byteLength,
+      args.have,
+      args.algorithms,
+    );
     // The body may have been superseded while we compressed. Re-check, then
     // re-set with `preserveStale` so freshness stays the concurrent writer's
     // decision. An empty object marks "compression attempted, nothing shrank"
     // so a later HIT does not retry the same incompressible body forever.
     const current = responseCache.get(args.key, args.tenantId ?? null);
     if (!current || current.etag !== args.etag || current.body !== args.body) return;
+    const mergedVariants = current.compressed ? { ...current.compressed, ...variants } : variants;
+    const hasVariants = Object.keys(mergedVariants).length > 0;
     const entry: CachedResponseEntry = {
       body: args.body,
+      ...(current.buffer !== undefined ? { buffer: current.buffer } : {}),
+      byteLength: current.byteLength ?? args.byteLength,
       etag: args.etag,
-      compressed: hasVariants ? variants : {},
+      compressed: hasVariants ? mergedVariants : {},
     };
     responseCache.set(args.key, entry, args.ttlMs, args.tenantId ?? null, {
       ...args.setOptions,
