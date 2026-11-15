@@ -35,6 +35,7 @@ import {
   responseCache,
   type CachedResponseEntry,
 } from "@src/services/cache/response-cache";
+import { parseCacheControlStalePolicy } from "@src/services/cache/stale-window";
 import { cacheService } from "@src/databases/cache/cache-service";
 
 const cache = cacheService as unknown as {
@@ -182,21 +183,39 @@ describe("Response cache read-after-write consistency (M2 residual)", () => {
     expect(responseCache.get(key, tenant)?.body).toBe('{"v":3}');
   });
 
-  it("rejects an already-admitted L1 GraphQL body once its synthetic scope moves", () => {
+  it("rejects an already-admitted L1 GraphQL body when its collection or synthetic scope moves", () => {
     const tenant = "m2-l1-gql";
-    const key = buildGraphQLResponseCacheKey("query { posts { id } }", {}, "all", "u1");
+    const postsKey = buildGraphQLResponseCacheKey("query { posts { id } }", {}, "all", "u1");
+    const authorsKey = buildGraphQLResponseCacheKey("query { authors { id } }", {}, "all", "u1");
+    const multiKey = buildGraphQLResponseCacheKey(
+      "query { posts { id } authors { id } }",
+      {},
+      "all",
+      "u1",
+    );
 
-    responseCache.set(key, { body: '{"data":["v1"]}', etag: '"g1"' }, 60_000, tenant);
-    expect(responseCache.get(key, tenant)?.body).toBe('{"data":["v1"]}');
+    responseCache.set(postsKey, { body: '{"data":["v1"]}', etag: '"g1"' }, 60_000, tenant);
+    responseCache.set(authorsKey, { body: '{"data":["a1"]}', etag: '"ga1"' }, 60_000, tenant);
+    responseCache.set(multiKey, { body: '{"data":["m1"]}', etag: '"gm1"' }, 60_000, tenant);
+    expect(responseCache.get(postsKey, tenant)?.body).toBe('{"data":["v1"]}');
+    expect(responseCache.get(authorsKey, tenant)?.body).toBe('{"data":["a1"]}');
+    expect(responseCache.get(multiKey, tenant)?.body).toBe('{"data":["m1"]}');
     const resident = responseCache.getL1ByteStats().listEntries;
 
-    cache.bumpCollectionEpoch("__graphql__", tenant);
+    // Single-collection GraphQL queries are scoped to their collection epoch so
+    // writing to `posts` rejects `posts` without evicting unrelated `authors`.
+    cache.bumpCollectionEpoch("posts", tenant);
 
-    expect(responseCache.get(key, tenant)).toBeNull();
+    expect(responseCache.get(postsKey, tenant)).toBeNull();
+    expect(responseCache.get(authorsKey, tenant)?.body).toBe('{"data":["a1"]}');
     expect(responseCache.getL1ByteStats().listEntries).toBe(resident - 1);
 
-    responseCache.set(key, { body: '{"data":["v2"]}', etag: '"g2"' }, 60_000, tenant);
-    expect(responseCache.get(key, tenant)?.body).toBe('{"data":["v2"]}');
+    // Multi-collection GraphQL queries fall back to the shared synthetic `__graphql__` scope.
+    cache.bumpCollectionEpoch("__graphql__", tenant);
+    expect(responseCache.get(multiKey, tenant)).toBeNull();
+
+    responseCache.set(postsKey, { body: '{"data":["v2"]}', etag: '"g2"' }, 60_000, tenant);
+    expect(responseCache.get(postsKey, tenant)?.body).toBe('{"data":["v2"]}');
   });
 
   it("leaves already-admitted point-read L1 hits outside the epoch fence", () => {
@@ -219,25 +238,134 @@ describe("Response cache read-after-write consistency (M2 residual)", () => {
     expect(responseCache.getL1ByteStats().pointEntries).toBe(resident);
   });
 
-  it("fences a GraphQL body that is no longer in the L1 index after any write", () => {
+  it("fences a multi-collection GraphQL body in L2 after any write while keeping other single-collection GraphQL intact", () => {
     const tenant = "m2-gql";
-    const key = buildGraphQLResponseCacheKey("query { posts { id } }", {}, "all", "u1");
+    const multiKey = buildGraphQLResponseCacheKey(
+      "query { posts { id } authors { id } }",
+      {},
+      "all",
+      "u1",
+    );
+    const authorsKey = buildGraphQLResponseCacheKey("query { authors { id } }", {}, "all", "u1");
 
-    responseCache.set(key, { body: '{"data":[]}', etag: '"g"' }, 60_000, tenant);
+    responseCache.set(multiKey, { body: '{"data":[]}', etag: '"gm"' }, 60_000, tenant);
     const l2Entry = lastL2Entry();
     expect(l2Entry.gen).toBe(0);
 
     responseCache.trimLocal();
+    responseCache.set(authorsKey, { body: '{"data":["a1"]}', etag: '"ga"' }, 60_000, tenant);
     cache.delete.mockClear();
 
-    // A write to ANY collection evicts every GraphQL body — the synthetic scope
-    // must move too, or an L2-only GraphQL body survives the invalidation.
+    // Writing `posts` bumps the synthetic `__graphql__` epoch for multi-collection
+    // queries left in L2, while single-collection `authors` remains cached.
     responseCache.invalidateLocal("posts", tenant);
     expect(epochs.get("__graphql__")).toBe(1);
+    expect(cache.delete).not.toHaveBeenCalledWith(`res:${authorsKey}`, tenant);
+    expect(responseCache.get(authorsKey, tenant)?.body).toBe('{"data":["a1"]}');
 
     cache.getSync.mockReturnValue(l2Entry);
+    expect(responseCache.get(multiKey, tenant)).toBeNull();
+    expect(cache.delete).toHaveBeenCalledWith(`res:${multiKey}`, tenant);
+  });
+
+  it("keeps strict M2 misses by default and serves bounded stale only on explicit Cache-Control opt-in", () => {
+    const tenant = "m2-opt-in-swr";
+    const key = listKey("posts", "?limit=5");
+
+    responseCache.set(key, { body: '{"v":1}', etag: '"1"' }, 60_000, tenant);
+    responseCache.invalidateLocal("posts", tenant);
+
+    // Strict read-after-write default: invalidated entry returns null.
     expect(responseCache.get(key, tenant)).toBeNull();
-    expect(cache.delete).toHaveBeenCalledWith(`res:${key}`, tenant);
+
+    // `no-cache` and `no-store` stay strict even when SWR is also present.
+    expect(
+      responseCache.get(key, tenant, false, {
+        stalePolicy: parseCacheControlStalePolicy("no-cache, stale-while-revalidate=30"),
+      }),
+    ).toBeNull();
+
+    // Explicit `stale-while-revalidate` opt-in serves the bounded stale snapshot.
+    const staleHit = responseCache.get(key, tenant, false, {
+      stalePolicy: parseCacheControlStalePolicy("max-age=60, stale-while-revalidate=30"),
+    });
+    expect(staleHit?.stale).toBe(true);
+    expect(staleHit?.body).toBe('{"v":1}');
+  });
+
+  it("patches resident pointL1 entries lazily in place while evicting projected or nested-object updates", () => {
+    const tenant = "m2-point-patch";
+    const id = "post-42";
+    const fullKey = buildUserResponseCacheKey(`/api/collections/posts/${id}`, "", "u1");
+    const projectedKey = buildUserResponseCacheKey(
+      `/api/collections/posts/${id}`,
+      "?fields=_id,title",
+      "u1",
+    );
+    const fullEntry: CachedResponseEntry = {
+      body: '{"success":true,"data":{"_id":"post-42","title":"Old","views":10,"status":"published"}}',
+      etag: '"post-42-1"',
+    };
+    const projectedEntry: CachedResponseEntry = {
+      body: '{"success":true,"data":{"_id":"post-42","title":"Old"}}',
+      etag: '"post-42-proj"',
+    };
+
+    // 2-touch admission for both full and projected point keys.
+    responseCache.set(fullKey, fullEntry, 60_000, tenant);
+    responseCache.set(fullKey, fullEntry, 60_000, tenant);
+    responseCache.set(projectedKey, projectedEntry, 60_000, tenant);
+    responseCache.set(projectedKey, projectedEntry, 60_000, tenant);
+
+    const beforeStats = responseCache.getL1ByteStats();
+    expect(beforeStats.pointEntries).toBe(2);
+    expect(beforeStats.pointBytes).toBe(beforeStats.recountPointBytes);
+
+    // Consecutive plain patches coalesce in pendingPatch without evicting fullKey,
+    // while projectedKey is evicted so partial-field projection stays accurate.
+    responseCache.invalidateLocal("posts", tenant, {
+      entryIds: [id],
+      entryPatches: {
+        [id]: {
+          patch: { views: 11, updatedAt: "2026-11-15T10:00:00.000Z" },
+          updatedAt: "2026-11-15T10:00:00.000Z",
+        },
+      },
+    });
+    responseCache.invalidateLocal("posts", tenant, {
+      entryIds: [id],
+      entryPatches: {
+        [id]: { patch: { views: 12, title: "New" }, updatedAt: "2026-11-15T10:00:00.000Z" },
+      },
+    });
+
+    expect(responseCache.get(projectedKey, tenant, true)).toBeNull();
+    const patchedHit = responseCache.getPoint(fullKey, tenant);
+    expect(patchedHit).not.toBeNull();
+    expect(patchedHit?.etag).not.toBe('"post-42-1"');
+    const parsed = JSON.parse(patchedHit!.body);
+    expect(parsed).toEqual({
+      success: true,
+      data: {
+        _id: "post-42",
+        title: "New",
+        views: 12,
+        status: "published",
+      },
+    });
+    const afterStats = responseCache.getL1ByteStats();
+    expect(afterStats.pointBytes).toBe(afterStats.recountPointBytes);
+
+    // Nested plain objects fall back to eviction because SQL json_patch may deep-merge.
+    responseCache.invalidateLocal("posts", tenant, {
+      entryIds: [id],
+      entryPatches: {
+        [id]: { patch: { seo: { title: "OnlyTitle" } }, updatedAt: "2026-11-15T10:00:01.000Z" },
+      },
+    });
+    expect(responseCache.getPoint(fullKey, tenant)).toBeNull();
+    expect(responseCache.getL1ByteStats().pointEntries).toBe(0);
+    expect(responseCache.getL1ByteStats().pointBytes).toBe(0);
   });
 
   it("scopes eviction to the written collection and tenant (c)", () => {

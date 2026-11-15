@@ -193,7 +193,7 @@ test.describe("Universal Accessibility Audits", () => {
     );
 
     // Run Axe audit
-    const results = await new AxeBuilder({ page })
+    const results = await new AxeBuilder({ page: page as never })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
       .analyze();
 
@@ -256,7 +256,9 @@ test.describe("Universal Accessibility Audits", () => {
     await waitForSettledOpacity(page, '[data-testid="edit-user-settings-btn"]');
 
     // 4. Run accessibility audit against the RTL layout
-    const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();
+    const results = await new AxeBuilder({ page: page as never })
+      .withTags(["wcag2a", "wcag2aa"])
+      .analyze();
 
     if (results.violations.length > 0) {
       console.warn("A11y violations in RTL layout:", JSON.stringify(results.violations, null, 2));

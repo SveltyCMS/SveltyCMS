@@ -42,6 +42,7 @@ import {
   hasGuardedFields,
 } from "@src/services/security/field-permission-service";
 import { getTurboAuthContext, serveTurboCacheEntry } from "./handle-turbo-get";
+import { parseCacheControlStalePolicy } from "@src/services/cache/stale-window";
 import {
   STASH_MAX_BYTES,
   STASH_MIN_BYTES,
@@ -774,18 +775,49 @@ async function executeWarmCollectionRead(
       rawSearch.includes("bypassCache=true") ||
       rawSearch.includes("stream=true"));
 
+  const ccHeader = !entryId && !maybeBypass ? event.request.headers.get("cache-control") : null;
+  const stalePolicy = ccHeader ? parseCacheControlStalePolicy(ccHeader) : null;
+
   const srvT0 = STAMP_SRV_DUR || STAMP_SRV_SPLIT ? performance.now() : 0;
   const marks = STAMP_SRV_SPLIT ? new Map<string, number>() : null;
   const cached = maybeBypass
     ? null
     : entryId
       ? responseCache.getPoint(pathKey, cacheTenant)
-      : responseCache.get(pathKey, cacheTenant, false);
+      : responseCache.get(
+          pathKey,
+          cacheTenant,
+          false,
+          stalePolicy?.enabled ? { stalePolicy } : undefined,
+        );
   marks?.set("lookup", performance.now() - srvT0);
   if (cached?.body) {
-    const res = serveTurboCacheEntry(event, cached);
+    const res = serveTurboCacheEntry(event, cached, stalePolicy);
     stampSrvDur(res.headers, srvT0);
-    if (!entryId && !cached.compressed) {
+    if (
+      cached.stale &&
+      stalePolicy?.enabled &&
+      responseCache.tryAcquireSwrRefresh(pathKey, cacheTenant)
+    ) {
+      const swrParams = url.search
+        ? parseCollectionQueryParams(url.searchParams)
+        : (DEFAULT_EMPTY_COLLECTION_QUERY_PARAMS as CollectionQueryParams);
+      if (!swrParams.stream && swrParams.limit < MAX_PAGE_SIZE) {
+        void coalesceCollectionRefill(
+          event,
+          pathKey,
+          cacheTenant,
+          collectionId,
+          null,
+          swrParams,
+          null,
+        )
+          .catch(() => {})
+          .finally(() => responseCache.releaseSwrRefresh(pathKey, cacheTenant));
+      } else {
+        responseCache.releaseSwrRefresh(pathKey, cacheTenant);
+      }
+    } else if (!entryId && !cached.compressed) {
       // Lazy variant warm-up for LISTS only: the first re-hit is the proof that
       // a list key is actually re-read, so compressing it off the request path
       // pays for itself on later hits. Point reads are high-cardinality — a
@@ -1092,6 +1124,8 @@ async function rebuildWarmCollectionRead(
         bypassCache: listParams!.bypassCache,
         populate: listParams!.populate,
         fields: listParams!.fields,
+        skipCacheService: true,
+        skipAdminEnvelope: true,
       });
   marks?.set("db", performance.now() - dbT0);
   const buildT0 = marks ? performance.now() : 0;

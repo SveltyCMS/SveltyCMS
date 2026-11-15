@@ -154,6 +154,10 @@ export interface FindOptions extends LocalApiOptions {
   sort?: SortSpec | SortDescriptor;
   fields?: string[];
   staleTtl?: number;
+  /** Skip reading/writing the SDK-level cacheService when the caller (e.g. HTTP read lane) caches the final wire response in responseCache. */
+  skipCacheService?: boolean;
+  /** Skip cloning/attaching `collectionSchema` onto the envelope for wire-only REST/GraphQL callers. */
+  skipAdminEnvelope?: boolean;
 }
 
 /** Options accepted by `search()`. */
@@ -247,6 +251,7 @@ function normalizeFilterOperators(f: Record<string, unknown>): Record<string, un
 }
 
 const clientSchemaMemo = new WeakMap<object, Schema>();
+let resolvedPluginRegistry: Awaited<ReturnType<typeof getPluginRegistryLazy>> | null = null;
 
 /**
  * Count rows a list/filter would match, with the same normalization, relation
@@ -585,24 +590,34 @@ export async function executeFind(
   const schema = options.collection ?? (await ctx.schemaOf(collectionId, tenantId));
   const plan: CollectionExecutionPlan = getCollectionExecutionPlan(schema);
 
-  let inputFilter: Record<string, unknown> = { ...filter };
-  if (editEntryId) {
-    inputFilter._id = editEntryId;
-  }
-  inputFilter = normalizeFilterOperators(inputFilter);
+  const hasFilterKeys =
+    Boolean(filter) && typeof filter === "object" && Object.keys(filter).length > 0;
+  let inputFilter: Record<string, unknown>;
+  if (hasFilterKeys || editEntryId) {
+    inputFilter = { ...filter };
+    if (editEntryId) {
+      inputFilter._id = editEntryId;
+    }
+    inputFilter = normalizeFilterOperators(inputFilter);
 
-  if (options.validateFilter === true) {
-    assertFilterableFields(schema, inputFilter);
-    inputFilter = coerceFilterValues(schema, inputFilter);
+    if (options.validateFilter === true) {
+      assertFilterableFields(schema, inputFilter);
+      inputFilter = coerceFilterValues(schema, inputFilter);
+    }
+  } else {
+    inputFilter = {};
   }
   const guarded = blockedGuardedNames(schema, options.user, options.system);
-  const normalizedFilter = stripGuardedFilter(
-    normalizeRelationshipFilter(inputFilter) as Record<string, unknown> & {
-      $or?: unknown[];
-      $and?: unknown[];
-    },
-    guarded,
-  );
+  const normalizedFilter =
+    hasFilterKeys || editEntryId || guarded
+      ? stripGuardedFilter(
+          normalizeRelationshipFilter(inputFilter) as Record<string, unknown> & {
+            $or?: unknown[];
+            $and?: unknown[];
+          },
+          guarded,
+        )
+      : inputFilter;
   const ownership = ownershipFilter(schema, options.user, options.system);
   if (ownership === null) return { success: true, data: [] };
   const accessConstraint = getReadConstraint(schema.name || String(schema._id), {
@@ -791,22 +806,24 @@ export async function executeFind(
     : (sort ?? defaultListSortOption());
 
   const skipRequestCache = bypassCache || options.bypassRequestCache === true;
-  const cacheKey = keysetMode
-    ? null
-    : buildFindCacheKey({
-        schemaId: schema._id as string,
-        tenantId,
-        filter,
-        query,
-        limit,
-        offset,
-        sort,
-        decodedCursor,
-        effectiveFilter: effectivePublicationFilter,
-        skipRequestCache,
-        bypassCache,
-        options: options as unknown as BuildFindCacheKeyParams["options"],
-      });
+  const skipCacheService = options.skipCacheService === true;
+  const cacheKey =
+    keysetMode || skipCacheService
+      ? null
+      : buildFindCacheKey({
+          schemaId: schema._id as string,
+          tenantId,
+          filter,
+          query,
+          limit,
+          offset,
+          sort,
+          decodedCursor,
+          effectiveFilter: effectivePublicationFilter,
+          skipRequestCache,
+          bypassCache,
+          options: options as unknown as BuildFindCacheKeyParams["options"],
+        });
 
   const shouldCount =
     !keysetMode &&
@@ -936,12 +953,13 @@ export async function executeFind(
           label: schema.label,
         };
         (schema as { _collectionMeta?: unknown })._collectionMeta = collectionMeta;
-        data = (data as Array<Record<string, unknown>>).map((item) => {
+        const rows = data as Array<Record<string, unknown>>;
+        for (let i = 0; i < rows.length; i++) {
+          const item = rows[i];
           if (item) {
-            return { ...item, _collection: collectionMeta };
+            item._collection = collectionMeta;
           }
-          return item;
-        });
+        }
       }
     }
 
@@ -976,7 +994,8 @@ export async function executeFind(
 
     if (!editEntryId && res.success && data.length > 0) {
       try {
-        const pluginRegistry = await getPluginRegistryLazy();
+        const pluginRegistry =
+          resolvedPluginRegistry ?? (resolvedPluginRegistry = await getPluginRegistryLazy());
         if (pluginRegistry.hasAnySSRHook()) {
           const hooks = await pluginRegistry.getSSRHooks(String(schema._id), tenantId, schema);
           if (hooks.length > 0) {
@@ -1040,12 +1059,6 @@ export async function executeFind(
       }
     }
 
-    let clientSchema = clientSchemaMemo.get(schema);
-    if (!clientSchema) {
-      clientSchema = deepClone(schema) as Schema;
-      clientSchemaMemo.set(schema, clientSchema);
-    }
-
     const envelope: Record<string, unknown> = {
       ...res,
       data,
@@ -1066,7 +1079,14 @@ export async function executeFind(
     }
     if (revisions !== undefined) envelope.revisions = revisions;
     if (language !== undefined) envelope.contentLanguage = language;
-    envelope.collectionSchema = clientSchema;
+    if (options.skipAdminEnvelope !== true) {
+      let clientSchema = clientSchemaMemo.get(schema);
+      if (!clientSchema) {
+        clientSchema = deepClone(schema) as Schema;
+        clientSchemaMemo.set(schema, clientSchema);
+      }
+      envelope.collectionSchema = clientSchema;
+    }
 
     return envelope;
   };

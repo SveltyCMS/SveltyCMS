@@ -507,7 +507,7 @@ function stubServerModulesPlugin(): Plugin {
 
 /**
  * API-only production build (`SVELTY_API_ONLY=1`).
- * Admin route modules under `(app)` and `(admin)` resolve to one 404 stub so
+ * Admin route modules under `(app)` resolve to one 404 stub so
  * the admin pages and the components only they import stay out of the bundle.
  * API, login, setup, and the public site stay. Off unless the env var is set.
  */
@@ -517,7 +517,7 @@ function apiOnlyRouteStubPlugin(): Plugin {
     enforce: "pre",
     load(id) {
       const nid = id.replace(/\\/g, "/");
-      if (!nid.includes("/routes/(app)/") && !nid.includes("/routes/(admin)/")) {
+      if (!nid.includes("/routes/(app)/")) {
         return null;
       }
       const match = nid.match(/\/\+(page|layout|error)(?:\.server)?\.(svelte|ts|js)$/);

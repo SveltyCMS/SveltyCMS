@@ -196,11 +196,14 @@ export class SqliteWireStreamEngine {
           dataExpr = `json_set(COALESCE("data", '{}')${overrides.map((o) => `, ${o}`).join("")})`;
         }
 
-        const subSelect = `SELECT ${dataExpr} AS doc, ${updatedAtSelect} AS updated_at FROM ${quoted}`;
         const wrap = (wherePart: string) => `
-          SELECT coalesce(json_group_array(json(doc)), '[]') AS wire_body,
-                 coalesce(max(updated_at), 0) AS max_updated_at
-          FROM (${subSelect} ${wherePart ? `WHERE ${wherePart}` : ""} ${orderClause} LIMIT ? OFFSET ?);
+          SELECT coalesce(json_group_array(json(${dataExpr})), '[]') AS wire_body,
+                 coalesce(max(${updatedAtSelect}), 0) AS max_updated_at
+          FROM (
+            SELECT * FROM ${quoted}
+            ${wherePart ? `WHERE ${wherePart}` : ""}
+            ${orderClause} LIMIT ? OFFSET ?
+          );
         `;
 
         const delOnly = hasDeletedCol ? `"isDeleted" = 0` : "";

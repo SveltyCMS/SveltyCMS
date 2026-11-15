@@ -34,14 +34,7 @@ this page (see `docs/reference/security/threat-models.mdx`).
 | **Information disclosure** — a GraphQL data operation names another tenant | `src/routes/api/graphql/resolvers/data-operations.ts`                                                   | `resolveGraphQLTenant()` rejects a `tenantId` argument that differs from the session tenant unless the caller is `super-admin` — the same rule the REST routes apply in `handlers/system/system-shared.ts` (`resolveRequestTenant`). A multi-tenant deployment with no session tenant fails closed instead of trusting the argument; single-tenant behaviour is unchanged. | Mutations and queries outside this resolver set keep their own checks; the gate covers the 15 fields that accept `tenantId`. |
 | **Tampering** — a test reset leaves stale in-memory authorization state    | `src/routes/api/[...path]/handlers/testing/testing-shared.ts`                                           | Reset invalidates the user-count and role caches, clears the content/schema stores and hard-clears the settings snapshot before the wiped DB is read again.                                                                                                                                                                                                                | Reachable only under `TEST_MODE` with the timing-safe test secret; production builds strip the handler.                      |
 
-## Review note (2026-11-11)
-
-The SCIM handler (`src/routes/api/[...path]/handlers/scim.ts`) hardened three
-500 paths: `PATCH /Groups` now accepts a single-object or absent `value`
-(RFC 7644 §3.5.2) instead of throwing, `PATCH`/`PUT /Users` answer 404 when the
-row disappears between the write and the re-read, and `PUT` no longer writes an
-absent field as `undefined`. No dispatch or endpoint-permission rule changed;
-`ENDPOINT_PERMISSIONS` is unchanged.
+| **Information disclosure** — stale or cross-collection cached bodies | `src/hooks/handle-turbo-get.ts`, `src/hooks/fast-lane.server.ts`, `src/routes/api/graphql/+server.ts` | Read-After-Write consistency is the default; bounded stale responses require an explicit `Cache-Control` `stale-while-revalidate` or `max-stale` directive (`parseCacheControlStalePolicy`, clamped to `MAX_STALE_WINDOW_MS`, failing closed on `no-store`, `no-cache`, or `max-age=0`). Single-collection GraphQL queries scope cache epochs and L2 tags to their canonical collection ID, while multi-collection, nested, or system queries use `__graphql__` / `res:graphql`. `POST /api/graphql` fast-lane dispatch (`graphqlWriteLane` → `tryGraphqlWriteLane` → `tryGraphqlFastPath`) keeps unread-body fall-through on decline, full session/RBAC/tenant checks, and preapplied security headers. | Revalidation relies on background refresh after a stale hit when opted in via `Cache-Control`; callers omitting stale directives receive strict generation checks only. |
 
 ## Assumptions
 

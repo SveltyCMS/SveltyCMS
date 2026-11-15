@@ -11,19 +11,27 @@
 
 import { describe, expect, it, vi } from "vitest";
 import { handleDashboardRoutes } from "../../../src/routes/api/[...path]/handlers/dashboard";
+import { handleDatabaseRoutes } from "../../../src/routes/api/[...path]/handlers/system/system-database";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 
 const TENANT = "t1" as DatabaseId;
 
-function fakeEvent(action: string) {
+function fakeEvent(action: string, isAdmin = true) {
   const url = new URL(`http://localhost/api/dashboard/${action}`);
-  return { url, request: new Request(url), locals: {} } as never;
+  return {
+    url,
+    request: new Request(url),
+    locals: { isAdmin, user: { _id: "admin-1", role: isAdmin ? "admin" : "editor" } },
+  } as never;
 }
 
 /** CMS stub: the widget's action is the only thing that reads it. */
 function cmsWithSearch(items: unknown[]) {
   return {
+    db: {
+      isConnected: vi.fn(async () => true),
+    },
     collections: {
       search: vi.fn(async () => ({ items, total: items.length, page: 1, pageSize: 5 })),
     },
@@ -55,5 +63,51 @@ describe("last5-content dashboard widget", () => {
     // The widget would render empty either way — the difference is that this is a
     // named 404 instead of a silent empty list.
     expect(cms.collections.search).not.toHaveBeenCalled();
+  });
+});
+
+describe("monitoring widgets resilience", () => {
+  it("serves health safely even when db is disconnected", async () => {
+    const cms = {
+      db: { isConnected: vi.fn(async () => false) },
+    } as unknown as LocalCMS;
+
+    const res = await handleDashboardRoutes(fakeEvent("health"), cms, TENANT, [
+      "dashboard",
+      "health",
+    ]);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body.status).toBe("degraded");
+    expect(body.database).toBe("disconnected");
+  });
+
+  it("serves system-messages fallback when audit service is empty", async () => {
+    const cms = {} as unknown as LocalCMS;
+    const res = await handleDashboardRoutes(fakeEvent("system-messages"), cms, TENANT, [
+      "dashboard",
+      "system-messages",
+    ]);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Array<Record<string, unknown>>;
+    expect(Array.isArray(body)).toBe(true);
+    expect(body.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("serves database pool-diagnostics without licensing block", async () => {
+    const cms = { db: {} } as unknown as LocalCMS;
+    const url = new URL("http://localhost/api/database/pool-diagnostics");
+    const event = {
+      url,
+      request: new Request(url),
+      locals: { isAdmin: true, user: { _id: "admin-1", role: "admin" } },
+    } as never;
+
+    const res = await handleDatabaseRoutes(event, cms, TENANT, ["database", "pool-diagnostics"]);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { success: boolean; data: Record<string, unknown> };
+    expect(body.success).toBe(true);
+    expect(body.data).toHaveProperty("totalConnections");
+    expect(body.data).toHaveProperty("healthStatus");
   });
 });

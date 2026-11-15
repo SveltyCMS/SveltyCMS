@@ -276,7 +276,10 @@ function finishWarmWrite(
   t0: number,
   headersPreapplied = false,
 ): Response {
-  if (!headersPreapplied) {
+  const alreadyApplied =
+    headersPreapplied ||
+    (res as unknown as { __securityHeadersApplied?: boolean }).__securityHeadersApplied === true;
+  if (!alreadyApplied) {
     res.headers.set("x-svelty-lane", RequestLane.API_WRITE);
     applyAllSecurityHeaders(
       res.headers,
@@ -653,6 +656,13 @@ export const tryGraphqlWriteLane: Handle = async ({ event, resolve }) => {
         if (mutP) await mutP;
         marks?.set("security", performance.now() - tSec);
         const post = await loadGraphqlPost();
+        (
+          event.locals as { __graphqlSecurityHeaders?: Record<string, string> }
+        ).__graphqlSecurityHeaders = getWriteHeaderTemplate(
+          event.url.protocol === "https:",
+          event.request.headers.get("Origin"),
+          true,
+        );
         const res = await post(event);
         return finishWarmWrite(event, res, marks, srvT0, srvT0);
       },

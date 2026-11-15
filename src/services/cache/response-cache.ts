@@ -17,6 +17,12 @@
 
 import * as nodeCrypto from "node:crypto";
 import { cacheService } from "@src/databases/cache/cache-service";
+import {
+  MAX_STALE_WINDOW_MS,
+  shouldServeStale,
+  type StaleWindowPolicy,
+} from "@src/services/cache/stale-window";
+import { versionTokenString } from "@utils/optimistic-lock";
 import { testWorkerContext } from "@src/utils/test-worker-context";
 import { isAutomatedTestHarness } from "@utils/private-config-policy";
 import { getHardwareProfile } from "@utils/hardware-profile";
@@ -61,10 +67,12 @@ export interface CachedResponseEntry {
   /** L1/L2 expiration timestamp in ms — persisted so promoted entries expire too. */
   expiresAt?: number;
   /**
-   * List/GraphQL turbo body kept after a write so mixed/soak GETs stay on the
+   * List/GraphQL turbo body kept after a write so opt-in SWR readers stay on the
    * HIT path. Point-reads of the written id are still dropped (not marked stale).
    */
   stale?: boolean;
+  /** Epoch-invalidation timestamp (ms) used to evaluate bounded SWR windows. */
+  invalidatedAt?: number;
   /**
    * Collection generation captured when the body was written (never set on
    * point-reads). A list/GraphQL body can outlive its L1 slot — capacity-gated
@@ -74,6 +82,12 @@ export interface CachedResponseEntry {
    * refill is what stops a superseded list from being served or resurrected.
    */
   gen?: number;
+  /**
+   * Queued scalar/array field updates attached by an in-process `update` on a
+   * plain collection. Avoids evicting warm `pointL1` entries and avoids eager
+   * JSON parse/stringify on write-heavy bursts — applied lazily on the next hit.
+   */
+  pendingPatch?: Record<string, unknown>;
 }
 
 /** 31-bit zero-allocation positive Smi hash for point admission tracking. */
@@ -95,6 +109,13 @@ const textEncoder = typeof TextEncoder !== "undefined" ? new TextEncoder() : nul
 const MAX_L1_ENTRIES = 2000;
 /** Point-reads (findById / findByIdRandom) — separate FIFO so a scan cannot evict lists. */
 const MAX_POINT_L1_ENTRIES = 2000;
+/** Bounded FIFO holding superseded list/GraphQL bodies for opt-in SWR callers. */
+const MAX_STALE_L1_ENTRIES = 256;
+const DEFAULT_STALE_WINDOW_POLICY: StaleWindowPolicy = {
+  windowMs: MAX_STALE_WINDOW_MS,
+  enabled: true,
+  source: "default",
+};
 /**
  * Bound for the point tier's admission filter (2-touch): ids seen once but not twice are
  * remembered here until the oldest entry falls out, so a cold random scan costs at most
@@ -295,6 +316,246 @@ export function getGraphQLResponseKeyMemoStats(): {
   };
 }
 
+/** Optional canonical root-field → collection `_id` mapper supplied by GraphQL runtime. */
+let graphqlCollectionResolver:
+  | ((rootField: string, tenantId?: string | null) => string | null | undefined)
+  | null = null;
+
+/**
+ * Register a runtime mapper from GraphQL root field name (e.g. `Posts` /
+ * `Posts_collec`) to canonical collection `_id` (`posts` / `collection_posts`).
+ * Clears the key memo so subsequent lookups emit consistent `&c=` scopes.
+ */
+export function setGraphqlCollectionResolver(
+  resolver: ((rootField: string, tenantId?: string | null) => string | null | undefined) | null,
+): void {
+  graphqlCollectionResolver = resolver;
+  clearGraphQLResponseKeyMemo();
+}
+
+const EXCLUDED_GRAPHQL_ROOTS = new Set(["allCollections"]);
+
+function skipGraphqlTrivia(src: string, start: number): number {
+  const n = src.length;
+  let i = start;
+  while (i < n) {
+    const ch = src.charCodeAt(i);
+    if (ch === 32 || ch === 9 || ch === 10 || ch === 13 || ch === 44) {
+      i++;
+      continue;
+    }
+    if (ch === 35 /* '#' */) {
+      const nl = src.indexOf("\n", i + 1);
+      i = nl < 0 ? n : nl + 1;
+      continue;
+    }
+    break;
+  }
+  return i;
+}
+
+function skipGraphqlString(src: string, start: number): number {
+  const n = src.length;
+  // Block string """..."""
+  if (src.charCodeAt(start + 1) === 34 && src.charCodeAt(start + 2) === 34) {
+    let i = start + 3;
+    while (i < n) {
+      if (src.charCodeAt(i) === 92 /* '\\' */) {
+        i += 2;
+        continue;
+      }
+      if (
+        src.charCodeAt(i) === 34 &&
+        src.charCodeAt(i + 1) === 34 &&
+        src.charCodeAt(i + 2) === 34
+      ) {
+        return i + 3;
+      }
+      i++;
+    }
+    return n;
+  }
+  let i = start + 1;
+  while (i < n) {
+    const ch = src.charCodeAt(i);
+    if (ch === 92 /* '\\' */) {
+      i += 2;
+      continue;
+    }
+    if (ch === 34 /* '"' */ || ch === 10 || ch === 13) return i + 1;
+    i++;
+  }
+  return n;
+}
+
+function readGraphqlName(src: string, start: number): { name: string; next: number } | null {
+  const n = src.length;
+  if (start >= n) return null;
+  const first = src.charCodeAt(start);
+  const isFirstOk = first === 95 || (first >= 65 && first <= 90) || (first >= 97 && first <= 122);
+  if (!isFirstOk) return null;
+  let i = start + 1;
+  while (i < n) {
+    const ch = src.charCodeAt(i);
+    if (ch === 95 || (ch >= 65 && ch <= 90) || (ch >= 97 && ch <= 122) || (ch >= 48 && ch <= 57)) {
+      i++;
+      continue;
+    }
+    break;
+  }
+  return { name: src.slice(start, i), next: i };
+}
+
+/**
+ * Extract the single top-level GraphQL collection root field when a query cleanly
+ * touches only one root selection with flat field leaves.
+ *
+ * Returns `null` conservatively for mutations, multi-root queries, nested
+ * selection sets (potential cross-collection relations), fragment spreads,
+ * introspection (`__schema`/`__type`), or unparseable syntax so callers fall back
+ * to the global `__graphql__` scope.
+ */
+export function extractGraphqlRootCollection(query: string): string | null {
+  if (!query) return null;
+  const n = query.length;
+  let i = skipGraphqlTrivia(query, 0);
+  if (i >= n) return null;
+
+  if (query.charCodeAt(i) !== 123 /* '{' */) {
+    const op = readGraphqlName(query, i);
+    if (!op || op.name !== "query") return null;
+    i = skipGraphqlTrivia(query, op.next);
+    // Optional operation name
+    if (
+      i < n &&
+      query.charCodeAt(i) !== 40 &&
+      query.charCodeAt(i) !== 64 &&
+      query.charCodeAt(i) !== 123
+    ) {
+      const opName = readGraphqlName(query, i);
+      if (!opName) return null;
+      i = skipGraphqlTrivia(query, opName.next);
+    }
+    // Optional variable definitions (...) / operation directives until '{'
+    let headerParen = 0;
+    while (i < n) {
+      i = headerParen === 0 ? skipGraphqlTrivia(query, i) : i;
+      if (i >= n) return null;
+      const ch = query.charCodeAt(i);
+      if (ch === 34) {
+        i = skipGraphqlString(query, i);
+        continue;
+      }
+      if (ch === 40 /* '(' */) {
+        headerParen++;
+        i++;
+        continue;
+      }
+      if (ch === 41 /* ')' */) {
+        headerParen--;
+        if (headerParen < 0) return null;
+        i++;
+        continue;
+      }
+      if (headerParen === 0 && ch === 123 /* '{' */) break;
+      i++;
+    }
+    if (i >= n || headerParen !== 0 || query.charCodeAt(i) !== 123) return null;
+  }
+
+  // Enter root selection set `{` (braceDepth = 1)
+  i++;
+  let rootField: string | null = null;
+  let parenDepth = 0;
+  let braceDepth = 1;
+
+  while (i < n) {
+    i = skipGraphqlTrivia(query, i);
+    if (i >= n) return null;
+    const ch = query.charCodeAt(i);
+    if (ch === 125 /* '}' */) {
+      i++;
+      braceDepth = 0;
+      break;
+    }
+    // A second root selection or fragment spread cannot be scoped to one collection.
+    if (rootField !== null || ch === 46 /* '.' */) return null;
+
+    const tok1 = readGraphqlName(query, i);
+    if (!tok1) return null;
+    i = skipGraphqlTrivia(query, tok1.next);
+    let fieldName = tok1.name;
+    if (i < n && query.charCodeAt(i) === 58 /* ':' */) {
+      i = skipGraphqlTrivia(query, i + 1);
+      const tok2 = readGraphqlName(query, i);
+      if (!tok2) return null;
+      fieldName = tok2.name;
+      i = skipGraphqlTrivia(query, tok2.next);
+    }
+    if (fieldName.startsWith("__") || EXCLUDED_GRAPHQL_ROOTS.has(fieldName)) {
+      return null;
+    }
+    rootField = fieldName;
+
+    // Scan root field's arguments/directives and optional selection set.
+    let enteredSelection = false;
+    while (i < n) {
+      const c = query.charCodeAt(i);
+      if (c === 34 /* '"' */) {
+        i = skipGraphqlString(query, i);
+        continue;
+      }
+      if (c === 35 /* '#' */) {
+        const nl = query.indexOf("\n", i + 1);
+        i = nl < 0 ? n : nl + 1;
+        continue;
+      }
+      if (c === 40 /* '(' */) {
+        parenDepth++;
+        i++;
+        continue;
+      }
+      if (c === 41 /* ')' */) {
+        parenDepth--;
+        if (parenDepth < 0) return null;
+        i++;
+        continue;
+      }
+      if (parenDepth === 0) {
+        if (c === 46 && query.charCodeAt(i + 1) === 46 && query.charCodeAt(i + 2) === 46) {
+          return null;
+        }
+        if (c === 123 /* '{' */) {
+          braceDepth++;
+          if (braceDepth >= 3) {
+            // Nested selection set (e.g. inverse relation `author { name }`)
+            return null;
+          }
+          enteredSelection = true;
+          i++;
+          continue;
+        }
+        if (c === 125 /* '}' */) {
+          if (enteredSelection) {
+            braceDepth--;
+            i++;
+            if (braceDepth === 1) break;
+            continue;
+          }
+          // Root field had no `{ ... }` selection set; this '}' closes root `{`.
+          break;
+        }
+      }
+      i++;
+    }
+    if (parenDepth !== 0 || braceDepth !== 1) return null;
+  }
+
+  if (braceDepth !== 0 || !rootField) return null;
+  const rest = skipGraphqlTrivia(query, i);
+  return rest >= n ? rootField : null;
+}
+
 /** Clear the memo — used by tests and tenant-aware invalidation tooling. */
 export function clearGraphQLResponseKeyMemo(): void {
   graphqlResponseKeyMemo.clear();
@@ -307,9 +568,10 @@ function graphqlMemoKey(
   rawVariables: string,
   publicationFilter: string,
   normalizedUserId: string | null,
+  scopeKey: string,
 ): string {
   // NUL is not valid in a GraphQL document, so it is a safe tuple separator.
-  return `${rawQuery}\u0000${rawVariables}\u0000${publicationFilter}\u0000${normalizedUserId ?? ""}`;
+  return `${rawQuery}\u0000${rawVariables}\u0000${publicationFilter}\u0000${normalizedUserId ?? ""}\u0000${scopeKey}`;
 }
 
 function hasAnyProperty(obj: Record<string, unknown>): boolean {
@@ -319,11 +581,33 @@ function hasAnyProperty(obj: Record<string, unknown>): boolean {
   return false;
 }
 
+function resolveEffectiveGraphqlScope(
+  query: string,
+  collectionScope: string | null | undefined,
+  tenantId: string | null | undefined,
+): string | null {
+  if (collectionScope === null) return null;
+  if (typeof collectionScope === "string") {
+    return collectionScope && collectionScope !== GRAPHQL_CACHE_SCOPE ? collectionScope : null;
+  }
+  const rootField = extractGraphqlRootCollection(query);
+  if (!rootField) return null;
+  if (graphqlCollectionResolver) {
+    const resolved = graphqlCollectionResolver(rootField, tenantId);
+    if (resolved !== undefined) {
+      return resolved && resolved !== GRAPHQL_CACHE_SCOPE ? resolved : null;
+    }
+  }
+  return rootField;
+}
+
 export function buildGraphQLResponseCacheKey(
   query: string,
   variables?: unknown,
   publicationFilter = "all",
   userId?: unknown,
+  collectionScope?: string | null,
+  tenantId?: string | null,
 ): string {
   const normalizedUserId = userId ? String(userId) : null;
   const rawVariables =
@@ -333,7 +617,15 @@ export function buildGraphQLResponseCacheKey(
         ? JSON.stringify(variables)
         : "";
 
-  const memoKey = graphqlMemoKey(query, rawVariables, publicationFilter, normalizedUserId);
+  const resolvedScope = resolveEffectiveGraphqlScope(query, collectionScope, tenantId);
+  const scopeSegment = resolvedScope ?? "";
+  const memoKey = graphqlMemoKey(
+    query,
+    rawVariables,
+    publicationFilter,
+    normalizedUserId,
+    scopeSegment,
+  );
   const memoized = graphqlResponseKeyMemo.get(memoKey);
   if (memoized !== undefined) {
     graphqlResponseKeyMemoHits++;
@@ -357,7 +649,10 @@ export function buildGraphQLResponseCacheKey(
     varsStr = JSON.stringify(deepSortKeys(varsObj));
   }
   const queryHash = hashStr(`${query}:${varsStr}:${publicationFilter}`);
-  const key = buildUserResponseCacheKey("/api/graphql", `?q=${queryHash}`, normalizedUserId);
+  const search = resolvedScope
+    ? `?q=${queryHash}&c=${encodeURIComponent(resolvedScope)}`
+    : `?q=${queryHash}`;
+  const key = buildUserResponseCacheKey("/api/graphql", search, normalizedUserId);
 
   if (graphqlResponseKeyMemo.size >= GRAPHQL_RESPONSE_KEY_MEMO_MAX) {
     const oldest = graphqlResponseKeyMemo.keys().next().value;
@@ -411,6 +706,19 @@ export function classifyTurboKey(key: string): TurboKeyClass | null {
     key.startsWith("/api/graphql", apiIdx) &&
     (apiIdx + 12 === end || key.charCodeAt(apiIdx + 12) === 47)
   ) {
+    if (q >= 0) {
+      let cIdx = key.indexOf("&c=", q);
+      if (cIdx < 0) cIdx = key.indexOf("?c=", q);
+      if (cIdx >= 0) {
+        const valStart = cIdx + 3;
+        const amp = key.indexOf("&", valStart);
+        const rawCol = amp < 0 ? key.slice(valStart) : key.slice(valStart, amp);
+        const col = rawCol.includes("%") ? decodeURIComponent(rawCol) : rawCol;
+        if (col && col !== GRAPHQL_CACHE_SCOPE) {
+          return { graphql: true, collection: col };
+        }
+      }
+    }
     return { graphql: true };
   }
 
@@ -473,6 +781,21 @@ export function collectionResponseCacheTags(
   return { tags, skipSharedL1: false };
 }
 
+export interface PointEntryPatch {
+  patch: Record<string, unknown>;
+  updatedAt?: string;
+}
+
+const POINT_PATCH_DROP_ALWAYS = new Set<string>([
+  "_collection",
+  "tenantId",
+  "createdAt",
+  "updatedAt",
+  "isDeleted",
+]);
+
+const POINT_PATCH_DROP_WHEN_NULL = new Set<string>(["collection", "locale", "publishedAt"]);
+
 export interface InvalidateLocalOpts {
   /**
    * The documents actually written. Lists and GraphQL bodies are ALWAYS evicted
@@ -482,12 +805,28 @@ export interface InvalidateLocalOpts {
    * collection point tier (bulk/unknown write).
    */
   entryIds?: Iterable<string>;
+  /**
+   * Optional per-id field patches to merge lazily into already-resident
+   * `pointL1` entries instead of evicting them. Only supplied for safe plain
+   * updates (no hooks/encryption/relations/status-transition/nested objects).
+   */
+  entryPatches?: Record<string, PointEntryPatch>;
+}
+
+export interface ResponseCacheGetOptions {
+  /**
+   * Bounded SWR policy parsed from HTTP `Cache-Control`. Strict Read-After-Write
+   * (disabled) stays the default when omitted.
+   */
+  stalePolicy?: StaleWindowPolicy;
+  /** Convenience shorthand when a caller wants the default bounded stale window. */
+  allowStale?: boolean;
 }
 
 /**
- * Synthetic epoch scope for GraphQL bodies. A GraphQL document can span any
- * number of collections, so every write invalidates all of them; the epoch is
- * the only way to fence a GraphQL L2 body that is no longer in `graphqlIndex`.
+ * Fallback epoch scope for multi-collection or unparsed GraphQL queries.
+ * Single-collection GraphQL queries are scoped by their canonical collection ID
+ * so writes to unrelated collections never evict them.
  */
 const GRAPHQL_CACHE_SCOPE = "__graphql__";
 
@@ -495,6 +834,12 @@ class ResponseCacheService {
   private localL1 = new Map<string, CachedResponseEntry>();
   /** Dedicated FIFO for `/:entryId` turbo keys — first set admits (if body then HIT). */
   private pointL1 = new Map<string, CachedResponseEntry>();
+  /** Bounded FIFO retaining recently invalidated list/GraphQL bodies for opt-in SWR callers. */
+  private staleL1 = new Map<string, CachedResponseEntry>();
+  /** Single-flight set of `fullKey`s currently running background SWR refreshes. */
+  private swrRevalidating = new Set<string>();
+  /** Monotonic sequence to guarantee unique ETags on same-ms in-place point patches. */
+  private pointPatchSeq = 0;
   /**
    * Admission filter (2-touch) for the point tier: an id must be seen twice before it
    * takes a slot.
@@ -644,9 +989,12 @@ class ResponseCacheService {
   }
 
   /** Epoch scope a classified key belongs to, or null when it is not fenced. */
-  private generationScope(slot: TurboKeyClass | null): string | null {
+  private generationScope(
+    slot: { graphql: boolean; collection?: string; entryId?: string } | null,
+  ): string | null {
     if (!slot || slot.entryId) return null;
-    return slot.graphql ? GRAPHQL_CACHE_SCOPE : (slot.collection ?? null);
+    if (slot.collection) return slot.collection;
+    return slot.graphql ? GRAPHQL_CACHE_SCOPE : null;
   }
 
   /**
@@ -685,8 +1033,7 @@ class ResponseCacheService {
     // back to the key shape rather than silently skipping the fence. Never taken
     // by a body that was stamped through `set()`.
     if (!meta) return this.generationMatches(entry, key, tenantId);
-    if (meta.entryId) return true;
-    const scope = meta.graphql ? GRAPHQL_CACHE_SCOPE : (meta.collection ?? null);
+    const scope = this.generationScope(meta);
     if (scope === null) return true;
     return entry.gen === cacheService.getCollectionEpoch(scope, tenantId);
   }
@@ -714,10 +1061,11 @@ class ResponseCacheService {
     };
     this.l1Meta.set(fullKey, meta);
     if (slot.graphql) {
-      let set = this.graphqlIndex.get(tenant);
+      const gk = `${tenant}\0${slot.collection ?? GRAPHQL_CACHE_SCOPE}`;
+      let set = this.graphqlIndex.get(gk);
       if (!set) {
         set = new Set();
-        this.graphqlIndex.set(tenant, set);
+        this.graphqlIndex.set(gk, set);
       }
       set.add(fullKey);
       return;
@@ -787,10 +1135,11 @@ class ResponseCacheService {
     if (!meta) return;
     this.l1Meta.delete(fullKey);
     if (meta.graphql) {
-      const set = this.graphqlIndex.get(meta.tenant);
+      const gk = `${meta.tenant}\0${meta.collection ?? GRAPHQL_CACHE_SCOPE}`;
+      const set = this.graphqlIndex.get(gk);
       if (set) {
         set.delete(fullKey);
-        if (set.size === 0) this.graphqlIndex.delete(meta.tenant);
+        if (set.size === 0) this.graphqlIndex.delete(gk);
       }
       return;
     }
@@ -842,11 +1191,48 @@ class ResponseCacheService {
     }
   }
 
+  private putStaleEntry(fullKey: string, entry: CachedResponseEntry): void {
+    this.staleL1.delete(fullKey);
+    this.staleL1.set(fullKey, {
+      body: entry.body,
+      etag: entry.etag,
+      buffer: entry.buffer,
+      byteLength: entry.byteLength,
+      compressed: entry.compressed,
+      expiresAt: entry.expiresAt,
+      stale: true,
+      invalidatedAt: entry.invalidatedAt ?? Date.now(),
+    });
+    while (this.staleL1.size > MAX_STALE_L1_ENTRIES) {
+      const oldestKey = this.staleL1.keys().next().value;
+      if (oldestKey === undefined) break;
+      this.staleL1.delete(oldestKey);
+    }
+  }
+
+  /** Acquire single-flight background SWR refresh slot for a cache key. */
+  public tryAcquireSwrRefresh(key: string, tenantId?: string | null): boolean {
+    const fullKey = this.buildKey(key, tenantId);
+    if (this.swrRevalidating.has(fullKey)) return false;
+    this.swrRevalidating.add(fullKey);
+    return true;
+  }
+
+  /** Release single-flight background SWR refresh slot for a cache key. */
+  public releaseSwrRefresh(key: string, tenantId?: string | null): void {
+    const fullKey = this.buildKey(key, tenantId);
+    this.swrRevalidating.delete(fullKey);
+  }
+
   /**
    * Evict a list/GraphQL index set from L1 AND its shared-L2 copies. `get()`
    * refills L1 from `cacheService.getSync("res:<key>")`, so dropping L1 alone
    * resurrected the superseded list on the very next read. `cacheService.delete`
    * removes its own L1 synchronously; the remote L2 delete runs detached.
+   *
+   * Also snapshots valid L1 bodies into the bounded `staleL1` store so HTTP
+   * callers that explicitly opt into `Cache-Control: stale-while-revalidate`
+   * can receive stale responses without relaxing default Read-After-Write.
    */
   private evictListSet(
     index: Map<string, Set<string>>,
@@ -856,7 +1242,12 @@ class ResponseCacheService {
     const set = index.get(key);
     if (!set) return;
     const marker = ":res:";
+    const now = Date.now();
     for (const fullKey of set) {
+      const resident = this.localL1.get(fullKey);
+      if (resident && (typeof resident.expiresAt !== "number" || now <= resident.expiresAt)) {
+        this.putStaleEntry(fullKey, { ...resident, invalidatedAt: now });
+      }
       const at = fullKey.indexOf(marker);
       if (at < 0) continue;
       const userKey = fullKey.slice(at + marker.length);
@@ -955,6 +1346,55 @@ class ResponseCacheService {
   }
 
   /**
+   * Apply any deferred field patch stored on a resident `pointL1` entry before
+   * serving it. Keeps `pointL1Bytes` accounting exact and evicts cleanly if the
+   * stored body is not a standard `{ data: { ... } }` envelope.
+   */
+  private applyPendingPatchIfPresent(fullKey: string, entry: CachedResponseEntry): boolean {
+    const patch = entry.pendingPatch;
+    if (!patch) return true;
+    try {
+      const parsed = JSON.parse(entry.body) as {
+        success?: unknown;
+        data?: unknown;
+      };
+      if (
+        !parsed ||
+        typeof parsed !== "object" ||
+        !parsed.data ||
+        typeof parsed.data !== "object" ||
+        Array.isArray(parsed.data)
+      ) {
+        this.removeEntry(this.pointL1, fullKey);
+        this.unindexKey(fullKey);
+        return false;
+      }
+      const row = parsed.data as Record<string, unknown>;
+      for (const fieldKey of Object.keys(patch)) {
+        const val = patch[fieldKey];
+        if (val === undefined) continue;
+        if (val === null && POINT_PATCH_DROP_WHEN_NULL.has(fieldKey)) {
+          delete row[fieldKey];
+        } else {
+          row[fieldKey] = val;
+        }
+      }
+      const beforeBytes = this.entryBytes(entry);
+      entry.body = JSON.stringify(parsed);
+      entry.buffer = undefined;
+      entry.compressed = undefined;
+      entry.byteLength = undefined;
+      entry.pendingPatch = undefined;
+      this.addL1Bytes(true, this.entryBytes(entry) - beforeBytes);
+      return true;
+    } catch {
+      this.removeEntry(this.pointL1, fullKey);
+      this.unindexKey(fullKey);
+      return false;
+    }
+  }
+
+  /**
    * Fast synchronous point-read L1 lookup, bypassing classifyTurboKey and L2 check.
    */
   public getPoint(key: string, tenantId?: string | null): CachedResponseEntry | null {
@@ -966,6 +1406,7 @@ class ResponseCacheService {
       this.unindexKey(fullKey);
       return null;
     }
+    if (!this.applyPendingPatchIfPresent(fullKey, local)) return null;
     this.maybeAttachBuffer(local, true);
     return local;
   }
@@ -973,26 +1414,39 @@ class ResponseCacheService {
   /**
    * Synchronous L1 lookup for pre-stringified API response.
    */
-  public get(key: string, tenantId?: string | null, isPoint?: boolean): CachedResponseEntry | null {
+  public get(
+    key: string,
+    tenantId?: string | null,
+    isPoint?: boolean,
+    opts?: ResponseCacheGetOptions,
+  ): CachedResponseEntry | null {
     const fullKey = this.buildKey(key, tenantId);
     const point = isPoint !== undefined ? isPoint : classifyTurboKey(key)?.entryId != null;
     const store = point ? this.pointL1 : this.localL1;
     const local = store.get(fullKey);
+    const stalePolicy = !point
+      ? (opts?.stalePolicy ?? (opts?.allowStale ? DEFAULT_STALE_WINDOW_POLICY : null))
+      : null;
 
     if (local) {
       if (typeof local.expiresAt === "number" && Date.now() > local.expiresAt) {
         this.removeEntry(store, fullKey);
         this.unindexKey(fullKey);
       } else if (point || this.l1GenerationMatches(local, fullKey, key, tenantId)) {
+        if (point && local.pendingPatch && !this.applyPendingPatchIfPresent(fullKey, local)) {
+          return null;
+        }
         this.maybeAttachBuffer(local, point);
         return local;
       } else {
         // The body was stamped in a collection generation that has since moved
         // on — typically a write on another node, whose propagation updates this
-        // process's epoch map but cannot drop this L1 slot. Drop + unindex it so
-        // it is never served again, then continue the lookup: the L2 path below
-        // re-checks the same fence (and deletes the shared copy), so nothing
-        // fresh means a true miss rather than a superseded hit.
+        // process's epoch map but cannot drop this L1 slot. Snapshot for opt-in
+        // SWR if enabled, drop + unindex from strict L1, then continue lookup:
+        // the L2 path re-checks the same fence, so strict callers never get stale.
+        if (stalePolicy?.enabled) {
+          this.putStaleEntry(fullKey, { ...local, invalidatedAt: Date.now() });
+        }
         this.removeEntry(store, fullKey);
         this.unindexKey(fullKey);
       }
@@ -1001,20 +1455,33 @@ class ResponseCacheService {
     // Point reads are never written to shared L2 (bounded FIFO localL1 only)
     if (point) return null;
     // Worker-isolated test requests keep their bodies in the worker-keyed L1 only.
-    if (testWorkerContext.getStore()) return null;
-
-    const entry = cacheService.getSync<CachedResponseEntry>(`res:${key}`, tenantId);
-    if (entry && !this.isExpired(entry) && this.generationMatches(entry, key, tenantId)) {
-      if (!entry.buffer && textEncoder && entry.body) {
-        entry.buffer = textEncoder.encode(entry.body);
+    if (!testWorkerContext.getStore()) {
+      const entry = cacheService.getSync<CachedResponseEntry>(`res:${key}`, tenantId);
+      if (entry && !this.isExpired(entry) && this.generationMatches(entry, key, tenantId)) {
+        if (!entry.buffer && textEncoder && entry.body) {
+          entry.buffer = textEncoder.encode(entry.body);
+        }
+        this.staleL1.delete(fullKey);
+        this.putEntry(store, fullKey, entry);
+        this.enforceL1Capacity(store, MAX_L1_ENTRIES);
+        this.indexKey(fullKey, key, tenantId);
+        return entry;
       }
-      this.putEntry(store, fullKey, entry);
-      this.enforceL1Capacity(store, MAX_L1_ENTRIES);
-      this.indexKey(fullKey, key, tenantId);
-      return entry;
+      // A superseded body must not stay in L2 where a later read could refill it.
+      if (entry) this.dropSupersededL2(key, tenantId);
     }
-    // A superseded body must not stay in L2 where a later read could refill it.
-    if (entry) this.dropSupersededL2(key, tenantId);
+
+    if (stalePolicy?.enabled) {
+      const stale = this.staleL1.get(fullKey);
+      if (stale) {
+        const ageMs = Date.now() - (stale.invalidatedAt ?? 0);
+        if (!this.isExpired(stale) && shouldServeStale(ageMs, stalePolicy)) {
+          this.maybeAttachBuffer(stale, false);
+          return stale;
+        }
+        this.staleL1.delete(fullKey);
+      }
+    }
     return null;
   }
 
@@ -1024,8 +1491,9 @@ class ResponseCacheService {
   public async getAsync(
     key: string,
     tenantId?: string | null,
+    opts?: ResponseCacheGetOptions,
   ): Promise<CachedResponseEntry | null> {
-    const syncRes = this.get(key, tenantId);
+    const syncRes = this.get(key, tenantId, undefined, opts);
     if (syncRes) return syncRes;
     if (testWorkerContext.getStore()) return null;
 
@@ -1037,6 +1505,7 @@ class ResponseCacheService {
       const fullKey = this.buildKey(key, tenantId);
       const store = this.storeForUserKey(key);
       const max = store === this.pointL1 ? MAX_POINT_L1_ENTRIES : MAX_L1_ENTRIES;
+      this.staleL1.delete(fullKey);
       this.putEntry(store, fullKey, entry);
       this.enforceL1Capacity(store, max);
       this.indexKey(fullKey, key, tenantId);
@@ -1082,6 +1551,10 @@ class ResponseCacheService {
       ? this.admitPointRead(key, tenantId)
       : this.admitListRead(fullKey, store);
     if (admitted) {
+      if (opts?.preserveStale !== true) {
+        this.staleL1.delete(fullKey);
+        this.swrRevalidating.delete(fullKey);
+      }
       this.putEntry(store, fullKey, entry);
       this.enforceL1Capacity(store, max);
       this.indexKey(fullKey, key, tenantId);
@@ -1098,8 +1571,12 @@ class ResponseCacheService {
     const ttlSec = Math.max(1, Math.ceil(ttlMs / 1000));
     const tags = opts?.tags ? [...opts.tags] : ["res:all"];
     if (slot?.graphql) {
-      tags.push("res:graphql");
-      this.graphqlL2Tenants.add(tenantId || "default");
+      if (slot.collection) {
+        tags.push(`res:graphql:${slot.collection}`);
+      } else {
+        tags.push("res:graphql");
+        this.graphqlL2Tenants.add(tenantId || "default");
+      }
     }
     const compressedToPersist = entry.compressed ? { ...entry.compressed } : undefined;
     void cacheService.set(
@@ -1209,6 +1686,66 @@ class ResponseCacheService {
   }
 
   /**
+   * Queue a lazy scalar/array field patch onto all resident full-document `pointL1`
+   * keys for `id`. Returns `false` when the patch contains a nested plain object
+   * that may deep-merge differently in SQL `json_patch`, letting `invalidateLocal`
+   * fall back to eviction for strict byte-identity.
+   */
+  private tryQueuePointEntryPatch(
+    id: string,
+    indexedKeys: Set<string>,
+    patchInfo: PointEntryPatch,
+  ): boolean {
+    const sanitized: Record<string, unknown> = {};
+    let hasField = false;
+    const rawPatch = patchInfo.patch;
+    for (const k of Object.keys(rawPatch)) {
+      if (POINT_PATCH_DROP_ALWAYS.has(k)) continue;
+      const v = rawPatch[k];
+      if (v === undefined) continue;
+      if (v !== null && typeof v === "object" && !Array.isArray(v) && !(v instanceof Date)) {
+        return false;
+      }
+      sanitized[k] = v instanceof Date ? v.toISOString() : v;
+      hasField = true;
+    }
+
+    const nextToken = patchInfo.updatedAt
+      ? versionTokenString(patchInfo.updatedAt)
+      : String(++this.pointPatchSeq);
+    for (const fullKey of Array.from(indexedKeys)) {
+      if (fullKey.includes("fields=") || fullKey.includes("populate=")) {
+        this.removeEntry(this.pointL1, fullKey);
+        this.unindexKey(fullKey);
+        continue;
+      }
+      const cached = this.pointL1.get(fullKey);
+      if (!cached) {
+        this.unindexKey(fullKey);
+        continue;
+      }
+      if (cached.buffer || cached.compressed || cached.byteLength !== undefined) {
+        const beforeBytes = this.entryBytes(cached);
+        cached.buffer = undefined;
+        cached.compressed = undefined;
+        cached.byteLength = undefined;
+        this.addL1Bytes(true, this.entryBytes(cached) - beforeBytes);
+      }
+      if (hasField) {
+        cached.pendingPatch = cached.pendingPatch
+          ? Object.assign(cached.pendingPatch, sanitized)
+          : { ...sanitized };
+      }
+      const candidateEtag = `"${id}-${nextToken}"`;
+      cached.etag =
+        candidateEtag === cached.etag
+          ? `"${id}-${nextToken}-${++this.pointPatchSeq}"`
+          : candidateEtag;
+    }
+    return true;
+  }
+
+  /**
    * Synchronous in-memory purge of cached response tuples for a collection.
    *
    * Every write evicts the collection's list and GraphQL bodies: a cached list
@@ -1217,8 +1754,10 @@ class ResponseCacheService {
    * Keeping lists warm for a "point" write is therefore only safe until someone
    * sorts by the field being written — the one cache state this service must
    * never serve. `entryIds` narrows the POINT tier only: the written documents
-   * are dropped while sibling `findById` turbo hits stay warm. Without
-   * `entryIds` the whole collection point tier is dropped (bulk/unknown write).
+   * are dropped while sibling `findById` turbo hits stay warm; when `entryPatches`
+   * is supplied for a safe plain update, already-resident `pointL1` entries are
+   * lazily patched in place instead of evicted. Without `entryIds` the whole
+   * collection point tier is dropped (bulk/unknown write).
    */
   public invalidateLocal(
     collectionName: string,
@@ -1228,14 +1767,25 @@ class ResponseCacheService {
     const tenant = tenantId || "default";
 
     this.evictListSet(this.listIndex, `${tenant}\0${collectionName}`, tenantId);
-    this.evictListSet(this.graphqlIndex, tenant, tenantId);
+    this.evictListSet(this.graphqlIndex, `${tenant}\0${collectionName}`, tenantId);
+    this.evictListSet(this.graphqlIndex, `${tenant}\0${GRAPHQL_CACHE_SCOPE}`, tenantId);
     if (this.graphqlL2Tenants.has(tenant)) {
       cacheService.bumpCollectionEpoch(GRAPHQL_CACHE_SCOPE, tenantId);
     }
 
     if (opts?.entryIds) {
       for (const id of opts.entryIds) {
-        this.dropIndexSet(this.entryIndex, `${tenant}\0${collectionName}\0${id}`);
+        const idxKey = `${tenant}\0${collectionName}\0${id}`;
+        const patchInfo = opts.entryPatches?.[id];
+        if (patchInfo) {
+          const indexedKeys = this.entryIndex.get(idxKey);
+          if (indexedKeys && indexedKeys.size > 0) {
+            if (this.tryQueuePointEntryPatch(id, indexedKeys, patchInfo)) {
+              continue;
+            }
+          }
+        }
+        this.dropIndexSet(this.entryIndex, idxKey);
       }
       return;
     }
@@ -1258,13 +1808,33 @@ class ResponseCacheService {
   public async invalidateCollection(
     collectionName: string,
     tenantId?: string | null,
+    opts?: {
+      debounceL2Ms?: number;
+      entryIds?: Iterable<string>;
+      entryPatches?: Record<string, PointEntryPatch>;
+    },
   ): Promise<void> {
     cacheService.bumpCollectionEpoch(collectionName, tenantId);
-    this.invalidateLocal(collectionName, tenantId);
-    await cacheService.clearByTags(
-      [`res:${collectionName}`, "res:graphql", `collection:${collectionName}`],
-      tenantId || undefined,
+    this.invalidateLocal(
+      collectionName,
+      tenantId,
+      opts?.entryIds || opts?.entryPatches
+        ? { entryIds: opts.entryIds, entryPatches: opts.entryPatches }
+        : undefined,
     );
+    const tags = [
+      `res:${collectionName}`,
+      `res:graphql:${collectionName}`,
+      "res:graphql",
+      `collection:${collectionName}`,
+    ];
+    if (opts?.debounceL2Ms && opts.debounceL2Ms > 0) {
+      await cacheService.clearByTags(tags, tenantId || undefined, {
+        debounceMs: opts.debounceL2Ms,
+      });
+    } else {
+      await cacheService.clearByTags(tags, tenantId || undefined);
+    }
   }
 
   /**
@@ -1272,6 +1842,7 @@ class ResponseCacheService {
    */
   public async clearLocal(): Promise<void> {
     this.trimLocal();
+    this.graphqlL2Tenants.clear();
     await cacheService.clearByPattern("res:*");
   }
 
@@ -1284,6 +1855,8 @@ class ResponseCacheService {
   public trimLocal(): void {
     this.localL1.clear();
     this.pointL1.clear();
+    this.staleL1.clear();
+    this.swrRevalidating.clear();
     this.l1Bytes = 0;
     this.pointL1Bytes = 0;
     this.l1Meta.clear();

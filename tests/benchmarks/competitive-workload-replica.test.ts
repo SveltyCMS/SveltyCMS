@@ -16,6 +16,8 @@
  * - Opt-in concurrency sweep (`SWEEP_CONCURRENCY=1,4,16,32`) for the read lanes
  */
 
+import fs from "node:fs";
+import path from "node:path";
 import {
   test,
   runBenchmark,
@@ -113,7 +115,44 @@ interface PhaseBucket {
 
 const workloadPhaseBuckets: Record<string, PhaseBucket> = {};
 
+const COLLECT_SRV_SPLITS =
+  process.env.SVELTY_SRV_SPLIT === "1" ||
+  process.env.SVELTY_SRV_DUR === "1" ||
+  process.env.BENCH_PHASE_SPLIT === "1";
+
+const BASELINE_PATH = path.resolve(
+  process.cwd(),
+  "tests/benchmarks/results/baselines/competitive-replica-baseline.json",
+);
+
+interface WorkloadBaselineEntry {
+  rps: number;
+  avgMs: number;
+  p95Ms: number;
+}
+
+interface SoakBaselineEntry {
+  avgRps: number;
+  minRps: number;
+  maxRps: number;
+  spreadPct: number;
+  instabilityPct: number;
+}
+
+interface ReplicaBaselineRecord {
+  recordedAt: string;
+  source?: string;
+  workloads: Record<string, WorkloadBaselineEntry>;
+  soak?: SoakBaselineEntry;
+}
+
+function formatSignedPct(val: number): string {
+  const prefix = val >= 0 ? "+" : "";
+  return `${prefix}${val.toFixed(1)}%`;
+}
+
 function recordSplitSample(label: string, res: Response): void {
+  if (!COLLECT_SRV_SPLITS) return;
   const durStr = res.headers.get("x-srv-dur");
   const splitHeader = res.headers.get("x-srv-split");
   if (!durStr && !splitHeader) return;
@@ -255,8 +294,10 @@ test("Competitive 11-Workload Replica Benchmark", async () => {
       `🚀 Competitive replica: ${CONCURRENCY}c, up to ${ROUND_LIMIT} round(s), seq+con...`,
     );
 
-    process.env.SVELTY_SRV_SPLIT = process.env.SVELTY_SRV_SPLIT || "1";
-    process.env.SVELTY_SRV_DUR = process.env.SVELTY_SRV_DUR || "1";
+    if (process.env.BENCH_PHASE_SPLIT === "1") {
+      process.env.SVELTY_SRV_SPLIT = process.env.SVELTY_SRV_SPLIT || "1";
+      process.env.SVELTY_SRV_DUR = process.env.SVELTY_SRV_DUR || "1";
+    }
     process.env.SVELTY_NO_HEAP_CAP = process.env.SVELTY_NO_HEAP_CAP || "1";
 
     const serverInfo = await setupBenchmarkServer();
@@ -739,6 +780,7 @@ test("Competitive 11-Workload Replica Benchmark", async () => {
     // ── PHASE 4 (opt-in): STEADY-STATE SOAK ──────────────────────────────
     // Write-neutral daily mix at 8 workers; a flat line means stable, any slope
     // is a real time-based leak (GC, pool, WAL). BENCH_SOAK_SECONDS=60 enables.
+    let soakSummary: SoakBaselineEntry | undefined;
     if (SOAK_SECONDS > 0) {
       logger.info(`\n⏱️  [PHASE 4] Steady-state soak (${SOAK_SECONDS}s, write-neutral mix)...`);
       const t0 = Date.now();
@@ -791,6 +833,13 @@ test("Competitive 11-Workload Replica Benchmark", async () => {
       const p95Rps = quantile(sortedSteady, 0.95);
       const spreadPct = p50Rps > 0 ? ((p95Rps - p5Rps) / p50Rps) * 100 : 0;
       const instability = maxRps > 0 ? ((maxRps - minRps) / maxRps) * 100 : 0;
+      soakSummary = {
+        avgRps: +avgRps.toFixed(1),
+        minRps: +minRps.toFixed(1),
+        maxRps: +maxRps.toFixed(1),
+        spreadPct: +spreadPct.toFixed(1),
+        instabilityPct: +instability.toFixed(1),
+      };
       logger.info(
         `  → soak: ${counter.n} reqs, avg ${avgRps.toFixed(1)} RPS, min ${minRps.toFixed(1)}, max ${maxRps.toFixed(1)}, (p95-p5)/p50 ${spreadPct.toFixed(1)}%, instability ${instability.toFixed(1)}%`,
       );
@@ -1030,6 +1079,125 @@ test("Competitive 11-Workload Replica Benchmark", async () => {
     for (const [shortLabel, metricName] of Object.entries(metricKeys)) {
       const res = warmResults.find((r) => r.shortLabel === shortLabel);
       if (res) exportMetric(`competitive.${metricName}.rps`, res.rps, "req/s");
+    }
+
+    // ── BASELINE COMPARISON & % GAIN TABLE ──────────────────────────────
+    const profileKey = `${dbType}:${SEED_COUNT}`;
+    let baselines: Record<string, ReplicaBaselineRecord> = {};
+    try {
+      if (fs.existsSync(BASELINE_PATH)) {
+        baselines = JSON.parse(fs.readFileSync(BASELINE_PATH, "utf8")) as Record<
+          string,
+          ReplicaBaselineRecord
+        >;
+      }
+    } catch {
+      baselines = {};
+    }
+
+    const baseEntry = baselines[profileKey];
+    const comparisonRows: Array<{
+      name: string;
+      baseRps: number;
+      currRps: number;
+      rpsGainPct: number;
+      baseAvgMs?: number;
+      currAvgMs?: number;
+      latChangePct?: number;
+    }> = [];
+
+    if (baseEntry?.workloads) {
+      console.log("\n" + "=".repeat(104));
+      console.log(`  COMPETITIVE REPLICA — BASELINE vs CURRENT (% GAIN) [${profileKey}]`);
+      console.log("=".repeat(104));
+      console.log(
+        `${"Workload".padEnd(20)} ${"Base RPS".padStart(10)} ${"Curr RPS".padStart(10)} ${"RPS Gain".padStart(10)} ${"Base Avg".padStart(10)} ${"Curr Avg".padStart(10)} ${"Lat Delta".padStart(10)} ${"Curr p95".padStart(10)}`,
+      );
+      console.log("-".repeat(104));
+
+      for (const w of workloads) {
+        const curr = warmResults.find((r) => r.shortLabel === w.shortLabel);
+        const base = baseEntry.workloads[w.shortLabel];
+        if (!curr || !base || base.rps <= 0) continue;
+        const rpsGainPct = ((curr.rps - base.rps) / base.rps) * 100;
+        const latChangePct = base.avgMs > 0 ? ((curr.avgMs - base.avgMs) / base.avgMs) * 100 : 0;
+        comparisonRows.push({
+          name: w.shortLabel,
+          baseRps: base.rps,
+          currRps: curr.rps,
+          rpsGainPct: +rpsGainPct.toFixed(1),
+          baseAvgMs: base.avgMs,
+          currAvgMs: curr.avgMs,
+          latChangePct: +latChangePct.toFixed(1),
+        });
+        const mKey = metricKeys[w.shortLabel];
+        if (mKey) {
+          exportMetric(`competitive.${mKey}.gain_pct`, +rpsGainPct.toFixed(1), "%");
+        }
+        console.log(
+          `${w.shortLabel.padEnd(20)} ${Math.round(base.rps).toLocaleString().padStart(10)} ${Math.round(curr.rps).toLocaleString().padStart(10)} ${formatSignedPct(rpsGainPct).padStart(10)} ${(base.avgMs.toFixed(2) + "ms").padStart(10)} ${(curr.avgMs.toFixed(2) + "ms").padStart(10)} ${formatSignedPct(latChangePct).padStart(10)} ${(curr.p95Ms.toFixed(2) + "ms").padStart(10)}`,
+        );
+      }
+
+      if (soakSummary && baseEntry.soak && baseEntry.soak.avgRps > 0) {
+        const soakGainPct =
+          ((soakSummary.avgRps - baseEntry.soak.avgRps) / baseEntry.soak.avgRps) * 100;
+        comparisonRows.push({
+          name: "soak.avgRps",
+          baseRps: baseEntry.soak.avgRps,
+          currRps: soakSummary.avgRps,
+          rpsGainPct: +soakGainPct.toFixed(1),
+        });
+        exportMetric("competitive.soak.gain_pct", +soakGainPct.toFixed(1), "%");
+        console.log(
+          `${"soak.avgRps".padEnd(20)} ${Math.round(baseEntry.soak.avgRps).toLocaleString().padStart(10)} ${Math.round(soakSummary.avgRps).toLocaleString().padStart(10)} ${formatSignedPct(soakGainPct).padStart(10)} ${"-".padStart(10)} ${"-".padStart(10)} ${(baseEntry.soak.spreadPct + "%->" + soakSummary.spreadPct + "%").padStart(20)}`,
+        );
+      }
+      console.log("=".repeat(104) + "\n");
+
+      try {
+        const outDir = path.resolve(process.cwd(), `tests/benchmarks/results/${dbType}`);
+        fs.mkdirSync(outDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(outDir, "competitive-replica-comparison.json"),
+          JSON.stringify(
+            {
+              profileKey,
+              measuredAt: new Date().toISOString(),
+              baselineRecordedAt: baseEntry.recordedAt,
+              rows: comparisonRows,
+              ...(soakSummary ? { soak: soakSummary } : {}),
+            },
+            null,
+            2,
+          ) + "\n",
+        );
+      } catch {
+        /* best-effort report export */
+      }
+    }
+
+    if (process.env.BENCH_SAVE_BASELINE === "1" || !baseEntry) {
+      const nextWorkloads: Record<string, WorkloadBaselineEntry> = {};
+      for (const w of workloads) {
+        const curr = warmResults.find((r) => r.shortLabel === w.shortLabel);
+        if (curr) {
+          nextWorkloads[w.shortLabel] = {
+            rps: +curr.rps.toFixed(1),
+            avgMs: +curr.avgMs.toFixed(3),
+            p95Ms: +curr.p95Ms.toFixed(3),
+          };
+        }
+      }
+      baselines[profileKey] = {
+        recordedAt: new Date().toISOString(),
+        source: "competitive-workload-replica.test.ts",
+        workloads: nextWorkloads,
+        ...(soakSummary ? { soak: soakSummary } : baseEntry?.soak ? { soak: baseEntry.soak } : {}),
+      };
+      fs.mkdirSync(path.dirname(BASELINE_PATH), { recursive: true });
+      fs.writeFileSync(BASELINE_PATH, JSON.stringify(baselines, null, 2) + "\n");
+      logger.info(`📌 Saved competitive replica baseline for ${profileKey} → ${BASELINE_PATH}`);
     }
 
     for (const r of coldResults) {

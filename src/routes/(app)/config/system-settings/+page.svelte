@@ -52,7 +52,8 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 		syssettings_selected_group_missing_part2,
 		syssettings_title,
 		syssettings_warnings,
-		settings_reset_defaults
+		settings_reset_defaults,
+		common_saving
 	} from '@src/paraglide/messages';
 	import { onMount, untrack } from 'svelte';
 	import { goto } from '$app/navigation';
@@ -263,6 +264,23 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 	{#snippet actions()}
 		{#if activeGroup && activeGroup.id !== 'gdpr'}
 			<Button
+				variant="primary"
+				size="sm"
+				type="button"
+				onclick={() => saveTrigger.fire?.()}
+				disabled={saving || !hasUnsavedChanges}
+				data-testid="settings-page-save"
+			>
+				{#if saving}
+					<iconify-icon icon="mdi:loading" width="16" class="animate-spin"></iconify-icon>
+					<span>{common_saving()}</span>
+				{:else}
+					<iconify-icon icon="mdi:content-save" width="16"></iconify-icon>
+					<span>{hasUnsavedChanges ? 'Save Changes' : 'Saved'}</span>
+				{/if}
+			</Button>
+
+			<Button
 				variant="error"
 				size="sm"
 				type="button"
@@ -271,7 +289,7 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 				data-testid="settings-page-reset"
 			>
 				<iconify-icon icon="mdi:restore" width="16"></iconify-icon>
-				<span>{settings_reset_defaults()}</span>
+				<span class="hidden sm:inline">{settings_reset_defaults()}</span>
 			</Button>
 		{/if}
 	{/snippet}

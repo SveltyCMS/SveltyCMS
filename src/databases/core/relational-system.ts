@@ -208,51 +208,57 @@ export class RelationalSystemModule implements ISystemAdapter {
       const tenantId = options?.tenantId;
 
       return this.adapter.wrap(async () => {
-        const now = new Date();
-        const tid = scope === "system" ? this.normalizeSystemTenant(tenantId) : null;
-        const uid = scope === "user" ? (userId as string) || null : null;
+        const writePreference = async () => {
+          const now = new Date();
+          const tid = scope === "system" ? this.normalizeSystemTenant(tenantId) : null;
+          const uid = scope === "user" ? (userId as string) || null : null;
 
-        // 🚀 HARDENING: Use primitives for all values to avoid driver binding errors
-        const data = {
-          key: String(key),
-          value: encodePreferenceValue(this.adapter.type, value),
-          scope: String(scope),
-          userId: uid ? String(uid) : null,
-          visibility: String(category || "private"),
-          tenantId: tid ? String(tid) : null,
-          updatedAt: now,
+          // 🚀 HARDENING: Use primitives for all values to avoid driver binding errors
+          const data = {
+            key: String(key),
+            value: encodePreferenceValue(this.adapter.type, value),
+            scope: String(scope),
+            userId: uid ? String(uid) : null,
+            visibility: String(category || "private"),
+            tenantId: tid ? String(tid) : null,
+            updatedAt: now,
+          };
+
+          const conditions = [eq(this.schema.systemPreferences.key, String(key))];
+          if (tid) conditions.push(eq(this.schema.systemPreferences.tenantId, tid));
+          else conditions.push(isNull(this.schema.systemPreferences.tenantId));
+
+          const exists = await this.getDb(options as any)
+            .select({ _id: this.schema.systemPreferences._id })
+            .from(this.schema.systemPreferences)
+            .where(and(...conditions))
+            .limit(1);
+
+          if (exists[0]) {
+            await this.getDb(options as any)
+              .update(this.schema.systemPreferences)
+              .set({
+                value: data.value,
+                scope: data.scope,
+                userId: data.userId,
+                visibility: data.visibility,
+                updatedAt: now,
+              })
+              .where(eq(this.schema.systemPreferences._id, exists[0]._id));
+          } else {
+            await this.getDb(options as any)
+              .insert(this.schema.systemPreferences)
+              .values({
+                ...data,
+                _id: String(generateId()),
+                createdAt: now,
+              });
+          }
         };
-
-        const conditions = [eq(this.schema.systemPreferences.key, String(key))];
-        if (tid) conditions.push(eq(this.schema.systemPreferences.tenantId, tid));
-        else conditions.push(isNull(this.schema.systemPreferences.tenantId));
-
-        const exists = await this.getDb(options as any)
-          .select({ _id: this.schema.systemPreferences._id })
-          .from(this.schema.systemPreferences)
-          .where(and(...conditions))
-          .limit(1);
-
-        if (exists[0]) {
-          await this.getDb(options as any)
-            .update(this.schema.systemPreferences)
-            .set({
-              value: data.value,
-              scope: data.scope,
-              userId: data.userId,
-              visibility: data.visibility,
-              updatedAt: now,
-            })
-            .where(eq(this.schema.systemPreferences._id, exists[0]._id));
-        } else {
-          await this.getDb(options as any)
-            .insert(this.schema.systemPreferences)
-            .values({
-              ...data,
-              _id: String(generateId()),
-              createdAt: now,
-            });
+        if ((options as { transaction?: unknown } | undefined)?.transaction) {
+          return writePreference();
         }
+        return this.adapter.withWriteLock(writePreference);
       }, "SET_PREFERENCE_FAILED");
     },
 

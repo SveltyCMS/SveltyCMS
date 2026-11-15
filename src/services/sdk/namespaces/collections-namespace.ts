@@ -1641,6 +1641,28 @@ export class CollectionsNamespace {
             status: (postWriteDoc as { status?: string } | null)?.status ?? requestedStatus,
           });
         }
+        const canPatchPointCache =
+          !plan.hasHooks &&
+          !plan.hasEncryption &&
+          !plan.hasRelations &&
+          !plan.hasGuards &&
+          !plan.hasWidgets &&
+          (!plan.hasJunctions || junction.present.length === 0) &&
+          !transaction &&
+          finalData &&
+          typeof finalData === "object" &&
+          !Object.hasOwn(finalData, "status");
+        const entryPatch = canPatchPointCache
+          ? {
+              patch: finalData as Record<string, unknown>,
+              updatedAt:
+                typeof (postWriteDoc as { updatedAt?: unknown } | null)?.updatedAt === "string"
+                  ? (postWriteDoc as { updatedAt: string }).updatedAt
+                  : typeof (finalData as { updatedAt?: unknown }).updatedAt === "string"
+                    ? (finalData as { updatedAt: string }).updatedAt
+                    : undefined,
+            }
+          : undefined;
         schedulePostWrite(
           this._dbAdapter,
           "update",
@@ -1651,6 +1673,7 @@ export class CollectionsNamespace {
           postWriteDoc,
           effectiveUser,
           options,
+          entryPatch,
         );
         scheduleAfterOperation(schema, hot, postWriteDoc, "update", effectiveUser, tenantId);
         if (!shouldSkipWriteSideEffects(options) && !options.skipReturning) {

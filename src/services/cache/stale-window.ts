@@ -23,7 +23,7 @@ export interface StaleWindowPolicy {
   /** True when `windowMs > 0`. */
   enabled: boolean;
   /** Where the configured value came from, echoed for logs/diagnostics. */
-  source: "env" | "setting" | "default";
+  source: "env" | "setting" | "header" | "default";
 }
 
 /**
@@ -90,4 +90,47 @@ export function shouldServeStale(entryAgeMs: number, policy: StaleWindowPolicy):
 export function staleResponseHeader(isStale: boolean, policy: StaleWindowPolicy): string | null {
   if (!isStale || !policy.enabled) return null;
   return `stale; window=${policy.windowMs}`;
+}
+
+/**
+ * Parse an HTTP `Cache-Control` request header for opt-in SWR (`stale-while-revalidate`
+ * or `max-stale`, in seconds per RFC 5861 / RFC 9111).
+ *
+ * Strict Read-After-Write remains the default when the header is absent or omits
+ * a stale directive, and any `no-store`, `no-cache`, or `max-age=0` forces
+ * strictness (returns a disabled policy). Clamped to `MAX_STALE_WINDOW_MS`.
+ */
+export function parseCacheControlStalePolicy(
+  cacheControlHeader: string | null | undefined,
+): StaleWindowPolicy {
+  if (!cacheControlHeader) return disabledPolicy();
+  const lower = cacheControlHeader.toLowerCase();
+  if (lower.includes("no-store") || lower.includes("no-cache")) {
+    return disabledPolicy();
+  }
+  const maxAgeMatch = /(?:^|,)\s*max-age\s*=\s*(\d+)/.exec(lower);
+  if (maxAgeMatch && Number(maxAgeMatch[1]) === 0) {
+    return disabledPolicy();
+  }
+
+  const swrMatch =
+    /(?:^|,)\s*(?:stale-while-revalidate|max-stale)(?:\s*=\s*("?)([^",\s]+)\1)?(?:\s*,|$)/.exec(
+      lower,
+    );
+  if (!swrMatch) return disabledPolicy();
+
+  const rawSeconds = swrMatch[2];
+  let windowMs = MAX_STALE_WINDOW_MS;
+  if (rawSeconds !== undefined) {
+    const seconds = Number(rawSeconds);
+    if (!Number.isFinite(seconds) || seconds <= 0) {
+      return disabledPolicy();
+    }
+    windowMs = Math.min(Math.round(seconds * 1000), MAX_STALE_WINDOW_MS);
+  }
+  return {
+    windowMs,
+    enabled: true,
+    source: "header",
+  };
 }

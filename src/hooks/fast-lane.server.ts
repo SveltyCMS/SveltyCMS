@@ -25,11 +25,12 @@
  */
 
 import type { RequestEvent } from "@sveltejs/kit";
+import type { Handle } from "@sveltejs/kit/hooks";
 import { logger } from "@utils/logger";
 import { isSecureCookieContext } from "@src/databases/auth/constants";
 import { readSessionIdFromCookieHeader } from "@utils/security/session-cookie";
 import { isSimpleCollectionRead, tryCollectionReadLane } from "./handle-collection-read-lane";
-import { tryCollectionWriteLane } from "./handle-collection-write-lane";
+import { tryCollectionWriteLane, tryGraphqlWriteLane } from "./handle-collection-write-lane";
 import { isLaneServingAllowed } from "./lane-state-gate";
 import { RequestLane } from "./handle-request-classifier";
 
@@ -198,6 +199,10 @@ function fastLaneUrl(input: FastLaneInput): URL {
       if (!parsedParams) parsedParams = new URLSearchParams(search);
       return parsedParams;
     },
+    origin: input.origin,
+    get href(): string {
+      return `${input.origin}${raw}`;
+    },
     protocol,
     host,
     hostname,
@@ -323,11 +328,18 @@ const collectionReadLane: FastLane = async (input) => {
  * returns `null` with the body unread, and the entry can safely hand the request
  * to the full pipeline.
  */
-const collectionWriteLane: FastLane = async (input) => {
-  if (!input.readBody) return null;
-  if (input.method !== "POST" && input.method !== "PATCH" && input.method !== "PUT") return null;
-  if (!input.url.startsWith("/api/collections/")) return null;
+function isGraphqlPostUrl(rawUrl: string): boolean {
+  const q = rawUrl.indexOf("?");
+  const pathname = q < 0 ? rawUrl : rawUrl.slice(0, q);
+  return pathname === "/api/graphql" || pathname === "/api/graphql/";
+}
 
+async function runPostWriteLane(
+  input: FastLaneInput,
+  laneHandler: Handle,
+  readTextToo = false,
+): Promise<FastLaneResult | null> {
+  if (!input.readBody) return null;
   const getHeader = headerLookup(input.headers);
   const url = fastLaneUrl(input);
   const readBody = input.readBody;
@@ -335,15 +347,35 @@ const collectionWriteLane: FastLane = async (input) => {
   // Set the moment the body is touched. After this point the request can no
   // longer fall through — the pipeline could not re-read a consumed stream.
   let bodyRead = false;
+  const readBytes = () => {
+    bodyRead = true;
+    if (!bodyPromise) bodyPromise = readBody();
+    return bodyPromise;
+  };
+  const headerBag: Record<string, unknown> = readTextToo
+    ? {
+        get: getHeader,
+        has: (name: string) => getHeader(name) !== null,
+        forEach: (cb: (val: string, key: string) => void) => {
+          for (const [k, v] of Object.entries(input.headers)) {
+            if (v !== undefined) cb(Array.isArray(v) ? v.join(", ") : String(v), k);
+          }
+        },
+        *[Symbol.iterator]() {
+          for (const [k, v] of Object.entries(input.headers)) {
+            if (v !== undefined) {
+              yield [k, Array.isArray(v) ? v.join(", ") : String(v)] as [string, string];
+            }
+          }
+        },
+      }
+    : { get: getHeader };
   const request = {
     method: input.method,
-    headers: { get: getHeader },
-    json: async () => {
-      bodyRead = true;
-      if (!bodyPromise) bodyPromise = readBody();
-      const bytes = await bodyPromise;
-      return JSON.parse(utf8Decoder.decode(bytes));
-    },
+    ...(readTextToo ? { url: `${input.origin}${input.url}` } : {}),
+    headers: headerBag,
+    ...(readTextToo ? { text: async () => utf8Decoder.decode(await readBytes()) } : {}),
+    json: async () => JSON.parse(utf8Decoder.decode(await readBytes())),
   } as unknown as Request;
 
   const rawCookie = getHeader("cookie");
@@ -376,7 +408,7 @@ const collectionWriteLane: FastLane = async (input) => {
   } as unknown as RequestEvent;
 
   try {
-    const out = await tryCollectionWriteLane({
+    const out = await laneHandler({
       event,
       resolve: async () => FALL_THROUGH as unknown as Response,
     });
@@ -395,6 +427,18 @@ const collectionWriteLane: FastLane = async (input) => {
       body: '{"success":false,"message":"Internal error"}',
     };
   }
+}
+
+const collectionWriteLane: FastLane = async (input) => {
+  if (input.method !== "POST" && input.method !== "PATCH" && input.method !== "PUT") return null;
+  if (!input.url.startsWith("/api/collections/")) return null;
+  return runPostWriteLane(input, tryCollectionWriteLane);
+};
+
+const graphqlWriteLane: FastLane = async (input) => {
+  if (input.method !== "POST") return null;
+  if (!isGraphqlPostUrl(input.url)) return null;
+  return runPostWriteLane(input, tryGraphqlWriteLane, true);
 };
 
 /**
@@ -412,6 +456,7 @@ export function installFastLanes(): void {
     registerFastLane(collectionReadLane);
     if (WRITE_LANE_ENABLED) {
       registerFastLane(collectionWriteLane);
+      registerFastLane(graphqlWriteLane);
     }
   }
 

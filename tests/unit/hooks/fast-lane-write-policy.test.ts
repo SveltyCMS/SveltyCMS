@@ -13,10 +13,19 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   tryCollectionWriteLane: vi.fn(),
+  tryGraphqlWriteLane: vi.fn(
+    async ({
+      resolve,
+    }: {
+      event: { request: Request };
+      resolve: (e: unknown) => Promise<unknown>;
+    }) => resolve({}),
+  ),
 }));
 
 vi.mock("@src/hooks/handle-collection-write-lane", () => ({
   tryCollectionWriteLane: mocks.tryCollectionWriteLane,
+  tryGraphqlWriteLane: mocks.tryGraphqlWriteLane,
 }));
 vi.mock("@src/hooks/handle-collection-read-lane", () => ({
   isSimpleCollectionRead: () => false,
@@ -55,6 +64,7 @@ function writeInput(overrides: Record<string, unknown> = {}) {
 describe("fast-lane write policy", () => {
   beforeEach(() => {
     mocks.tryCollectionWriteLane.mockReset();
+    mocks.tryGraphqlWriteLane.mockReset();
     process.env.SVELTY_FAST_LANE = "1";
   });
 
@@ -176,5 +186,56 @@ describe("fast-lane write policy", () => {
     expect((captured as unknown as { getClientAddress: () => string }).getClientAddress()).toBe(
       "203.0.113.7",
     );
+  });
+
+  it("dispatches POST /api/graphql through the write fast lane and honors fall-through without reading the body", async () => {
+    process.env.SVELTY_FAST_LANE_WRITE = "0";
+    let dispatch = await loadDispatcher();
+    const { input: disabledInput, readBody: disabledRead } = writeInput({
+      method: "POST",
+      url: "/api/graphql",
+      readBody: vi.fn(async () =>
+        new TextEncoder().encode(JSON.stringify({ query: "{ posts { id } }" })),
+      ),
+    });
+    await expect(dispatch(disabledInput)).resolves.toBeNull();
+    expect(mocks.tryGraphqlWriteLane).not.toHaveBeenCalled();
+    expect(disabledRead).not.toHaveBeenCalled();
+
+    process.env.SVELTY_FAST_LANE_WRITE = "1";
+    mocks.tryGraphqlWriteLane.mockImplementationOnce(
+      async ({ resolve }: { resolve: (e: unknown) => Promise<unknown> }) => resolve({}),
+    );
+    dispatch = await loadDispatcher();
+    const { input: declineInput, readBody: declineRead } = writeInput({
+      method: "POST",
+      url: "/api/graphql",
+      readBody: vi.fn(async () =>
+        new TextEncoder().encode(JSON.stringify({ query: "{ posts { id } }" })),
+      ),
+    });
+    await expect(dispatch(declineInput)).resolves.toBeNull();
+    expect(mocks.tryGraphqlWriteLane).toHaveBeenCalledTimes(1);
+    expect(declineRead).not.toHaveBeenCalled();
+
+    mocks.tryGraphqlWriteLane.mockImplementationOnce(
+      async ({ event }: { event: { request: Request } }) => {
+        const raw = await event.request.text();
+        return new Response(`{"echo":${JSON.stringify(raw)}}`, {
+          status: 200,
+          headers: { "content-type": "application/json", "x-svelty-lane": "API_WRITE" },
+        });
+      },
+    );
+    const commitRead = vi.fn(async () =>
+      new TextEncoder().encode(JSON.stringify({ query: "query { posts { id } }" })),
+    );
+    const out = (await dispatch(
+      writeInput({ method: "POST", url: "/api/graphql", readBody: commitRead }).input,
+    )) as { status: number; headers: Record<string, string>; body: Uint8Array };
+    expect(out.status).toBe(200);
+    expect(out.headers["x-svelty-lane"]).toBe("API_WRITE");
+    expect(commitRead).toHaveBeenCalledTimes(1);
+    expect(new TextDecoder().decode(out.body)).toContain("posts");
   });
 });

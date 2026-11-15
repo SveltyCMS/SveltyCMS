@@ -296,4 +296,126 @@ test.describe("System Settings shell", () => {
       panel.getByRole("heading", { name: /data portability|right to erasure/i }).first(),
     ).toBeVisible({ timeout: ACTION_TIMEOUT });
   });
+
+  test.describe("mobile viewport", () => {
+    test.beforeEach(async ({ page }) => {
+      await page.setViewportSize({ width: 390, height: 844 });
+    });
+
+    test("mobile header save button is visible and disabled when clean", async ({ page }) => {
+      await goSettings(page, "cache");
+      await expect(page.getByTestId("settings-panel-cache")).toBeVisible({
+        timeout: ACTION_TIMEOUT,
+      });
+
+      const pageSave = page.getByTestId("settings-page-save");
+      await expect(pageSave).toBeVisible({ timeout: ACTION_TIMEOUT });
+      await expect(pageSave).toBeDisabled();
+      await expect(pageSave).toContainText(/Saved/i);
+    });
+
+    test("mobile editing a field enables the header save button", async ({ page }) => {
+      await goSettings(page, "cache");
+      await expect(page.getByTestId("settings-panel-cache")).toBeVisible({
+        timeout: ACTION_TIMEOUT,
+      });
+
+      const field = page.getByTestId("settings-field-CACHE_TTL_SCHEMA");
+      await expect(field).toBeVisible({ timeout: ACTION_TIMEOUT });
+      const input = field.locator("input").first();
+      await expect(input).toBeVisible({ timeout: ACTION_TIMEOUT });
+
+      const pageSave = page.getByTestId("settings-page-save");
+      await expect(pageSave).toBeVisible({ timeout: ACTION_TIMEOUT });
+      await expect(pageSave).toBeDisabled();
+
+      const current = await input.inputValue();
+      const nextValue = current === "120" ? "121" : "120";
+
+      await fillUntil(
+        page,
+        input,
+        nextValue,
+        () => expect(pageSave).toBeEnabled({ timeout: 2_000 }),
+        { timeout: ACTION_TIMEOUT },
+      );
+
+      await expect(pageSave).toBeEnabled();
+      await expect(pageSave).toContainText(/Save Changes/i);
+    });
+
+    test("mobile header save persists changes and confirms reload", async ({ page }) => {
+      await goSettings(page, "cache");
+      await expect(page.getByTestId("settings-panel-cache")).toBeVisible({
+        timeout: ACTION_TIMEOUT,
+      });
+
+      const field = page.getByTestId("settings-field-CACHE_TTL_SCHEMA");
+      await expect(field).toBeVisible({ timeout: ACTION_TIMEOUT });
+      const input = field.locator("input").first();
+      await expect(input).toBeVisible({ timeout: ACTION_TIMEOUT });
+
+      const original = await input.inputValue();
+      const suffix = Date.now() % 10_000;
+      let target = String(2000 + (suffix % 500));
+      if (target === original) {
+        target = String(Number(target) + 1);
+      }
+
+      const pageSave = page.getByTestId("settings-page-save");
+      await fillUntil(page, input, target, () => expect(pageSave).toBeEnabled({ timeout: 2_000 }));
+
+      const saveRes = page
+        .waitForResponse(
+          (res) => res.url().includes("/api/system/settings") && res.status() < 400,
+          {
+            timeout: ACTION_TIMEOUT,
+          },
+        )
+        .catch(() => null);
+      await pageSave.click();
+      await saveRes;
+
+      await expect(pageSave.getByText("Saved")).toBeVisible({ timeout: ACTION_TIMEOUT });
+      await expect(pageSave).toBeDisabled({ timeout: ACTION_TIMEOUT });
+
+      await goSettings(page, "cache");
+      const reloaded = page.getByTestId("settings-field-CACHE_TTL_SCHEMA").locator("input").first();
+      await expect(reloaded).toHaveValue(target, { timeout: ACTION_TIMEOUT });
+    });
+
+    test("mobile unsaved changes prompts confirmation modal on group switch", async ({ page }) => {
+      await goSettings(page, "cache");
+      await expect(page.getByTestId("settings-panel-cache")).toBeVisible({
+        timeout: ACTION_TIMEOUT,
+      });
+
+      const picker = page.getByTestId("system-settings-group-select");
+      await expect(picker).toBeVisible({ timeout: ACTION_TIMEOUT });
+
+      const field = page.getByTestId("settings-field-CACHE_TTL_SCHEMA");
+      const input = field.locator("input").first();
+      const current = await input.inputValue();
+      const pageSave = page.getByTestId("settings-page-save");
+
+      await fillUntil(
+        page,
+        input,
+        current === "999" ? "1000" : "999",
+        () => expect(pageSave).toBeEnabled({ timeout: 2_000 }),
+        { timeout: ACTION_TIMEOUT },
+      );
+
+      // Attempt switching group while dirty
+      await picker.selectOption("email");
+
+      // Modal should appear warning about unsaved changes
+      await expect(page.getByText("Unsaved Changes").first()).toBeVisible({
+        timeout: ACTION_TIMEOUT,
+      });
+      await expect(
+        page.getByText("You have unsaved settings changes. Leave this page anyway?").first(),
+      ).toBeVisible({ timeout: ACTION_TIMEOUT });
+    });
+  });
 });

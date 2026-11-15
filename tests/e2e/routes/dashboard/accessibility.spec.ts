@@ -211,7 +211,7 @@ test.describe("Dashboard accessibility audit", () => {
     // and widget surfaces this spec owns, rather than the shared admin chrome
     // (sidebar/header/version badge) whose label-content-name-mismatch findings
     // are pre-existing and unrelated to the responsive grid.
-    const results = await new AxeBuilder({ page })
+    const results = await new AxeBuilder({ page: page as never })
       .include('[data-testid="dashboard-main"]')
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
       .analyze();

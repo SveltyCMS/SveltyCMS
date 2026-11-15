@@ -580,7 +580,9 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
             isPointWrite ? { entryIds: [mutatedEntry] } : undefined,
           );
         } else {
-          void responseCache.invalidateCollection(apiEndpoint, tenantIdString).catch(() => {});
+          void responseCache
+            .invalidateCollection(apiEndpoint, tenantIdString, { debounceL2Ms: 75 })
+            .catch(() => {});
         }
         // Debounce L2 pattern evictions so write bursts do not spawn concurrent
         // pattern scans or steal PG connections. Scope the pattern to the

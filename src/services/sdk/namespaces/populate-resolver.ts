@@ -68,6 +68,38 @@ const RELATION_WARMUP_MAX_FIELDS = 4;
  */
 const RELATION_WARMUP_MAX_IDS = 50;
 
+type PopulateLookupField = {
+  db_fieldName?: string;
+  name?: string;
+  relation?: string;
+  collection?: string;
+};
+
+const schemaFieldLookupMemo = new WeakMap<object, Map<string, PopulateLookupField>>();
+
+function getSchemaFieldLookup(schema: unknown): Map<string, PopulateLookupField> {
+  if (schema && typeof schema === "object") {
+    const cached = schemaFieldLookupMemo.get(schema);
+    if (cached) return cached;
+  }
+  const fieldLookup = new Map<string, PopulateLookupField>();
+  const fields =
+    schema && typeof schema === "object"
+      ? (schema as { fields?: PopulateLookupField[] }).fields
+      : undefined;
+  if (Array.isArray(fields)) {
+    for (let i = 0; i < fields.length; i++) {
+      const f = fields[i];
+      if (f.db_fieldName) fieldLookup.set(f.db_fieldName, f);
+      if (f.name) fieldLookup.set(f.name, f);
+    }
+  }
+  if (schema && typeof schema === "object") {
+    schemaFieldLookupMemo.set(schema, fieldLookup);
+  }
+  return fieldLookup;
+}
+
 /**
  * Resolve populated relations for a result set.
  * Coalesces lookups across all populate fields sharing the same target collection
@@ -90,14 +122,7 @@ export async function resolvePopulatedRelations(
   if (!items || items.length === 0 || !populateFields || populateFields.length === 0) return;
 
   // 1. Group fields and collect unique IDs by target collection
-  const fieldLookup = new Map<string, any>();
-  if (Array.isArray(schema.fields)) {
-    for (let i = 0; i < schema.fields.length; i++) {
-      const f = schema.fields[i];
-      if (f.db_fieldName) fieldLookup.set(f.db_fieldName, f);
-      if (f.name) fieldLookup.set(f.name, f);
-    }
-  }
+  const fieldLookup = getSchemaFieldLookup(schema);
 
   const collectionTargets = new Map<
     string,

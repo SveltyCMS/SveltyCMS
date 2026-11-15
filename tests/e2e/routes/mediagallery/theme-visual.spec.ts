@@ -276,7 +276,7 @@ async function auditSurface(
       (o) => !ACCEPTED_PAIRS.some(([fg, bg]) => o.color === fg && o.background === bg),
     ),
   };
-  const axe = await new AxeBuilder({ page })
+  const axe = await new AxeBuilder({ page: page as never })
     .include(rootSelector)
     .withRules(["color-contrast"])
     .analyze();

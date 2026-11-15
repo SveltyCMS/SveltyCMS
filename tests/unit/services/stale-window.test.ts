@@ -7,6 +7,7 @@
 import { describe, it, expect } from "vitest";
 import {
   MAX_STALE_WINDOW_MS,
+  parseCacheControlStalePolicy,
   resolveStaleWindow,
   shouldServeStale,
   staleResponseHeader,
@@ -96,5 +97,50 @@ describe("staleResponseHeader", () => {
   it("discloses the applied window on a stale response", () => {
     expect(staleResponseHeader(true, policy)).toBe("stale; window=250");
     expect(staleResponseHeader(true, resolveStaleWindow("5000"))).toBe("stale; window=5000");
+  });
+});
+
+describe("parseCacheControlStalePolicy", () => {
+  it("stays disabled when the header is missing or has no stale directive", () => {
+    for (const header of [undefined, null, "", "max-age=60", "public, max-age=120"]) {
+      const policy = parseCacheControlStalePolicy(header);
+      expect(policy.enabled).toBe(false);
+      expect(policy.windowMs).toBe(0);
+    }
+  });
+
+  it("parses stale-while-revalidate and max-stale seconds clamped to MAX_STALE_WINDOW_MS", () => {
+    expect(parseCacheControlStalePolicy("max-age=60, stale-while-revalidate=2")).toMatchObject({
+      enabled: true,
+      windowMs: 2_000,
+      source: "header",
+    });
+    expect(parseCacheControlStalePolicy("stale-while-revalidate")).toMatchObject({
+      enabled: true,
+      windowMs: MAX_STALE_WINDOW_MS,
+      source: "header",
+    });
+    expect(parseCacheControlStalePolicy("max-stale=3, no-transform")).toMatchObject({
+      enabled: true,
+      windowMs: 3_000,
+      source: "header",
+    });
+    expect(parseCacheControlStalePolicy("stale-while-revalidate=9999")).toMatchObject({
+      enabled: true,
+      windowMs: MAX_STALE_WINDOW_MS,
+      source: "header",
+    });
+  });
+
+  it("fails closed on no-store, no-cache, or max-age=0", () => {
+    for (const header of [
+      "no-store, stale-while-revalidate=30",
+      "no-cache, stale-while-revalidate=30",
+      "max-age=0, stale-while-revalidate=30",
+    ]) {
+      const policy = parseCacheControlStalePolicy(header);
+      expect(policy.enabled).toBe(false);
+      expect(policy.windowMs).toBe(0);
+    }
   });
 });

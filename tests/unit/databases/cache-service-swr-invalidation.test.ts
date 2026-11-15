@@ -34,7 +34,13 @@ type AnyService = {
     category: string,
     tags: string[],
   ) => Promise<unknown>;
-  clearByTags: (tags: string[], tenantId: string | null) => Promise<void>;
+  clearByTags: (
+    tags: string[],
+    tenantId: string | null,
+    opts?: { debounceMs?: number },
+  ) => Promise<void>;
+  getSync: <T>(key: string, tenantId?: string | null) => T | null;
+  l2: FakeRedis | null;
   cleanup: () => Promise<void>;
 };
 
@@ -305,5 +311,120 @@ describe("CacheService SWR + L2 invalidation", () => {
         ["collection", "collection:Authors"],
       ),
     ).toEqual({ entries: ["a1"] });
+  });
+
+  it("coalesces debounced L2 tag clears while invalidating local L1 synchronously", async () => {
+    const writer = await service();
+    const reader = await service();
+    // Share the same FakeRedis L2 across writer and reader so we can observe L2 timing.
+    const redis = new FakeRedis();
+    await writer.connectL2ForTest(redis);
+    await reader.connectL2ForTest(redis);
+
+    const postsA = "collection:Posts:query:debA:tenant:default";
+    const postsB = "collection:Posts:query:debB:tenant:default";
+    await writer.getOrSetSWR(
+      postsA,
+      async () => ({ v: "a" }),
+      TTL_FRESH_MS,
+      TTL_STALE_MS,
+      "default",
+      "collection",
+      ["collection:Posts", "count:Posts"],
+    );
+    await writer.getOrSetSWR(
+      postsB,
+      async () => ({ v: "b" }),
+      TTL_FRESH_MS,
+      TTL_STALE_MS,
+      "default",
+      "collection",
+      ["collection:Posts", "res:graphql:Posts"],
+    );
+    await writer.flushL2WritesForTest();
+
+    // Burst debounced invalidations on the write path: L1 clears synchronously,
+    // while the L2 pipeline waits for the debounce window to coalesce tags.
+    await writer.clearByTags(["collection:Posts"], "default", { debounceMs: 30 });
+    await writer.clearByTags(["count:Posts", "res:graphql:Posts"], "default", { debounceMs: 30 });
+    expect(writer.getSync(postsA, "default")).toBeNull();
+    expect(writer.getSync(postsB, "default")).toBeNull();
+
+    // Before the debounce timer fires, reader L2 still holds the pre-flush key.
+    expect(
+      await reader.getOrSetSWR(
+        postsA,
+        async () => ({ v: "refetched" }),
+        TTL_FRESH_MS,
+        TTL_STALE_MS,
+        "default",
+        "collection",
+        ["collection:Posts"],
+      ),
+    ).toEqual({ v: "a" });
+
+    // Wait for debounce flush, then confirm L2 keys are gone for a fresh reader.
+    await new Promise((r) => setTimeout(r, 70));
+    const freshReader = await service();
+    await freshReader.connectL2ForTest(redis);
+    expect(
+      await freshReader.getOrSetSWR(
+        postsA,
+        async () => ({ v: "a2" }),
+        TTL_FRESH_MS,
+        TTL_STALE_MS,
+        "default",
+        "collection",
+        ["collection:Posts"],
+      ),
+    ).toEqual({ v: "a2" });
+    expect(
+      await freshReader.getOrSetSWR(
+        postsB,
+        async () => ({ v: "b2" }),
+        TTL_FRESH_MS,
+        TTL_STALE_MS,
+        "default",
+        "collection",
+        ["collection:Posts"],
+      ),
+    ).toEqual({ v: "b2" });
+  });
+
+  it("drains pending debounced tags on an immediate clearByTags call", async () => {
+    const writer = await service();
+    const reader = await service();
+    const redis = new FakeRedis();
+    await writer.connectL2ForTest(redis);
+    await reader.connectL2ForTest(redis);
+
+    const pendingKey = "collection:Pending:query:1:tenant:default";
+    await writer.getOrSetSWR(
+      pendingKey,
+      async () => ({ v: 1 }),
+      TTL_FRESH_MS,
+      TTL_STALE_MS,
+      "default",
+      "collection",
+      ["collection:Pending"],
+    );
+    await writer.flushL2WritesForTest();
+
+    // Long debounce would normally defer L2 purge, but an immediate non-debounced
+    // clear on the same tenant merges and drains the pending tags immediately.
+    await writer.clearByTags(["collection:Pending"], "default", { debounceMs: 5_000 });
+    await writer.clearByTags(["collection:Other"], "default");
+
+    expect(
+      await reader.getOrSetSWR(
+        pendingKey,
+        async () => ({ v: 2 }),
+        TTL_FRESH_MS,
+        TTL_STALE_MS,
+        "default",
+        "collection",
+        ["collection:Pending"],
+      ),
+    ).toEqual({ v: 2 });
   });
 });

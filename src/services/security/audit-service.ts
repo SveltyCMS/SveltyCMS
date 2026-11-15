@@ -992,7 +992,13 @@ export class AuditService {
   }
 }
 
-export const auditService = new AuditService();
+const defaultSingletonMaxBuffer = Number(process.env.AUDIT_MAX_BUFFER_SIZE) || 250;
+export const auditService = new AuditService({
+  maxBufferSize: defaultSingletonMaxBuffer,
+  maxTotalBuffer:
+    Number(process.env.AUDIT_MAX_TOTAL_BUFFER) || Math.max(1000, defaultSingletonMaxBuffer * 4),
+  microBatchMs: Number(process.env.AUDIT_MICRO_BATCH_MS) || 100,
+});
 export const auditLogService = auditService;
 export const queryAuditLogs = auditService.queryLogs.bind(auditService);
 export const getLogs = auditService.getLogs.bind(auditService);

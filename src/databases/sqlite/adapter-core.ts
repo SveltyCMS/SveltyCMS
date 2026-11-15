@@ -87,6 +87,46 @@ export type { SQLiteConfig } from "./path-resolver";
 export type SQLiteClient = any;
 export type SQLiteDB = any;
 
+/** Input for SQLite's lazy published-list covering partial index. */
+export interface SqlitePublishedListIndexSpec {
+  tableName: string;
+  column: string;
+  direction: "asc" | "desc";
+  /** A tenant filter exists on the table, so the index leads with `tenantId`. */
+  withTenant: boolean;
+  /** The table carries `isDeleted`; SQLite wire queries filter `"isDeleted" = 0`. */
+  hasDeleted: boolean;
+}
+
+/**
+ * Builds the `CREATE INDEX IF NOT EXISTS` DDL for a SQLite published-list
+ * partial covering index matching `SqliteWireStreamEngine.findListWireStream`.
+ */
+export function buildSqlitePublishedListIndexDdl(spec: SqlitePublishedListIndexSpec): {
+  indexName: string;
+  safeTable: string;
+  ddl: string;
+} {
+  const safeTable = assertSafeSqlIdentifier(spec.tableName, "table");
+  const safeCol = assertSafeSqlIdentifier(spec.column, "column");
+  const dir = spec.direction === "desc" ? "DESC" : "ASC";
+  const indexName = assertSafeSqlIdentifier(
+    boundedSqlIndexName(
+      `${spec.tableName}_${spec.column}_${spec.withTenant ? "t" : "o"}_pub_list_id`,
+    ),
+    "index",
+  );
+  const cols = spec.withTenant
+    ? `("tenantId", "${safeCol}" ${dir}, "_id" ${dir})`
+    : `("${safeCol}" ${dir}, "_id" ${dir})`;
+  const predicate = `"status" IN ('publish', 'published')${spec.hasDeleted ? ' AND "isDeleted" = 0' : ""}`;
+  return {
+    indexName,
+    safeTable,
+    ddl: `CREATE INDEX IF NOT EXISTS "${indexName}" ON "${safeTable}" ${cols} WHERE ${predicate}`,
+  };
+}
+
 // Isolation for multi-threaded testing
 const testWorkerContext = new AsyncLocalStorage<string>();
 
@@ -130,6 +170,11 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
    * connection.
    */
   private _writeBatcher: WriteBatcher | null = null;
+
+  private static readonly SORT_EXPR_FIELD_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+  private static readonly MAX_PUBLISHED_LIST_INDEXES = 64;
+  /** Published-list partial indexes already requested (DDL is never retried per request). */
+  private _publishedListIndexKeys = new Set<string>();
 
   /**
    * Clear all cached prepared statements (call after any DDL that changes
@@ -307,11 +352,27 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       fields?: string[];
     },
   ): Promise<RawListWireStreamResult> {
-    return this._wireStreamEngine.findListWireStream(this, table, getTableName(table), options);
+    const tableName = getTableName(table);
+    if (
+      !options?.transaction &&
+      options?.requirePublished === true &&
+      options.sortField &&
+      this.getColumn(table, options.sortField)
+    ) {
+      const tenantClause = buildRawTenantClause(options, "sqlite");
+      this.schedulePublishedListIndex(
+        tableName,
+        options.sortField,
+        options.sortDirection === "desc" ? "desc" : "asc",
+        Boolean(this.getColumn(table, "tenantId")) && tenantClause.sql.length > 0,
+        Boolean(this.getColumn(table, "isDeleted")),
+      );
+    }
+    return this._wireStreamEngine.findListWireStream(this, table, tableName, options);
   }
 
   protected override get updateCoalescingEnabled(): boolean {
-    return process.env.SVELTY_WRITE_COALESCE_UPDATE !== "0";
+    return process.env.SVELTY_WRITE_COALESCE_UPDATE === "1";
   }
 
   /**
@@ -1079,7 +1140,11 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
                   valuesSql.push(`(${rowPlaceholders.join(", ")})`);
                 }
                 const sqlText = `INSERT INTO "${getTableName(table)}" (${colList}) VALUES ${valuesSql.join(", ")}${skipReturning ? "" : " RETURNING *"}`;
-                const rawRows = await this.prepareAndExecuteWrite(sqlText, "all", ...params);
+                const rawRows = await this.prepareAndExecuteWrite(
+                  sqlText,
+                  skipReturning ? "run" : "all",
+                  ...params,
+                );
                 executedChunks++;
                 if (Array.isArray(rawRows) && rawRows.length > 0) rowsOut.push(...rawRows);
               }
@@ -1338,8 +1403,22 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
    * than `updatedAt`. Deferred one tick so the read that discovered the sort
    * does not wait on the build.
    */
+  /** Defer non-blocking DDL execution so index creation never stalls the active read path. */
+  private deferIndexDdl(ddl: string, label: string): void {
+    setTimeout(() => {
+      try {
+        this.prepareAndExecuteWrite(ddl, "run");
+      } catch (err) {
+        logger.debug(
+          `[SQLite] ${label} failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }, 0);
+  }
+
   protected override scheduleListSortIndex(tableName: string, plan: ListIndexRequest): void {
     if (process.env.SVELTY_LAZY_SORT_INDEXES === "0") return;
+    if (!SQLiteAdapterCore.SORT_EXPR_FIELD_RE.test(plan.column)) return;
     const safeTable = assertSafeSqlIdentifier(tableName, "table");
     const safeCol = assertSafeSqlIdentifier(plan.column, "column");
     const indexName = assertSafeSqlIdentifier(
@@ -1348,15 +1427,36 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     );
     const cols = plan.withTenant ? `("tenantId", "${safeCol}", "_id")` : `("${safeCol}", "_id")`;
     const ddl = `CREATE INDEX IF NOT EXISTS "${indexName}" ON "${safeTable}" ${cols}`;
-    setTimeout(() => {
-      try {
-        this.prepareAndExecuteWrite(ddl, "run");
-      } catch (err) {
-        logger.debug(
-          `[SQLite] list index failed for ${tableName}.${plan.column}: ${err instanceof Error ? err.message : String(err)}`,
-        );
-      }
-    }, 0);
+    this.deferIndexDdl(ddl, `list index for ${tableName}.${plan.column}`);
+  }
+
+  /**
+   * Lazily provision a SQLite partial covering index matching published-list
+   * wire queries (`WHERE status IN ('publish','published') [AND isDeleted = 0]`).
+   */
+  private schedulePublishedListIndex(
+    tableName: string,
+    column: string,
+    direction: "asc" | "desc",
+    withTenant: boolean,
+    hasDeleted: boolean,
+  ): void {
+    if (process.env.SVELTY_LAZY_SORT_INDEXES === "0") return;
+    if (!SQLiteAdapterCore.SORT_EXPR_FIELD_RE.test(column)) return;
+    if (column === "_id" || column === "status") return;
+    const key = `${tableName}|${column}|${withTenant ? 1 : 0}|${hasDeleted ? 1 : 0}`;
+    if (this._publishedListIndexKeys.has(key)) return;
+    if (this._publishedListIndexKeys.size >= SQLiteAdapterCore.MAX_PUBLISHED_LIST_INDEXES) return;
+    this._publishedListIndexKeys.add(key);
+
+    const { ddl } = buildSqlitePublishedListIndexDdl({
+      tableName,
+      column,
+      direction,
+      withTenant,
+      hasDeleted,
+    });
+    this.deferIndexDdl(ddl, `published list index for ${tableName}.${column}`);
   }
 
   public override get sqlDialect(): SqlDialect {
@@ -1724,6 +1824,35 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
    */
   private runGroupCommit(jobs: PendingWrite[]): void {
     const client = this.sqlite;
+
+    // Optimistic pass: run the whole batch inside BEGIN IMMEDIATE ... COMMIT
+    // without allocating per-job SAVEPOINT/RELEASE statements (~2N+2 SQL
+    // compilations saved on every group commit). If any op throws, ROLLBACK
+    // undoes the batch cleanly and the SAVEPOINT replay below isolates only the
+    // failing op so valid sibling jobs still commit.
+    const fastValues: unknown[] = [];
+    let fastCommitted = false;
+    try {
+      client.exec("BEGIN IMMEDIATE");
+      for (let i = 0; i < jobs.length; i++) {
+        fastValues.push(jobs[i].run());
+      }
+      client.exec("COMMIT");
+      fastCommitted = true;
+    } catch {
+      try {
+        client.exec("ROLLBACK");
+      } catch {
+        /* no active transaction */
+      }
+    }
+    if (fastCommitted) {
+      for (let i = 0; i < jobs.length; i++) {
+        jobs[i].resolve(fastValues[i]);
+      }
+      return;
+    }
+
     const outcomes: Array<{
       job: PendingWrite;
       value?: unknown;

@@ -92,6 +92,7 @@ vi.mock("@src/services/cache/response-cache", () => ({
     (q: string, v: unknown, f: string, u: unknown) => `cache:${q}:${JSON.stringify(v)}:${f}:${u}`,
   ),
   generateContentEtag: vi.fn(() => '"mock-etag"'),
+  setGraphqlCollectionResolver: vi.fn(),
 }));
 
 vi.mock("@src/services/background/pub-sub", () => ({
@@ -105,6 +106,8 @@ vi.mock("@src/services/sdk", () => ({
 vi.mock("@src/routes/api/graphql/resolvers/collections", () => ({
   registerCollections,
   collectionsResolvers,
+  createCleanTypeName: (c: { _id?: string; name?: unknown }) =>
+    typeof c.name === "string" ? c.name : String(c._id || "Collection"),
 }));
 
 vi.mock("@src/routes/api/graphql/resolvers/media", () => ({

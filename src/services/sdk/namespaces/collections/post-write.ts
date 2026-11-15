@@ -29,6 +29,7 @@ import type { WasmHookFailurePolicy, WasmHostContext } from "@src/plugins/wasm/t
 import type { PluginContext, PluginLifecycleHooks } from "@src/plugins/types";
 import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
 import type { Schema } from "@src/content/types";
+import type { PointEntryPatch } from "@src/services/cache/response-cache";
 import type { LocalApiOptions } from "../types";
 import { evictRequestCache } from "./request-cache";
 import {
@@ -97,6 +98,12 @@ let _pendingInvalidationDirty = new Set<string>();
  * of every cached per-id entry — the fix for the O(#docs) write cliff at scale.
  */
 const _pendingInvalidationIds = new Map<string, Set<string>>();
+/**
+ * Per-request-key map of lazy point-cache patches (`null` disables patching
+ * and forces eviction when an unsafe or non-patch write touches the same id
+ * during the same coalesced tick).
+ */
+const _pendingInvalidationPatches = new Map<string, Record<string, PointEntryPatch | null>>();
 /** Set free-list — recycles per-tick id Sets instead of re-allocating one per coalesced write burst. */
 const _idSetPool: Set<string>[] = [];
 const acquireIdSet = (): Set<string> => _idSetPool.pop() ?? new Set<string>();
@@ -127,6 +134,8 @@ export function invalidateCache(
     skipRequestCacheClear?: boolean;
     writtenId?: string;
     writtenIds?: readonly string[];
+    entryPatch?: PointEntryPatch;
+    entryPatches?: Record<string, PointEntryPatch | null>;
   },
 ): void {
   queueInvalidation(
@@ -135,6 +144,8 @@ export function invalidateCache(
     opts?.skipRequestCacheClear === true,
     opts?.writtenId,
     opts?.writtenIds,
+    opts?.entryPatch,
+    opts?.entryPatches,
   );
 }
 
@@ -149,6 +160,8 @@ function queueInvalidation(
   skipRequestCacheClear: boolean,
   writtenId: string | undefined,
   writtenIds: readonly string[] | undefined,
+  entryPatch?: PointEntryPatch,
+  entryPatches?: Record<string, PointEntryPatch | null>,
 ): void {
   if (!skipRequestCacheClear) {
     evictRequestCache(schema._id as string, tenantId as string);
@@ -167,8 +180,56 @@ function queueInvalidation(
       ids = acquireIdSet();
       _pendingInvalidationIds.set(requestKey, ids);
     }
-    if (writtenId) ids.add(writtenId);
-    if (writtenIds) for (const id of writtenIds) ids.add(id);
+    if (writtenId) {
+      ids.add(writtenId);
+      let patchMap = _pendingInvalidationPatches.get(requestKey);
+      if (entryPatch) {
+        if (!patchMap) {
+          patchMap = {};
+          _pendingInvalidationPatches.set(requestKey, patchMap);
+        }
+        const existing = patchMap[writtenId];
+        if (existing === null) {
+          // A prior non-patch write in the same tick disabled in-place patching for this id.
+        } else if (existing) {
+          Object.assign(existing.patch, entryPatch.patch);
+          if (entryPatch.updatedAt) existing.updatedAt = entryPatch.updatedAt;
+        } else {
+          patchMap[writtenId] = {
+            patch: { ...entryPatch.patch },
+            updatedAt: entryPatch.updatedAt,
+          };
+        }
+      } else {
+        if (!patchMap) {
+          patchMap = {};
+          _pendingInvalidationPatches.set(requestKey, patchMap);
+        }
+        patchMap[writtenId] = null;
+      }
+    }
+    if (writtenIds) {
+      for (const id of writtenIds) {
+        ids.add(id);
+        let patchMap = _pendingInvalidationPatches.get(requestKey);
+        if (!patchMap) {
+          patchMap = {};
+          _pendingInvalidationPatches.set(requestKey, patchMap);
+        }
+        const incoming = entryPatches?.[id];
+        if (incoming && patchMap[id] !== null) {
+          const existing = patchMap[id];
+          if (existing) {
+            Object.assign(existing.patch, incoming.patch);
+            if (incoming.updatedAt) existing.updatedAt = incoming.updatedAt;
+          } else {
+            patchMap[id] = { patch: { ...incoming.patch }, updatedAt: incoming.updatedAt };
+          }
+        } else {
+          patchMap[id] = null;
+        }
+      }
+    }
   }
 
   if (_pendingInvalidationTasks.has(requestKey)) {
@@ -180,6 +241,15 @@ function queueInvalidation(
   queueMicrotask(async () => {
     const ids = _pendingInvalidationIds.get(requestKey);
     _pendingInvalidationIds.delete(requestKey);
+    const rawPatches = _pendingInvalidationPatches.get(requestKey);
+    _pendingInvalidationPatches.delete(requestKey);
+    let cleanPatches: Record<string, PointEntryPatch> | undefined;
+    if (rawPatches) {
+      for (const id of Object.keys(rawPatches)) {
+        const val = rawPatches[id];
+        if (val) (cleanPatches ??= {})[id] = val;
+      }
+    }
     try {
       const rc = _responseCacheRef ?? (_responseCacheRef = await getResponseCacheLazy());
       if (schemaId) {
@@ -187,6 +257,7 @@ function queueInvalidation(
           `collection:${schemaId}`,
           `count:${schemaId}`,
           "res:graphql",
+          `res:graphql:${schemaId}`,
           `res:${schemaId}`,
         ];
         const physicalSchemaId = collectionTableName(schemaId);
@@ -198,14 +269,16 @@ function queueInvalidation(
           // un-cache every sibling `findById` body.
           for (const id of ids) tagsToClear.push(`doc:${schemaId}:${id}`);
         }
-        void cacheService.clearByTags(tagsToClear, tenantKey).catch(() => {});
+        void cacheService.clearByTags(tagsToClear, tenantKey, { debounceMs: 75 }).catch(() => {});
         // Lists/GraphQL are always evicted (a cached body embeds the written row);
         // the point tier is narrowed to the ids actually written so sibling
         // findById turbo hits survive a single-row PATCH (mixed workload).
         rc.invalidateLocal(
           schemaId,
           tenantKey,
-          ids && ids.size > 0 ? { entryIds: Array.from(ids) } : undefined,
+          ids && ids.size > 0
+            ? { entryIds: Array.from(ids), entryPatches: cleanPatches }
+            : undefined,
         );
       } else {
         void rc.invalidateAll(tenantKey).catch(() => {});
@@ -228,7 +301,17 @@ function queueInvalidation(
           _pendingInvalidationIds.delete(requestKey);
           releaseIdSet(replayIds);
         }
-        queueInvalidation(schema, tenantId, true, undefined, replayIdList);
+        const replayPatches = _pendingInvalidationPatches.get(requestKey);
+        if (replayPatches) _pendingInvalidationPatches.delete(requestKey);
+        queueInvalidation(
+          schema,
+          tenantId,
+          true,
+          undefined,
+          replayIdList,
+          undefined,
+          replayPatches,
+        );
       }
     }
   });
@@ -249,6 +332,7 @@ export function schedulePostWrite(
   data: any,
   user: any,
   options: LocalApiOptions,
+  entryPatch?: PointEntryPatch,
 ): void {
   // L1 clear must be sync so same-tick reads don't see stale request-scoped cache
   evictRequestCache(schema._id as string, tenantId as string);
@@ -268,7 +352,7 @@ export function schedulePostWrite(
   // filters on, so `collection:` / `res:` / `res:graphql` tags are always
   // cleared. The written id only narrows the point tier (sibling `findById`
   // turbo hits stay warm).
-  queueInvalidation(schema, tenantId, true, id, undefined);
+  queueInvalidation(schema, tenantId, true, id, undefined, entryPatch);
 
   if ((action === "create" || action === "update") && !options.skipReturning) {
     recordWriteAccess(tid || "global", schemaId, id);

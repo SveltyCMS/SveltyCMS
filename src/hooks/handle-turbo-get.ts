@@ -20,6 +20,11 @@ import {
   collectionEtagMatches,
   tryCollectionNotModified,
 } from "@src/services/cache/collection-etag";
+import {
+  parseCacheControlStalePolicy,
+  staleResponseHeader,
+  type StaleWindowPolicy,
+} from "@src/services/cache/stale-window";
 import { CACHEABLE_PREFIXES } from "./handle-request-classifier";
 import { isSecureCookieContext, isAdmin } from "@src/databases/auth/constants";
 import { readSessionCookie } from "@utils/security/session-cookie";
@@ -293,11 +298,18 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
     }
   }
 
-  const resEntry = responseCache.get(pathKey, cacheTenant);
+  const ccHeader = !bypassEtag && method === "GET" ? request.headers.get("cache-control") : null;
+  const stalePolicy = ccHeader ? parseCacheControlStalePolicy(ccHeader) : null;
+  const resEntry = responseCache.get(
+    pathKey,
+    cacheTenant,
+    undefined,
+    stalePolicy?.enabled ? { stalePolicy } : undefined,
+  );
 
   if (!resEntry || !resEntry.body) return resolve(event);
 
-  return serveTurboCacheEntry(event, resEntry);
+  return serveTurboCacheEntry(event, resEntry, stalePolicy);
 };
 
 /**
@@ -417,6 +429,7 @@ export function createFastHeaders(record: Record<string, string | string[]>): He
 export function serveTurboCacheEntry(
   event: { request: Request; url: URL; locals?: unknown },
   resEntry: CachedResponseEntry,
+  stalePolicy?: StaleWindowPolicy | null,
 ): Response {
   const { request, url } = event;
   const method = request.method;
@@ -424,9 +437,14 @@ export function serveTurboCacheEntry(
   const tpl = hitHeaderTemplate(url.protocol === "https:", origin, url.pathname);
   const isFastLane =
     (event.locals as { __isFastLane?: boolean } | undefined)?.__isFastLane === true;
+  const staleHeader = resEntry.stale && stalePolicy ? staleResponseHeader(true, stalePolicy) : null;
 
   if (isFastLane) {
     const fastRecord: Record<string, string | string[]> = { ...tpl.record };
+    if (resEntry.stale) {
+      fastRecord["x-cache"] = "STALE";
+      if (staleHeader) fastRecord["x-cache-stale"] = staleHeader;
+    }
     const fastHeadersFacade = createFastHeaders(fastRecord);
 
     if (resEntry.etag) {
@@ -498,6 +516,10 @@ export function serveTurboCacheEntry(
   }
 
   const responseHeaders = new Headers(tpl.pairs);
+  if (resEntry.stale) {
+    responseHeaders.set("X-Cache", "STALE");
+    if (staleHeader) responseHeaders.set("X-Cache-Stale", staleHeader);
+  }
 
   if (resEntry.etag) {
     responseHeaders.set("ETag", resEntry.etag);

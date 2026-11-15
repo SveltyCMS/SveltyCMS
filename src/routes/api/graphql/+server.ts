@@ -29,12 +29,19 @@ import { createYoga, createSchema, renderGraphiQL, type GraphiQLOptions } from "
 import { GraphQLError, NoSchemaIntrospectionCustomRule, type DocumentNode } from "graphql";
 import { useGraphQlJit } from "@envelop/graphql-jit";
 import { BoundedJITCache } from "./jit-cache";
+import { createFastHeaders } from "@src/hooks/handle-turbo-get";
 import {
   responseCache,
   buildGraphQLResponseCacheKey,
   generateContentEtag,
+  setGraphqlCollectionResolver,
   type CachedResponseEntry,
 } from "@src/services/cache/response-cache";
+import {
+  parseCacheControlStalePolicy,
+  staleResponseHeader,
+  type StaleWindowPolicy,
+} from "@src/services/cache/stale-window";
 import { PROFILE_WRITE_ENABLED, profileSpan, profileMark } from "@utils/write-profiler";
 import { metricsService } from "@src/services/observability/metrics-service";
 import { pubSub } from "@src/services/background/pub-sub";
@@ -161,6 +168,58 @@ function projectGraphqlFields(
   return out;
 }
 
+let graphqlResolverRegistered = false;
+
+function resolveGraphqlTargetCollection(
+  fieldName: string,
+  tenantId?: string | null,
+): Schema | undefined {
+  let targetCollection: Schema | undefined =
+    peekReadySchema(tenantId as DatabaseId, fieldName) ||
+    peekReadySchema(tenantId as DatabaseId, fieldName.toLowerCase());
+
+  if (!targetCollection) {
+    const collections = contentStore.getCollections(tenantId);
+    for (const c of collections) {
+      if (!c._id) continue;
+      const cleanName = createCleanTypeName({ _id: c._id, name: c.name });
+      if (cleanName === fieldName || c._id === fieldName || c.name === fieldName) {
+        targetCollection = c;
+        break;
+      }
+    }
+  }
+
+  if (!targetCollection) {
+    const prefix = `${tenantId || "global"}:`;
+    for (const [key, schema] of schemaCacheEntries()) {
+      if (key.startsWith(prefix)) {
+        const cleanName = createCleanTypeName({ _id: schema._id, name: schema.name });
+        if (cleanName === fieldName || schema._id === fieldName || schema.name === fieldName) {
+          targetCollection = schema;
+          break;
+        }
+      }
+    }
+  }
+  return targetCollection;
+}
+
+function ensureGraphqlCollectionResolver(): void {
+  if (graphqlResolverRegistered) return;
+  graphqlResolverRegistered = true;
+  setGraphqlCollectionResolver?.((rootField, tenantId) => {
+    const target = resolveGraphqlTargetCollection(rootField, tenantId);
+    if (target?._id) return String(target._id);
+    const prefix = `${tenantId || "global"}:`;
+    if (contentStore.getCollections(tenantId).length > 0) return null;
+    for (const [key] of schemaCacheEntries()) {
+      if (key.startsWith(prefix)) return null;
+    }
+    return undefined;
+  });
+}
+
 /**
  * Skip Yoga/JIT for the two hottest in-memory queries (health + collection
  * catalog). Auth already ran; cost/depth are trivial for a single root field.
@@ -240,38 +299,7 @@ async function tryGraphqlFastPath(
   }
 
   // 2. Collection root query fast-path (e.g. BenchmarkStable, Articles)
-  let targetCollection: Schema | undefined =
-    peekReadySchema(ctx.tenantId as DatabaseId, matched.field) ||
-    peekReadySchema(ctx.tenantId as DatabaseId, matched.field.toLowerCase());
-
-  if (!targetCollection) {
-    const collections = contentStore.getCollections(ctx.tenantId as any);
-    for (const c of collections) {
-      if (!c._id) continue;
-      const cleanName = createCleanTypeName({ _id: c._id, name: c.name });
-      if (cleanName === matched.field || c._id === matched.field || c.name === matched.field) {
-        targetCollection = c;
-        break;
-      }
-    }
-  }
-
-  if (!targetCollection) {
-    const prefix = `${ctx.tenantId || "global"}:`;
-    for (const [key, schema] of schemaCacheEntries()) {
-      if (key.startsWith(prefix)) {
-        const cleanName = createCleanTypeName({ _id: schema._id, name: schema.name });
-        if (
-          cleanName === matched.field ||
-          schema._id === matched.field ||
-          schema.name === matched.field
-        ) {
-          targetCollection = schema;
-          break;
-        }
-      }
-    }
-  }
+  const targetCollection = resolveGraphqlTargetCollection(matched.field, ctx.tenantId);
 
   if (!targetCollection || !targetCollection._id) {
     return null;
@@ -345,6 +373,7 @@ async function tryGraphqlFastPath(
     publicationFilter: ctx.publicationFilter || "all",
     user: ctx.user,
     fields,
+    skipAdminEnvelope: true,
   });
 
   const rows = (
@@ -825,43 +854,90 @@ interface CoalescedGraphqlRead {
 const inflightGraphqlReads = new Map<string, Promise<CoalescedGraphqlRead | null>>();
 const MAX_INFLIGHT_GRAPHQL_READS = 64;
 
-function serveGraphqlCached(request: Request, cached: CachedResponseEntry): Response {
+function buildGraphqlResponse(
+  body: string | Uint8Array,
+  extraHeaders: Record<string, string>,
+  locals?: App.Locals,
+  rawText?: string,
+): Response {
+  const preapplied = (locals as { __graphqlSecurityHeaders?: Record<string, string> } | undefined)
+    ?.__graphqlSecurityHeaders;
+  const headersRecord: Record<string, string> = preapplied
+    ? { ...preapplied, ...extraHeaders }
+    : { ...extraHeaders };
+  const isFastLane = (locals as { __isFastLane?: boolean } | undefined)?.__isFastLane === true;
+
+  if (isFastLane) {
+    if (!headersRecord["content-length"]) {
+      headersRecord["content-length"] = String(
+        typeof body === "string" ? Buffer.byteLength(body, "utf8") : body.byteLength,
+      );
+    }
+    return {
+      status: 200,
+      ok: true,
+      headers: createFastHeaders(headersRecord),
+      __fastHeaders: headersRecord,
+      __fastBody: body,
+      __securityHeadersApplied: Boolean(preapplied),
+      text: async () =>
+        rawText ?? (typeof body === "string" ? body : Buffer.from(body).toString("utf8")),
+      json: async () =>
+        JSON.parse(
+          rawText ?? (typeof body === "string" ? body : Buffer.from(body).toString("utf8")),
+        ),
+    } as unknown as Response;
+  }
+
+  const res = new Response(body as BodyInit, {
+    status: 200,
+    headers: headersRecord,
+  });
+  (res as unknown as { __fastBody?: string | Uint8Array }).__fastBody = body;
+  (res as unknown as { __fastHeaders?: Record<string, string> }).__fastHeaders = headersRecord;
+  if (preapplied) {
+    (res as unknown as { __securityHeadersApplied?: boolean }).__securityHeadersApplied = true;
+  }
+  return res;
+}
+
+function serveGraphqlCached(
+  request: Request,
+  cached: CachedResponseEntry,
+  locals?: App.Locals,
+  stalePolicy?: StaleWindowPolicy | null,
+): Response {
   const acceptEncoding = request.headers.get("Accept-Encoding") || "";
   const rawBody = cached.body;
   const payloadSize = cached.buffer
     ? cached.buffer.byteLength
     : Buffer.byteLength(rawBody, "utf-8");
 
-  const responseHeaders = new Headers({
-    "Content-Type": "application/json",
-    ETag: cached.etag,
-    "X-Cache": "HIT",
-    "Cache-Control": "private, no-store",
-    Vary: "Accept-Encoding, Cookie",
-  });
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+    etag: cached.etag,
+    "x-cache": cached.stale ? "STALE" : "HIT",
+    "cache-control": "private, no-store",
+    vary: "Accept-Encoding, Cookie",
+  };
+  if (cached.stale && stalePolicy) {
+    const staleHdr = staleResponseHeader(true, stalePolicy);
+    if (staleHdr) headers["x-cache-stale"] = staleHdr;
+  }
 
   if (cached.compressed && payloadSize > 1024) {
     if (acceptEncoding.includes("br") && cached.compressed.br) {
-      responseHeaders.set("Content-Encoding", "br");
-      return new Response(cached.compressed.br as BodyInit, {
-        status: 200,
-        headers: responseHeaders,
-      });
+      headers["content-encoding"] = "br";
+      return buildGraphqlResponse(cached.compressed.br, headers, locals, rawBody);
     }
     if (acceptEncoding.includes("gzip") && cached.compressed.gzip) {
-      responseHeaders.set("Content-Encoding", "gzip");
-      return new Response(cached.compressed.gzip as BodyInit, {
-        status: 200,
-        headers: responseHeaders,
-      });
+      headers["content-encoding"] = "gzip";
+      return buildGraphqlResponse(cached.compressed.gzip, headers, locals, rawBody);
     }
   }
 
   const payload = cached.buffer || rawBody;
-  return new Response(payload as BodyInit, {
-    status: 200,
-    headers: responseHeaders,
-  });
+  return buildGraphqlResponse(payload, headers, locals, rawBody);
 }
 
 /** Constant-time check that `apqHash` is the SHA-256 digest of `query`. */
@@ -1027,23 +1103,62 @@ async function handleRequest(event: RequestEvent): Promise<Response> {
     }
   }
 
+  ensureGraphqlCollectionResolver();
   const userId = locals.user?._id || locals.user?.id || null;
+  const cacheTenant = locals.tenantId as string;
   const cacheKey =
     isQuery && query
-      ? buildGraphQLResponseCacheKey(query, variables, publicationFilter, userId)
+      ? buildGraphQLResponseCacheKey(
+          query,
+          variables,
+          publicationFilter,
+          userId,
+          undefined,
+          cacheTenant,
+        )
       : null;
 
   // 🚀 FAST-PATH: Return cached response immediately before content/DB/Yoga setup
-  const cacheTenant = locals.tenantId as string;
+  const ccHeader = request.headers.get("cache-control");
+  const stalePolicy = ccHeader ? parseCacheControlStalePolicy(ccHeader) : null;
   const bypassGraphqlCache =
     url.searchParams.get("refresh") === "true" ||
     url.searchParams.get("nocache") === "true" ||
     url.searchParams.get("bypassCache") === "true";
   if (cacheKey && !bypassGraphqlCache) {
-    const cached = responseCache.get(cacheKey, cacheTenant);
+    const cached = responseCache.get(
+      cacheKey,
+      cacheTenant,
+      false,
+      stalePolicy?.enabled ? { stalePolicy } : undefined,
+    );
     if (cached?.body) {
+      if (
+        cached.stale &&
+        stalePolicy?.enabled &&
+        responseCache.tryAcquireSwrRefresh?.(cacheKey, cacheTenant)
+      ) {
+        void tryGraphqlFastPath(
+          query,
+          {
+            user: locals.user,
+            tenantId: locals.tenantId,
+            dbAdapter: locals.dbAdapter,
+            publicationFilter,
+          },
+          variables,
+        )
+          .then((fresh) => {
+            if (fresh) {
+              const etag = generateContentEtag(fresh);
+              responseCache.set(cacheKey, { body: fresh, etag }, 60_000, cacheTenant);
+            }
+          })
+          .catch(() => {})
+          .finally(() => responseCache.releaseSwrRefresh?.(cacheKey, cacheTenant));
+      }
       metricsService.recordGraphqlResponseHit(cacheTenant);
-      return serveGraphqlCached(request, cached);
+      return serveGraphqlCached(request, cached, locals, stalePolicy);
     }
   }
 
@@ -1054,7 +1169,7 @@ async function handleRequest(event: RequestEvent): Promise<Response> {
       const shared = await inflight;
       if (shared) {
         metricsService.recordGraphqlResponseHit(cacheTenant);
-        return serveGraphqlCached(request, shared);
+        return serveGraphqlCached(request, shared, locals, stalePolicy);
       }
     }
   }
@@ -1104,13 +1219,15 @@ async function handleRequest(event: RequestEvent): Promise<Response> {
         published = { body: fast, etag };
         metricsService.recordGraphqlResponseMiss(tenant);
       }
-      return new Response(fast, {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          "X-Cache": "MISS",
+      return buildGraphqlResponse(
+        fast,
+        {
+          "content-type": "application/json",
+          "x-cache": "MISS",
         },
-      });
+        locals,
+        fast,
+      );
     }
 
     let adapter = locals.dbAdapter;

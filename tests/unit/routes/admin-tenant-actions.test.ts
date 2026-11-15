@@ -1,13 +1,12 @@
 /**
  * @file tests/unit/routes/admin-tenant-actions.test.ts
- * @description Unit tests for the /admin super-admin guard and the tenant mutation actions.
+ * @description Unit tests for tenant mutation actions.
  * The dbAdapter is injected, so only its `create`/`update` methods are mocked; `raise`
  * and `rethrow` are the real implementations from @utils/error-handling.
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { IDBAdapter, Tenant } from "@src/databases/db-interface";
-import { load } from "../../../src/routes/(admin)/admin/+page.server";
 import {
   createTenant,
   toggleTenantStatus,
@@ -15,32 +14,6 @@ import {
 
 type CreateTenantFn = IDBAdapter["system"]["tenants"]["create"];
 type UpdateTenantFn = IDBAdapter["system"]["tenants"]["update"];
-
-type AdminLocalsOptions = {
-  isAdmin?: boolean;
-  tenantId?: string | null;
-};
-
-function makeLocals({ isAdmin = true, tenantId = null }: AdminLocalsOptions = {}): App.Locals {
-  return {
-    user: {
-      _id: "user-1",
-      email: "admin@example.com",
-      role: "admin",
-      tenantId,
-    },
-    isAdmin,
-    roles: [],
-    allTokens: [],
-    allUsers: [],
-    customCss: "",
-    darkMode: false,
-  } as unknown as App.Locals;
-}
-
-function makeLoadEvent(locals: App.Locals) {
-  return { locals } as unknown as Parameters<typeof load>[0];
-}
 
 function makeTenant(overrides: Partial<Tenant> = {}): Tenant {
   return {
@@ -77,25 +50,38 @@ function makeTenantAdapter() {
   return { create, dbAdapter, update };
 }
 
-describe("/admin +page.server load", () => {
-  it("redirects a non-admin to the site root", async () => {
-    await expect(load(makeLoadEvent(makeLocals({ isAdmin: false })))).rejects.toMatchObject({
-      status: 303,
-      location: "/",
-    });
+describe("createTenant and toggleTenantStatus edge cases", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
-  it("redirects a tenant admin to the site root", async () => {
+  it("rejects when data is missing or name is undefined", async () => {
+    const { create, dbAdapter } = makeTenantAdapter();
+    await expect(createTenant({} as any, dbAdapter)).rejects.toMatchObject({
+      status: 400,
+      message: "Tenant name is required",
+    });
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("toggleTenantStatus rejects when tenantId is empty string", async () => {
+    const { dbAdapter, update } = makeTenantAdapter();
     await expect(
-      load(makeLoadEvent(makeLocals({ isAdmin: true, tenantId: "tenant-1" }))),
+      toggleTenantStatus({ tenantId: "", status: "active" }, dbAdapter),
     ).rejects.toMatchObject({
-      status: 303,
-      location: "/",
+      status: 400,
+      message: "Invalid parameters",
     });
+    expect(update).not.toHaveBeenCalled();
   });
 
-  it("returns for a super-admin", async () => {
-    await expect(load(makeLoadEvent(makeLocals()))).resolves.toBeUndefined();
+  it("createTenant wraps thrown adapter rejection as AppError 500", async () => {
+    const { create, dbAdapter } = makeTenantAdapter();
+    create.mockRejectedValue(new Error("network failure"));
+    await expect(createTenant({ name: "Acme" }, dbAdapter)).rejects.toMatchObject({
+      status: 500,
+      message: "Failed to create tenant",
+    });
   });
 });
 

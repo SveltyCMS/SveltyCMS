@@ -129,8 +129,8 @@ CI runs 2 whitebox jobs (policy/quality + unit) + harness build + DB ×4 + bench
 
 | Changed paths                                                          | Added specs                                                                                                            |
 | :--------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------- |
-| `src/components/`, `src/app.css`, `src/routes/**/*.svelte`, `(admin)/` | `routes/login/accessibility.spec.ts`, `routes/dashboard/accessibility.spec.ts`                                         |
-| `src/components/ui/`, `src/app.css`, design-system route, `(admin)/`   | `routes/admin-theme/visual-regression.spec.ts`                                                                         |
+| `src/components/`, `src/app.css`, `src/routes/**/*.svelte`             | `routes/login/accessibility.spec.ts`, `routes/dashboard/accessibility.spec.ts`                                         |
+| `src/components/ui/`, `src/app.css`, design-system route               | `routes/admin-theme/visual-regression.spec.ts`                                                                         |
 | `src/routes/(app)/mediagallery/`, `src/components/media/`              | `routes/mediagallery/mediagallery.spec.ts`, `routes/mediagallery/theme-visual.spec.ts`                                 |
 | `src/utils/media/`, `src/services/media/`, media API handlers          | `routes/mediagallery/{mediagallery,folders-bulk,media-bulk-partial-failure}.spec.ts`, `routes/site/share-link.spec.ts` |
 | `src/widgets/`, `src/components/collection-display/`, collection route | `routes/collection-builder/kitchen-sink.spec.ts`                                                                       |

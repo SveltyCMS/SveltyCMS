@@ -102,6 +102,17 @@ export class CacheService {
   /** Collection write epochs for fencing race conditions between background warm and user writes. */
   private collectionEpochs = new Map<string, number>();
 
+  /** Coalesced L2 tag clears keyed by tenant bucket (`__wildcard__` or normalized tenant). */
+  private pendingL2TagClears = new Map<
+    string,
+    {
+      tenantId: string | null;
+      tags: Set<string>;
+      timer: ReturnType<typeof setTimeout>;
+      flushPromise?: Promise<void>;
+    }
+  >();
+
   constructor() {
     // The L1 was bounded only by entry count (500k). A read-heavy workload on a
     // large collection caches ~one entry per distinct document, so the cache
@@ -1105,8 +1116,161 @@ export class CacheService {
     }
   }
 
-  async clearByTags(tags: string[], tenantId: string | null = "*") {
+  private pendingClearBucketKey(tenantId: string | null | undefined): string {
+    if (tenantId === "*" || tenantId === undefined || tenantId === null || tenantId === "") {
+      return "__wildcard__";
+    }
+    return this.normalizeTenantId(tenantId);
+  }
+
+  private async flushPendingL2TagClear(bucketKey: string): Promise<void> {
+    const entry = this.pendingL2TagClears.get(bucketKey);
+    if (!entry) return;
+    clearTimeout(entry.timer);
+    this.pendingL2TagClears.delete(bucketKey);
+    const drainedTags = Array.from(entry.tags);
+    if (drainedTags.length === 0 || !this.isL2Ready()) return;
+    await this.batcher.flush(this.l2);
+    await this.executeClearByTagsL2(drainedTags, entry.tenantId);
+  }
+
+  private async executeClearByTagsL2(tags: string[], tenantId: string | null): Promise<void> {
+    if (!this.isL2Ready() || tags.length === 0) return;
+    try {
+      const isWildcardTenant =
+        tenantId === "*" || tenantId === undefined || tenantId === null || tenantId === "";
+      if (isWildcardTenant) {
+        const CHUNK_SIZE = 50;
+        for (const tag of tags) {
+          const match = `tag:*:${tag}`;
+          let cursor = "0";
+          do {
+            const reply = await this.l2.scan(cursor, { MATCH: match, COUNT: 200 });
+            cursor = reply.cursor;
+            const found: string[] = reply.keys ?? [];
+            for (let i = 0; i < found.length; i += CHUNK_SIZE) {
+              const tagKeyChunk = found.slice(i, i + CHUNK_SIZE);
+              const membersChunks = await Promise.all(
+                tagKeyChunk.map((tagKey) => this.l2.sMembers(tagKey).catch(() => [] as string[])),
+              );
+
+              if (typeof this.l2.multi === "function") {
+                const multi = this.l2.multi();
+                for (let j = 0; j < tagKeyChunk.length; j++) {
+                  const members = membersChunks[j];
+                  if (members && members.length > 0) {
+                    if (typeof multi.unlink === "function") multi.unlink(members);
+                    else multi.del(members);
+                  }
+                  if (typeof multi.unlink === "function") multi.unlink(tagKeyChunk[j]);
+                  else multi.del(tagKeyChunk[j]);
+                }
+                await multi.exec();
+              } else {
+                const allToDel: string[] = [...tagKeyChunk];
+                for (let j = 0; j < membersChunks.length; j++) {
+                  const members = membersChunks[j];
+                  if (members && members.length > 0) allToDel.push(...members);
+                }
+                if (allToDel.length > 0) {
+                  if (typeof this.l2.unlink === "function") await this.l2.unlink(allToDel);
+                  else await this.l2.del(allToDel);
+                }
+              }
+            }
+          } while (cursor !== "0");
+        }
+      } else {
+        const tagPrefix = `${this.normalizeTenantId(tenantId)}:`;
+        const uniqueTags = [...new Set(tags)];
+        const tagKeys = uniqueTags.map((t) => `tag:${tagPrefix}${t}`);
+
+        if (typeof this.l2.multi === "function") {
+          // Fetch every tag's members in ONE pipeline (1 round trip), then
+          // delete members + tag keys in a second pipeline (2 RTs total instead
+          // of one sMembers round trip per tag + one unlink per chunk).
+          const fetchMulti = this.l2.multi();
+          for (const tk of tagKeys) fetchMulti.sMembers(tk);
+          const replies = await fetchMulti.exec();
+          const membersChunks = (replies ?? []).map((r: unknown) =>
+            Array.isArray(r) ? (r as string[]) : ([] as string[]),
+          );
+
+          const allToDel: string[] = [...tagKeys];
+          for (const members of membersChunks) {
+            if (members.length > 0) allToDel.push(...members);
+          }
+
+          if (allToDel.length > 0) {
+            const delMulti = this.l2.multi();
+            if (typeof delMulti.unlink === "function") delMulti.unlink(allToDel);
+            else delMulti.del(allToDel);
+            await delMulti.exec();
+          }
+        } else {
+          const allToDel: string[] = [...tagKeys];
+          const membersChunks = await Promise.all(
+            tagKeys.map((tk) => this.l2.sMembers(tk).catch(() => [] as string[])),
+          );
+          for (const members of membersChunks) {
+            if (members.length > 0) allToDel.push(...members);
+          }
+          if (allToDel.length > 0) {
+            if (typeof this.l2.unlink === "function") await this.l2.unlink(allToDel);
+            else await this.l2.del(allToDel);
+          }
+        }
+      }
+      await this.publishInvalidation(null, tenantId, tags);
+    } catch (err) {
+      logger.error(`L2 Cache ClearByTags Failure: ${tags.join(",")}`, err);
+    }
+  }
+
+  async clearByTags(tags: string[], tenantId: string | null = "*", opts?: { debounceMs?: number }) {
     if (!tags || tags.length === 0) return;
+
+    const debounceMs = opts?.debounceMs ?? 0;
+    if (debounceMs > 0 && this.isL2Ready()) {
+      // Negative entries carry the same tags as their positive counterparts, so a
+      // `doc:<collection>:<id>` write clear un-negatives locally right away while
+      // the Redis L2 pipeline coalesces burst writes.
+      this.negative.invalidateByTags(tags);
+      this.clearLocalL1ByTags(tags, tenantId);
+      cacheMetrics.recordClear(tags.join(","), CacheCategory.GENERAL, tenantId);
+
+      const bucketKey = this.pendingClearBucketKey(tenantId);
+      const existing = this.pendingL2TagClears.get(bucketKey);
+      if (existing) {
+        for (const t of tags) existing.tags.add(t);
+        return;
+      }
+      const tagSet = new Set(tags);
+      const timer = setTimeout(() => {
+        void this.flushPendingL2TagClear(bucketKey);
+      }, debounceMs);
+      (timer as { unref?: () => void }).unref?.();
+      this.pendingL2TagClears.set(bucketKey, {
+        tenantId,
+        tags: tagSet,
+        timer,
+      });
+      return;
+    }
+
+    const bucketKey = this.pendingClearBucketKey(tenantId);
+    const pending = this.pendingL2TagClears.get(bucketKey);
+    let combinedTags = tags;
+    if (pending) {
+      clearTimeout(pending.timer);
+      this.pendingL2TagClears.delete(bucketKey);
+      if (pending.tags.size > 0) {
+        const merged = new Set(pending.tags);
+        for (const t of tags) merged.add(t);
+        combinedTags = Array.from(merged);
+      }
+    }
+
     // Drain the 15 ms write batch BEFORE the tag index is read. SWR entries now
     // reach L2 through the batcher, so a write buffered just before this clear
     // would otherwise land afterwards — re-creating the entry with fresh tag
@@ -1115,102 +1279,12 @@ export class CacheService {
     if (this.isL2Ready()) {
       await this.batcher.flush(this.l2);
     }
-    // Negative entries carry the same tags as their positive counterparts, so a
-    // `doc:<collection>:<id>` write clear also un-negatives that entry.
-    this.negative.invalidateByTags(tags);
-    this.clearLocalL1ByTags(tags, tenantId);
-    cacheMetrics.recordClear(tags.join(","), CacheCategory.GENERAL, tenantId);
+    this.negative.invalidateByTags(combinedTags);
+    this.clearLocalL1ByTags(combinedTags, tenantId);
+    cacheMetrics.recordClear(combinedTags.join(","), CacheCategory.GENERAL, tenantId);
 
     if (this.isL2Ready()) {
-      try {
-        const isWildcardTenant =
-          tenantId === "*" || tenantId === undefined || tenantId === null || tenantId === "";
-        if (isWildcardTenant) {
-          const CHUNK_SIZE = 50;
-          for (const tag of tags) {
-            const match = `tag:*:${tag}`;
-            let cursor = "0";
-            do {
-              const reply = await this.l2.scan(cursor, { MATCH: match, COUNT: 200 });
-              cursor = reply.cursor;
-              const found: string[] = reply.keys ?? [];
-              for (let i = 0; i < found.length; i += CHUNK_SIZE) {
-                const tagKeyChunk = found.slice(i, i + CHUNK_SIZE);
-                const membersChunks = await Promise.all(
-                  tagKeyChunk.map((tagKey) => this.l2.sMembers(tagKey).catch(() => [] as string[])),
-                );
-
-                if (typeof this.l2.multi === "function") {
-                  const multi = this.l2.multi();
-                  for (let j = 0; j < tagKeyChunk.length; j++) {
-                    const members = membersChunks[j];
-                    if (members && members.length > 0) {
-                      if (typeof multi.unlink === "function") multi.unlink(members);
-                      else multi.del(members);
-                    }
-                    if (typeof multi.unlink === "function") multi.unlink(tagKeyChunk[j]);
-                    else multi.del(tagKeyChunk[j]);
-                  }
-                  await multi.exec();
-                } else {
-                  const allToDel: string[] = [...tagKeyChunk];
-                  for (let j = 0; j < membersChunks.length; j++) {
-                    const members = membersChunks[j];
-                    if (members && members.length > 0) allToDel.push(...members);
-                  }
-                  if (allToDel.length > 0) {
-                    if (typeof this.l2.unlink === "function") await this.l2.unlink(allToDel);
-                    else await this.l2.del(allToDel);
-                  }
-                }
-              }
-            } while (cursor !== "0");
-          }
-        } else {
-          const tagPrefix = `${this.normalizeTenantId(tenantId)}:`;
-          const uniqueTags = [...new Set(tags)];
-          const tagKeys = uniqueTags.map((t) => `tag:${tagPrefix}${t}`);
-
-          if (typeof this.l2.multi === "function") {
-            // Fetch every tag's members in ONE pipeline (1 round trip), then
-            // delete members + tag keys in a second pipeline (2 RTs total instead
-            // of one sMembers round trip per tag + one unlink per chunk).
-            const fetchMulti = this.l2.multi();
-            for (const tk of tagKeys) fetchMulti.sMembers(tk);
-            const replies = await fetchMulti.exec();
-            const membersChunks = (replies ?? []).map((r: unknown) =>
-              Array.isArray(r) ? (r as string[]) : ([] as string[]),
-            );
-
-            const allToDel: string[] = [...tagKeys];
-            for (const members of membersChunks) {
-              if (members.length > 0) allToDel.push(...members);
-            }
-
-            if (allToDel.length > 0) {
-              const delMulti = this.l2.multi();
-              if (typeof delMulti.unlink === "function") delMulti.unlink(allToDel);
-              else delMulti.del(allToDel);
-              await delMulti.exec();
-            }
-          } else {
-            const allToDel: string[] = [...tagKeys];
-            const membersChunks = await Promise.all(
-              tagKeys.map((tk) => this.l2.sMembers(tk).catch(() => [] as string[])),
-            );
-            for (const members of membersChunks) {
-              if (members.length > 0) allToDel.push(...members);
-            }
-            if (allToDel.length > 0) {
-              if (typeof this.l2.unlink === "function") await this.l2.unlink(allToDel);
-              else await this.l2.del(allToDel);
-            }
-          }
-        }
-        await this.publishInvalidation(null, tenantId, tags);
-      } catch (err) {
-        logger.error(`L2 Cache ClearByTags Failure: ${tags.join(",")}`, err);
-      }
+      await this.executeClearByTagsL2(combinedTags, tenantId);
     }
   }
 
@@ -1419,6 +1493,11 @@ export class CacheService {
   }
 
   async cleanup(): Promise<void> {
+    const pendingKeys = Array.from(this.pendingL2TagClears.keys());
+    for (const key of pendingKeys) {
+      await this.flushPendingL2TagClear(key);
+    }
+    this.pendingL2TagClears.clear();
     await this.batcher.flush(this.l2);
     this.batcher.clear();
     this.negative.stop();

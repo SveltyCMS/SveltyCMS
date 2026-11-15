@@ -53,8 +53,19 @@ export function getDashboardEndpointLicense(method: string): string | undefined 
 }
 
 export async function requireDashboardWidgetLicense(widgetId: string): Promise<void> {
-  const status = await checkExtensionLicense("dashboard", widgetId);
-  if (!status.active && !status.hasLicense) {
+  let status;
+  try {
+    status = await checkExtensionLicense("dashboard", widgetId);
+  } catch (err) {
+    if (isAppError(err)) throw err;
+    logger.warn(`[Dashboard] License check threw for widget "${widgetId}":`, err);
+    raise(
+      403,
+      `The "${widgetId}" dashboard widget requires an active license or trial`,
+      "LICENSE_REQUIRED",
+    );
+  }
+  if (!status?.active && !status?.hasLicense) {
     logger.warn(`[Dashboard] License gate blocked widget "${widgetId}" (no active license/trial)`);
     raise(
       403,
@@ -280,7 +291,16 @@ export async function handleDashboardRoutes(
       }
 
       case "health": {
-        const isUp = await cms.db.isConnected();
+        let isUp = false;
+        try {
+          isUp = Boolean(
+            cms?.db && typeof cms.db.isConnected === "function" && (await cms.db.isConnected()),
+          );
+        } catch (err) {
+          logger.warn("[DashboardRoute] Health check failed to connect to db:", err);
+          isUp = false;
+        }
+
         return rawResponse(event, {
           overallStatus: isUp ? "READY" : "DEGRADED",
           status: isUp ? "healthy" : "degraded",
@@ -406,10 +426,22 @@ export async function handleDashboardRoutes(
         const info = (await getSystemInfo().catch(() => ({}))) as any;
 
         const response = {
-          osInfo: info.os,
-          cpuInfo: info.cpu,
-          memoryInfo: info.memory,
-          diskInfo: info.disk || { root: { totalGb: 0, usedGb: 0, freeGb: 0 } },
+          osInfo: info?.os || { platform: "", release: "", hostname: "", uptime: 0, arch: "" },
+          cpuInfo: info?.cpu || {
+            cores: { count: 1, perCore: [] },
+            historicalLoad: { usage: [0], timestamps: [nowISODateString()] },
+            currentUsage: 0,
+            currentLoad: 0,
+            loadAverage: [0, 0, 0],
+          },
+          memoryInfo: info?.memory || {
+            totalBytes: 0,
+            usedBytes: 0,
+            freeBytes: 0,
+            usagePercent: 0,
+            total: 0,
+          },
+          diskInfo: info?.disk || { root: { totalGb: 0, usedGb: 0, freeGb: 0, usedPercentage: 0 } },
         };
 
         let resultPayload;
@@ -658,25 +690,42 @@ export async function handleDashboardRoutes(
 
       case "system-messages": {
         const limit = Number(url.searchParams.get("limit")) || 10;
-        const result = await auditLogService.queryLogs({
-          limit,
-          tenantId: tenantId || undefined,
-        });
-        const messages = result.success
-          ? result.data.map((l) => ({
-              id: l._id,
-              title: l.action,
-              message: l.message || l.action,
-              level: l.severity,
-              timestamp: l.timestamp,
-              type:
-                l.severity === "critical" || l.severity === "high"
-                  ? "error"
-                  : l.severity === "medium"
-                    ? "warning"
-                    : "info",
-            }))
-          : [];
+        interface SystemMessage {
+          id: string | number;
+          title: string;
+          message: string;
+          level: string;
+          timestamp: string;
+          type: "error" | "warning" | "info";
+        }
+        let messages: SystemMessage[] = [];
+        try {
+          const result = await auditLogService.queryLogs({
+            limit,
+            tenantId: tenantId || undefined,
+          });
+          if (result?.success && Array.isArray(result.data)) {
+            messages = result.data.map((l) => {
+              const severity = String(l.severity || "info");
+              const action = String(l.action || "");
+              return {
+                id: String(l._id ?? ""),
+                title: action,
+                message: String(l.message || action),
+                level: severity,
+                timestamp: String(l.timestamp || nowISODateString()),
+                type:
+                  severity === "critical" || severity === "high"
+                    ? ("error" as const)
+                    : severity === "medium"
+                      ? ("warning" as const)
+                      : ("info" as const),
+              };
+            });
+          }
+        } catch (err) {
+          logger.warn("[DashboardRoute] system-messages queryLogs failed:", err);
+        }
 
         return rawResponse(
           event,

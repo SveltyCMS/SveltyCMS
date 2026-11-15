@@ -42,18 +42,19 @@ tags:
 
 <!-- EXECUTIVE_FIX_NOTES_END -->
 
-(06/10/2026, 13:03:51)
+> [!NOTE]
+> **Partial update** — dimension rollups and issues reflect only tests invoked in this run.
 
-**✅ PASS** · 22/45 tests · 23 skipped · **POSTGRESQL+REDIS** · Bun 1.4.2
+**✅ PASS** _(partial invocation)_ · 1/44 tests · 43 skipped · **postgresql-redis** · standalone run
 
 ### Dimension health
 
 | Dimension      | Tests | Status | Worst Δ | Issues |
 | -------------- | ----: | ------ | ------- | ------ |
-| **Core**       |    13 | 🟢     | +631%   | 0      |
-| **API**        |     9 | 🟢     | -52%    | 0      |
-| **Scale**      |    18 | 🟢     | +147%   | 0      |
-| **Resilience** |     5 | 🟢     | —       | 0      |
+| **Core**       |    25 | 🟢     | —       | 0      |
+| **API**        |     0 | ⚪     | —       | 0      |
+| **Scale**      |     0 | ⚪     | —       | 0      |
+| **Resilience** |     0 | ⚪     | —       | 0      |
 
 ### Issues (action required)
 
@@ -61,14 +62,33 @@ tags:
 
 ### Executive latency matrix
 
-| Scenario               | Latency | Trend  | Budget   | Result |
-| ---------------------- | ------- | ------ | -------- | ------ |
-| **Cold Start**         | N/A     | ⚪ (—) | < 5000ms | ⚪ N/A |
-| **REST (Collections)** | N/A     | ⚪ (—) | < 5ms    | ⚪ N/A |
-| **Middleware Hooks**   | N/A     | ⚪     | < 2ms    | ⚪ N/A |
-| **GraphQL (Avg)**      | N/A     | ⚪ (—) | < 5ms    | ⚪ N/A |
-| **Million-Row Index**  | N/A     | ⚪     | < 250ms  | ⚪ N/A |
-| **DB Raw (p95)**       | N/A     | ⚪     | < 50ms   | ⚪ N/A |
+| Scenario      | Latency | Trend                             | Budget | Result |
+| ------------- | ------- | --------------------------------- | ------ | ------ |
+| **HTTP**      | 0.147ms | ⚪ established at 0.147ms (1 run) | < 5ms  | 🟢     |
+| **HTTP**      | 0.366ms | ⚪ established at 0.366ms (1 run) | < 5ms  | 🟢     |
+| **HTTP**      | 0.169ms | ⚪ established at 0.169ms (1 run) | < 5ms  | 🟢     |
+| **HTTP**      | 0.401ms | ⚪ established at 0.401ms (1 run) | < 5ms  | 🟢     |
+| **HTTP**      | 0.355ms | ⚪ established at 0.355ms (1 run) | < 5ms  | 🟢     |
+| **HTTP**      | 0.570ms | ⚪ established at 0.570ms (1 run) | < 5ms  | 🟢     |
+| **HTTP**      | 0.404ms | ⚪ established at 0.404ms (1 run) | < 5ms  | 🟢     |
+| **HTTP**      | 1.528ms | ⚪ established at 1.53ms (1 run)  | < 5ms  | 🟢     |
+| **HTTP**      | 0.175ms | ⚪ established at 0.175ms (1 run) | < 5ms  | 🟢     |
+| **HTTP**      | 0.346ms | ⚪ established at 0.346ms (1 run) | < 5ms  | 🟢     |
+| **HTTP**      | 0.148ms | ⚪ established at 0.148ms (1 run) | < 5ms  | 🟢     |
+| **HTTP**      | 0.393ms | ⚪ established at 0.393ms (1 run) | < 5ms  | 🟢     |
+| **HTTP**      | 0.149ms | ⚪ established at 0.149ms (1 run) | < 5ms  | 🟢     |
+| **HTTP**      | 0.390ms | ⚪ established at 0.390ms (1 run) | < 5ms  | 🟢     |
+| **HTTP**      | 0.093ms | ⚪ established at 0.093ms (1 run) | < 5ms  | 🟢     |
+| **HTTP**      | 0.293ms | ⚪ established at 0.293ms (1 run) | < 5ms  | 🟢     |
+| **HTTP**      | 1.339ms | ⚪ established at 1.34ms (1 run)  | < 5ms  | 🟢     |
+| **HTTP**      | 3.386ms | ⚪ established at 3.39ms (1 run)  | < 5ms  | 🟢     |
+| **HTTP**      | 1.530ms | ⚪ established at 1.53ms (1 run)  | < 5ms  | 🟢     |
+| **HTTP**      | 4.262ms | ⚪ established at 4.26ms (1 run)  | < 5ms  | 🟢     |
+| **HTTP**      | 0.444ms | ⚪ established at 0.444ms (1 run) | < 5ms  | 🟢     |
+| **HTTP**      | 1.030ms | ⚪ established at 1.03ms (1 run)  | < 5ms  | 🟢     |
+| **HTTP**      | 1.902ms | ⚪ established at 1.90ms (1 run)  | < 5ms  | 🟢     |
+| **HTTP**      | 5.056ms | ⚪ established at 5.06ms (1 run)  | < 5ms  | 🟢     |
+| **Ingestion** | 0.190ms | ⚪ established at 0.190ms (1 run) | < 5ms  | 🟢     |
 
 ### Historical pulse
 
@@ -82,33 +102,10 @@ tags:
 
 ```mermaid
 xychart-beta
-  title "POSTGRESQL+REDIS REST p95 (last 10 runs)"
+  title "postgresql-redis REST p95 (last 10 runs)"
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
   line "p95" : [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
-```
-
-</details>
-<details>
-<summary>📊 Regression severity matrix (quadrant)</summary>
-
-```mermaid
-quadrantChart
-  title "Regression severity (impact vs delta)"
-  x-axis Low latency impact --> High latency impact
-  y-axis Low delta --> High delta
-  quadrant-1 Monitor
-  quadrant-2 Investigate soon
-  quadrant-3 Acceptable variance
-  quadrant-4 Critical — fix first
-    API LAYER LATENCY: [0.32, 0.95]
-    COMPETITIVE 9-WORKLOAD REPLI: [0.10, 0.08]
-    MIDDLEWARE FLAMEGRAPH PROFIL: [0.11, 0.16]
-    Incremental Content Reload: [0.05, 0.31]
-    Database Adapter Raw CRUD: [0.05, 0.09]
-    REST API Performance: [0.05, 0.08]
-    GraphQL API Performance: [0.07, 0.06]
-    GraphQL Response Cache Hit: [0.08, 0.08]
 ```
 
 </details>
@@ -117,20 +114,53 @@ quadrantChart
 
 <!-- EXECUTIVE_ALERTS_START -->
 <!-- EXECUTIVE_ALERTS_END -->
+
 <!-- EXECUTIVE_END -->
 
 <!-- SUMMARY_START -->
 <!-- SUMMARY_RUN_OVERLAY_START -->
 
-### Current Run Summary
+### Current Run Summary (2026-11-15)
 
-> Only tests that ran in THIS invocation. Populated after `BENCHMARK_RECORD=1` or matrix run.
+> **Scope:** Only tests that ran in THIS invocation.
+
+> ⚠️ Executive PASS/FAIL reflects the last full matrix run.
+
+**Run ID:** `01a1defd-32df-76bf-8054-3725a122603f` · **Tests invoked:** 1 · **Metrics:** 25 · **DB:** postgresql-redis
+
+| Test                         | Metric                                  | Avg (ms) | p95 (ms) | RPS   | Trend | Detail                            |
+| ---------------------------- | --------------------------------------- | -------- | -------- | ----- | ----- | --------------------------------- |
+| Competitive Workload Replica | findById (Warm Sequential)              | 0.147    | 0.230    | 6736  | 🟢    | ⚪ established at 0.147ms (1 run) |
+| Competitive Workload Replica | findById (Warm Concurrent 8c)           | 0.366    | 0.497    | 21516 | 🟢    | ⚪ established at 0.366ms (1 run) |
+| Competitive Workload Replica | findByIdRandom (Warm Sequential)        | 0.169    | 0.261    | 5853  | 🟢    | ⚪ established at 0.169ms (1 run) |
+| Competitive Workload Replica | findByIdRandom (Warm Concurrent 8c)     | 0.401    | 0.705    | 19644 | 🟢    | ⚪ established at 0.401ms (1 run) |
+| Competitive Workload Replica | listFilterSort (Warm Sequential)        | 0.355    | 0.450    | 2805  | 🟢    | ⚪ established at 0.355ms (1 run) |
+| Competitive Workload Replica | listFilterSort (Warm Concurrent 8c)     | 0.570    | 0.834    | 13798 | 🟢    | ⚪ established at 0.570ms (1 run) |
+| Competitive Workload Replica | listLarge (Warm Sequential)             | 0.404    | 0.564    | 2466  | 🟢    | ⚪ established at 0.404ms (1 run) |
+| Competitive Workload Replica | listLarge (Warm Concurrent 8c)          | 1.528    | 2.784    | 5122  | 🟢    | ⚪ established at 1.53ms (1 run)  |
+| Competitive Workload Replica | listPlain (Warm Sequential)             | 0.175    | 0.481    | 5680  | 🟢    | ⚪ established at 0.175ms (1 run) |
+| Competitive Workload Replica | listPlain (Warm Concurrent 8c)          | 0.346    | 0.524    | 22523 | 🟢    | ⚪ established at 0.346ms (1 run) |
+| Competitive Workload Replica | listPopulated (Warm Sequential)         | 0.148    | 0.259    | 6713  | 🟢    | ⚪ established at 0.148ms (1 run) |
+| Competitive Workload Replica | listPopulated (Warm Concurrent 8c)      | 0.393    | 0.526    | 19924 | 🟢    | ⚪ established at 0.393ms (1 run) |
+| Competitive Workload Replica | listPopulatedLarge (Warm Sequential)    | 0.149    | 0.240    | 6676  | 🟢    | ⚪ established at 0.149ms (1 run) |
+| Competitive Workload Replica | listPopulatedLarge (Warm Concurrent 8c) | 0.390    | 0.496    | 20046 | 🟢    | ⚪ established at 0.390ms (1 run) |
+| Competitive Workload Replica | findMissing (Warm Sequential)           | 0.093    | 0.142    | 10697 | 🟢    | ⚪ established at 0.093ms (1 run) |
+| Competitive Workload Replica | findMissing (Warm Concurrent 8c)        | 0.293    | 0.403    | 26590 | 🟢    | ⚪ established at 0.293ms (1 run) |
+| Competitive Workload Replica | create (Warm Sequential)                | 1.339    | 1.758    | 746   | 🟢    | ⚪ established at 1.34ms (1 run)  |
+| Competitive Workload Replica | create (Warm Concurrent 8c)             | 3.386    | 5.528    | 2336  | 🟢    | ⚪ established at 3.39ms (1 run)  |
+| Competitive Workload Replica | update (Warm Sequential)                | 1.530    | 2.137    | 653   | 🟢    | ⚪ established at 1.53ms (1 run)  |
+| Competitive Workload Replica | update (Warm Concurrent 8c)             | 4.262    | 5.507    | 1860  | 🟢    | ⚪ established at 4.26ms (1 run)  |
+| Competitive Workload Replica | graphql (Warm Sequential)               | 0.444    | 0.536    | 2241  | 🟢    | ⚪ established at 0.444ms (1 run) |
+| Competitive Workload Replica | graphql (Warm Concurrent 8c)            | 1.030    | 1.363    | 7610  | 🟢    | ⚪ established at 1.03ms (1 run)  |
+| Competitive Workload Replica | mixed (Warm Sequential)                 | 1.902    | 4.726    | 525   | 🟢    | ⚪ established at 1.90ms (1 run)  |
+| Competitive Workload Replica | mixed (Warm Concurrent 8c)              | 5.056    | 7.655    | 1543  | 🟢    | ⚪ established at 5.06ms (1 run)  |
+| Competitive Workload Replica | Seed Burst (500 docs, HTTP)             | 0.190    | 0.190    | 5272  | 🟢    | ⚪ established at 0.190ms (1 run) |
 
 <!-- SUMMARY_RUN_OVERLAY_END -->
 
 <!-- SUMMARY_HISTORY_START -->
 
-### Historical Trends (2026-10-06)
+### Historical Trends (2026-11-15)
 
 > **Mode:** production-parity matrix runs only (`run_mode='matrix'` + `server_mode='production'` — `NODE_ENV=production`, no `TEST_MODE`). Standalone/mode-variant samples are recorded but never trended here.
 
@@ -138,64 +168,10 @@ quadrantChart
 
 **Detail:** [`tests/benchmarks/results/history.sqlite`](../../../tests/benchmarks/results/history.sqlite) · `SELECT test_id, phase, server_mode, avg_ms, p95_ms, rps, timestamp FROM runs WHERE db_type='postgresql' AND redis=1 ORDER BY timestamp DESC`
 
-**Series:** 54 · **DB:** postgresql-redis
+**Series:** 0 · **DB:** postgresql-redis
 
-| Metric                              | Trend | Sparkline (last 7) | Latest    |
-| ----------------------------------- | ----- | ------------------ | --------- |
-| ADMIN UX VITALITY (warm)            | 🟢    | `█▁`               | 0.490ms   |
-| AI PERFORMANCE (warm)               | 🟢    | `▁▁`               | 0.000ms   |
-| AUTH PERFORMANCE (warm)             | 🟢    | `▁▃█▃▃▃`           | 0.810ms   |
-| AUTH SESSION AMR (warm)             | 🟢    | `▁█▂█`             | 0.987ms   |
-| BUILD ANALYSIS (warm)               | 🟢    | `▁`                | 0.000ms   |
-| CACHE HIT RATIO (warm)              | 🟢    | `▅▆▁█`             | 1.324ms   |
-| CACHE PERFORMANCE (warm)            | 🟢    | `▁█`               | 0.817ms   |
-| CACHE SERVICE (warm)                | 🟢    | `▁▆█`              | 0.738ms   |
-| CLIENT JOURNEY (warm)               | 🟢    | `▁`                | 5.366ms   |
-| COMPETITIVE WORKLOAD REPLICA (warm) | 🟢    | `▁▂▁▅▂█▂`          | 1.185ms   |
-| CONCURRENCY MAX (warm)              | 🟢    | `▁`                | 26.398ms  |
-| CONTENT GUI SAVE (warm)             | 🟢    | `▁`                | 1.466ms   |
-| CONTENT SCALE STRESS (warm)         | 🟢    | `█▁`               | 0.151ms   |
-| CONTENT SCAN (warm)                 | 🟢    | `█▁`               | 0.658ms   |
-| DATABASE PERFORMANCE (warm)         | 🟢    | `▂▁▇▂█▁▁`          | 0.473ms   |
-| EDGE SYNC (warm)                    | 🟢    | `▁`                | 2.931ms   |
-| ENTRY EDIT HYDRATION (warm)         | 🟢    | `█▁▁▆`             | 0.016ms   |
-| GRAPHQL API PERFORMANCE (warm)      | 🟢    | `▄▃█▆▂▁`           | 0.797ms   |
-| GRAPHQL CACHE HIT (warm)            | 🟢    | `█▁▃▁`             | 0.985ms   |
-| GRAPHQL LOCAL SDK (warm)            | 🟢    | `█▁`               | 0.000ms   |
-| GRAPHQL STRESS (warm)               | 🟢    | `█▁▂▃▁▄▆`          | 12.039ms  |
-| HOOKS PERFORMANCE (warm)            | 🟢    | `▁█▁▅▃`            | 0.785ms   |
-| INDEX PRESSURE (warm)               | 🟢    | `▁█`               | 0.705ms   |
-| LARGE PAYLOAD STREAMING (warm)      | 🟢    | `▁▄▇█`             | 10.582ms  |
-| LOCAL API PERFORMANCE (warm)        | 🟢    | `█▁▇`              | 0.383ms   |
-| LOCAL API THROUGHPUT (warm)         | 🟢    | `▁█`               | 1.841ms   |
-| LOCAL CMS CRUD (warm)               | 🟢    | `▃▃▃▃▁█▄`          | 0.560ms   |
-| LOCAL SDK VS DIRECT (warm)          | 🟢    | `▁▁██▇█▇`          | 1.457ms   |
-| MEDIA UPLOAD STRESS (warm)          | 🟢    | `▁█`               | 7.713ms   |
-| MEMORY COUNTERS (warm)              | 🟢    | `▁`                | 0.000ms   |
-| MIGRATION SCALE (warm)              | 🟢    | `█▁▁`              | 0.839ms   |
-| MIXED WORKLOAD (warm)               | 🟢    | `▁`                | 1.001ms   |
-| MULTI TENANT PERFORMANCE (warm)     | 🟢    | `▁`                | 0.999ms   |
-| OPENAPI PERFORMANCE (warm)          | 🟢    | `▇▁█`              | 2.070ms   |
-| PRODUCTION DAY (warm)               | 🟢    | `▁`                | 1.912ms   |
-| REALTIME PERFORMANCE (warm)         | 🟢    | `▁▁▁`              | 0.000ms   |
-| REVISION STRESS (warm)              | 🟢    | `▁█▁`              | 0.478ms   |
-| RIGHT TO BE FORGOTTEN AUDIT (warm)  | 🟢    | `▁`                | 13.241ms  |
-| SECURITY AUDIT (warm)               | 🟢    | `▁▁▁█▁▁▁`          | 0.001ms   |
-| SHARP VS BUN IMAGE (warm)           | 🟢    | `▄▂▁█▄▃▂`          | 40.254ms  |
-| TELEMETRY PERFORMANCE (warm)        | 🟢    | `█▁`               | 0.000ms   |
-| TEMPORAL INTEGRITY (warm)           | 🟢    | `▁`                | 2.978ms   |
-| TRANSACTION ACID (warm)             | 🟢    | `▁█`               | 2.150ms   |
-| TRUTH LATENCY (warm)                | 🟢    | `█▃▁▁`             | 0.000ms   |
-| WEBSOCKET BROADCAST (warm)          | 🟢    | `▁`                | 0.213ms   |
-| WIDGET PERFORMANCE (warm)           | 🟢    | `█▁▄`              | 0.977ms   |
-| API LATENCY (warm)                  | ⚪    | `▅▂▁▁█`            | 3.818ms   |
-| CONFIG PROMOTION (warm)             | ⚪    | `▂▂▂█▁▁`           | 9.922ms   |
-| CONTENT INCREMENTAL RELOAD (warm)   | ⚪    | `▄▃▁█`             | 0.551ms   |
-| MEDIA PERFORMANCE (warm)            | ⚪    | `▁▆▁▄▂▁█`          | 108.651ms |
-| MIDDLEWARE FLAMEGRAPH (warm)        | ⚪    | `▄▂▂█▂▁█`          | 1.382ms   |
-| NEGATIVE CACHE (warm)               | ⚪    | `██▁`              | 0.001ms   |
-| REST API PERFORMANCE (warm)         | ⚪    | `▆▄▄▁█`            | 0.591ms   |
-| SCALE SPECTRUM (warm)               | ⚪    | `▁▂▄▁▂▁█`          | 2.001ms   |
+| Metric | Trend | Sparkline (last 7) | Latest |
+| ------ | ----- | ------------------ | ------ |
 
 <!-- SUMMARY_HISTORY_END --><!-- SUMMARY_END -->
 
@@ -771,7 +747,7 @@ Throughput dropped 67% — check connection pool saturation or lock contention.
 <!-- LEDGER_DIMENSION:SCALE:START -->
 
 <details id="ledger-dimension-scale">
-<summary><strong>Scale</strong> · 18 tests</summary>
+<summary><strong>Scale</strong> · 17 tests</summary>
 
 <!-- SECTION:NEGATIVE_CACHE:START -->
 <details id="section-negative_cache">

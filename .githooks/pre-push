@@ -285,11 +285,11 @@ if [ "${SKIP_E2E_SMOKE:-false}" != "true" ]; then
   # Any component or route-markup change can move a colour pair, an RTL
   # logical property, or an accessible name — exactly what the CI Axe/RTL jobs
   # assert. Run the accessibility contracts with the smoke gate.
-  if has_push_changes '^(src/components/|src/app\.css|src/routes/.*\.svelte|src/routes/\(admin\)/)'; then
+  if has_push_changes '^(src/components/|src/app\.css|src/routes/.*\.svelte)'; then
     info "UI changes detected — adding accessibility contracts (login, dashboard)"
     E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/login/accessibility.spec.ts tests/e2e/routes/dashboard/accessibility.spec.ts"
   fi
-  if has_push_changes '^(src/components/ui/|src/app\.css|src/routes/\(app\)/config/design-system/|src/routes/\(admin\)/)'; then
+  if has_push_changes '^(src/components/ui/|src/app\.css|src/routes/\(app\)/config/design-system/)'; then
     info "Design-system changes detected — adding the admin theme visual regression"
     E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/admin-theme/visual-regression.spec.ts"
   fi
