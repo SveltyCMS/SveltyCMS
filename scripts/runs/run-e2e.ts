@@ -558,7 +558,13 @@ async function main() {
 
     console.log("--- Phase 2: Chromium E2E Tests ---");
     const pwArgs = ["x", "playwright", "test"];
-    if (!DEV_MODE) pwArgs.push("--project=chromium");
+    // A caller that names a project (`test:e2e --project=mobile`) keeps control:
+    // appending `--project=chromium` regardless made Playwright run the UNION of
+    // both projects, so the mobile specs came with the entire chromium suite.
+    const callerChoseProject = EXTRA_PW_ARGS.some(
+      (arg) => arg === "--project" || arg.startsWith("--project="),
+    );
+    if (!DEV_MODE && !callerChoseProject) pwArgs.push("--project=chromium");
     pwArgs.push(...EXTRA_PW_ARGS);
     // CI shards run one worker: the SQLite E2E database is shared, so parallel
     // files race on resets/seeds and produce retried-pass flakes. Match CI

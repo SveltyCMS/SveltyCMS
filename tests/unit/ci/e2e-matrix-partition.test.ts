@@ -30,6 +30,10 @@ const NOT_IN_SHARDS = [
   "/routes/login/login.spec.ts",
   "/routes/login/signup.spec.ts",
   "/routes/login/oauth.spec.ts",
+  // Phone-viewport specs: they belong to the `mobile` project, which has its own
+  // matrix entry, so the chromium grep partition must not also claim them.
+  "/routes/mobile/shell.spec.ts",
+  "/routes/mobile/layout.spec.ts",
 ];
 
 function collectSpecs(dir: string, out: string[] = []): string[] {

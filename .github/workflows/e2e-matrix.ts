@@ -141,8 +141,26 @@ for (let i = 0; i < SHARD_GROUPS.length; i++) {
   });
 }
 
+/**
+ * Phone-viewport project. Deliberately **not** part of `SHARD_GROUPS`: those
+ * groups partition the `chromium` suite by `--grep`, while this project is
+ * already restricted by its own `testMatch` (`tests/e2e/routes/mobile/**`).
+ * One shard, one worker — the whole mobile suite is a handful of specs sharing
+ * a single server boot, and the documented chromium shard count stays 11.
+ */
+const MOBILE_GROUP: E2eMatrixInclude = {
+  project: "mobile",
+  shard: "1/1",
+  shardId: `${SHARD_GROUPS.length + 1}-${SHARD_GROUPS.length + 1}`,
+  "total-shards": 1,
+  workers: 1,
+  name: "Mobile viewport",
+  grep: `routes${S}mobile${S}`,
+};
+include.push(MOBILE_GROUP);
+
 const e2eMatrix: E2eMatrix = {
-  name: SHARD_GROUPS.map((g) => g.name),
+  name: [...SHARD_GROUPS.map((g) => g.name), MOBILE_GROUP.name],
   include,
 };
 
