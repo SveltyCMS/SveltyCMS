@@ -32,26 +32,31 @@ concurrency:
 
 permissions:
   contents: read
-  security-events: write
 
 jobs:
   codeql:
     name: CodeQL (JS/TS + Actions, security-extended)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Least privilege: the workflow token is read-only by default, the
+    # write scopes this job really needs are declared here (OpenSSF
+    # Scorecard: Token-Permissions).
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
+        uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
         with:
           languages: javascript-typescript, actions
           queries: security-extended
           build-mode: none
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v4
+        uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
         with:
           # Avoid SARIF upload conflict with default setup; still fails the job
           # if analysis itself fails.

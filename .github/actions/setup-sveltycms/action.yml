@@ -30,12 +30,12 @@ runs:
   using: composite
   steps:
     - name: Setup Node.js
-      uses: actions/setup-node@v7
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
       with:
         node-version: ${{ inputs.node-version }}
 
     - name: Setup Bun
-      uses: oven-sh/setup-bun@v2
+      uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
       with:
         bun-version: ${{ inputs.bun-version }}
 
@@ -45,7 +45,7 @@ runs:
 
     - name: Restore Bun package cache
       id: cache-bun
-      uses: actions/cache/restore@v6
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
       with:
         path: .bun-cache
         # v3: bust legacy dual-path / corrupt digests; include bun version for runtime skew.
@@ -80,21 +80,21 @@ runs:
 
     - name: Save Bun package cache
       if: success() && inputs.pnpm-run-install != 'true' && steps.cache-bun.outputs.cache-hit != 'true'
-      uses: actions/cache/save@v6
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
       with:
         path: .bun-cache
         key: ${{ steps.cache-bun.outputs.cache-primary-key }}
 
     - name: Download build-output artifact
       if: inputs.restore-build == 'true'
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
       with:
         name: build-output
         path: .
 
     - name: Download workspace-meta artifact
       if: inputs.restore-build == 'true'
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
       with:
         name: workspace-meta
         path: .

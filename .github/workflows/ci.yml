@@ -76,7 +76,7 @@ jobs:
     outputs:
       tier: ${{ steps.tier.outputs.tier }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           # The risk check diffs two commits; a shallow clone cannot see them.
           fetch-depth: 0
@@ -149,7 +149,7 @@ jobs:
       bench-matrix: ${{ steps.matrices.outputs.bench }}
       e2e-matrix: ${{ steps.matrices.outputs.e2e }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup Environment
         uses: ./.github/actions/setup-sveltycms
@@ -192,7 +192,7 @@ jobs:
       - id: pw
         run: echo "version=$(bun x playwright --version | awk '{print $2}')" >> $GITHUB_OUTPUT
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: workspace-meta
           include-hidden-files: true
@@ -219,7 +219,7 @@ jobs:
     steps:
       - name: Restore cached DB images
         id: cache
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: /tmp/docker-images
           key: docker-db-images-${{ runner.os }}-mongo-mariadb-pg18-redis-v1
@@ -322,19 +322,19 @@ jobs:
             # command; each tee's its output for the failure annotation.
             # (tenant + deploy backdoor moved into 01-policy)
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
           node-version: "24"
       - name: Download workspace-meta
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: workspace-meta
       # The static/policy job needs no Redis.
       - name: Restore cached DB images (Redis)
         if: matrix.task == '04-unit'
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: /tmp/docker-images
           key: docker-db-images-${{ runner.os }}-mongo-mariadb-pg18-redis-v1
@@ -408,7 +408,7 @@ jobs:
           fi
       - name: Upload coverage
         if: matrix.task == '04-unit' && success()
-        uses: codecov/codecov-action@v7
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: unit
@@ -422,12 +422,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
           node-version: "24"
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with: { name: workspace-meta }
       - name: Clean stale build output
         run: rm -rf build .svelte-kit/output
@@ -441,7 +441,7 @@ jobs:
       - name: Compute build artifact checksum
         run: |
           find build/ .svelte-kit/output/ -type f -exec sha256sum {} \; | sort | sha256sum | cut -d' ' -f1 > build-checksum.txt
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: build-output
           include-hidden-files: true
@@ -464,7 +464,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJson(needs.bootstrap.outputs.db-matrix) }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
@@ -474,7 +474,7 @@ jobs:
       # in the setup action — the explicit re-download duplicated the transfer.
 
       - name: Restore cached DB images
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: /tmp/docker-images
           key: docker-db-images-${{ runner.os }}-mongo-mariadb-pg18-redis-v1
@@ -541,7 +541,7 @@ jobs:
 
       - name: Upload Logs
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: db-log-${{ matrix.db }}
           path: preview.log
@@ -564,7 +564,7 @@ jobs:
       # three engines run on `main`, the merge queue and the nightly schedule.
       matrix: ${{ fromJson(needs.bootstrap.outputs.bench-matrix) }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
@@ -574,7 +574,7 @@ jobs:
       # (large) build artifact a second time.
 
       - name: Restore cached DB images
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: /tmp/docker-images
           key: docker-db-images-${{ runner.os }}-mongo-mariadb-pg18-redis-v1
@@ -609,7 +609,7 @@ jobs:
       # no `tests/benchmarks/results` (gitignored), so without this every run
       # looked like a first run and drift could never be detected.
       - name: Restore benchmark baseline
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: tests/benchmarks/results/gate-baseline-${{ matrix.db }}.json
           key: bench-baseline-${{ runner.os }}-${{ matrix.db }}-${{ github.base_ref || github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -656,7 +656,7 @@ jobs:
 
       - name: Upload benchmark report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: benchmark-report-${{ matrix.db }}
           path: docs/project/benchmarks/benchmark_${{ matrix.db }}.mdx
@@ -665,7 +665,7 @@ jobs:
 
       - name: Upload benchmark log
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: bench-log-${{ matrix.db }}
           path: bench-output.log
@@ -674,7 +674,7 @@ jobs:
 
       - name: Upload performance gate
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: benchmark-gate-${{ matrix.db }}
           path: tests/benchmarks/results/gate-report-${{ matrix.db }}.json
@@ -686,7 +686,7 @@ jobs:
       - name: Save benchmark baseline
         if: always()
         continue-on-error: true
-        uses: actions/cache/save@v6
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: tests/benchmarks/results/gate-baseline-${{ matrix.db }}.json
           key: bench-baseline-${{ runner.os }}-${{ matrix.db }}-${{ github.base_ref || github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -710,20 +710,20 @@ jobs:
     if: always() && needs.plan.outputs.tier == 'full'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 24
       - name: Download all benchmark reports
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         continue-on-error: true
         with:
           pattern: benchmark-report-*
           path: docs/project/benchmarks
           merge-multiple: true
       - name: Download performance gate reports
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         continue-on-error: true
         with:
           pattern: benchmark-gate-*
@@ -776,7 +776,7 @@ jobs:
       ALLOW_PASSWORD_RESET_LINK_IN_RESPONSE: "true"
       NODE_OPTIONS: "--max-old-space-size=4096"
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
@@ -786,7 +786,7 @@ jobs:
 
       - name: Restore Playwright Browsers cache
         id: cache-playwright
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-v3-${{ runner.os }}-${{ needs.bootstrap.outputs.pw-version }}
@@ -819,7 +819,7 @@ jobs:
 
       - name: Save Playwright Browsers cache
         if: success() && steps.cache-playwright.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v6
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.cache/ms-playwright
           key: ${{ steps.cache-playwright.outputs.cache-primary-key }}
@@ -931,14 +931,14 @@ jobs:
           mkdir -p config/test-collections .compiledCollections/test-collections
           tar --zstd -cf e2e-env.tar.zst build/ .svelte-kit/ src/paraglide/ tests/e2e/.auth/ config/private.ts config/private.test.ts config/database/ config/test-database/ config/collections/ config/test-collections/ .compiledCollections/
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: e2e-env-${{ github.sha }}
           path: e2e-env.tar.zst
           if-no-files-found: error
           retention-days: 1
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         continue-on-error: true
         with:
@@ -949,7 +949,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         continue-on-error: true
         with:
@@ -976,7 +976,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJson(needs.bootstrap.outputs.e2e-matrix) }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/setup-sveltycms
         with:
           bun-version: "1.3.14"
@@ -984,7 +984,7 @@ jobs:
           pnpm-run-install: "false"
 
       - name: Download E2E Environment
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: e2e-env-${{ github.sha }}
           path: .
@@ -1002,7 +1002,7 @@ jobs:
       # Restore-only: e2e-prep owns the Playwright browser cache save (avoids shard races).
       - name: Restore Playwright Browsers cache
         id: cache-playwright
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-v3-${{ runner.os }}-${{ needs.bootstrap.outputs.pw-version }}
@@ -1102,7 +1102,7 @@ jobs:
         if: always()
         run: bun run scripts/check/check-flake-budget.ts --json=tests/playwright-results.json --max-flaky=2 --max-flake-rate=3 --allow-missing
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: playwright-report-${{ matrix.name }}
@@ -1112,7 +1112,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: preview-log-${{ matrix.name }}
@@ -1134,7 +1134,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           # Required: the selection is `git log -1 -- <file>` per spec. A shallow
           # clone returns nothing and every file falls back to checkout mtime.
@@ -1146,7 +1146,7 @@ jobs:
           pnpm-run-install: "false"
 
       - name: Download E2E Environment
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: e2e-env-${{ github.sha }}
           path: .
@@ -1163,7 +1163,7 @@ jobs:
 
       - name: Restore Playwright Browsers cache
         id: cache-playwright
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-v3-${{ runner.os }}-${{ needs.bootstrap.outputs.pw-version }}
@@ -1192,7 +1192,7 @@ jobs:
           timeout 110 bun x playwright install --with-deps chromium
 
       - name: Restore flake history
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: tests/e2e/.flake-history.jsonl
           key: flake-history-${{ github.run_id }}
@@ -1265,7 +1265,7 @@ jobs:
 
       - name: Save flake history
         if: always()
-        uses: actions/cache/save@v6
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: tests/e2e/.flake-history.jsonl
           key: flake-history-${{ github.run_id }}
@@ -1276,7 +1276,7 @@ jobs:
         if: always()
         run: bun run scripts/check/check-flake-trend.ts --check --window-days=7 --max-rate=1 --max-flaky=2 --allow-missing
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: playwright-report-flake-probe
@@ -1305,11 +1305,11 @@ jobs:
       - bench-core
       - flake-probe
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           sparse-checkout: |
             scripts/ci/ci-report-all-green.ts
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 24
       # The dashboard is a plain Node script (node:fs/node:path). Node 24 runs the
@@ -1317,7 +1317,7 @@ jobs:
       # The gate report is the actionable part of a red bench run; pull it into
       # this summary so reviewers do not have to open four matrix jobs.
       - name: Download performance gate reports
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         continue-on-error: true
         with:
           pattern: benchmark-gate-*

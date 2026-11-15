@@ -23,8 +23,6 @@ on:
 # Least privilege for the job: SARIF upload, keyless OIDC for Scorecard, read
 # access to the repository contents.
 permissions:
-  security-events: write
-  id-token: write
   contents: read
 
 concurrency:
@@ -36,14 +34,21 @@ jobs:
     name: Scorecard analysis
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Least privilege: the workflow token is read-only by default, the
+    # write scopes this job really needs are declared here (OpenSSF
+    # Scorecard: Token-Permissions).
+    permissions:
+      contents: read
+      security-events: write
+      id-token: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
       - name: Run OpenSSF Scorecard
-        uses: ossf/scorecard-action@v2.5.0
+        uses: ossf/scorecard-action@fa7117db83c52d787ae5a89f350999701505d78e # v2.5.0
         with:
           results_file: results.sarif
           results_format: sarif
@@ -52,6 +57,6 @@ jobs:
           publish_results: true
 
       - name: Upload SARIF to code scanning
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
         with:
           sarif_file: results.sarif
