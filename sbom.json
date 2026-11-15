@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:2bef61e6-fd1b-4394-83aa-11e0eb6b3bca",
+  "serialNumber": "urn:uuid:0d19140c-814f-4a9c-8040-cbb29b92fbed",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-11-15T12:56:36.343Z",
+    "timestamp": "2026-11-15T13:38:02.094Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -13,9 +13,9 @@
     ],
     "component": {
       "name": "create-sveltycms",
-      "version": "0.14.0",
+      "version": "0.15.0",
       "type": "application",
-      "purl": "pkg:npm/create-sveltycms@0.14.0"
+      "purl": "pkg:npm/create-sveltycms@0.15.0"
     }
   },
   "components": [
@@ -49,15 +49,15 @@
     },
     {
       "type": "library",
-      "bom-ref": "pkg:npm/@aws-sdk/client-s3@3.1169.0",
+      "bom-ref": "pkg:npm/@aws-sdk/client-s3@3.1168.0",
       "name": "@aws-sdk/client-s3",
-      "version": "3.1169.0",
-      "purl": "pkg:npm/@aws-sdk/client-s3@3.1169.0",
+      "version": "3.1168.0",
+      "purl": "pkg:npm/@aws-sdk/client-s3@3.1168.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-5IjQ2R1TM5lMuUvCvCfGNG9q6g3nxdputC9FY7YQJf1ygVUwsOruEYxQqpjik1nZdl8mNvV57Mhivtp2JbgBtg=="
+          "content": "sha512-7NcVxqy7Vc6I8A3KOZFORGh+zfMCd4S5aje55tBNBfshddz+F1NZwxLXblt44TC6nw0Hgx5os3AM2d/P0McELQ=="
         }
       ]
     },
@@ -2009,15 +2009,15 @@
     },
     {
       "type": "library",
-      "bom-ref": "pkg:npm/@maplibre/maplibre-gl-style-spec@26.8.0",
+      "bom-ref": "pkg:npm/@maplibre/maplibre-gl-style-spec@26.7.0",
       "name": "@maplibre/maplibre-gl-style-spec",
-      "version": "26.8.0",
-      "purl": "pkg:npm/@maplibre/maplibre-gl-style-spec@26.8.0",
+      "version": "26.7.0",
+      "purl": "pkg:npm/@maplibre/maplibre-gl-style-spec@26.7.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-EClj+0m624zGw5gdCOsI5f88bYzkXfgoP2Sj5VGs2AYg9hZaPxvCumX5KDDs6aKFwl2ut+3jAeLhvrSz7hEsBQ=="
+          "content": "sha512-9d7hK1zk1WRx/AFvq7NtmlTlaOGPXS2r+FZXsrMv8453Xy14bnXBpVCPJDBupCfQs/p8FL0/kb0ygbEWTufN0g=="
         }
       ]
     },
@@ -2989,15 +2989,15 @@
     },
     {
       "type": "library",
-      "bom-ref": "pkg:npm/@playwright/test@1.65.1",
+      "bom-ref": "pkg:npm/@playwright/test@1.65.0",
       "name": "@playwright/test",
-      "version": "1.65.1",
-      "purl": "pkg:npm/@playwright/test@1.65.1",
+      "version": "1.65.0",
+      "purl": "pkg:npm/@playwright/test@1.65.0",
       "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-y+NCIRm2LvY4slUVWvGh1nujJ8RF/hEisIsq2mtUPgdQC4L701bq5hZGMhrpeXjACvwvO9tj5dJqhvM6TP9lbw=="
+          "content": "sha512-iGURLGuKDLakSEl7Pgfv8h7f+XLT+V861Wfhz0zlEl5nyFuKUopdkFBPKqTllTUp06aOwPuH8iuUEb3yp3MpbQ=="
         }
       ]
     },
@@ -5789,15 +5789,15 @@
     },
     {
       "type": "library",
-      "bom-ref": "pkg:npm/colord@2.13.0",
+      "bom-ref": "pkg:npm/colord@2.12.0",
       "name": "colord",
-      "version": "2.13.0",
-      "purl": "pkg:npm/colord@2.13.0",
+      "version": "2.12.0",
+      "purl": "pkg:npm/colord@2.12.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-2g8RPH6UvoD1ZXYmccAuo0zfMw4mxqzXbeToeVoMSm6na0QEDXggahcZdlTFnFdahlV3I158ipRb2AIvCcwiAQ=="
+          "content": "sha512-SpiONmQPZDqe50ivOTgkVikYsnp6l1HTFYqPRLNBCJJdA2Qympw2yYUzX99XlSbbKZswjiG6r+xsUpPPOHqY+Q=="
         }
       ]
     },
@@ -6251,15 +6251,15 @@
     },
     {
       "type": "library",
-      "bom-ref": "pkg:npm/dompurify@3.4.18",
+      "bom-ref": "pkg:npm/dompurify@3.4.17",
       "name": "dompurify",
-      "version": "3.4.18",
-      "purl": "pkg:npm/dompurify@3.4.18",
+      "version": "3.4.17",
+      "purl": "pkg:npm/dompurify@3.4.17",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-ofe3wI/uNm68HInABYFJYqQxRw1EaKAjNdrFVKqjUY+UZurvNd2L/HuQe097s/4RivWiZyP6tT7aoT8atjfhwg=="
+          "content": "sha512-B/pSlYVHQ58kqISD/yDjuJ1yfzI34m1gF4lAod2bwSRhiN4K5Cl3H8Af7hqB2PmTL911tdEudnnXn5FnhRoz0w=="
         }
       ]
     },
@@ -6573,15 +6573,15 @@
     },
     {
       "type": "library",
-      "bom-ref": "pkg:npm/fast-json-stringify@7.3.6",
+      "bom-ref": "pkg:npm/fast-json-stringify@7.3.5",
       "name": "fast-json-stringify",
-      "version": "7.3.6",
-      "purl": "pkg:npm/fast-json-stringify@7.3.6",
+      "version": "7.3.5",
+      "purl": "pkg:npm/fast-json-stringify@7.3.5",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-hXCpiZTZGiER/Xree1Tb4PY1DREPUnlWTP5Df9hgtoDnUppulV7Km8lh1/NEBuqz4JnNGSXghnABudfZ/iwIzg=="
+          "content": "sha512-g7H3xqJmdH9aWLWh8S3CqrRZFZ321yaeNHZp3QUDl3wtXDWjPChDXCDDTwA4M/zsU42nOhE+z5KmpCzgBaaCgw=="
         }
       ]
     },
@@ -8477,29 +8477,15 @@
     },
     {
       "type": "library",
-      "bom-ref": "pkg:npm/playwright-core@1.65.1",
-      "name": "playwright-core",
-      "version": "1.65.1",
-      "purl": "pkg:npm/playwright-core@1.65.1",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "sha512-hqPpz7blSMPxWVdoeE1yiBSzXsKiVOd2k+kjCvmUywD2GPO2Dd9HfcWnq9NN0GHbNZDFgZ9JfBFr+X5/BLo0qw=="
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "bom-ref": "pkg:npm/playwright@1.65.1",
+      "bom-ref": "pkg:npm/playwright@1.65.0",
       "name": "playwright",
-      "version": "1.65.1",
-      "purl": "pkg:npm/playwright@1.65.1",
+      "version": "1.65.0",
+      "purl": "pkg:npm/playwright@1.65.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-vJ1FuoOrNwOKHUIVEvSt3jT1L+wjjDpwhwIstKtfvTh8XIG4FG4bIFuvNdMxi81LGfAhUgUZleVFaOLY4RIUUw=="
+          "content": "sha512-F3AMWcR44qMBt4kq+6Kb6mX7bjGXshktKFOPULd7reED6ZJWevjbNRqysP7q+AATE9kdPEZBibex1BYsvpVoeA=="
         }
       ]
     },
@@ -8561,15 +8547,15 @@
     },
     {
       "type": "library",
-      "bom-ref": "pkg:npm/postcss@8.5.33",
+      "bom-ref": "pkg:npm/postcss@8.5.32",
       "name": "postcss",
-      "version": "8.5.33",
-      "purl": "pkg:npm/postcss@8.5.33",
+      "version": "8.5.32",
+      "purl": "pkg:npm/postcss@8.5.32",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-RVHEU9/Pp1Fnjr/MpAJsZoADukCKhfIi15OunEYiGktIkYLkPVvC1sioWolGDS7XByMTx9m/IGbro0Js13zhnQ=="
+          "content": "sha512-LJlKCCAUFKOuZxipUdYw1NzIITEsPcgyOG9LkvRJvuKj/bRzbuRY0ARXvL0pWGpsZvn8jku+LMep2eU0seHp8g=="
         }
       ]
     },
@@ -8995,15 +8981,15 @@
     },
     {
       "type": "library",
-      "bom-ref": "pkg:npm/resend@6.38.1",
+      "bom-ref": "pkg:npm/resend@6.38.0",
       "name": "resend",
-      "version": "6.38.1",
-      "purl": "pkg:npm/resend@6.38.1",
+      "version": "6.38.0",
+      "purl": "pkg:npm/resend@6.38.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-166POyY8qTbxQQwYXQJ6hx7y1vnL51iB9WW76Xe1/bJsW03lCOWYW3eJW7nNlfvWM5ohI3WtUHnqO3rofiO8Lw=="
+          "content": "sha512-+t1bz6unmYcyYrLqrZtkn73ODZhUgKJTViuRf+a4ewgo3mT/Bpg64WkBtAVQlXQcmUkeuorO1eLAd2+1h4jgNQ=="
         }
       ]
     },
@@ -9317,15 +9303,15 @@
     },
     {
       "type": "library",
-      "bom-ref": "pkg:npm/sql-escaper@1.6.0",
+      "bom-ref": "pkg:npm/sql-escaper@1.5.2",
       "name": "sql-escaper",
-      "version": "1.6.0",
-      "purl": "pkg:npm/sql-escaper@1.6.0",
+      "version": "1.5.2",
+      "purl": "pkg:npm/sql-escaper@1.5.2",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-I+WA4xb3mprpxUbLFtraZRY8L4vI0+xEOPLxHSI4wOuZ8cSpjVBzeuQpnPjW6PfdjeSkD9n/IBoYzH0LGTVSoQ=="
+          "content": "sha512-6CKD38c31SENivxOADeMNLdukOnUxUcflKtzVWzace7Riv1v7cAEym5Cx9Q7gYZ3ezIJI7ZpqecQq8cqNeSSFg=="
         }
       ]
     },
@@ -9625,29 +9611,29 @@
     },
     {
       "type": "library",
-      "bom-ref": "pkg:npm/tldts-core@7.5.4",
+      "bom-ref": "pkg:npm/tldts-core@7.5.2",
       "name": "tldts-core",
-      "version": "7.5.4",
-      "purl": "pkg:npm/tldts-core@7.5.4",
+      "version": "7.5.2",
+      "purl": "pkg:npm/tldts-core@7.5.2",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-9+4zWtKEDZ3V3FoZ1B97rv+5z5oqp7yeXGVze3CxgQ+CJro9do9DCPD00wxstYZDXDMXsurkBerFfiB6GYtPbA=="
+          "content": "sha512-8W1topazDwhMKbm2I83IPa57Ow5VUxFgLbXv42+vSILnv8FY5OHvdEY/tS6WoWeMbxkHZQhra5cmeFHriKptSQ=="
         }
       ]
     },
     {
       "type": "library",
-      "bom-ref": "pkg:npm/tldts@7.5.4",
+      "bom-ref": "pkg:npm/tldts@7.5.2",
       "name": "tldts",
-      "version": "7.5.4",
-      "purl": "pkg:npm/tldts@7.5.4",
+      "version": "7.5.2",
+      "purl": "pkg:npm/tldts@7.5.2",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-Rn2ABgjHZrA+jzqom5zhxA0hLohzYrIgfCPyhpTUxqsUrcsBYuab49LseR9waB9Jr8/MxdodvMHA91oRiGLO3Q=="
+          "content": "sha512-p+JwEdxIWQx033pMvW9ULBbyC1Eg6JtWo2Mo0jbC8TVSjp2QrHFE+WKs8JpMGc3ECMsmBpU2RH/25NgX3k1ulg=="
         }
       ]
     },
@@ -10480,7 +10466,7 @@
       ]
     },
     {
-      "ref": "pkg:npm/@aws-sdk/client-s3@3.1169.0",
+      "ref": "pkg:npm/@aws-sdk/client-s3@3.1168.0",
       "dependsOn": [
         "pkg:npm/@aws-sdk/checksums@3.1002.5",
         "pkg:npm/@aws-sdk/core@3.981.0",
@@ -10722,7 +10708,7 @@
       "dependsOn": [
         "pkg:npm/@better-svelte-email/server@2.3.0",
         "pkg:npm/prettier@3.10.1",
-        "pkg:npm/resend@6.38.1"
+        "pkg:npm/resend@6.38.0"
       ]
     },
     {
@@ -10731,7 +10717,7 @@
         "pkg:npm/html-to-text@10.0.1",
         "pkg:npm/parse5@8.1.1",
         "pkg:npm/postcss-value-parser@4.2.0",
-        "pkg:npm/postcss@8.5.33",
+        "pkg:npm/postcss@8.5.32",
         "pkg:npm/tailwindcss@4.3.5"
       ]
     },
@@ -11307,7 +11293,7 @@
       ]
     },
     {
-      "ref": "pkg:npm/@maplibre/maplibre-gl-style-spec@26.8.0",
+      "ref": "pkg:npm/@maplibre/maplibre-gl-style-spec@26.7.0",
       "dependsOn": [
         "pkg:npm/@mapbox/jsonlint-lines-primitives@2.0.3",
         "pkg:npm/@mapbox/unitbezier@1.0.0",
@@ -11626,9 +11612,9 @@
       "dependsOn": []
     },
     {
-      "ref": "pkg:npm/@playwright/test@1.65.1",
+      "ref": "pkg:npm/@playwright/test@1.65.0",
       "dependsOn": [
-        "pkg:npm/playwright@1.65.1"
+        "pkg:npm/playwright@1.65.0"
       ]
     },
     {
@@ -12707,7 +12693,7 @@
       "dependsOn": []
     },
     {
-      "ref": "pkg:npm/colord@2.13.0",
+      "ref": "pkg:npm/colord@2.12.0",
       "dependsOn": []
     },
     {
@@ -12872,7 +12858,7 @@
       ]
     },
     {
-      "ref": "pkg:npm/dompurify@3.4.18",
+      "ref": "pkg:npm/dompurify@3.4.17",
       "dependsOn": []
     },
     {
@@ -12983,7 +12969,7 @@
       "dependsOn": []
     },
     {
-      "ref": "pkg:npm/fast-json-stringify@7.3.6",
+      "ref": "pkg:npm/fast-json-stringify@7.3.5",
       "dependsOn": [
         "pkg:npm/@fastify/merge-json-schemas@0.2.2",
         "pkg:npm/ajv-formats@3.0.1",
@@ -13079,7 +13065,7 @@
       "ref": "pkg:npm/graphql-jit@0.9.4",
       "dependsOn": [
         "pkg:npm/@graphql-typed-document-node/core@3.2.0",
-        "pkg:npm/fast-json-stringify@7.3.6",
+        "pkg:npm/fast-json-stringify@7.3.5",
         "pkg:npm/generate-function@2.3.1",
         "pkg:npm/lodash.memoize@4.1.2",
         "pkg:npm/lodash.merge@4.6.2",
@@ -13477,7 +13463,7 @@
         "pkg:npm/@mapbox/unitbezier@1.0.0",
         "pkg:npm/@mapbox/vector-tile@3.0.0",
         "pkg:npm/@maplibre/geojson-vt@6.3.1",
-        "pkg:npm/@maplibre/maplibre-gl-style-spec@26.8.0",
+        "pkg:npm/@maplibre/maplibre-gl-style-spec@26.7.0",
         "pkg:npm/@maplibre/mlt@1.3.0",
         "pkg:npm/@maplibre/vt-pbf@4.3.3",
         "pkg:npm/@types/geojson@7946.0.16",
@@ -13612,7 +13598,7 @@
         "pkg:npm/long@5.3.2",
         "pkg:npm/lru.min@1.1.5",
         "pkg:npm/named-placeholders@1.1.6",
-        "pkg:npm/sql-escaper@1.6.0"
+        "pkg:npm/sql-escaper@1.5.2"
       ]
     },
     {
@@ -13755,11 +13741,7 @@
       "dependsOn": []
     },
     {
-      "ref": "pkg:npm/playwright-core@1.65.1",
-      "dependsOn": []
-    },
-    {
-      "ref": "pkg:npm/playwright@1.65.1",
+      "ref": "pkg:npm/playwright@1.65.0",
       "dependsOn": [
         "pkg:npm/playwright-core@1.65.0"
       ]
@@ -13783,7 +13765,7 @@
       "dependsOn": []
     },
     {
-      "ref": "pkg:npm/postcss@8.5.33",
+      "ref": "pkg:npm/postcss@8.5.32",
       "dependsOn": [
         "pkg:npm/nanoid@3.3.18",
         "pkg:npm/picocolors@1.1.1",
@@ -13976,7 +13958,7 @@
       "dependsOn": []
     },
     {
-      "ref": "pkg:npm/resend@6.38.1",
+      "ref": "pkg:npm/resend@6.38.0",
       "dependsOn": [
         "pkg:npm/postal-mime@2.7.6",
         "pkg:npm/standardwebhooks@1.1.1"
@@ -14032,7 +14014,7 @@
         "pkg:npm/is-plain-object@5.1.0",
         "pkg:npm/launder@1.7.2",
         "pkg:npm/parse-srcset@1.0.2",
-        "pkg:npm/postcss@8.5.33"
+        "pkg:npm/postcss@8.5.32"
       ]
     },
     {
@@ -14113,7 +14095,7 @@
       ]
     },
     {
-      "ref": "pkg:npm/sql-escaper@1.6.0",
+      "ref": "pkg:npm/sql-escaper@1.5.2",
       "dependsOn": []
     },
     {
@@ -14161,7 +14143,7 @@
     {
       "ref": "pkg:npm/svelte-awesome-color-picker@4.1.3",
       "dependsOn": [
-        "pkg:npm/colord@2.13.0",
+        "pkg:npm/colord@2.12.0",
         "pkg:npm/svelte-awesome-slider@2.0.0"
       ]
     },
@@ -14244,13 +14226,13 @@
       "dependsOn": []
     },
     {
-      "ref": "pkg:npm/tldts-core@7.5.4",
+      "ref": "pkg:npm/tldts-core@7.5.2",
       "dependsOn": []
     },
     {
-      "ref": "pkg:npm/tldts@7.5.4",
+      "ref": "pkg:npm/tldts@7.5.2",
       "dependsOn": [
-        "pkg:npm/tldts-core@7.5.4"
+        "pkg:npm/tldts-core@7.5.2"
       ]
     },
     {
@@ -14260,7 +14242,7 @@
     {
       "ref": "pkg:npm/tough-cookie@6.1.0",
       "dependsOn": [
-        "pkg:npm/tldts@7.5.4"
+        "pkg:npm/tldts@7.5.2"
       ]
     },
     {
@@ -14391,7 +14373,7 @@
       "dependsOn": [
         "pkg:npm/lightningcss@1.33.0",
         "pkg:npm/picomatch@4.0.7",
-        "pkg:npm/postcss@8.5.33",
+        "pkg:npm/postcss@8.5.32",
         "pkg:npm/rolldown@1.2.19",
         "pkg:npm/tinyglobby@0.2.17"
       ]
