@@ -140,6 +140,12 @@ export const FAST_CHECKS: readonly CheckSpec[] = [
     owner: "i18n",
   },
   {
+    id: "check-pinned-actions",
+    script: "scripts/check/check-pinned-actions.ts",
+    kind: "policy",
+    owner: "security",
+  },
+  {
     id: "check-source-lints",
     script: "scripts/check/run-source-lints.ts",
     kind: "ast",

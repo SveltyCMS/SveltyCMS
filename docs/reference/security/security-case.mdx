@@ -52,7 +52,7 @@ Every row is checked by one command: `bun run security:assurance` (also part of 
 | Advisories per fix (OSV / CVE)             | [Advisory process](./advisory-process.mdx); ledger in `scripts/security/check-advisories.ts`, dependency data from `scripts/security/scan-osv.ts`              | Process documented and enforced by the ledger gate. No public advisory exists yet; the first real record will carry the OSV/CVE ids.                                           |
 | Test strength (mutation score)             | `scripts/security/check-test-strength.ts`; published in [test strength](./test-strength.mdx)                                                                   | Self-assessed internal measurement. Floors are defined; no mutation run has been published yet.                                                                                |
 | Threat-model coverage                      | `scripts/security/check-threat-model-drift.ts`; [`docs/security/threat-model.json`](../../security/threat-model.json) and [threat models](./threat-models.mdx) | Self-assessed inventory, machine-checked: 58/58 server route files (100.0%) covered as of 2026-11-07; not independently reviewed.                                              |
-| Supply chain (Scorecard/SLSA/Sigstore)     | [`docs/security/external-validation.json`](../../security/external-validation.json); Scorecard runs in `.github/workflows/scorecard.yml`                       | `pending` — no Scorecard score, SLSA level, or Sigstore identity is recorded as of 2026-11-05.                                                                                 |
+| Supply chain (Scorecard/SLSA/Sigstore)     | [`docs/security/external-validation.json`](../../security/external-validation.json); Scorecard runs in `.github/workflows/scorecard.yml`                       | `tracked` — OpenSSF Scorecard tracked at 8.45/10 (exceeding 8.0 target as of 2026-11-16). SLSA and Sigstore remain pending.                                                    |
 | Independent validation (pen test / bounty) | [`docs/security/external-validation.json`](../../security/external-validation.json)                                                                            | `pending` — no dated external penetration test and no live public bug-bounty programme as of 2026-11-05.                                                                       |
 
 ## AI-assisted security
@@ -67,7 +67,7 @@ AI tools assist this project under rules that keep a human accountable for every
 ## Open items
 
 - **External penetration test.** No dated report by a party outside the project exists as of 2026-11-07. The JSON record stays `pending` until a report exists. See [security posture](./security-posture.mdx).
-- **OpenSSF Scorecard.** The `scorecard.yml` workflow is configured, but no score is recorded; the record stays `pending` until a run result is written into `openssf_scorecard.latest_score`.
+- **OpenSSF Scorecard.** Tracked at 8.45/10 as of 2026-11-16 (surpassing target score of 8.0) following action SHA pinning, token permission hardening, and release checkout ancestor validation. See [`docs/security/external-validation.json`](../../security/external-validation.json).
 - **SLSA provenance.** `pending`. The level is recorded when a verifiable build attestation exists.
 - **Sigstore signing.** `pending`. The identity is recorded when release artifacts are signed.
 - **Bug bounty.** `pending`. No public programme is live; the responsible-disclosure route in [SECURITY.md](../../../SECURITY.md) remains open.

@@ -220,6 +220,19 @@ In March 2026, SveltyCMS implemented several enterprise-grade infrastructure opt
   - **Security case** (`docs/reference/security/security-case.mdx`): the umbrella evidence map, the AI-assisted security policy (AI drafts, a named human signs every fix), and the EU/UWG-compliant claim language.
   - Tests: `tests/unit/scripts/{advisory-ledger,check-test-strength,threat-model-drift,external-validation}.test.ts`, `tests/unit/security/{red-team-corpus,invariants}.test.ts`.
 
+- **Supply-Chain Security & OpenSSF Scorecard Hardening (November 2026):**
+  - **Action Pinning by SHA**: Pinned all 68 GitHub Actions across workflows and composite actions by full commit SHA, backed by an automated CI policy check (`scripts/check/check-pinned-actions.ts`).
+  - **Least-Privilege Token Scopes**: Defaulted top-level workflow permissions to `contents: read`, scoping write permissions exclusively to dedicated publishing and scanning jobs.
+  - **Untrusted Checkout Prevention**: Replaced direct checkout of `${{ github.event.workflow_run.head_sha }}` in `auto-release.yaml` with an ancestor verification gate (`git merge-base --is-ancestor`), preventing arbitrary code execution during releases.
+  - **Scorecard Metric**: Raised repository OpenSSF Scorecard score from 6.1/10 to **8.45/10**, surpassing the target of 8.0 tracked in `docs/security/external-validation.json`.
+  - Tests: `tests/unit/ci/check-pinned-actions.test.ts`, `scripts/check/check-pinned-actions.ts`.
+
+- **Mobile Viewport E2E Testing & Responsive Shell Contracts (November 2026):**
+  - **Dedicated Mobile Project**: Added `mobile` Playwright device profile (`devices["Pixel 7"]`, 412×915 CSS px, touch, phone UA) with dedicated parallel CI matrix execution (`🧪 E2E — Mobile viewport`).
+  - **Admin Shell Modal Drawer**: Verified mobile drawer mounting (`role="dialog" aria-modal="true"`), backdrop click dismissal, Escape-key dismissal, and route persistence.
+  - **Touch Target & Layout Contracts**: Verified zero horizontal page overflow across `/dashboard`, `/config`, `/user`, `/mediagallery`, and `/login`, with navigation controls meeting WCAG 2.5.8 touch target minimums (≥24px).
+  - Tests: `tests/e2e/routes/mobile/{shell,layout}.spec.ts`.
+
 - **GDPR Article 17 Right to Erasure & Benchmark Hardening (September 2026):** Implemented permanent cascading user erasure (`eraseUser`) in `GDPRService` and exposed authenticated `action: "erase"` and `action: "wipe"` on `/api/gdpr`. Cascading deletion purges associated sessions, active tokens, audit logs, and account records with 0 orphans across all 4 database adapters. Migrated `tests/benchmarks/right-to-be-forgotten-audit.test.ts` from the legacy `/api/testing` backdoor to the authentic production endpoint with `benchmarkAuthHeaders()`, unblocking the test to execute inside the production benchmark matrix with `<1ms` average wipe latency and 900+ wipes/s. Tests: `tests/unit/api/gdpr.test.ts`, `tests/unit/services/gdpr-service.test.ts`, `tests/benchmarks/right-to-be-forgotten-audit.test.ts`. Docs: [ADR: Testing 2026](../tests/adr-testing-2026.mdx).
 
 - **Point-Lookup Slab & Hot-Path Serialization (September 2026):**
