@@ -82,6 +82,23 @@ test.describe("mobile admin shell", () => {
     await expect(drawer).toHaveCount(0, { timeout: ACTION_TIMEOUT });
   });
 
+  test("closes the sidebar drawer when pressing Escape", async ({ page }) => {
+    await goDashboard(page);
+
+    const drawer = page.getByRole("dialog", { name: /sidebar/i });
+    await expect(drawer).toHaveCount(0);
+
+    const openButton = page.getByRole("button", { name: "Open Sidebar" });
+    await expect(openButton).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await openButton.click();
+
+    await expect(drawer).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await expect(drawer).toHaveAttribute("aria-modal", "true");
+
+    await page.keyboard.press("Escape");
+    await expect(drawer).toHaveCount(0, { timeout: ACTION_TIMEOUT });
+  });
+
   test("opens and closes the floating navigation overlay", async ({ page }) => {
     await goDashboard(page);
 

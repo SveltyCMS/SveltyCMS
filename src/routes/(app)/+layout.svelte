@@ -578,6 +578,19 @@ This layout provides the administrative shell, including sidebars and header con
 	{/if}
 </svelte:head>
 
+<svelte:window
+	onkeydown={(e) => {
+		if (e.key === 'Escape') {
+			if (screen.isMobile && ui.state.leftSidebar !== 'hidden') {
+				ui.toggle('leftSidebar', 'hidden');
+			}
+			if (screen.isMobile && ui.state.rightSidebar !== 'hidden') {
+				ui.toggle('rightSidebar', 'hidden');
+			}
+		}
+	}}
+/>
+
 {#if loadError}
 	<div class="flex h-screen w-screen items-center justify-center bg-error-500/10 dark:bg-error-900">
 		<div class="text-center">

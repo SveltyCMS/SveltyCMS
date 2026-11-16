@@ -59,6 +59,16 @@ test.describe("mobile layout", () => {
     });
   }
 
+  test("/login does not overflow horizontally on a phone", async ({ page }) => {
+    await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 30_000 });
+    await waitForHydration(page);
+    const overflow = await horizontalOverflow(page);
+    expect(
+      overflow,
+      `/login scrolls ${overflow}px sideways at ${JSON.stringify(page.viewportSize())}`,
+    ).toBeLessThanOrEqual(1);
+  });
+
   test("the mobile navigation controls meet the minimum touch target", async ({ page }) => {
     await goto(page, "/dashboard");
 
