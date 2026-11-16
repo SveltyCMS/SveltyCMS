@@ -1085,7 +1085,7 @@ jobs:
           fi
           # playwright.config.ts: CI → dot + github + json (list is local-only)
           bun x playwright test \
-            --project=chromium \
+            --project=${{ matrix.project }} \
             --grep="${{ matrix.grep }}" \
             --shard=${{ matrix.shard }} \
             --workers=${{ matrix.workers }}

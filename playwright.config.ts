@@ -179,6 +179,9 @@ export default defineConfig({
       name: "chromium",
       testIgnore: [
         "**/setup/setup-wizard.spec.ts",
+        // Phone-viewport specs run in the `mobile` project below — a narrow
+        // window in this project would only test the desktop branch squeezed.
+        "**/routes/mobile/**",
         "**/auth.setup.ts",
         "**/routes/login/login.spec.ts",
         "**/routes/login/signup.spec.ts",
@@ -186,6 +189,24 @@ export default defineConfig({
       ],
       use: {
         ...devices["Desktop Chrome"],
+        headless: !!process.env.CI,
+        ...(existsSync(join(authDir, "admin.json"))
+          ? { storageState: join(authDir, "admin.json") }
+          : {}),
+      },
+      dependencies: process.env.SKIP_E2E_DEPS === "true" ? [] : ["auth-setup"],
+    },
+    {
+      // Phone viewport with touch + mobile user agent. The admin shell keys its
+      // navigation branch on `screen.isMobile` (md breakpoint) and the media
+      // gallery renders cards instead of a table below md, so these specs need a
+      // real mobile context (`isMobile`, `hasTouch`, phone UA) — a narrow window
+      // in the chromium project renders the desktop branch and proves nothing.
+      // Scope is the spec directory, so the suite stays one job in CI.
+      name: "mobile",
+      testMatch: ["**/routes/mobile/**/*.spec.ts"],
+      use: {
+        ...devices["Pixel 7"],
         headless: !!process.env.CI,
         ...(existsSync(join(authDir, "admin.json"))
           ? { storageState: join(authDir, "admin.json") }
