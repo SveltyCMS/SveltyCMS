@@ -2,12 +2,13 @@
 @file src/routes/(app)/config/sync/+page.svelte
 @component
 **Configuration Sync & Backup Manager**
-Allows synchronization between filesystem and database, safety mode selection, and configuration export.
+Allows synchronization between compiled filesystem schemas and the database, promotion safety mode selection, and snapshot export/history.
 
 ### Features:
+- Collapsible explainer bar (saves workspace height by default)
 - Real-time drift detection (New, Updated, Deleted)
-- 4 Safety Modes: Merge, Add, Mirror, Replace
-- One-click configuration export to filesystem
+- 4 enforced Safety Modes: Merge, Add Only, Mirror, Replace (with Modal confirmation)
+- One-click configuration snapshot export to config/sync/ + snapshot inventory table
 - Unmet requirement detection and safety gating
 -->
 <script lang="ts">
@@ -20,6 +21,7 @@ Allows synchronization between filesystem and database, safety mode selection, a
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Loader from '@components/ui/loader.svelte';
+	import Modal from '@components/ui/modal.svelte';
 	import Tabs from '@components/ui/tabs.svelte';
 	import HelpIcon from '@components/ui/help-icon.svelte';
 	import AdminCard from '@components/admin-card.svelte';
@@ -31,22 +33,50 @@ Allows synchronization between filesystem and database, safety mode selection, a
 		SMART_TABLE_TH,
 		SMART_TABLE_THEAD
 	} from '@components/ui/smart-table/chrome';
+	import { formatDateTime } from '@utils/format-date';
 	import {
+		button_cancel,
 		sync_action,
+		sync_apply_btn,
+		sync_apply_hint_disabled,
+		sync_applying_btn,
 		sync_backup_heading,
 		sync_backup_intro,
 		sync_changes_detected,
 		sync_changes_summary,
+		sync_checking_btn,
+		sync_col_adapter,
+		sync_col_created,
+		sync_col_resources,
+		sync_col_snapshot,
+		sync_confirm_body,
+		sync_confirm_title,
 		sync_deleted_missing,
+		sync_explainer_intro,
+		sync_explainer_title,
+		sync_export_btn,
+		sync_export_btn_tip,
 		sync_export_schema,
+		sync_exporting_btn,
 		sync_in_sync,
 		sync_in_sync_desc,
 		sync_name,
 		sync_new_create,
 		sync_options_aria,
 		sync_raw_api,
+		sync_refresh_btn,
+		sync_refresh_btn_tip,
 		sync_safety_mode,
 		sync_safety_mode_aria,
+		sync_safety_mode_tip,
+		sync_snapshots_empty,
+		sync_snapshots_heading,
+		sync_step_apply_desc,
+		sync_step_apply_title,
+		sync_step_diff_desc,
+		sync_step_diff_title,
+		sync_step_export_desc,
+		sync_step_export_title,
 		sync_sync_path,
 		sync_title,
 		sync_type,
@@ -62,8 +92,18 @@ Allows synchronization between filesystem and database, safety mode selection, a
 			updated?: { name: string; uuid: string; type: string }[];
 			deleted?: { name: string; uuid: string; type: string }[];
 		};
-		unmetRequirements: { name: string; type: string; requirement: string }[];
+		unmetRequirements: { key?: string; name?: string; type?: string; requirement?: string }[];
 	} | null;
+
+	type ExportSnapshot = {
+		dirName: string;
+		dirPath: string;
+		createdAt: string;
+		adapter: string;
+		tenantId: string;
+		resources: Record<string, number>;
+		totalResources: number;
+	};
 
 	type SafetyMode = 'merge' | 'add' | 'mirror' | 'replace';
 
@@ -74,9 +114,14 @@ Allows synchronization between filesystem and database, safety mode selection, a
 	let status: ConfigStatus = $state(
 		untrack(() => (data.status as unknown as ConfigStatus) ?? null)
 	);
+	let snapshots: ExportSnapshot[] = $state(
+		untrack(() => (data.exports as unknown as ExportSnapshot[]) ?? [])
+	);
 	let isLoading = $state(false);
 	let isProcessing = $state(false);
 	let isExporting = $state(false);
+	let showExplainer = $state(false);
+	let confirmModalOpen = $state(false);
 	let activeTab: SyncTab = $state('sync');
 	let selectedMode: SafetyMode = $state('merge');
 
@@ -109,12 +154,12 @@ Allows synchronization between filesystem and database, safety mode selection, a
 		},
 		mirror: {
 			label: 'Mirror',
-			description: 'Matches filesystem exactly. Creates, updates, and deletes database records.',
+			description: 'Matches filesystem schemas. Creates, updates, and deletes database records.',
 			badge: 'Destructive'
 		},
 		replace: {
 			label: 'Replace',
-			description: 'Drops all existing configuration and re-imports from filesystem.',
+			description: 'Drops mismatched configuration and re-imports from schemas.',
 			badge: 'High Risk'
 		}
 	};
@@ -125,17 +170,41 @@ Allows synchronization between filesystem and database, safety mode selection, a
 		deleted: status?.changes?.deleted?.length || 0
 	}));
 
+	const applyBlocked = $derived(
+		isProcessing ||
+			!status ||
+			status.status === 'in_sync' ||
+			(status?.unmetRequirements?.length ?? 0) > 0
+	);
+
+	async function loadSnapshots() {
+		try {
+			const result = await fetchApi<{ exports?: ExportSnapshot[] }>('/api/config/exports');
+			if (result.success) {
+				const list = result.data?.exports;
+				if (Array.isArray(list)) snapshots = list;
+			}
+		} catch (err) {
+			logger.debug('[Config Sync] Failed to refresh snapshots list', err);
+		}
+	}
+
 	async function loadStatus() {
 		isLoading = true;
 		try {
-			const result = await fetchApi<ConfigStatus>('/api/config/status');
-			if (!result.success) {
-				throw new Error(result.message || 'Failed to fetch status');
+			const [statusRes] = await Promise.all([
+				fetchApi<ConfigStatus>('/api/config/status'),
+				loadSnapshots()
+			]);
+			if (!statusRes.success) {
+				throw new Error(statusRes.message || 'Failed to fetch status');
 			}
 			const payload =
-				(result as { data?: ConfigStatus }).data ?? (result as unknown as ConfigStatus);
+				(statusRes as { data?: ConfigStatus }).data ?? (statusRes as unknown as ConfigStatus);
 			status =
-				payload && typeof payload === 'object' && 'status' in payload ? payload : (result as any);
+				payload && typeof payload === 'object' && 'status' in payload
+					? payload
+					: (statusRes as any);
 			logger.debug('[Config Sync] Received status:', $state.snapshot(status));
 		} catch (err) {
 			const errorMsg = err instanceof Error ? err.message : String(err);
@@ -146,19 +215,22 @@ Allows synchronization between filesystem and database, safety mode selection, a
 		}
 	}
 
-	async function performSync() {
+	function handleApplyClick() {
 		if (!status || (status?.unmetRequirements?.length ?? 0) > 0) {
 			toast.warning('Sync blocked due to unmet requirements.');
 			return;
 		}
 
 		if (selectedMode === 'mirror' || selectedMode === 'replace') {
-			const confirmed = window.confirm(
-				`Warning: "${selectedMode.toUpperCase()}" mode may delete existing configuration records in the database. Are you sure you want to proceed?`
-			);
-			if (!confirmed) return;
+			confirmModalOpen = true;
+			return;
 		}
 
+		void executeSync(false);
+	}
+
+	async function executeSync(confirmed: boolean) {
+		confirmModalOpen = false;
 		isProcessing = true;
 		try {
 			toast.info(`Creating configuration plan (${selectedMode} mode)...`);
@@ -181,7 +253,11 @@ Allows synchronization between filesystem and database, safety mode selection, a
 
 			const applyResult: ApiResponse<{ message?: string }> = await fetchApi('/api/config/apply', {
 				method: 'POST',
-				body: JSON.stringify({ planId: plan.planId, mode: plan.mode || selectedMode })
+				body: JSON.stringify({
+					planId: plan.planId,
+					mode: plan.mode || selectedMode,
+					confirmed
+				})
 			});
 			if (!applyResult.success) {
 				throw new Error(applyResult.message || 'Apply failed');
@@ -202,7 +278,7 @@ Allows synchronization between filesystem and database, safety mode selection, a
 	async function exportCurrentConfig() {
 		isExporting = true;
 		try {
-			toast.info('Exporting database configuration to filesystem...');
+			toast.info('Exporting database configuration snapshot...');
 			const result: ApiResponse<{ dirPath: string }> = await fetchApi('/api/config/export', {
 				method: 'POST',
 				body: JSON.stringify({})
@@ -210,10 +286,10 @@ Allows synchronization between filesystem and database, safety mode selection, a
 			if (!result.success) {
 				throw new Error(result.message || 'Export failed');
 			}
-			const data =
+			const exportData =
 				(result as { data?: { dirPath?: string } }).data ?? (result as { dirPath?: string });
-			toast.success(`Export complete! Saved to ${data?.dirPath || 'config/sync/'}`);
-			await loadStatus();
+			toast.success(`Export complete! Saved to ${exportData?.dirPath || 'config/sync/'}`);
+			await Promise.all([loadStatus(), loadSnapshots()]);
 		} catch (err) {
 			const errorMsg = err instanceof Error ? err.message : String(err);
 			toast.error(`Export failed: ${errorMsg}`);
@@ -226,87 +302,92 @@ Allows synchronization between filesystem and database, safety mode selection, a
 <AdminPageShell
 	title={sync_title()}
 	icon="mdi:sync"
-	description="Synchronize configuration between filesystem and database (Schema as Code)"
+	description="Synchronize configuration between filesystem schemas and database"
 	showBackButton={true}
 	backUrl="/config"
 >
-	<div data-testid="sync-page" class="flex w-full min-w-0 flex-col gap-2">
-		<!-- A new user needs the model before the controls: configuration lives in
-		     two places and this page reconciles them. -->
+	<div data-testid="sync-page" class="flex w-full min-w-0 flex-col gap-3">
+		<!-- Collapsible explainer: saves vertical viewport space until requested -->
 		<AdminCard
 			class="border border-(--admin-border-default) bg-(--admin-bg-card) p-3 shadow-xs"
 			data-testid="sync-explainer"
 		>
-			<div class="flex items-start gap-2">
+			<button
+				type="button"
+				onclick={() => (showExplainer = !showExplainer)}
+				aria-expanded={showExplainer}
+				data-testid="sync-explainer-toggle"
+				class="flex w-full items-center justify-between gap-2 text-start"
+			>
+				<span class="flex items-center gap-2 text-sm font-semibold text-(--admin-text-body)">
+					<iconify-icon
+						icon="mdi:information-outline"
+						width="18"
+						class="shrink-0 text-tertiary-500 dark:text-primary-500"
+						aria-hidden="true"
+					></iconify-icon>
+					<span>{sync_explainer_title()}</span>
+				</span>
 				<iconify-icon
-					icon="mdi:information-outline"
+					icon="mdi:chevron-down"
 					width="20"
-					class="mt-0.5 shrink-0 text-tertiary-500 dark:text-primary-500"
+					class="shrink-0 text-(--admin-text-muted) transition-transform duration-200 {showExplainer
+						? 'rotate-180'
+						: ''}"
+					aria-hidden="true"
 				></iconify-icon>
-				<div class="min-w-0 space-y-1">
-					<h2 class="text-sm font-semibold text-(--admin-text-body)">What Config Sync does</h2>
+			</button>
+
+			{#if showExplainer}
+				<div class="mt-3 space-y-3 border-t border-surface-500/20 pt-3" transition:slide|local>
 					<p class="text-sm text-(--admin-text-muted)">
-						Configuration — collections, roles, permissions, settings, widgets, themes, webhooks and
-						automations — exists twice: in the database and as JSON under
-						<code class="rounded bg-surface-500/10 px-1 py-0.5">{sync_sync_path()}</code>. This page
-						keeps the two sides in step, like Drupal's <code>drush cex</code> /
-						<code>drush cim</code>.
+						{sync_explainer_intro()}
+						<code class="rounded bg-surface-500/10 px-1 py-0.5">{sync_sync_path()}</code>.
 					</p>
-				</div>
-			</div>
 
-			<div class="mt-3 grid gap-2 md:grid-cols-3">
-				<div class="rounded-md border border-surface-500/20 bg-surface-500/10 p-3">
-					<div class="flex items-center gap-1.5 text-sm font-semibold">
-						<iconify-icon
-							icon="mdi:export"
-							width="16"
-							class="text-tertiary-500 dark:text-primary-500"
-						></iconify-icon>
-						1. Export <code class="text-xs">drush cex</code>
+					<div class="grid gap-2 md:grid-cols-3">
+						<div class="rounded-md border border-surface-500/20 bg-surface-500/10 p-3">
+							<div class="flex items-center gap-1.5 text-sm font-semibold">
+								<iconify-icon
+									icon="mdi:export"
+									width="16"
+									class="text-tertiary-500 dark:text-primary-500"
+									aria-hidden="true"
+								></iconify-icon>
+								{sync_step_export_title()}
+							</div>
+							<p class="mt-1 text-xs text-(--admin-text-muted)">{sync_step_export_desc()}</p>
+						</div>
+						<div class="rounded-md border border-surface-500/20 bg-surface-500/10 p-3">
+							<div class="flex items-center gap-1.5 text-sm font-semibold">
+								<iconify-icon
+									icon="mdi:source-branch"
+									width="16"
+									class="text-tertiary-500 dark:text-primary-500"
+									aria-hidden="true"
+								></iconify-icon>
+								{sync_step_diff_title()}
+							</div>
+							<p class="mt-1 text-xs text-(--admin-text-muted)">{sync_step_diff_desc()}</p>
+						</div>
+						<div class="rounded-md border border-surface-500/20 bg-surface-500/10 p-3">
+							<div class="flex items-center gap-1.5 text-sm font-semibold">
+								<iconify-icon
+									icon="mdi:sync"
+									width="16"
+									class="text-tertiary-500 dark:text-primary-500"
+									aria-hidden="true"
+								></iconify-icon>
+								{sync_step_apply_title()}
+							</div>
+							<p class="mt-1 text-xs text-(--admin-text-muted)">{sync_step_apply_desc()}</p>
+						</div>
 					</div>
-					<p class="mt-1 text-xs text-(--admin-text-muted)">
-						Writes the active database configuration into that folder. Commit it — the JSON becomes
-						the reviewable source of truth.
-					</p>
 				</div>
-				<div class="rounded-md border border-surface-500/20 bg-surface-500/10 p-3">
-					<div class="flex items-center gap-1.5 text-sm font-semibold">
-						<iconify-icon
-							icon="mdi:source-branch"
-							width="16"
-							class="text-tertiary-500 dark:text-primary-500"
-						></iconify-icon>
-						2. Review the diff
-					</div>
-					<p class="mt-1 text-xs text-(--admin-text-muted)">
-						The table below lists what differs as New, Updated or Deleted. Nothing has been written
-						to the database at this point.
-					</p>
-				</div>
-				<div class="rounded-md border border-surface-500/20 bg-surface-500/10 p-3">
-					<div class="flex items-center gap-1.5 text-sm font-semibold">
-						<iconify-icon icon="mdi:sync" width="16" class="text-tertiary-500 dark:text-primary-500"
-						></iconify-icon>
-						3. Apply <code class="text-xs">drush cim</code>
-					</div>
-					<p class="mt-1 text-xs text-(--admin-text-muted)">
-						Imports the folder into the database using the selected safety mode. Unmet requirements
-						block the import.
-					</p>
-				</div>
-			</div>
-
-			<p class="mt-2 text-xs text-(--admin-text-muted)">
-				<strong>Content is separate.</strong> Entries, media and pages are not exported here — use
-				<a href="/config?plugin=smart-importer" class="underline">Smart Importer</a> or content
-				packages, and let the database engine own full backups (<code>pg_dump</code>,
-				<code>mariadb-dump</code>,
-				<code>sqlite3 .backup</code>).
-			</p>
+			{/if}
 		</AdminCard>
 
-		<AdminCard class="border border-(--admin-border-default) bg-(--admin-bg-card) p-2 shadow-xs">
+		<AdminCard class="border border-(--admin-border-default) bg-(--admin-bg-card) p-3 shadow-xs">
 			<Tabs
 				tabs={syncTabs}
 				bind:activeTab
@@ -316,122 +397,120 @@ Allows synchronization between filesystem and database, safety mode selection, a
 				onTabChange={(id) => (activeTab = id as SyncTab)}
 			/>
 
-			<section id="tabpanel-{activeTab}" role="tabpanel" class="pt-2" transition:fade|local>
+			<section id="tabpanel-{activeTab}" role="tabpanel" class="pt-3" transition:fade|local>
 				{#if activeTab === 'sync'}
 					{#if status?.unmetRequirements && status.unmetRequirements.length > 0}
 						<div
-							class="alert bg-error-500/10 text-error-500 border border-error-500/30 dark:bg-error-500/20 dark:text-error-400 dark:border-error-500/40 my-4 p-4 rounded-md"
+							class="alert my-3 rounded-md border border-error-500/30 bg-error-500/10 p-4 text-error-500 dark:border-error-500/40 dark:bg-error-500/20 dark:text-error-400"
 							transition:slide
 						>
-							<h4 class="font-bold flex items-center gap-2">
+							<h4 class="flex items-center gap-2 font-bold">
 								<iconify-icon icon="mdi:alert-circle"></iconify-icon>
 								{sync_unmet_heading()}
 							</h4>
-							<p class="text-sm mt-1">
-								{sync_unmet_intro()}
-							</p>
+							<p class="mt-1 text-sm">{sync_unmet_intro()}</p>
 							<ul class="mt-2 list-disc ps-5 text-sm">
-								{#each status.unmetRequirements as req (req.name + req.type)}
-									<li><strong>{req.name}</strong> ({req.type}): {req.requirement}</li>
+								{#each status.unmetRequirements as req (`${req.key ?? req.name ?? ''}`)}
+									<li>
+										<strong>{req.name ?? req.key}</strong>
+										{#if req.type}({req.type}){/if}: {req.requirement ?? 'Missing required setting'}
+									</li>
 								{/each}
 							</ul>
 						</div>
 					{/if}
 
-					<!-- Action Controls -->
+					<!-- Promotion Safety Mode & Action Bar (single aligned row on desktop) -->
 					<div
-						class="mt-2 rounded-lg border border-(--admin-border-default) bg-surface-500/10 p-3 flex flex-col md:flex-row gap-3 items-start md:items-center justify-between"
+						class="rounded-lg border border-(--admin-border-default) bg-surface-500/10 p-3 sm:p-4"
 					>
-						<!-- Safety Mode Selector -->
-						<div class="flex flex-col gap-1.5 w-full md:w-auto">
-							<div class="flex items-center gap-1.5">
-								<label
-									for="safety-mode-select"
-									class="text-xs font-semibold uppercase tracking-wider text-surface-500"
-								>
-									{sync_safety_mode()}
-								</label>
-								<SystemTooltip
-									title="How the import treats records that already exist. Merge keeps everything and updates matches; Add only creates; Mirror makes the database match the folder (deletes extras); Replace drops and re-imports everything."
-								>
-									<HelpIcon ariaLabel="Help for promotion safety mode" tabindex={0} />
-								</SystemTooltip>
+						<div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+							<!-- Safety Mode Selector -->
+							<div class="flex min-w-0 flex-1 flex-col gap-1.5">
+								<div class="flex items-center gap-1.5">
+									<label
+										for="safety-mode-select"
+										class="text-xs font-semibold uppercase tracking-wider text-surface-500"
+									>
+										{sync_safety_mode()}
+									</label>
+									<SystemTooltip title={sync_safety_mode_tip()}>
+										<HelpIcon ariaLabel="Help for promotion safety mode" tabindex={0} />
+									</SystemTooltip>
+								</div>
+								<div class="flex flex-wrap items-center gap-2">
+									<select
+										id="safety-mode-select"
+										aria-label={sync_safety_mode_aria()}
+										bind:value={selectedMode}
+										class="rounded-md border border-(--admin-border-default) bg-(--admin-bg-card) px-3 py-1.5 text-sm text-(--admin-text-body) focus:outline-hidden focus:ring-2 focus:ring-primary-500"
+									>
+										{#each ['merge', 'add', 'mirror', 'replace'] as const as mode (mode)}
+											<option value={mode}>{modeDescriptions[mode].label}</option>
+										{/each}
+									</select>
+									<Badge
+										variant={selectedMode === 'merge'
+											? 'tertiary'
+											: selectedMode === 'add'
+												? 'surface'
+												: selectedMode === 'mirror'
+													? 'warning'
+													: 'error'}
+										class="text-xs"
+									>
+										{modeDescriptions[selectedMode].badge}
+									</Badge>
+								</div>
+								<p class="text-xs text-surface-500 dark:text-surface-400">
+									{modeDescriptions[selectedMode].description}
+								</p>
 							</div>
-							<div class="flex items-center gap-2">
-								<select
-									id="safety-mode-select"
-									aria-label={sync_safety_mode_aria()}
-									bind:value={selectedMode}
-									class="px-3 py-1.5 text-sm rounded-md border border-(--admin-border-default) bg-(--admin-bg-card) text-(--admin-text-body) focus:ring-2 focus:ring-primary-500 focus:outline-hidden"
-								>
-									{#each ['merge', 'add', 'mirror', 'replace'] as const as mode (mode)}
-										<option value={mode}>{modeDescriptions[mode].label}</option>
-									{/each}
-								</select>
-								<Badge
-									variant={selectedMode === 'merge'
-										? 'tertiary'
-										: selectedMode === 'add'
-											? 'surface'
-											: selectedMode === 'mirror'
-												? 'warning'
-												: 'error'}
-									class="text-xs"
-								>
-									{modeDescriptions[selectedMode].badge}
-								</Badge>
+
+							<!-- Action Buttons: single non-wrapping row on desktop -->
+							<div class="flex flex-col items-stretch gap-1.5 lg:items-end">
+								<div class="flex flex-wrap items-center gap-2 lg:flex-nowrap">
+									<SystemTooltip title={sync_export_btn_tip()}>
+										<Button
+											variant="outline"
+											disabled={isExporting || isLoading}
+											onclick={exportCurrentConfig}
+											data-testid="config-export-btn"
+											leadingIcon="mdi:export"
+										>
+											{isExporting ? sync_exporting_btn() : sync_export_btn()}
+										</Button>
+									</SystemTooltip>
+
+									<SystemTooltip title={sync_refresh_btn_tip()}>
+										<Button
+											variant="ghost"
+											disabled={isLoading || isProcessing}
+											onclick={loadStatus}
+											data-testid="sync-refresh"
+											leadingIcon="mdi:refresh"
+										>
+											{isLoading ? sync_checking_btn() : sync_refresh_btn()}
+										</Button>
+									</SystemTooltip>
+
+									<Button
+										variant="primary"
+										disabled={applyBlocked}
+										onclick={handleApplyClick}
+										data-testid="sync-run"
+										leadingIcon="mdi:sync"
+									>
+										{isProcessing ? sync_applying_btn() : sync_apply_btn()}
+									</Button>
+								</div>
+								{#if applyBlocked && !isProcessing}
+									<p class="text-xs text-(--admin-text-muted) lg:text-end">
+										{sync_apply_hint_disabled()}
+									</p>
+								{/if}
 							</div>
-							<p class="text-xs text-surface-500 dark:text-surface-400 mt-0.5">
-								{modeDescriptions[selectedMode].description}
-							</p>
 						</div>
-
-						<!-- Action Buttons -->
-						<div class="flex flex-wrap gap-2 w-full md:w-auto justify-end">
-							<SystemTooltip
-								title="Writes the active database configuration to config/sync/ (drush cex). Commit the folder so the change is reviewable."
-							>
-								<Button
-									variant="ghost"
-									disabled={isExporting || isLoading}
-									onclick={exportCurrentConfig}
-									data-testid="config-export-btn"
-									leadingIcon="mdi:export"
-								>
-									{isExporting ? 'Exporting...' : 'Export to Filesystem'}
-								</Button>
-							</SystemTooltip>
-
-							<SystemTooltip
-								title="Re-reads the filesystem and the database and recomputes the diff. Writes nothing."
-							>
-								<Button
-									variant="ghost"
-									disabled={isLoading || isProcessing}
-									onclick={loadStatus}
-									data-testid="sync-refresh"
-									leadingIcon="mdi:refresh"
-								>
-									{isLoading ? 'Checking...' : 'Refresh'}
-								</Button>
-							</SystemTooltip>
-
-							<Button
-								variant="tertiary"
-								disabled={isProcessing ||
-									!status ||
-									status.status === 'in_sync' ||
-									(status?.unmetRequirements?.length ?? 0) > 0}
-								onclick={performSync}
-								data-testid="sync-run"
-								leadingIcon="mdi:sync"
-							>
-								{isProcessing ? 'Syncing...' : 'Apply Changes'}
-							</Button>
-						</div>
-						<p class="mt-1 w-full text-end text-xs text-(--admin-text-muted)">
-							Apply is disabled while there is nothing to import or a requirement is unmet.
-						</p>
 					</div>
 
 					{#if isLoading}
@@ -451,13 +530,11 @@ Allows synchronization between filesystem and database, safety mode selection, a
 							<iconify-icon icon="mdi:check-circle" class="mx-auto text-6xl text-success-500"
 							></iconify-icon>
 							<h2 class="text-xl font-semibold">{sync_in_sync()}</h2>
-							<p class="text-surface-500">
-								{sync_in_sync_desc()}
-							</p>
+							<p class="text-surface-500">{sync_in_sync_desc()}</p>
 						</div>
 					{:else}
-						<div class="space-y-4" data-testid="sync-changes">
-							<div class="flex items-center justify-between">
+						<div class="mt-4 space-y-3" data-testid="sync-changes">
+							<div class="flex flex-wrap items-center justify-between gap-2">
 								<h3 class="flex items-center gap-2 text-lg font-semibold">
 									<iconify-icon icon="mdi:alert" class="text-warning-500"></iconify-icon>
 									{sync_changes_detected()}
@@ -470,12 +547,6 @@ Allows synchronization between filesystem and database, safety mode selection, a
 									})}
 								</p>
 							</div>
-
-							<p class="text-xs text-(--admin-text-muted)">
-								<strong>New</strong> exists on disk but not in the database ·
-								<strong>Updated</strong> differs between the two ·
-								<strong>Deleted</strong> exists in the database but not on disk.
-							</p>
 
 							<AdminCard
 								class="my-2 w-full overflow-x-auto border border-(--admin-border-default) sm:my-3"
@@ -529,30 +600,22 @@ Allows synchronization between filesystem and database, safety mode selection, a
 				{/if}
 
 				{#if activeTab === 'backups'}
-					<div transition:slide|local class="space-y-2">
+					<div transition:slide|local class="space-y-4">
 						<div class="rounded-lg border border-(--admin-border-default) bg-surface-500/10 p-3">
 							<h3 class="flex items-center gap-2 text-sm font-semibold">
 								<iconify-icon icon="mdi:database-export-outline"></iconify-icon>
 								{sync_backup_heading()}
 							</h3>
 							<p class="mt-1 text-sm text-(--admin-text-muted)">{sync_backup_intro()}</p>
-							<p class="mt-2 text-xs text-(--admin-text-muted)">
-								The button below writes <strong>schema files</strong> — the same export as the Sync tab.
-								It is not a database dump and not a content archive.
-							</p>
 						</div>
 
-						<div class="grid gap-2 md:grid-cols-3">
-							<div class="rounded-lg border border-(--admin-border-default) p-3">
-								<h4 class="text-sm font-semibold">Configuration</h4>
-								<p class="mt-1 text-xs text-(--admin-text-muted)">
-									Collections, roles, permissions, settings, widgets, themes, webhooks and
-									automations, serialized to <code>{sync_sync_path()}</code> for Git.
-								</p>
+						<!-- Saved Snapshots Table -->
+						<div class="space-y-2">
+							<div class="flex items-center justify-between gap-2">
+								<h4 class="text-sm font-semibold">{sync_snapshots_heading()}</h4>
 								<Button
-									variant="tertiary"
+									variant="primary"
 									size="sm"
-									class="mt-2"
 									onclick={exportCurrentConfig}
 									loading={isExporting}
 									leadingIcon="mdi:file-export"
@@ -561,6 +624,48 @@ Allows synchronization between filesystem and database, safety mode selection, a
 								</Button>
 							</div>
 
+							{#if snapshots.length === 0}
+								<div
+									class="rounded-lg border border-surface-500/20 bg-surface-500/10 p-6 text-center text-sm text-(--admin-text-muted)"
+									data-testid="sync-snapshots-empty"
+								>
+									{sync_snapshots_empty()}
+								</div>
+							{:else}
+								<AdminCard class="w-full overflow-x-auto border border-(--admin-border-default)">
+									<table class={SMART_TABLE} data-testid="sync-snapshots-table">
+										<thead class={SMART_TABLE_THEAD}>
+											<tr class="border-b border-surface-500/30 text-xs uppercase tracking-wide">
+												<th class="{SMART_TABLE_TH} text-start!">{sync_col_snapshot()}</th>
+												<th class="{SMART_TABLE_TH} text-start!">{sync_col_adapter()}</th>
+												<th class="{SMART_TABLE_TH} text-start!">{sync_col_resources()}</th>
+												<th class="{SMART_TABLE_TH} text-end!">{sync_col_created()}</th>
+											</tr>
+										</thead>
+										<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
+											{#each snapshots as snap (snap.dirName)}
+												<tr class={SMART_TABLE_ROW_HOVER}>
+													<td class="{SMART_TABLE_TD} text-start! font-mono text-xs"
+														>{snap.dirName}</td
+													>
+													<td class="{SMART_TABLE_TD} text-start!">
+														<Badge variant="surface">{snap.adapter}</Badge>
+													</td>
+													<td class="{SMART_TABLE_TD} text-start!">{snap.totalResources}</td>
+													<td class="{SMART_TABLE_TD} text-end! text-xs text-(--admin-text-muted)">
+														{snap.createdAt
+															? formatDateTime(snap.createdAt, data.systemLanguage)
+															: '-'}
+													</td>
+												</tr>
+											{/each}
+										</tbody>
+									</table>
+								</AdminCard>
+							{/if}
+						</div>
+
+						<div class="grid gap-2 md:grid-cols-2">
 							<div class="rounded-lg border border-(--admin-border-default) p-3">
 								<h4 class="text-sm font-semibold">Content</h4>
 								<p class="mt-1 text-xs text-(--admin-text-muted)">
@@ -601,7 +706,7 @@ Allows synchronization between filesystem and database, safety mode selection, a
 							no secrets or entry content.
 						</p>
 						<pre
-							class="whitespace-pre-wrap text-xs max-h-125 overflow-y-auto p-2 border border-(--admin-border-default) rounded bg-surface-500/10 dark:bg-surface-800">{JSON.stringify(
+							class="max-h-125 overflow-y-auto whitespace-pre-wrap rounded border border-(--admin-border-default) bg-surface-500/10 p-2 text-xs dark:bg-surface-800">{JSON.stringify(
 								status,
 								null,
 								2
@@ -612,3 +717,28 @@ Allows synchronization between filesystem and database, safety mode selection, a
 		</AdminCard>
 	</div>
 </AdminPageShell>
+
+<!-- Destructive Sync Confirmation Modal -->
+<Modal bind:open={confirmModalOpen} title={sync_confirm_title()} size="sm">
+	<div class="space-y-4 p-2">
+		<div
+			class="rounded-lg border border-error-500/30 bg-error-500/10 p-3 text-sm text-error-500 dark:text-error-400"
+		>
+			{sync_confirm_body()}
+		</div>
+		<div class="flex justify-end gap-3 pt-2">
+			<Button variant="ghost" type="button" onclick={() => (confirmModalOpen = false)}>
+				{button_cancel()}
+			</Button>
+			<Button
+				variant="danger"
+				type="button"
+				loading={isProcessing}
+				data-testid="confirm-sync-apply-btn"
+				onclick={() => void executeSync(true)}
+			>
+				{sync_apply_btn()}
+			</Button>
+		</div>
+	</div>
+</Modal>

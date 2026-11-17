@@ -523,12 +523,16 @@
 						tabindex="0"
 						aria-label="Drop your CMS export file here or click to browse"
 						onkeydown={(e) => {
+							if ((e.target as HTMLElement)?.closest("[aria-label^='Help:']")) return;
 							if (e.key === 'Enter' || e.key === ' ') {
 								e.preventDefault();
 								document.getElementById('migration-file-input')?.click();
 							}
 						}}
-						onclick={() => document.getElementById('migration-file-input')?.click()}
+						onclick={(e) => {
+							if ((e.target as HTMLElement)?.closest("[aria-label^='Help:']")) return;
+							document.getElementById('migration-file-input')?.click();
+						}}
 					>
 						<div class="flex flex-col items-center gap-4" in:fade={{ duration: 300 }}>
 							<div
@@ -545,13 +549,17 @@
 								<p class="font-medium text-surface-600 dark:text-surface-400">
 									Drop your CMS export file here
 								</p>
-								<p class="mt-1 text-sm text-surface-500">
-									36+ platforms: WXR, JSON, YAML, CSV, TSV, NDJSON
+								<p
+									class="mt-1 inline-flex flex-wrap items-center justify-center gap-1.5 text-sm text-surface-500"
+								>
+									<span>36+ platforms: WXR, JSON, YAML, CSV, TSV, NDJSON</span>
+									{@render helpTrigger(
+										'Format and field mapping are detected from the file. A generic CSV maps its header row and keeps unknown columns as their own fields.',
+										'Supported files'
+									)}
 								</p>
 							</div>
-							<Button variant="secondary" size="sm" rounded={true} aria-label="Browse files"
-								>Browse Files</Button
-							>
+							<Button variant="primary" size="md" aria-label="Browse files">Browse Files</Button>
 						</div>
 						<input
 							id="migration-file-input"
@@ -562,17 +570,6 @@
 							aria-label="Select a CMS export file to import"
 						/>
 					</div>
-
-					<!-- Outside the clickable drop zone so the tooltip trigger does not open the picker. -->
-					<p
-						class="mt-3 flex flex-wrap items-center justify-center gap-1.5 text-xs text-surface-500"
-					>
-						Accepted: WordPress WXR, JSON, YAML, CSV/TSV, NDJSON
-						{@render helpTrigger(
-							'Format and field mapping are detected from the file. A generic CSV maps its header row and keeps unknown columns as their own fields.',
-							'Supported files'
-						)}
-					</p>
 				{:else}
 					<!-- File Detected -->
 					<div

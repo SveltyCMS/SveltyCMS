@@ -130,6 +130,18 @@ export interface ResourceTypeInfo {
   note?: string;
 }
 
+export type PromotionSafetyMode = "merge" | "add" | "mirror" | "replace";
+
+export interface ConfigExportSnapshot {
+  dirName: string;
+  dirPath: string;
+  createdAt: string;
+  adapter: string;
+  tenantId: string;
+  resources: Record<string, number>;
+  totalResources: number;
+}
+
 /** Manifest written into every config sync export directory. */
 export interface ConfigManifest {
   schemaVersion: number;
@@ -280,6 +292,47 @@ export class ConfigService {
     return { dirPath: exportDir };
   }
 
+  /** Lists saved configuration export snapshots for a tenant, newest first. */
+  public async listExports(tenantId?: string): Promise<ConfigExportSnapshot[]> {
+    const syncRoot = resolveConfigSyncRoot();
+    const prefix = `export_${tenantId || "global"}_`;
+    let entries: string[] = [];
+    try {
+      entries = await fs.readdir(syncRoot);
+    } catch {
+      return [];
+    }
+
+    const snapshots: ConfigExportSnapshot[] = [];
+    for (const entry of entries) {
+      if (!entry.startsWith(prefix)) continue;
+      const dirPath = path.join(syncRoot, entry);
+      try {
+        const raw = await fs.readFile(path.join(dirPath, "manifest.json"), "utf8");
+        const manifest = JSON.parse(raw) as Partial<ConfigManifest>;
+        const resources =
+          manifest.resources && typeof manifest.resources === "object" ? manifest.resources : {};
+        const totalResources = Object.values(resources).reduce(
+          (sum, count) => sum + (typeof count === "number" ? count : 0),
+          0,
+        );
+        snapshots.push({
+          dirName: entry,
+          dirPath,
+          createdAt: String(manifest.createdAt ?? ""),
+          adapter: String(manifest.adapter ?? "unknown"),
+          tenantId: String(manifest.tenantId ?? (tenantId || "global")),
+          resources,
+          totalResources,
+        });
+      } catch {
+        // Ignore directories without a readable manifest.json
+      }
+    }
+
+    return snapshots.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
   // -----------------------------------------------------------------------
   // Resource Type Registry (public)
   // -----------------------------------------------------------------------
@@ -406,10 +459,11 @@ export class ConfigService {
   // Import
   // -----------------------------------------------------------------------
 
-  /** Imports configuration entities from filesystem into the database. */
+  /** Imports configuration entities from filesystem into the database, respecting safety mode. */
   public async performImport(
     options: {
       tenantId?: string;
+      mode?: PromotionSafetyMode;
       changes?: {
         new: ConfigEntity[];
         updated: ConfigEntity[];
@@ -418,7 +472,12 @@ export class ConfigService {
     } = {},
   ) {
     const { tenantId } = options;
-    logger.debug(`Performing configuration import for tenant: ${tenantId || "global"}...`);
+    // Direct callers passing explicit pre-filtered changes without mode apply all of them;
+    // API promotion plans always pass `mode` explicitly and default to safe "merge".
+    const mode: PromotionSafetyMode = options.mode ?? (options.changes ? "mirror" : "merge");
+    logger.debug(
+      `Performing configuration import for tenant: ${tenantId || "global"} (mode: ${mode})...`,
+    );
     let changes = options.changes;
 
     if (!changes) {
@@ -430,10 +489,14 @@ export class ConfigService {
       throw new Error("Database adapter not available.");
     }
 
-    // 1. Handle New & Updated Entities
-    //    Every write is attempted; failures are collected and raised together so a
-    //    partial import is never reported as a completed one.
-    const toUpsert = [...changes.new, ...changes.updated];
+    // Enforce Promotion Safety Mode:
+    // - add: only insert missing entities (never overwrite or delete)
+    // - merge: insert new + update modified entities (never delete)
+    // - mirror / replace: full reconcile including deletes
+    const toUpsert = mode === "add" ? [...changes.new] : [...changes.new, ...changes.updated];
+    const toDelete =
+      mode === "mirror" || mode === "replace" ? [...changes.deleted] : ([] as ConfigEntity[]);
+
     const failures: Array<{
       action: "import" | "delete";
       type: string;
@@ -454,8 +517,8 @@ export class ConfigService {
       }
     }
 
-    // 2. Handle Deleted Entities
-    for (const item of changes.deleted) {
+    // 2. Handle Deleted Entities (mirror / replace modes only)
+    for (const item of toDelete) {
       try {
         await this.deleteEntity(item, tenantId);
       } catch (err) {
@@ -467,7 +530,7 @@ export class ConfigService {
     //    normally invalidates the roles/permission caches. Without this, imported or
     //    deleted roles leave hasPermissionWithRoles serving stale results for up to
     //    the roles-cache TTL (1h), surfacing as incorrect permission-denied errors.
-    const touchedRoles = [...toUpsert, ...changes.deleted].some((item) => item.type === "role");
+    const touchedRoles = [...toUpsert, ...toDelete].some((item) => item.type === "role");
     if (touchedRoles) {
       try {
         const { invalidateRolesCache } = await import("@src/hooks/handle-authorization");
@@ -489,7 +552,7 @@ export class ConfigService {
     // way; the request still fails below — "applied" must mean every write landed.
 
     if (failures.length > 0) {
-      const attempted = toUpsert.length + changes.deleted.length;
+      const attempted = toUpsert.length + toDelete.length;
       const detail = failures
         .slice(0, 5)
         .map((f) => `${f.action} ${f.type} "${f.name}" (${f.error})`)
@@ -514,8 +577,8 @@ export class ConfigService {
       const resourceCounts = changes
         ? {
             new: changes.new.length,
-            updated: changes.updated.length,
-            deleted: changes.deleted.length,
+            updated: mode === "add" ? 0 : changes.updated.length,
+            deleted: toDelete.length,
           }
         : {};
       eventBus.emit("config.applied", {
@@ -551,7 +614,7 @@ export class ConfigService {
               icon: (schema.icon as string) || "bi:file",
               nodeType: "collection",
               collectionDef: schema,
-              tenantId: tenantId || "global",
+              tenantId: tenantId || null,
               createdAt: now,
               updatedAt: now,
             } as any,
@@ -674,11 +737,11 @@ export class ConfigService {
     try {
       switch (item.type) {
         case "collection": {
-          const result = await adapter.crud.delete("collections", item.uuid as any, {
-            tenantId: tenantId as DatabaseId | null,
+          const result = await adapter.crud.delete("content_nodes", item.uuid as any, {
+            tenantId: (tenantId as DatabaseId | null) ?? null,
           });
           assertWriteApplied(item, result);
-          logger.debug(`Deleted collection: ${item.name}`);
+          logger.debug(`Deleted collection node: ${item.name}`);
           break;
         }
 

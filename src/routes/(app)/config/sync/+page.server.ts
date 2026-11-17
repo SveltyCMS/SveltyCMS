@@ -32,12 +32,15 @@ export const load: PageServerLoad = async ({ locals }) => {
       throw error(403, "Forbidden: You do not have permission to access this page.");
     }
 
-    const status = await configService.getStatus(locals.tenantId ?? undefined);
+    const [status, exports] = await Promise.all([
+      configService.getStatus(locals.tenantId ?? undefined),
+      configService.listExports(locals.tenantId ?? undefined).catch(() => []),
+    ]);
 
     // NOTE: Do NOT return a `user` key here — the (app) layout already provides the
     // authoritative data.user, and shadowing it with a partial shape (no _id/id) makes
     // floatingNavStore.bindUser() alternate ids and trip Svelte's effect_update_depth_exceeded.
-    return { status };
+    return { status, exports };
   } catch (err) {
     rethrow(err);
     logger.error("Failed to load configuration sync status:", err);

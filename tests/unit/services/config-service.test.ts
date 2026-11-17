@@ -30,9 +30,11 @@ const { mockFindMany, mockUpsert, mockDelete, mockPreferencesGet, mockGetByCateg
   }),
 );
 
-const { mockMkdir, mockWriteFile } = vi.hoisted(() => ({
+const { mockMkdir, mockWriteFile, mockReaddir, mockReadFile } = vi.hoisted(() => ({
   mockMkdir: vi.fn(async () => undefined),
   mockWriteFile: vi.fn(async () => undefined),
+  mockReaddir: vi.fn(async () => [] as string[]),
+  mockReadFile: vi.fn(async (_filePath?: unknown) => "{}"),
 }));
 
 const { mockGetCollections, mockInitialize, mockEmptyData } = vi.hoisted(() => ({
@@ -52,11 +54,16 @@ const { mockClearTurboAuthCache } = vi.hoisted(() => ({
 
 // Isolate filesystem side-effects only. Use real node:path (pure, complete API).
 vi.mock("node:fs/promises", () => ({
-  default: { mkdir: mockMkdir, writeFile: mockWriteFile, readFile: vi.fn(), readdir: vi.fn() },
+  default: {
+    mkdir: mockMkdir,
+    writeFile: mockWriteFile,
+    readFile: mockReadFile,
+    readdir: mockReaddir,
+  },
   mkdir: mockMkdir,
   writeFile: mockWriteFile,
-  readFile: vi.fn(),
-  readdir: vi.fn(),
+  readFile: mockReadFile,
+  readdir: mockReaddir,
 }));
 
 // Mock @src/databases/db — full adapter surface for all 8 resource types
@@ -578,7 +585,52 @@ describe("ConfigService", () => {
         },
       });
 
-      expect(mockDelete).toHaveBeenCalledWith(expect.any(String), "d1", { tenantId: "t-1" });
+      expect(mockDelete).toHaveBeenCalledWith("content_nodes", "d1", { tenantId: "t-1" });
+    });
+
+    it("enforces mode='add' (skips updated and deleted items)", async () => {
+      await service.performImport({
+        tenantId: "t-1",
+        mode: "add",
+        changes: {
+          new: [makeConfigEntity("n1", { name: "only-new" })],
+          updated: [makeConfigEntity("u1", { name: "skip-update" })],
+          deleted: [makeConfigEntity("d1", { name: "skip-delete" })],
+        },
+      });
+
+      expect(mockUpsert).toHaveBeenCalledTimes(1);
+      expect(mockUpsert.mock.calls[0]?.[2]?.name).toBe("only-new");
+      expect(mockDelete).not.toHaveBeenCalled();
+    });
+
+    it("enforces mode='merge' (imports new + updated, never deletes)", async () => {
+      await service.performImport({
+        tenantId: "t-1",
+        mode: "merge",
+        changes: {
+          new: [makeConfigEntity("n1", { name: "new-col" })],
+          updated: [makeConfigEntity("u1", { name: "updated-col" })],
+          deleted: [makeConfigEntity("d1", { name: "keep-in-db" })],
+        },
+      });
+
+      expect(mockUpsert).toHaveBeenCalledTimes(2);
+      expect(mockDelete).not.toHaveBeenCalled();
+    });
+
+    it("enforces mode='mirror' (deletes collection nodes from content_nodes)", async () => {
+      await service.performImport({
+        tenantId: "t-1",
+        mode: "mirror",
+        changes: {
+          new: [],
+          updated: [],
+          deleted: [makeConfigEntity("d1", { name: "extra-col" })],
+        },
+      });
+
+      expect(mockDelete).toHaveBeenCalledWith("content_nodes", "d1", { tenantId: "t-1" });
     });
 
     it("handles all three change types in a single call", async () => {
@@ -706,9 +758,47 @@ describe("ConfigService", () => {
         },
       });
 
-      expect(mockDelete).toHaveBeenCalledWith(expect.any(String), "iso-2", {
+      expect(mockDelete).toHaveBeenCalledWith("content_nodes", "iso-2", {
         tenantId: "isolated-tenant",
       });
+    });
+  });
+
+  describe("listExports()", () => {
+    it("returns tenant-scoped snapshots sorted newest first and ignores malformed folders", async () => {
+      mockReaddir.mockResolvedValueOnce([
+        "export_t-1_1000",
+        "export_t-1_2000",
+        "export_t-2_3000",
+        "broken_folder",
+      ]);
+      mockReadFile.mockImplementation(async (filePath: unknown) => {
+        const p = String(filePath);
+        if (p.includes("export_t-1_1000")) {
+          return JSON.stringify({
+            adapter: "sqlite",
+            tenantId: "t-1",
+            createdAt: "2026-11-17T10:00:00.000Z",
+            resources: { collections: 2, roles: 1 },
+          });
+        }
+        if (p.includes("export_t-1_2000")) {
+          return JSON.stringify({
+            adapter: "sqlite",
+            tenantId: "t-1",
+            createdAt: "2026-11-17T12:00:00.000Z",
+            resources: { collections: 5 },
+          });
+        }
+        throw new Error("ENOENT");
+      });
+
+      const snapshots = await service.listExports("t-1");
+      expect(snapshots).toHaveLength(2);
+      expect(snapshots[0]?.dirName).toBe("export_t-1_2000");
+      expect(snapshots[0]?.totalResources).toBe(5);
+      expect(snapshots[1]?.dirName).toBe("export_t-1_1000");
+      expect(snapshots[1]?.totalResources).toBe(3);
     });
   });
 });

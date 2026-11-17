@@ -75,7 +75,7 @@
       ],
       "model": "docs/security/threat-models/media-files.mdx",
       "reviewed_at": "2026-11-17",
-      "fingerprint": "0853143d7d13e82af369402a256342504c0eeda61663172c1c027438a9bbeade"
+      "fingerprint": "ed3439964d2e636a6cd84a5c107cafefb35878eb1d9f1c070a7fb0c9d2d548e6"
     },
     {
       "id": "admin-pages",
@@ -90,7 +90,7 @@
       ],
       "model": "docs/security/threat-models/admin-pages.mdx",
       "reviewed_at": "2026-11-17",
-      "fingerprint": "a722292bddfb023c6f9883b150b23071881cb63f9f3600f3d265ef29d6bafde0"
+      "fingerprint": "2709430da75bc9b1e294db81cab206b77b360c870246c3eeb980ff3c9f9c4e55"
     },
     {
       "id": "system-ops",

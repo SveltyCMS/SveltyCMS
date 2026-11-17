@@ -45,6 +45,8 @@ import type { DatabaseId } from "@src/content/types";
 import type { LocalCMS } from "@src/services/sdk";
 import { nowISODateString } from "@utils/date";
 
+const VALID_PROMOTION_MODES = new Set(["merge", "add", "mirror", "replace"]);
+
 /**
  * Handle configuration promotion routes under `/api/config/*`.
  */
@@ -134,6 +136,13 @@ export async function handleConfigRoutes(
     });
   }
 
+  // ── GET /api/config/exports ────────────────────────────────────────────
+  if (action === "exports" && request.method === "GET") {
+    const { configService } = await loadConfigServiceModule();
+    const exports = await configService.listExports(tenantId as string);
+    return successResponse(event, { exports });
+  }
+
   // ── POST /api/config/export ────────────────────────────────────────────
   if (action === "export" && request.method === "POST") {
     const body = await request.json().catch(() => ({}));
@@ -152,29 +161,45 @@ export async function handleConfigRoutes(
   // ── POST /api/config/plan ──────────────────────────────────────────────
   if (action === "plan" && request.method === "POST") {
     const body = await request.json().catch(() => ({}));
+    const rawMode = typeof body.mode === "string" ? body.mode.trim() : "merge";
+    const mode = (
+      VALID_PROMOTION_MODES.has(rawMode) ? rawMode : "merge"
+    ) as import("@src/services/core/config-service").PromotionSafetyMode;
+
     const { configService } = await loadConfigServiceModule();
     const status = await configService.getStatus(tenantId as string);
 
-    // Build a plan from detected changes
+    // Build a plan from detected changes matching the chosen safety mode
     const plan = {
       planId: generateUUID(),
       operationType: "config-promotion" as const,
-      mode: (body.mode as string) || "merge",
-      risk: "safe",
+      mode,
+      risk: mode === "mirror" || mode === "replace" ? "destructive" : "safe",
       operations: [] as Array<{ action: string; type: string; name: string; uuid: string }>,
       warnings: [] as string[],
       blockedReasons: [] as string[],
-      requiresConfirmation: false,
+      requiresConfirmation: mode === "replace",
     };
 
     for (const item of status.changes.new) {
       plan.operations.push({ action: "create", type: item.type, name: item.name, uuid: item.uuid });
     }
     for (const item of status.changes.updated) {
-      plan.operations.push({ action: "update", type: item.type, name: item.name, uuid: item.uuid });
+      if (mode === "add") {
+        plan.warnings.push(
+          `Resource "${item.name}" (${item.type}) has updates skipped in "add" mode.`,
+        );
+      } else {
+        plan.operations.push({
+          action: "update",
+          type: item.type,
+          name: item.name,
+          uuid: item.uuid,
+        });
+      }
     }
     for (const item of status.changes.deleted) {
-      if (body.mode === "mirror" || body.mode === "replace") {
+      if (mode === "mirror" || mode === "replace") {
         plan.operations.push({
           action: "delete",
           type: item.type,
@@ -262,13 +287,17 @@ export async function handleConfigRoutes(
       }
     }
 
-    await configService.performImport({ tenantId: tenantId as string });
+    await configService.performImport({
+      tenantId: tenantId as string,
+      mode: stored.plan.mode,
+    });
 
     // Clean up stored plan
     planStore.delete(body.planId);
 
     return successResponse(event, {
       success: true,
+      mode: stored.plan.mode,
       message: "Configuration applied successfully.",
       appliedAt: nowISODateString(),
       operationsApplied: stored.plan.operations.length,

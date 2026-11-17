@@ -23,10 +23,24 @@ test.use({ storageState: { cookies: [], origins: [] } });
 test.describe("Config Sync & Trash", () => {
   test.setTimeout(120_000);
 
-  test("sync shell: tabs and status", async ({ page }) => {
+  test("sync shell: collapsible explainer, tabs, safety modes, and snapshot export", async ({
+    page,
+  }) => {
     await loginAndGo(page, "/config/sync");
     await expect(page.getByTestId("page-title")).toBeVisible({ timeout: ACTION_TIMEOUT });
     await expect(page.getByTestId("sync-page")).toBeVisible({ timeout: ACTION_TIMEOUT });
+
+    // No Drupal/drush copy should remain anywhere on the page
+    await expect(page.getByTestId("sync-page")).not.toContainText(/drush/i);
+
+    // Explainer starts collapsed for maximum workspace height and expands on click
+    const explainerToggle = page.getByTestId("sync-explainer-toggle");
+    await expect(explainerToggle).toHaveAttribute("aria-expanded", "false");
+    await runAfterHydration(page, () => explainerToggle.click(), { selector: explainerToggle });
+    await expect(explainerToggle).toHaveAttribute("aria-expanded", "true");
+    await explainerToggle.click();
+    await expect(explainerToggle).toHaveAttribute("aria-expanded", "false");
+
     await expect(page.getByTestId("sync-tabs")).toBeVisible();
     await expect(page.getByTestId("sync-run")).toBeVisible({ timeout: ACTION_TIMEOUT });
     await expect(
@@ -36,6 +50,27 @@ test.describe("Config Sync & Trash", () => {
         .or(page.getByTestId("sync-loading"))
         .first(),
     ).toBeVisible({ timeout: ACTION_TIMEOUT });
+
+    // Exercise safety mode selector & Refresh button
+    const modeSelect = page.locator("#safety-mode-select");
+    await modeSelect.selectOption("add");
+    await expect(modeSelect).toHaveValue("add");
+    await modeSelect.selectOption("merge");
+
+    // Export Snapshot writes to config/sync and refreshes the snapshot table in Data & Backups
+    await page.getByTestId("config-export-btn").click();
+    await page.getByTestId("sync-refresh").click();
+    await expect(page.getByTestId("sync-loading")).toHaveCount(0, { timeout: ACTION_TIMEOUT });
+
+    // Switch to Data & Backups tab and confirm snapshots table or empty card renders
+    await page.getByRole("tab", { name: /Data & Backups/i }).click();
+    await expect(
+      page.getByTestId("sync-snapshots-table").or(page.getByTestId("sync-snapshots-empty")).first(),
+    ).toBeVisible({ timeout: ACTION_TIMEOUT });
+
+    // Switch to Debug tab and verify raw status payload renders
+    await page.getByRole("tab", { name: /Debug/i }).click();
+    await expect(page.locator("#tabpanel-debug pre")).toBeVisible({ timeout: ACTION_TIMEOUT });
   });
 
   test("trash shell: page chrome", async ({ page }) => {
