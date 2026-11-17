@@ -1244,6 +1244,41 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     }
   };
 
+  const applyWarmTurboSession = async (
+    turboCtx: NonNullable<ReturnType<typeof getTurboAuthContext>>,
+    sessionId: string,
+  ): Promise<Response> => {
+    const turboLocals = locals as unknown as Record<string, unknown>;
+    turboLocals.user = turboCtx.user;
+    turboLocals.roles = turboCtx.roles;
+    turboLocals.session_id = sessionId as DatabaseId;
+    await bindWarmTurboTenant(turboCtx);
+    // 🔒 Tenant fail-closed: this fast path skips session validation, so a
+    // tenant-required API path is rejected here when the cached context carries
+    // no tenant (MULTI_TENANT on, tenantless request).
+    assertTenantRequiredForApiPath(
+      event.request.method,
+      url.pathname,
+      (locals.tenantId as string | null | undefined) ?? null,
+    );
+    const { multiTenant, isDemoMode } = getCachedSettings();
+    const testMode = process.env.TEST_MODE === "true" || process.env.PLAYWRIGHT_TEST === "true";
+    const bound = bindRequestDbAdapter(
+      dbAdapter,
+      (locals.tenantId as DatabaseId | null | undefined) ?? null,
+      multiTenant || isDemoMode || testMode,
+    );
+    turboLocals.dbAdapter = bound.dbAdapter;
+    turboLocals.dbAdapterUnscoped = bound.dbAdapterUnscoped;
+    const tenantP = applyAdapterTenantContext(
+      bound.dbAdapterUnscoped,
+      (locals.tenantId as DatabaseId | null | undefined) ?? null,
+    );
+    if (tenantP) await tenantP;
+    turboLocals.__turboAuth = true;
+    return await resolve(event);
+  };
+
   const turboSessionId = readSessionCookie(cookies, isSecure);
   // 🛡️ Turbo-auth only for safe methods — mutations must go through CSRF
   const method = event.request.method;
@@ -1258,22 +1293,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       validateSessionMfaRequirement(turboCtx.user, turboCtx.roles, turboCtx.amr) &&
       !isSurfaceStepUp(event.request.headers.get("user-agent"), turboCtx.boundUserAgent)
     ) {
-      (locals as any).user = turboCtx.user;
-      (locals as any).roles = turboCtx.roles;
-      (locals as any).session_id = turboSessionId as DatabaseId;
-      await bindWarmTurboTenant(turboCtx);
-      // 🔒 Tenant fail-closed: this fast path skips session validation, so a
-      // tenant-required API path is rejected here when the cached context carries
-      // no tenant (MULTI_TENANT on, tenantless request).
-      assertTenantRequiredForApiPath(
-        event.request.method,
-        url.pathname,
-        (locals.tenantId as string | null | undefined) ?? null,
-      );
-      locals.dbAdapter = dbAdapter;
-      (locals as any).dbAdapterUnscoped = dbAdapter;
-      (locals as any).__turboAuth = true;
-      return await resolve(event);
+      return await applyWarmTurboSession(turboCtx, turboSessionId);
     }
   }
 
@@ -1307,22 +1327,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       validateSessionMfaRequirement(turboCtx.user, turboCtx.roles, turboCtx.amr) &&
       !isSurfaceStepUp(event.request.headers.get("user-agent"), turboCtx.boundUserAgent)
     ) {
-      (locals as any).user = turboCtx.user;
-      (locals as any).roles = turboCtx.roles;
-      (locals as any).session_id = turboSessionId as DatabaseId;
-      await bindWarmTurboTenant(turboCtx);
-      // 🔒 Tenant fail-closed: this fast path skips session validation, so a
-      // tenant-required API path is rejected here when the cached context carries
-      // no tenant (MULTI_TENANT on, tenantless request).
-      assertTenantRequiredForApiPath(
-        event.request.method,
-        url.pathname,
-        (locals.tenantId as string | null | undefined) ?? null,
-      );
-      locals.dbAdapter = dbAdapter;
-      (locals as any).dbAdapterUnscoped = dbAdapter;
-      (locals as any).__turboAuth = true;
-      return await resolve(event);
+      return await applyWarmTurboSession(turboCtx, turboSessionId);
     }
   }
 

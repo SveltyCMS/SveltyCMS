@@ -450,7 +450,7 @@ FIXES:
 	});
 </script>
 
-<div class="translation-status-container relative mt-1 inline-block text-start">
+<div class="translation-status-container relative inline-flex items-center text-start">
 	<Dropdown position="bottom-start" class={showProgress && !isViewMode ? 'w-72' : 'w-56'}>
 		{#snippet trigger()}
 			<Button
@@ -565,8 +565,4 @@ FIXES:
 			<TranslationCockpit bind:open={isCockpitOpen} />
 		{/await}
 	{/if}
-
-	<div class="mt-0.5 transition-all duration-300">
-		<!-- External progress bar removed to prevent header overflow -->
-	</div>
 </div>

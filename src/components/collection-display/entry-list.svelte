@@ -1380,9 +1380,9 @@ bulk actions, and predictive preloading.
 	</div>
 {:else}
 	<!-- Header Bar -->
-	<div class="mb-1 flex flex-wrap items-center justify-between gap-3 {titleInset} ">
+	<div class="mb-1 flex flex-wrap items-center justify-between gap-2 {titleInset}">
 		<!-- Left: Sidebar Toggle, Title, Category Breadcrumb, Count -->
-		<div class="flex flex-1 items-center gap-3 min-w-0">
+		<div class="flex min-w-0 shrink-0 items-center gap-3">
 			{#if ui.state.leftSidebar === 'hidden'}
 				<Button
 					variant="outline"
@@ -1419,8 +1419,8 @@ bulk actions, and predictive preloading.
 				</div>
 			</div>
 		</div>
-		<!-- Table Controls: inline from sm+ (mobile uses the expand block below) -->
-		<div class="hidden sm:flex flex-wrap items-center justify-center gap-2 min-w-0">
+		<!-- Center Toolbar + Views + Language: single aligned row on sm+ -->
+		<div class="hidden sm:flex flex-1 flex-nowrap items-center justify-center gap-2 min-w-0">
 			<TableFilter
 				bind:globalSearchValue
 				bind:filterShow
@@ -1435,16 +1435,12 @@ bulk actions, and predictive preloading.
 				getSnapshot={getSavedViewSnapshot}
 				onApply={applySavedView}
 			/>
-		</div>
-
-		<!-- Language & Metrics Badge: inline from sm+ -->
-		<div class="hidden sm:flex items-center gap-2 shrink-0">
 			<SmartTableMetricsBadge summary={listMetrics} />
 			<TranslationStatus />
 		</div>
 
 		<!-- Right: Action Buttons (Create / MultiButton) -->
-		<div class="flex flex-1 items-center justify-end gap-2">
+		<div class="flex shrink-0 items-center justify-end gap-2 ms-auto sm:ms-0">
 			<!-- Mobile Filter Toggle -->
 			<Button
 				variant="outline"
@@ -1499,34 +1495,52 @@ bulk actions, and predictive preloading.
 		</div>
 	{/if}
 
-	<!-- Status facet chips (server counts; streamed promise never rejects → {} fallback).
+	<!-- Status facet chips + Advanced Filters button in one header strip.
 	     `total` is the list query's own `totalItems` — the authoritative count for the same
 	     predicate set the rows use, instead of summing five separately cached buckets.
 	     Horizontal padding comes from CONTENT_PADDING so the chips line up with the
 	     table instead of touching the sidebar border. -->
-	<div class="mb-1 shrink-0 {CONTENT_PADDING}">
-		{#await statusFacets}
-			<SmartTableStatusFacets
-				facets={{}}
-				total={totalItems}
-				active={activeStatusFacet}
-				onSelect={onStatusFacetSelect}
-			/>
-		{:then facets}
-			<SmartTableStatusFacets
-				{facets}
-				total={totalItems}
-				active={activeStatusFacet}
-				onSelect={onStatusFacetSelect}
-			/>
-		{:catch}
-			<SmartTableStatusFacets
-				facets={{}}
-				total={totalItems}
-				active={activeStatusFacet}
-				onSelect={onStatusFacetSelect}
-			/>
-		{/await}
+	<div class="mb-1 flex flex-wrap items-center justify-between gap-2 shrink-0 {CONTENT_PADDING}">
+		<div class="min-w-0">
+			{#await statusFacets}
+				<SmartTableStatusFacets
+					facets={{}}
+					total={totalItems}
+					active={activeStatusFacet}
+					onSelect={onStatusFacetSelect}
+				/>
+			{:then facets}
+				<SmartTableStatusFacets
+					{facets}
+					total={totalItems}
+					active={activeStatusFacet}
+					onSelect={onStatusFacetSelect}
+				/>
+			{:catch}
+				<SmartTableStatusFacets
+					facets={{}}
+					total={totalItems}
+					active={activeStatusFacet}
+					onSelect={onStatusFacetSelect}
+				/>
+			{/await}
+		</div>
+
+		<Button
+			variant="ghost"
+			size="sm"
+			class="ms-auto gap-1 text-xs text-tertiary-500 dark:text-primary-500"
+			onclick={() => (isAdvancedFilterOpen = true)}
+			aria-label="Open advanced filter modal"
+		>
+			<iconify-icon icon="carbon:filter-edit" width={14}></iconify-icon>
+			Advanced Filters
+			{#if advancedFilterClauses.length > 0}
+				<span class="rounded-full bg-primary-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+					{advancedFilterClauses.length}
+				</span>
+			{/if}
+		</Button>
 	</div>
 
 	{#if columnShow}
@@ -1538,7 +1552,10 @@ bulk actions, and predictive preloading.
 	{/if}
 
 	<div class="flex min-h-0 flex-1 flex-col {CONTENT_PADDING}">
-		<AdminCard class="mt-0.5 flex h-full min-h-0 w-full flex-col" data-testid="entry-list-card">
+		<AdminCard
+			class="mt-0.5 flex h-full min-h-0 w-full flex-col rounded-xl"
+			data-testid="entry-list-card"
+		>
 			{#if tableData.length > 0 || hasActiveFilters}
 				<SmartTableShell
 					empty={tableData.length === 0 && hasActiveFilters}
@@ -1572,6 +1589,7 @@ bulk actions, and predictive preloading.
 							{tableData}
 							{visibleRows}
 							{visibleTableHeaders}
+							contentLanguage={currentLanguage}
 							{filterShow}
 							{smartFilter}
 							{focusedRowIndex}
@@ -1582,8 +1600,6 @@ bulk actions, and predictive preloading.
 							{onFilterChange}
 							{onClearAllFilters}
 							{onClearFilter}
-							onOpenAdvanced={() => (isAdvancedFilterOpen = true)}
-							advancedCount={advancedFilterClauses.length}
 							{handleTableKeydown}
 							{onVirtualScroll}
 						/>
@@ -1614,8 +1630,6 @@ bulk actions, and predictive preloading.
 											{onFilterChange}
 											onClearAll={onClearAllFilters}
 											{onClearFilter}
-											onOpenAdvanced={() => (isAdvancedFilterOpen = true)}
-											advancedCount={advancedFilterClauses.length}
 										/>
 									{/if}
 

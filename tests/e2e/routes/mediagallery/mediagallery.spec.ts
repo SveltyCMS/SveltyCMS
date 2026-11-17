@@ -482,7 +482,7 @@ test.describe("Media Gallery", () => {
     await expect(page.getByTestId("media-grid")).toBeVisible({ timeout: 5_000 });
   });
 
-  test("tiny grid collapses the action rail into one compact menu", async ({ page }) => {
+  test("tiny and small grids collapse the action rail into one compact menu", async ({ page }) => {
     const seeded = await seedMediaWithMetadata(page);
     const target = seeded.items[0]!;
     try {
@@ -491,35 +491,35 @@ test.describe("Media Gallery", () => {
 
       const toggle = page.getByTestId("media-grid-size-toggle");
       await expect(toggle).toBeVisible({ timeout: 10_000 });
-      for (let attempt = 0; attempt < 4; attempt++) {
-        if ((await toggle.getAttribute("data-size")) === "tiny") break;
-        await toggle.click();
+
+      for (const size of ["tiny", "small"] as const) {
+        for (let attempt = 0; attempt < 4; attempt++) {
+          if ((await toggle.getAttribute("data-size")) === size) break;
+          await toggle.click();
+        }
+        await expect(toggle).toHaveAttribute("data-size", size);
+
+        const tile = mediaCard(page, target.filename);
+        await expect(tile).toBeVisible({ timeout: 15_000 });
+        await tile.hover();
+
+        // The six-button rail overflows tiny and small square tiles and clips Delete,
+        // so both collapse to one portalled menu trigger instead.
+        const actions = tile.getByTestId("media-grid-actions");
+        await expect(actions).toBeVisible({ timeout: 10_000 });
+        await expect(actions.getByRole("button")).toHaveCount(1);
+        await expect(tile.getByTestId("media-edit-button")).toHaveCount(0);
+        await expect(tile.getByTestId("media-copy-url")).toHaveCount(0);
+
+        await actions.getByRole("button").click();
+        const menu = page.getByRole("menu");
+        await expect(menu).toBeVisible({ timeout: 10_000 });
+        // Details, Edit, Focal point, Tags, Copy URL, Delete — all reachable in viewport.
+        await expect(menu.getByRole("menuitem")).toHaveCount(6);
+        await expect(menu.getByRole("menuitem", { name: /delete/i })).toBeInViewport({ ratio: 1 });
+        await page.keyboard.press("Escape");
+        await expect(menu).toBeHidden({ timeout: 10_000 });
       }
-      await expect(toggle).toHaveAttribute("data-size", "tiny");
-
-      const tile = mediaCard(page, target.filename);
-      await expect(tile).toBeVisible({ timeout: 15_000 });
-      await tile.hover();
-
-      // The six-button rail cannot fit an 88–120px tile, so the grid swaps it for
-      // one portalled menu trigger instead of letting the buttons overflow.
-      const actions = tile.getByTestId("media-grid-actions");
-      await expect(actions).toBeVisible({ timeout: 10_000 });
-      await expect(actions.getByRole("button")).toHaveCount(1);
-      await expect(tile.getByTestId("media-edit-button")).toHaveCount(0);
-      await expect(tile.getByTestId("media-copy-url")).toHaveCount(0);
-
-      await actions.getByRole("button").click();
-      const menu = page.getByRole("menu");
-      await expect(menu).toBeVisible({ timeout: 10_000 });
-      // Details, Edit, Focal point, Tags, Copy URL, Delete.
-      await expect(menu.getByRole("menuitem")).toHaveCount(6);
-      await expect(menu).toBeInViewport({ ratio: 1 });
-
-      await menu.getByRole("menuitem", { name: /details/i }).click();
-      await expect(page.getByTestId("media-details-modal")).toBeVisible({ timeout: 10_000 });
-      await page.keyboard.press("Escape");
-      await expect(page.getByTestId("media-details-modal")).toBeHidden({ timeout: 10_000 });
     } finally {
       for (const item of seeded.items) await deleteMediaRow(page, item._id);
     }

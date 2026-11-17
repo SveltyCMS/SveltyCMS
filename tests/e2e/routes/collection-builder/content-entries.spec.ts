@@ -391,4 +391,107 @@ test.describe("Collection entries (edit / delete / search / error boundary)", ()
     await dashboard.click();
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
   });
+
+  test("entry-list toolbar, card view formatting, and Address map height stay bounded", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+
+    const id = `richloc_${Date.now().toString(36)}`;
+    const createColl = await page.request.post("/api/testing", {
+      headers: TEST_API_HEADERS,
+      data: {
+        action: "create-collection",
+        schema: {
+          _id: id,
+          name: id,
+          path: `/collection/${id}`,
+          fields: [
+            {
+              db_fieldName: "title",
+              label: "Title",
+              widget: { Name: "Input" },
+              type: "string",
+            },
+            {
+              db_fieldName: "description",
+              label: "Description",
+              widget: { Name: "RichText" },
+              type: "object",
+            },
+            {
+              db_fieldName: "location",
+              label: "Location",
+              widget: { Name: "Address" },
+              type: "object",
+            },
+          ],
+        },
+      },
+    });
+    expect(
+      createColl.ok(),
+      `create-collection fixture failed: ${createColl.status()}`,
+    ).toBeTruthy();
+
+    await openCollectionEntries(page, id);
+
+    // Create an entry with Address data via the real edit UI.
+    await page.getByTestId("entry-list-action-create").click();
+    const titleBox = entryTitleBox(page);
+    await expect(titleBox).toBeVisible({ timeout: 15_000 });
+    await titleBox.fill("Museum Card Check");
+
+    await page.locator("#street").fill("Churchill Place");
+    await page.locator("#city").fill("London");
+    await page.locator("#pc").fill("E14 5HP");
+
+    // Address map box must remain bounded rather than growing taller than the viewport.
+    const mapBox = await page
+      .locator(".address-widget div.relative.overflow-hidden")
+      .first()
+      .boundingBox();
+    expect(mapBox).not.toBeNull();
+    expect(mapBox!.height).toBeGreaterThanOrEqual(200);
+    expect(mapBox!.height).toBeLessThanOrEqual(400);
+
+    const saveBtn = page.getByRole("button", { name: /save/i }).first();
+    const writePromise = expectWriteOk(page, "POST", "create address entry");
+    await saveBtn.click();
+    await writePromise;
+
+    await openCollectionEntries(page, id);
+
+    // Opening Search must keep Views and Language aligned on the same row.
+    const searchToggle = page.getByRole("button", { name: "Search", exact: true }).first();
+    await searchToggle.click();
+    const viewsBtn = page.getByRole("button", { name: "Saved table views" }).first();
+    const langBtn = page.getByRole("button", { name: "Toggle language menu" }).first();
+    const searchInput = page
+      .getByRole("textbox", { name: /search for items in the table/i })
+      .first();
+    await expect(searchInput).toBeVisible({ timeout: 5_000 });
+
+    const [searchRect, viewsRect, langRect] = await Promise.all([
+      searchInput.boundingBox(),
+      viewsBtn.boundingBox(),
+      langBtn.boundingBox(),
+    ]);
+    expect(searchRect).not.toBeNull();
+    expect(viewsRect).not.toBeNull();
+    expect(langRect).not.toBeNull();
+    expect(Math.abs(searchRect!.y - viewsRect!.y)).toBeLessThanOrEqual(8);
+    expect(Math.abs(viewsRect!.y - langRect!.y)).toBeLessThanOrEqual(8);
+
+    // Switch to Card view and confirm formatted text renders with zero `[object Object]`.
+    await page
+      .getByRole("button", { name: /switch to card view/i })
+      .first()
+      .click();
+    const grid = page.getByRole("grid", { name: "Collection entries card grid" });
+    await expect(grid).toBeVisible({ timeout: 10_000 });
+    await expect(grid).toContainText("Museum Card Check");
+    await expect(grid).toContainText("Churchill Place");
+    await expect(grid).not.toContainText("[object Object]");
+  });
 });

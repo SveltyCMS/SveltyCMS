@@ -21,6 +21,7 @@ Features:
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import Checkbox from '@components/ui/checkbox.svelte';
+	import Tooltip from '@components/ui/tooltip.svelte';
 	import { SMART_TABLE_COLUMN_MANAGER } from '@components/ui/smart-table/chrome';
 	import { CONTENT_PADDING } from './content-classes';
 	import type { TableHeader } from '@src/content/types';
@@ -65,23 +66,25 @@ Features:
 			return;
 		}
 
-		let targetIndex: number;
-		if (targetHeaderId) {
-			targetIndex = displayTableHeaders.findIndex((h) => h.id === targetHeaderId);
-			if (targetIndex >= 0 && state.dropPosition === 'after') {
-				targetIndex++;
-			}
-		} else {
-			targetIndex = displayTableHeaders.length;
-		}
-		if (targetIndex < 0) targetIndex = displayTableHeaders.length;
-		targetIndex = Math.max(0, Math.min(targetIndex, displayTableHeaders.length));
+		const rawTargetIndex = displayTableHeaders.findIndex((h) => h.id === targetHeaderId);
+		if (rawTargetIndex < 0) return;
 
-		if (fromIndex === targetIndex) return;
+		let insertionIndex = rawTargetIndex;
+		if (state.dropPosition === 'after') {
+			insertionIndex++;
+		}
+		insertionIndex = Math.max(0, Math.min(insertionIndex, displayTableHeaders.length));
 
 		const newItems = [...displayTableHeaders];
 		const [movedItem] = newItems.splice(fromIndex, 1);
-		const adjusted = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
+		let adjusted = fromIndex < insertionIndex ? insertionIndex - 1 : insertionIndex;
+		// When dropping onto another pill, landing on its near half should still
+		// move past an adjacent pill instead of becoming a no-op dead zone.
+		if (adjusted === fromIndex) {
+			adjusted = rawTargetIndex;
+		}
+		if (adjusted === fromIndex) return;
+
 		newItems.splice(adjusted, 0, movedItem);
 		onHeadersChange(newItems);
 	}
@@ -125,6 +128,7 @@ Features:
 							container: 'columns',
 							dragData: header,
 							keyboard: true,
+							direction: 'horizontal',
 							handle: '.column-drag-handle'
 						}}
 						use:droppable={{
@@ -139,14 +143,15 @@ Features:
 							? 'bg-(--admin-bg-card) border-surface-500/30 dark:border-surface-600 text-(--admin-text-body)'
 							: 'bg-surface-500/10 dark:bg-surface-900/50 border-dashed border-surface-500 dark:border-surface-600 text-(--admin-text-muted)'}"
 					>
-						<button
-							type="button"
-							class="column-drag-handle cursor-grab active:cursor-grabbing p-1.5 inline-flex items-center justify-center text-surface-400 hover:text-primary-500 dark:hover:text-primary-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
-							aria-label={`Drag to reorder column ${header.label}. Press Space to grab, arrows to move.`}
-							title="Drag to reorder"
-						>
-							<iconify-icon icon="mdi:drag-vertical" width={18}></iconify-icon>
-						</button>
+						<Tooltip title="Drag to reorder" positioning={{ placement: 'top' }}>
+							<button
+								type="button"
+								class="column-drag-handle cursor-grab active:cursor-grabbing p-1.5 inline-flex items-center justify-center text-surface-400 hover:text-primary-500 dark:hover:text-primary-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
+								aria-label={`Drag to reorder column ${header.label}. Press Space to grab, arrows to move.`}
+							>
+								<iconify-icon icon="mdi:drag-vertical" width={18}></iconify-icon>
+							</button>
+						</Tooltip>
 
 						<button
 							type="button"

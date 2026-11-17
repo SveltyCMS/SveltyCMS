@@ -60,10 +60,22 @@ Part of the Three Pillars Architecture for the widget system.
 		error?: string | null;
 	} = $props();
 
-	// Feature Toggles from Props
-	const showMap = $derived((field as any).defaults?.showMap ?? true);
-	const enableGeocoding = $derived((field as any).defaults?.enableGeocoding ?? true);
-	const showCoordinates = $derived((field as any).defaults?.showCoordinates ?? false);
+	type AddressConfig = {
+		showMap?: boolean;
+		enableGeocoding?: boolean;
+		showCoordinates?: boolean;
+		defaults?: { showMap?: boolean; enableGeocoding?: boolean; showCoordinates?: boolean };
+	};
+	const addressConfig = $derived(field as unknown as AddressConfig);
+
+	// Feature Toggles from Props (WidgetFactory flattens defaults onto field directly)
+	const showMap = $derived(addressConfig.showMap ?? addressConfig.defaults?.showMap ?? true);
+	const enableGeocoding = $derived(
+		addressConfig.enableGeocoding ?? addressConfig.defaults?.enableGeocoding ?? true
+	);
+	const showCoordinates = $derived(
+		addressConfig.showCoordinates ?? addressConfig.defaults?.showCoordinates ?? false
+	);
 
 	// Language Handling
 	const DATA_LANGUAGE = $derived(
@@ -156,18 +168,19 @@ Part of the Three Pillars Architecture for the widget system.
 
 	onMount(() => {
 		if (!browser) return;
+		let isDestroyed = false;
 
 		// Mount appropriate map system asynchronously
 		const initMap = async () => {
 			if (googleMapsApiKey) {
 				activeMapType = 'google';
-				if (showMap) await initGoogleMap();
+				if (showMap && !isDestroyed) await initGoogleMap();
 			} else {
 				activeMapType = 'maplibre';
-				if (showMap) await initMapLibre();
+				if (showMap && !isDestroyed) await initMapLibre(() => isDestroyed);
 			}
 		};
-		initMap();
+		void initMap();
 
 		// Close suggestions dropdown when clicking outside
 		const handleClickOutside = (e: MouseEvent) => {
@@ -179,6 +192,7 @@ Part of the Three Pillars Architecture for the widget system.
 		document.addEventListener('click', handleClickOutside);
 
 		return () => {
+			isDestroyed = true;
 			document.removeEventListener('click', handleClickOutside);
 			if (map) {
 				if (activeMapType === 'maplibre') {
@@ -289,36 +303,33 @@ Part of the Three Pillars Architecture for the widget system.
 	}
 
 	// --- 2. MAPLIBRE & PHOTON IMPLEMENTATION ---
-	async function initMapLibre() {
+	async function initMapLibre(isDestroyed?: () => boolean) {
 		try {
-			if (!mapElement) return;
+			if (!mapElement || isDestroyed?.()) return;
 
+			// Load bundled stylesheet before MapLibre measures the container, avoiding
+			// COEP/CDN delays and unstyled canvas/control flow expansion.
+			await import('maplibre-gl/dist/maplibre-gl.css');
 			const maplibregl = await import('maplibre-gl');
-
-			// Add MapLibre styles dynamically to head if not present
-			if (!document.getElementById('maplibre-style')) {
-				const link = document.createElement('link');
-				link.id = 'maplibre-style';
-				link.rel = 'stylesheet';
-				link.href = 'https://unpkg.com/maplibre-gl@6.0.0/dist/maplibre-gl.css';
-				document.head.appendChild(link);
-			}
+			if (!mapElement || isDestroyed?.()) return;
 
 			const center: [number, number] = [
 				safeValue?.longitude || (field.mapCenter as any)?.lng || 10.4515,
 				safeValue?.latitude || (field.mapCenter as any)?.lat || 51.1657
 			];
 
-			map = new maplibregl.Map({
+			const instance = new maplibregl.Map({
 				container: mapElement,
-				style: 'https://tiles.openfreemap.org/styles/bright/style.json',
+				style: 'https://tiles.openfreemap.org/styles/bright',
 				center,
 				zoom: safeValue?.latitude ? 15 : (field.zoom as number) || 6
 			});
+			map = instance;
 
-			map.addControl(new maplibregl.NavigationControl(), 'top-right');
+			instance.addControl(new maplibregl.NavigationControl(), 'top-right');
+			instance.once('load', () => instance.resize());
 
-			marker = new maplibregl.Marker({ draggable: true }).setLngLat(center).addTo(map);
+			marker = new maplibregl.Marker({ draggable: true }).setLngLat(center).addTo(instance);
 
 			marker.on('dragend', async () => {
 				const lngLat = marker.getLngLat();
@@ -611,7 +622,7 @@ Part of the Three Pillars Architecture for the widget system.
 
 		<!-- Right: Map Container -->
 		{#if showMap}
-			<div class="lg:col-span-5 flex flex-col gap-2">
+			<div class="lg:col-span-5 flex min-w-0 flex-col gap-2">
 				<div
 					class="label text-xs uppercase font-bold text-surface-500 flex items-center justify-between"
 				>
@@ -627,7 +638,7 @@ Part of the Three Pillars Architecture for the widget system.
 				</div>
 				<div
 					bind:this={mapElement}
-					class="h-80 lg:h-full min-h-75 w-full rounded border border-surface-500/30 bg-surface-500/10 dark:border-surface-500/40 relative overflow-hidden"
+					class="h-72 sm:h-80 w-full rounded border border-surface-500/30 bg-surface-500/10 dark:border-surface-500/40 relative overflow-hidden"
 				></div>
 			</div>
 		{/if}

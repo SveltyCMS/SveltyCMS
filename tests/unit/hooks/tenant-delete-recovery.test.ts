@@ -165,4 +165,44 @@ describe("warm collection DELETE tenant resolution", () => {
     });
     expect(resolve).not.toHaveBeenCalled();
   });
+
+  it("recovers tenantId on warm POST /en/mediagallery?/deleteMedia in multi-tenant mode", async () => {
+    mockState.privateSettings.set("MULTI_TENANT", true);
+    mockState.privateSettings.set("DEMO", false);
+
+    const { handleAuthentication, primeSessionMemoryCache, clearAllSessionCaches } =
+      await import("@src/hooks/handle-authentication");
+    clearAllSessionCaches();
+
+    primeSessionMemoryCache(
+      "sess-media-del",
+      { _id: "u-admin", email: "rar9@example.com", role: "admin", isAdmin: true } as never,
+      null,
+      ["pwd"],
+      undefined,
+      [{ _id: "admin", name: "admin", isAdmin: true }] as never,
+    );
+
+    const url = new URL("https://demo.sveltycms.com/en/mediagallery?/deleteMedia");
+    const event = {
+      url,
+      request: new Request(url.toString(), { method: "POST" }),
+      cookies: {
+        get: (name: string) => (name === `__Host-${SESSION_COOKIE_NAME}` ? "sess-media-del" : null),
+        set: vi.fn(),
+        delete: vi.fn(),
+      },
+      locals: { user: null, tenantId: null } as Record<string, unknown>,
+      route: { id: "/(app)/mediagallery" },
+      params: {},
+      getClientAddress: () => "127.0.0.1",
+    };
+    const resolve = vi.fn(async () => new Response("ok", { status: 200 }));
+
+    const res = await handleAuthentication({ event: event as never, resolve });
+    expect(res.status).toBe(200);
+    expect(resolve).toHaveBeenCalledTimes(1);
+    expect(event.locals.tenantId).toBe("demo");
+    expect(event.locals.dbAdapter).toBeDefined();
+  });
 });

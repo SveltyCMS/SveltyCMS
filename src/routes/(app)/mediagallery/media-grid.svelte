@@ -878,9 +878,9 @@
 							data-no-drag
 							data-testid="media-grid-actions"
 						>
-							{#if gridSize === 'tiny'}
-								<!-- A 6-button rail cannot fit an 88–120 px tile; one portalled
-								     menu keeps every action reachable without clipping. -->
+							{#if gridSize === 'tiny' || gridSize === 'small'}
+								<!-- A 6-button vertical rail overflows tiny/small square tiles and clips
+								     the Delete button; one portalled menu keeps every action reachable. -->
 								<MediaTableRowMenu
 									{file}
 									onDetails={() => onOpenFileDetails(file)}

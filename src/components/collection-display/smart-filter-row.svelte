@@ -159,26 +159,6 @@ from `createSmartFilter`. Supports text, select, date, number-range, and boolean
 			</div>
 		</th>
 	</tr>
-{:else if onOpenAdvanced}
-	<tr class="border-b border-(--admin-border-default)">
-		<th colspan={headers.length + 1} class="p-1! px-2! text-end">
-			<Button
-				variant="ghost"
-				size="sm"
-				class="text-xs gap-1 text-tertiary-500 dark:text-primary-500"
-				onclick={onOpenAdvanced}
-				aria-label="Open advanced filter modal"
-			>
-				<iconify-icon icon="carbon:filter-edit" width={14}></iconify-icon>
-				Advanced Filters
-				{#if advancedCount > 0}
-					<span class="rounded-full bg-primary-500 text-white px-1.5 py-0.2 text-[10px] font-bold">
-						{advancedCount}
-					</span>
-				{/if}
-			</Button>
-		</th>
-	</tr>
 {/if}
 
 <tr

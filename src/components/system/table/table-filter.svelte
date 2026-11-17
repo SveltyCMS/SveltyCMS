@@ -191,18 +191,19 @@ It includes search, filter toggles, column visibility, and density controls, opt
      branch unmounted the filter/column/density buttons the moment search opened, so the user lost
      every other control (and the toggle that could close search again) while typing. -->
 {#if searchShow}
-	<div
-		class="grid grid-cols-[1fr_auto] h-10 w-full max-w-xs sm:max-w-sm transition-all duration-300 z-50"
-	>
-		<FloatingInput
-			autofocus={searchShow}
-			bind:value={globalSearchValue}
-			label={table_search_placeholder()}
-			icon="material-symbols:search-rounded"
-			aria-label={table_search_aria()}
-			onkeydown={handleSearchKeydown}
-			inputClass="h-full border-none bg-transparent dark:text-surface-50 dark:bg-surface-800"
-		/>
+	<div class="flex h-10 w-48 lg:w-64 min-w-0 shrink items-center gap-1 transition-all duration-300">
+		<div class="min-w-0 flex-1">
+			<FloatingInput
+				autofocus={searchShow}
+				size="md"
+				bind:value={globalSearchValue}
+				label={table_search_placeholder()}
+				icon="material-symbols:search-rounded"
+				aria-label={table_search_aria()}
+				onkeydown={handleSearchKeydown}
+				inputClass="h-10 rounded-(--admin-radius-input)"
+			/>
+		</div>
 		<Button
 			variant="ghost"
 			onclick={() => {
@@ -216,9 +217,9 @@ It includes search, filter toggles, column visibility, and density controls, opt
 				}
 			}}
 			aria-label={table_clear_search()}
-			class="w-10 flex items-center justify-center"
+			class={btnChrome}
 		>
-			<iconify-icon icon="ic:outline-search-off" width={24}></iconify-icon>
+			<iconify-icon icon="ic:outline-search-off" width={20}></iconify-icon>
 		</Button>
 	</div>
 {/if}

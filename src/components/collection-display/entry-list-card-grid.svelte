@@ -38,7 +38,10 @@ Features:
 	import { SMART_TABLE_SCROLL } from '@components/ui/smart-table/chrome';
 	import Status from '@components/system/table/status.svelte';
 	import type { CollectionEntry, TableHeader } from '@src/content/types';
+	import Sanitize from '@src/utils/sanitize.svelte';
 	import { formatDisplayDate } from '@utils/date';
+	import { unwrapLocaleLayers } from '@utils/locale-map';
+	import EntryListCell from './entry-list-cell.svelte';
 	import SmartFilterRow from './smart-filter-row.svelte';
 	import type { SmartFilterApi } from './create-smart-filter.svelte';
 
@@ -46,6 +49,7 @@ Features:
 		tableData: CollectionEntry[];
 		visibleRows: CollectionEntry[];
 		visibleTableHeaders: TableHeader[];
+		contentLanguage?: string;
 		filterShow: boolean;
 		smartFilter: SmartFilterApi;
 		focusedRowIndex: number;
@@ -56,8 +60,8 @@ Features:
 		onFilterChange: (filterName: string, value: string) => void;
 		onClearAllFilters: () => void;
 		onClearFilter: (filterId: string) => void;
-		onOpenAdvanced: () => void;
-		advancedCount: number;
+		onOpenAdvanced?: () => void;
+		advancedCount?: number;
 		handleTableKeydown: (e: KeyboardEvent) => void;
 		onVirtualScroll: () => void;
 	}
@@ -66,6 +70,7 @@ Features:
 		tableData,
 		visibleRows,
 		visibleTableHeaders,
+		contentLanguage = 'en',
 		filterShow,
 		smartFilter,
 		focusedRowIndex,
@@ -77,16 +82,52 @@ Features:
 		onClearAllFilters,
 		onClearFilter,
 		onOpenAdvanced,
-		advancedCount,
+		advancedCount = 0,
 		handleTableKeydown,
 		onVirtualScroll
 	}: Props = $props();
+
+	/** Render non-widget plain values safely without `[object Object]`. */
+	function formatFallbackValue(raw: unknown): string {
+		if (raw === null || raw === undefined || raw === '') return '–';
+		const unwrapped = unwrapLocaleLayers(raw, contentLanguage);
+		if (unwrapped === null || unwrapped === undefined || unwrapped === '') return '–';
+		if (
+			typeof unwrapped === 'string' ||
+			typeof unwrapped === 'number' ||
+			typeof unwrapped === 'boolean'
+		) {
+			return String(unwrapped);
+		}
+		if (Array.isArray(unwrapped)) {
+			return unwrapped.map((item) => formatFallbackValue(item)).join(', ') || '–';
+		}
+		if (typeof unwrapped === 'object') {
+			const obj = unwrapped as Record<string, unknown>;
+			if (typeof obj.title === 'string' && obj.title) return obj.title;
+			if (typeof obj.name === 'string' && obj.name) return obj.name;
+			if (typeof obj.label === 'string' && obj.label) return obj.label;
+			if (typeof obj.content === 'string' && obj.content) {
+				return (
+					obj.content
+						.replace(/<[^>]*>/g, ' ')
+						.replace(/\s+/g, ' ')
+						.trim() || '–'
+				);
+			}
+			const textParts = Object.values(obj).filter(
+				(v): v is string | number => typeof v === 'string' || typeof v === 'number'
+			);
+			return textParts.length > 0 ? textParts.join(', ') : '–';
+		}
+		return String(unwrapped);
+	}
 </script>
 
 <div
 	bind:this={scrollContainerEl}
 	onscroll={onVirtualScroll}
-	class="{SMART_TABLE_SCROLL} max-h-none overflow-y-auto py-3"
+	class="{SMART_TABLE_SCROLL} max-h-none overflow-y-auto p-4 sm:p-5"
 	tabindex="0"
 	role="grid"
 	aria-label="Collection entries card grid"
@@ -94,7 +135,7 @@ Features:
 >
 	{#if filterShow && visibleTableHeaders.length > 0}
 		<div
-			class="mb-3 p-2 rounded-xl border border-surface-500/30 bg-surface-500/10 dark:bg-surface-900"
+			class="mb-4 p-2 rounded-xl border border-surface-500/30 bg-surface-500/10 dark:bg-surface-900"
 		>
 			<SmartFilterRow
 				headers={visibleTableHeaders}
@@ -111,15 +152,22 @@ Features:
 	{/if}
 
 	{#if tableData.length > 0}
-		<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+		{@const titleHeader = visibleTableHeaders[0]}
+		{@const bodyHeaders = visibleTableHeaders
+			.filter((header, index) => index > 0 && header.name !== 'status')
+			.slice(0, 4)}
+		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 sm:gap-5">
 			{#each visibleRows as entry, index (entry._id)}
 				{@const rowId = String(entry._id ?? '')}
 				{@const rowSelected = isSelected(rowId)}
 				{@const isFocused = focusedRowIndex === index}
+				{@const titleField = titleHeader?.name || ''}
+				{@const rawTitle = (entry as Record<string, unknown>)[titleField]}
 				<div
-					class="group relative flex flex-col justify-between rounded-xl border p-4 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 {rowSelected
+					class="group relative flex flex-col justify-between rounded-xl border p-4 sm:p-5 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 {rowSelected
 						? 'border-primary-500 bg-primary-500/10 dark:bg-primary-500/20 shadow-xs'
 						: 'border-(--admin-border-default) bg-(--admin-bg-card) hover:border-primary-500/50 hover:shadow-md'}"
+					style="corner-shape: round;"
 					role="row"
 					tabindex={isFocused ? 0 : -1}
 					onclick={(e) => {
@@ -144,23 +192,29 @@ Features:
 					}}
 				>
 					<!-- Top: Checkbox, Title/ID, Status -->
-					<div class="flex items-start justify-between gap-2 border-b border-surface-500/20 pb-2.5">
-						<div class="flex items-center gap-2 min-w-0" data-prevent-row-click>
+					<div class="flex items-start justify-between gap-2 border-b border-surface-500/20 pb-3">
+						<div class="flex items-center gap-2.5 min-w-0" data-prevent-row-click>
 							<Checkbox
 								checked={rowSelected}
 								onchange={() => toggleSelect(rowId)}
 								label="Select entry {rowId}"
 								hideLabel
 							/>
-							<span class="text-xs font-bold text-(--admin-text-body) truncate" dir="auto">
-								{String(
-									(entry as Record<string, unknown>)[visibleTableHeaders[0]?.name || ''] ||
-										entry._id ||
-										'Entry'
-								)}
+							<span class="text-sm font-bold text-(--admin-text-body) truncate" dir="auto">
+								{#if titleHeader?.widgetName}
+									<EntryListCell
+										widgetName={titleHeader.widgetName}
+										fieldName={titleField}
+										value={rawTitle}
+										{contentLanguage}
+										compact={true}
+									/>
+								{:else}
+									{rawTitle ? formatFallbackValue(rawTitle) : String(entry._id || 'Entry')}
+								{/if}
 							</span>
 						</div>
-						<div data-prevent-row-click>
+						<div class="shrink-0" data-prevent-row-click>
 							<Status
 								value={entry.status ||
 									(entry as unknown as { raw_status?: string }).raw_status ||
@@ -170,30 +224,39 @@ Features:
 					</div>
 
 					<!-- Body: Key Fields -->
-					<div class="my-3 space-y-1.5 text-xs text-(--admin-text-muted)">
-						{#each visibleTableHeaders.slice(1, 5) as header (header.id)}
+					<div class="my-3.5 space-y-2 text-xs text-(--admin-text-muted)">
+						{#each bodyHeaders as header (header.id)}
 							{@const fieldName = (header as TableHeader).name || ''}
 							{@const isDateField = fieldName === 'createdAt' || fieldName === 'updatedAt'}
 							{@const rawValue = (entry as Record<string, unknown>)[fieldName]}
-							{@const displayValue = isDateField
-								? formatDisplayDate(rawValue as string) || '-'
-								: String(rawValue ?? '-')}
-							<div class="flex items-center justify-between gap-2">
-								<span class="font-medium text-surface-500 capitalize truncate">{header.label}:</span
+							<div class="flex items-start justify-between gap-3">
+								<span class="font-medium text-surface-500 capitalize shrink-0">{header.label}:</span
 								>
-								<span
+								<div
 									dir="auto"
-									class="font-semibold text-(--admin-text-muted) truncate max-w-[60%]"
+									class="font-semibold text-(--admin-text-muted) text-end min-w-0 max-w-[65%] wrap-break-word"
 								>
-									{displayValue}
-								</span>
+									{#if isDateField}
+										{formatDisplayDate(rawValue as string) || '–'}
+									{:else if (header as TableHeader).widgetName}
+										<EntryListCell
+											widgetName={(header as TableHeader).widgetName}
+											{fieldName}
+											value={rawValue}
+											{contentLanguage}
+											compact={true}
+										/>
+									{:else}
+										<Sanitize html={formatFallbackValue(rawValue)} profile="strict" />
+									{/if}
+								</div>
 							</div>
 						{/each}
 					</div>
 
 					<!-- Footer: Quick Actions -->
 					<div
-						class="flex items-center justify-between pt-2 border-t border-surface-500/20 text-xs text-surface-400"
+						class="flex items-center justify-between pt-2.5 border-t border-surface-500/20 text-xs text-surface-400"
 					>
 						<span class="text-[11px]">
 							{formatDisplayDate((entry.updatedAt as string) || (entry.createdAt as string) || '')}
