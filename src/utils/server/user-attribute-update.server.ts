@@ -9,10 +9,12 @@ import type { DatabaseId } from "@src/databases/db-interface";
 import type { User } from "@src/databases/auth/types";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import {
+  hasCredentialChangeFields,
   hasPrivilegedUserFields,
   isAdminCaller,
   sanitizeClientUserAttributePatch,
 } from "@utils/security/user-attribute-policy";
+import { verifyReauthToken, verifyUserReauthToken } from "@utils/server/session-reauth.server";
 import { AppError, raise, rethrow } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { invalidateSessionCache, primeSessionMemoryCache } from "@src/hooks/handle-authentication";
@@ -83,6 +85,25 @@ export async function applyUserAttributeUpdate(
   }
 
   const updates = sanitizeClientUserAttributePatch(merged, { isAdmin });
+
+  // H1: a self-service change of email or password must prove the password again
+  // for THIS session (header x-reauth-token, 5 min TTL). Admin edits of ANOTHER
+  // user stay on the permission check above, not on this proof.
+  if (isSelf && hasCredentialChangeFields(merged)) {
+    // The reauth route adopts a new session surface, so the proof can be bound to
+    // either the resolved local or the cookie's session. Both are server-derived.
+    const sessionCandidates = [
+      String((event.locals.session_id as DatabaseId | undefined) ?? ""),
+      String(readSessionCookie(event.cookies, event.url.protocol === "https:") ?? ""),
+    ].filter((id) => id.length > 0);
+    const proof = event.request.headers.get("x-reauth-token");
+    const proven =
+      sessionCandidates.some((id) => verifyReauthToken(proof, callerIdStr, id)) ||
+      verifyUserReauthToken(proof, callerIdStr);
+    if (!proven) {
+      raise(403, "Re-authentication required to change email or password", "REAUTH_REQUIRED");
+    }
+  }
   if (Object.keys(updates).length === 0) {
     throw new AppError("At least one user attribute is required", 400);
   }

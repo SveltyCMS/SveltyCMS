@@ -14,8 +14,8 @@
         "src/databases/auth/permission-catalog.ts"
       ],
       "model": "docs/security/threat-models/api-dispatch.mdx",
-      "reviewed_at": "2026-11-15",
-      "fingerprint": "c671180c5f822fa077ec42bdc6de94a524ab8bb2080b8967d0e46033bf3fe69d"
+      "reviewed_at": "2026-11-17",
+      "fingerprint": "17a1d9a72577aa5a7b258c9d1ff73c17b5ccfeb53c16310a9f3d77a15319df5a"
     },
     {
       "id": "auth-session",
@@ -37,8 +37,8 @@
         "src/routes/api/[...path]/handlers/scim.ts"
       ],
       "model": "docs/security/threat-models/auth-session.mdx",
-      "reviewed_at": "2026-11-15",
-      "fingerprint": "5e9780204dee5066ed7f1056b1e32abecfab20870e4115adcfd9cf548a84161a"
+      "reviewed_at": "2026-11-17",
+      "fingerprint": "092ff8c94e10803136c184d8b290ab1646b1ca8816edc725f58c54bcbaf59347"
     },
     {
       "id": "content-write",
@@ -57,7 +57,7 @@
         "src/hooks/handle-collection-write-lane.ts"
       ],
       "model": "docs/security/threat-models/content-write.mdx",
-      "reviewed_at": "2026-11-15",
+      "reviewed_at": "2026-11-17",
       "fingerprint": "cf7479a536b281bc677866868950504d902d13806251d1204fd1a5d8df1c03ae"
     },
     {
@@ -74,7 +74,7 @@
         "src/routes/api/[...path]/handlers/media-transcode.ts"
       ],
       "model": "docs/security/threat-models/media-files.mdx",
-      "reviewed_at": "2026-11-15",
+      "reviewed_at": "2026-11-17",
       "fingerprint": "85dd8f4dfb0ae087c4396940d2b869fb9076366f7e0c0c025f19b47039c68abd"
     },
     {
@@ -89,7 +89,7 @@
         "src/utils/page-guards.server.ts"
       ],
       "model": "docs/security/threat-models/admin-pages.mdx",
-      "reviewed_at": "2026-11-15",
+      "reviewed_at": "2026-11-17",
       "fingerprint": "b65409ad4179dffdef3244455ffcc0c9bb6d25061f07e6557468ea1fbea629c8"
     },
     {
@@ -130,7 +130,7 @@
         "src/utils/test-bypass.server.ts"
       ],
       "model": "docs/security/threat-models/system-ops.mdx",
-      "reviewed_at": "2026-11-15",
+      "reviewed_at": "2026-11-17",
       "fingerprint": "49cd7a1be56b6447890142dfe53a0a1a64e4239107ec649d14fe58488a557086"
     }
   ]

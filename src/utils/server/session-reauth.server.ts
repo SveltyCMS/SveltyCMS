@@ -26,3 +26,19 @@ export function verifyReauthToken(
   const secret = String(getPrivateSettingSync("JWT_SECRET_KEY") || "");
   return verifyHmacToken(token, "", [userId, sessionId], REAUTH_TOKEN_TTL_MS, secret);
 }
+
+/**
+ * User-bound variant of the reauth proof. The session surface is adopted (and
+ * therefore rotated) by the reauth route itself, so a client that does not
+ * replay the new cookie cannot present a session-bound token. Same HMAC core,
+ * same secret, same 5 minute TTL - only the session component is dropped.
+ */
+export function signUserReauthToken(userId: string, exp: number): string {
+  const secret = String(getPrivateSettingSync("JWT_SECRET_KEY") || "");
+  return signHmacToken("", [userId], exp, secret);
+}
+
+export function verifyUserReauthToken(token: string | null | undefined, userId: string): boolean {
+  const secret = String(getPrivateSettingSync("JWT_SECRET_KEY") || "");
+  return verifyHmacToken(token, "", [userId], REAUTH_TOKEN_TTL_MS, secret);
+}

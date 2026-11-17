@@ -81,6 +81,7 @@ import { generateSecureToken } from "@utils/native-utils";
 import {
   REAUTH_TOKEN_TTL_MS,
   signReauthToken,
+  signUserReauthToken,
   verifyReauthToken,
 } from "@utils/server/session-reauth.server";
 import { RateLimiter } from "@src/hooks/handle-rate-limit";
@@ -1325,8 +1326,12 @@ async function handleSessionReauth(
     typeof tenantId === "string" ? tenantId : null,
   );
   const userId = String(user._id ?? user.id ?? "");
+  const exp = Date.now() + REAUTH_TOKEN_TTL_MS;
   return successResponse(event, {
-    token: signReauthToken(userId, sessionId, Date.now() + REAUTH_TOKEN_TTL_MS),
+    token: signReauthToken(userId, sessionId, exp),
+    // Surface adoption rotates the session id; clients that keep the old cookie
+    // can still present the user-bound proof for credential changes.
+    userToken: signUserReauthToken(userId, exp),
     expiresIn: REAUTH_TOKEN_TTL_MS / 1000,
   });
 }

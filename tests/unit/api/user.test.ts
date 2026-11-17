@@ -413,6 +413,16 @@ describe("User API Unit Tests", () => {
       isAdmin: true,
     } as any);
 
+    // H1: a self-service email change now needs a fresh password proof, otherwise
+    // the request is rejected with 403 before the duplicate-email check runs.
+    mockPrivateSettings.set("JWT_SECRET_KEY", "test-jwt-secret");
+    const authCrypto = await import("node:crypto");
+    const authExp = Date.now() + 5 * 60 * 1000;
+    const authSig = authCrypto
+      .createHmac("sha256", "test-jwt-secret")
+      .update(`user-a:sess-a:${authExp}`)
+      .digest("base64url");
+
     const response = await invokeApi("PUT", {
       path: "user/update-user-attributes",
       body: {
@@ -424,6 +434,8 @@ describe("User API Unit Tests", () => {
       roles: adminRoles,
       dbAdapter,
       bypass: true,
+      headers: { "x-reauth-token": `${authExp}:${authSig}` },
+      locals: { session_id: "sess-a" } as any,
     });
 
     expect(response.status).toBe(400);

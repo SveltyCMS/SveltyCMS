@@ -797,12 +797,33 @@ describe("User API Extended Integration", () => {
       const originalEmail = testFixtures.users.admin.email;
       const newEmail = `admin_updated_${Date.now()}@test.com`;
 
+      // H1: a self-service email change requires the password proof issued by
+      // POST /api/user/sessions/reauth (x-reauth-token), so mint one first.
+      // A fresh harness process warms the settings cache (JWT_SECRET_KEY) only on
+      // a page load - warm it explicitly, as share-password.test.ts does.
+      await safeFetch(`${API_BASE_URL}/dashboard/__data.json?x-sveltekit-invalidated=111`, {
+        headers: { Accept: "application/json", Cookie: adminCookie },
+      });
+      const reauth = await safeFetch(`${API_BASE_URL}/api/user/sessions/reauth`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: adminCookie,
+          Origin: API_BASE_URL,
+        },
+        body: JSON.stringify({ password: testFixtures.users.admin.password }),
+      });
+      expect(reauth.status).toBe(200);
+      const reauthBody = await reauth.json();
+      const reauthToken = String(reauthBody.data.userToken ?? reauthBody.data.token);
+
       const response = await safeFetch(`${API_BASE_URL}/api/user/update-user-attributes`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Cookie: adminCookie,
           Origin: API_BASE_URL,
+          "x-reauth-token": reauthToken,
         },
         body: JSON.stringify({
           user_id: "self",
@@ -812,13 +833,14 @@ describe("User API Extended Integration", () => {
 
       expect(response.status).toBe(200);
 
-      // Restore original email
+      // Restore original email (same proof, still inside its 5 minute TTL)
       await safeFetch(`${API_BASE_URL}/api/user/update-user-attributes`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Cookie: adminCookie,
           Origin: API_BASE_URL,
+          "x-reauth-token": reauthToken,
         },
         body: JSON.stringify({
           user_id: "self",
