@@ -5,7 +5,14 @@
  */
 
 import { DatabaseModule } from "../core/base-adapter";
-import type { DatabaseId, DatabaseResult, ISystemAdapter } from "../db-interface";
+import type {
+  BaseQueryOptions,
+  DatabaseId,
+  DatabaseResult,
+  ISystemAdapter,
+  Job,
+  QueryFilter,
+} from "../db-interface";
 import { withSystemScope } from "../system-tenant-scope";
 import type { SystemPreferencesDocument } from "@src/content/types";
 import { logger } from "@utils/logger";
@@ -679,7 +686,15 @@ export class MongoSystemModule extends DatabaseModule<MongoAdapterCore> implemen
           if (o?.taskType) filter.taskType = o.taskType;
           return jobRepo.findMany(filter as any, o);
         },
-        count: (f: any) => jobRepo.count(f),
+        count: (f?: Record<string, unknown>) => {
+          const { tenantId, ...filter } = f || {};
+          return jobRepo.count(
+            filter as QueryFilter<Job>,
+            tenantId !== undefined
+              ? ({ tenantId: tenantId as DatabaseId | null } satisfies BaseQueryOptions)
+              : undefined,
+          );
+        },
         update: (id: DatabaseId, d: any, o?: any) => jobRepo.update(id, d, o),
         delete: (id: DatabaseId) => jobRepo.delete(id),
         cleanup: async (olderThan: Date, options?: any) => {

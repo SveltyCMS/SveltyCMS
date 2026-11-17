@@ -3,6 +3,7 @@
  * @description Server-side logic for the Queue Observability Dashboard.
  */
 
+import type { DatabaseId } from "@src/content/types";
 import { getDb } from "@src/databases/db";
 import { raise } from "@utils/error-handling";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
@@ -29,7 +30,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
   const hideRoutine = url.searchParams.get("hideRoutine") === "true";
   const limit = Number(url.searchParams.get("limit")) || 25;
   const offset = Number(url.searchParams.get("offset")) || 0;
-  const tenantId = locals.tenantId ?? undefined;
+  // Pass explicit scope (`null` for global admin, string for tenant): `undefined` fails closed under MULTI_TENANT/DEMO.
+  const tenantId = (locals.tenantId ?? null) as DatabaseId | null;
 
   const [jobsResult, countResult] = await Promise.all([
     db.system.jobs.list({

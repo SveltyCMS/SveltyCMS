@@ -685,6 +685,7 @@
 	const breadcrumbItems = $derived(
 		breadcrumbs.map((crumb) => ({
 			label: crumb.name,
+			icon: crumb.folderId ? 'mdi:folder-outline' : 'mdi:home-outline',
 			href: crumb.folderId ? `/mediagallery?folderId=${crumb.folderId}` : '/mediagallery',
 			data: { folderId: crumb.folderId }
 		}))
@@ -1509,6 +1510,13 @@
 									class="shrink-0 text-error-500"
 									aria-hidden="true"
 								></iconify-icon>
+							{:else if item.icon}
+								<iconify-icon
+									icon={item.icon}
+									width="16"
+									class="shrink-0 text-tertiary-500 dark:text-primary-400"
+									aria-hidden="true"
+								></iconify-icon>
 							{/if}
 							<span class="truncate">{item.label}</span>
 						</span>
@@ -1531,9 +1539,11 @@
 							use:droppable={dropOptions}
 							onclick={(e) => handleBreadcrumbActivate(e, folderId, item.label, isLast)}
 						>
-							{#if isDropTarget || selectedFiles.size > 0}
+							{#if isDropTarget || selectedFiles.size > 0 || item.icon}
 								<iconify-icon
-									icon={isDropTarget ? 'mdi:folder-move-outline' : 'mdi:folder-outline'}
+									icon={isDropTarget
+										? 'mdi:folder-move-outline'
+										: item.icon || 'mdi:folder-outline'}
 									width="16"
 									class="shrink-0 {isDropTarget ? 'text-primary-500' : 'opacity-70'}"
 									aria-hidden="true"

@@ -6,7 +6,7 @@
 
 import { isoDateStringToDate, nowISODateString } from "@src/utils/date";
 import { logger } from "@src/utils/logger";
-import { and, asc, desc, eq, inArray, isNull, lte, not, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, lte, not, sql, type SQL } from "drizzle-orm";
 import type {
   BaseQueryOptions,
   DatabaseId,
@@ -529,11 +529,16 @@ export class RelationalSystemModule implements ISystemAdapter {
           .select({ count: sql<number>`count(*)` })
           .from(this.schema.sveltyJobs)
           .$dynamic();
-        const conditions = [];
+        const conditions: SQL[] = [];
         if (filter?.status)
-          conditions.push(eq(this.schema.sveltyJobs.status, filter.status as any));
+          conditions.push(eq(this.schema.sveltyJobs.status, filter.status as string));
         if (filter?.taskType)
-          conditions.push(eq(this.schema.sveltyJobs.taskType, filter.taskType as any));
+          conditions.push(eq(this.schema.sveltyJobs.taskType, filter.taskType as string));
+        if (filter?.tenantId !== undefined) {
+          applyTenantFilter(conditions, this.schema.sveltyJobs.tenantId, {
+            tenantId: filter.tenantId as DatabaseId | null,
+          });
+        }
 
         if (conditions.length > 0) q = q.where(and(...conditions));
         const [result] = await q;

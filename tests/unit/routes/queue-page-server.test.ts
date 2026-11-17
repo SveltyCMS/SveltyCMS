@@ -40,6 +40,22 @@ describe("queue +page.server load", () => {
     expect(data.jobs).toHaveLength(1);
     expect(data.stats.total).toBe(1);
     expect(data.pagination.limit).toBe(25);
+    expect(listMock).toHaveBeenCalledWith(expect.objectContaining({ tenantId: null }));
+    expect(countMock).toHaveBeenCalledWith(expect.objectContaining({ tenantId: null }));
+  });
+
+  it("forwards explicit tenantId scope when locals.tenantId is set", async () => {
+    await load({
+      url: new URL("https://demo.sveltycms.com/config/queue"),
+      locals: {
+        user: { _id: "u1", role: "admin" },
+        isAdmin: true,
+        tenantId: "demo",
+      },
+    } as any);
+
+    expect(listMock).toHaveBeenCalledWith(expect.objectContaining({ tenantId: "demo" }));
+    expect(countMock).toHaveBeenCalledWith(expect.objectContaining({ tenantId: "demo" }));
   });
 
   it("throws 403 for non-admin", async () => {
