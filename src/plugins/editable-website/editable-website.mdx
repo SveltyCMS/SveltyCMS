@@ -74,23 +74,6 @@ if (!status.active) {
 
 ---
 
-## Dashboards
-
-The plugin contributes two admin pages under `/plugin` (sidebar group **Editing**).
-Both read from one shared matrix module (`capabilities.ts`), so a capability cannot
-say "Yes" in one place and "No" in another.
-
-| Page        | Route                                  | What it shows                                                                                        |
-| :---------- | :------------------------------------- | :--------------------------------------------------------------------------------------------------- |
-| Overview    | `/plugin/editable-website`             | License/trial state, protocol version, collections with `livePreview`, capability status, open gaps  |
-| Competitive | `/plugin/editable-website/competitive` | Weighted coverage bars (SveltyCMS / Payload·Directus·Strapi / Editable.website) plus the full matrix |
-
-Coverage scoring is explicit: `yes` = 1, `partial` = 0.5, `no` = 0, `n/a` excluded.
-Competitor columns quote their public documentation as of **November 2026** and are
-always rendered with that qualifier (EU Directive 2006/114/EC, UWG §6).
-
----
-
 ## How It Works
 
 1. **Collection schema** sets `livePreview` (URL pattern) and `plugins: ["editable-website"]`
