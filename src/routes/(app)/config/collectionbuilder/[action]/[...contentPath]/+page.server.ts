@@ -18,7 +18,7 @@ import path from "node:path";
 // Collections
 import { contentSystem } from "@src/content/index.server";
 import { syncContentState } from "@src/content/sync-content-state.server";
-import type { Schema } from "@src/content/types";
+import type { ContentNode, Schema } from "@src/content/types";
 import {
   DEFAULT_REVISION_LIMIT,
   MAX_REVISION_LIMIT,
@@ -202,6 +202,65 @@ export const load: PageServerLoad = async ({ locals, params }) => {
           `/${collectionIdentifier}`,
           locals.tenantId,
         );
+      }
+    }
+
+    // Fallback: resolve DB-backed structure nodes (e.g. UUIDv5 node._id or
+    // DB-only collections whose compiled files are absent on this worker).
+    if (!currentCollection && typeof contentSystem.getContentStructureFromDatabase === "function") {
+      const cleanId = collectionIdentifier.replace(/^\/+/, "").toLowerCase();
+      const strippedId = cleanId.replace(/^collection\//, "");
+      const dbNodes = (await contentSystem
+        .getContentStructureFromDatabase("flat", locals.tenantId)
+        .catch(() => [] as ContentNode[])) as ContentNode[];
+      const matchedNode = (dbNodes || []).find((node) => {
+        if (node?.nodeType !== "collection") return false;
+        const nodeId = String(node._id ?? "").toLowerCase();
+        const nodeName = String(node.name ?? "").toLowerCase();
+        const nodePath = String(node.path ?? "")
+          .replace(/^\/+/, "")
+          .toLowerCase();
+        const nodeStripped = nodePath.replace(/^collection\//, "");
+        const def =
+          node.collectionDef && typeof node.collectionDef === "object"
+            ? (node.collectionDef as Partial<Schema>)
+            : null;
+        const defId = String(def?._id ?? "").toLowerCase();
+        const defSlug = String(def?.slug ?? "").toLowerCase();
+        return (
+          nodeId === cleanId ||
+          nodeName === cleanId ||
+          nodeName === strippedId ||
+          nodePath === cleanId ||
+          nodeStripped === strippedId ||
+          defId === cleanId ||
+          defId === strippedId ||
+          defSlug === cleanId ||
+          defSlug === strippedId
+        );
+      });
+      if (matchedNode) {
+        let def: Partial<Schema> | string | undefined = matchedNode.collectionDef as
+          | Partial<Schema>
+          | string
+          | undefined;
+        if (typeof def === "string") {
+          try {
+            def = JSON.parse(def) as Partial<Schema>;
+          } catch {
+            def = undefined;
+          }
+        }
+        if (def && typeof def === "object") {
+          currentCollection = {
+            ...def,
+            _id: def._id || matchedNode._id,
+            name: def.name || matchedNode.name,
+            path: def.path || matchedNode.path,
+            icon: def.icon || matchedNode.icon,
+            description: def.description ?? matchedNode.description,
+          } as Schema;
+        }
       }
     }
 

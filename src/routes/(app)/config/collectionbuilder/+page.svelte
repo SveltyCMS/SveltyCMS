@@ -728,6 +728,23 @@ None (TreeView has its own keyboard navigation)
 	backUrl="/config"
 	titleBorderless={true}
 >
+	{#snippet subtitle()}
+		{#if pendingPresetId !== null || pendingDuplicates.length > 0 || Object.keys(nodesToSave).length > 0}
+			<div
+				class="inline-flex items-center gap-1.5 rounded-full border border-warning-500/30 bg-warning-500/10 px-3 py-1 text-xs font-medium text-warning-500 dark:text-warning-400"
+				role="status"
+				aria-live="polite"
+				data-testid="unsaved-changes-warning"
+			>
+				<iconify-icon icon="mdi:alert-circle-outline" width="16" aria-hidden="true"></iconify-icon>
+				<span>
+					{builder_unsaved_changes_part1()}{' '}<strong>{builder_unsaved_changes_save()}</strong
+					>{' '}
+					{builder_unsaved_changes_part2()}
+				</span>
+			</div>
+		{/if}
+	{/snippet}
 	{#snippet actions()}
 		<Button
 			variant="primary"
@@ -755,7 +772,7 @@ None (TreeView has its own keyboard navigation)
 		</Button>
 	{/snippet}
 
-	{#if currentConfig.length > 0}
+	{#if currentConfig.length > 0 || pendingPresetId !== null || pendingDuplicates.length > 0 || Object.keys(nodesToSave).length > 0}
 		<AdminCard class="p-6 border border-(--admin-border-default) backdrop-blur-md shadow-xs">
 			<div class="mb-4 flex flex-wrap justify-center gap-2" in:fade={{ duration: 300 }}>
 				<SystemTooltip title={builder_tip_quick_start()} role={null} tabindex={null}>
@@ -796,9 +813,9 @@ None (TreeView has its own keyboard navigation)
 				<SystemTooltip title={builder_tip_add_category()} role={null} tabindex={null}>
 					<Button
 						onclick={() => modalAddCategory()}
-						variant="tertiary"
+						variant="transparent"
 						size="lg"
-						class="group whitespace-nowrap"
+						class="group whitespace-nowrap preset-filled-tertiary-500 shadow-tertiary-500/20"
 						disabled={isLoading}
 						data-testid="add-category-button"
 					>
@@ -816,7 +833,7 @@ None (TreeView has its own keyboard navigation)
 						href={newCollectionHref}
 						data-preload="hover"
 						onclick={setupNewCollection}
-						variant="primary"
+						variant="error"
 						size="lg"
 						class="group whitespace-nowrap"
 						disabled={isLoading}
@@ -854,17 +871,6 @@ None (TreeView has its own keyboard navigation)
 
 			<div data-testid="collection-builder-board">
 				<div class="mx-auto w-full max-w-screen-2xl">
-					{#if pendingPresetId !== null || pendingDuplicates.length > 0 || Object.keys(nodesToSave).length > 0}
-						<div
-							class="sticky top-0 z-50 mb-4 mt-0 rounded border border-warning-500/30 bg-warning-500/10 px-4 py-3 text-center text-sm font-medium text-warning-600 shadow-sm dark:text-warning-400"
-							role="status"
-							aria-live="polite"
-						>
-							{builder_unsaved_changes_part1()}{' '}<strong>{builder_unsaved_changes_save()}</strong
-							>{' '}
-							{builder_unsaved_changes_part2()}
-						</div>
-					{/if}
 					<p class="mb-6 text-center text-tertiary-600 dark:text-primary-500">
 						{collection_description()}
 					</p>

@@ -108,9 +108,9 @@
 			<SystemTooltip title={builder_tip_add_category()} role={null} tabindex={null} wFull>
 				<Button
 					onclick={onAddCategory}
-					variant="tertiary"
+					variant="transparent"
 					size="md"
-					class="group w-full min-w-0 justify-center"
+					class="group w-full min-w-0 justify-center preset-filled-tertiary-500 shadow-tertiary-500/20"
 					data-testid="add-category-button"
 				>
 					<iconify-icon
@@ -127,7 +127,7 @@
 					href={newCollectionHref}
 					data-preload="hover"
 					onclick={onAddCollection}
-					variant="primary"
+					variant="error"
 					size="md"
 					class="group w-full min-w-0 justify-center"
 					data-testid="add-collection-button"

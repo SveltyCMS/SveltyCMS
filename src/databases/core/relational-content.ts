@@ -650,7 +650,9 @@ export class RelationalContentModule implements IContentAdapter {
           assertTenantContext(options, "content.nodes.delete");
           const conditions = [eq(this.schema.contentNodes.path, path)];
           applyTenantFilter(conditions, this.schema.contentNodes.tenantId, options);
-          await this.db.delete(this.schema.contentNodes).where(and(...conditions));
+          await this.getDb(options)
+            .delete(this.schema.contentNodes)
+            .where(and(...conditions));
         },
         "DELETE_NODE_FAILED",
         undefined,
@@ -667,7 +669,9 @@ export class RelationalContentModule implements IContentAdapter {
           assertTenantContext(options, "content.nodes.deleteMany");
           const conditions = [inArray(this.schema.contentNodes.path, paths)];
           applyTenantFilter(conditions, this.schema.contentNodes.tenantId, options);
-          const q = this.db.delete(this.schema.contentNodes).where(and(...conditions));
+          const q = this.getDb(options)
+            .delete(this.schema.contentNodes)
+            .where(and(...conditions));
 
           let count = 0;
           if (this.adapter.type === "sqlite" || this.adapter.type === "postgresql") {

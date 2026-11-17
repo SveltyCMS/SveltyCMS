@@ -190,6 +190,47 @@ describe("contentService.upsertContentNodes", () => {
     expect(updateVersion).toHaveBeenCalled();
   });
 
+  it("retries with systemScope for a tenantless caller when survivors exist under global/bootstrap tags", async () => {
+    deleteMany
+      .mockResolvedValueOnce({ success: true, data: { deletedCount: 0 } })
+      .mockResolvedValueOnce({ success: true, data: { deletedCount: 1 } });
+    getStructure
+      .mockResolvedValueOnce({ success: true, data: [{ path: "/collection/pages" }] })
+      .mockResolvedValueOnce({ success: true, data: [] });
+
+    await expect(
+      contentService.upsertContentNodes(
+        [{ type: "delete", node: { path: "/collection/pages" } }],
+        null,
+      ),
+    ).resolves.toBeUndefined();
+
+    expect(deleteMany).toHaveBeenCalledTimes(2);
+    expect(deleteMany.mock.calls[1]?.[0]).toEqual(["/collection/pages"]);
+    expect(deleteMany.mock.calls[1]?.[1]).toMatchObject({
+      tenantId: null,
+      systemScope: { kind: "system", reason: "bootstrap" },
+    });
+  });
+
+  it("never retries deleteMany with systemScope when a live tenantId is specified", async () => {
+    deleteMany.mockResolvedValueOnce({ success: true, data: { deletedCount: 0 } });
+    getStructure.mockResolvedValueOnce({
+      success: true,
+      data: [{ path: "/collection/tenant-locked" }],
+    });
+
+    await expect(
+      contentService.upsertContentNodes(
+        [{ type: "delete", node: { path: "/collection/tenant-locked" } }],
+        "tenant-a",
+      ),
+    ).rejects.toThrow(/Failed to delete 1 structure node/i);
+
+    expect(deleteMany).toHaveBeenCalledTimes(1);
+    expect(deleteMany.mock.calls[0]?.[1]).toEqual({ tenantId: "tenant-a" });
+  });
+
   it("throws when a requested delete path survives in the database", async () => {
     deleteMany.mockResolvedValueOnce({ success: true, data: { deletedCount: 0 } });
     getStructure.mockResolvedValueOnce({

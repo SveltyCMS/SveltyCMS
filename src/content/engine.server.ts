@@ -703,10 +703,54 @@ export const schema: Schema = ${JSON.stringify(buildRegeneratedSchemaDefinition(
     await compile({
       userCollections: baseDir,
       compiledCollections: getCompiledCollectionsPath(tenantId),
+      tenantId: tenantId ?? undefined,
     });
   } catch (e) {
     logger.warn("[Bootstrap] Compilation after regeneration failed:", e);
   }
+}
+
+async function hasAnyCollectionSourceFiles(dir: string): Promise<boolean> {
+  try {
+    const entries = await readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isFile() && entry.name.endsWith(".ts") && !entry.name.endsWith(".d.ts")) {
+        return true;
+      }
+      if (entry.isDirectory()) {
+        if (await hasAnyCollectionSourceFiles(path.join(dir, entry.name))) return true;
+      }
+    }
+  } catch {
+    // Missing collections directory simply means no source files exist yet.
+  }
+  return false;
+}
+
+function extractBootstrapDbSchemas(dbNodes: ContentNode[]): Schema[] {
+  const schemas: Schema[] = [];
+  for (const node of dbNodes) {
+    if (node.nodeType !== "collection") continue;
+    let def: unknown = node.collectionDef;
+    if (typeof def === "string") {
+      try {
+        def = JSON.parse(def);
+      } catch {
+        continue;
+      }
+    }
+    if (!def || typeof def !== "object") continue;
+    const schema = def as Schema;
+    if (!Array.isArray(schema.fields) || schema.fields.length === 0) continue;
+    schemas.push({
+      ...schema,
+      _id: schema._id || node._id,
+      name: schema.name || node.name,
+      path: schema.path || node.path,
+      icon: schema.icon || node.icon,
+    });
+  }
+  return schemas;
 }
 
 export const contentService = {
@@ -739,7 +783,7 @@ export const contentService = {
     }
 
     const targetDir = getCompiledCollectionsPath(tenantId);
-    const schemas = await scanCompiledCollections(targetDir);
+    let schemas = await scanCompiledCollections(targetDir);
 
     if (skipReconciliation) {
       await this.fastSyncStore(schemas, tenantId, dbAdapter);
@@ -747,7 +791,7 @@ export const contentService = {
     }
 
     // 1. Fetch DB nodes, filesystem categories, and GUI manifest overrides
-    const [dbResult, categoryNodes, manifestOrder, manifestStructure] = await Promise.all([
+    const [dbResult, initialCategoryNodes, manifestOrder, manifestStructure] = await Promise.all([
       dbAdapter.content.nodes.getStructure("flat", {
         tenantId: tenantId as any,
         // A caller-scoped read must not bypass the tenant predicate; only a
@@ -758,7 +802,26 @@ export const contentService = {
       getCollectionOrder(tenantId ?? null),
       getStructureNodes(tenantId ?? null),
     ]);
+    let categoryNodes = initialCategoryNodes;
     const dbNodes = dbResult.success ? [...dbResult.data] : [];
+
+    // Self-heal disk files when compiled + source collections are completely absent
+    // (e.g. container redeploy over a persistent DB or DB-seeded demo tenant),
+    // but never during an explicit file deletion (`changedFile` present).
+    if (schemas.length === 0 && !changedFile && dbNodes.length > 0) {
+      const hasSources = await hasAnyCollectionSourceFiles(getCollectionsPath(tenantId));
+      if (!hasSources) {
+        const dbSchemas = extractBootstrapDbSchemas(dbNodes);
+        if (dbSchemas.length > 0) {
+          await bootstrapCollectionFilesFromDb(dbSchemas, tenantId);
+          markFileDirty();
+          schemas = await scanCompiledCollections(targetDir);
+          if (schemas.length > 0) {
+            categoryNodes = await generateCategoryNodesFromPaths(schemas, tenantId);
+          }
+        }
+      }
+    }
 
     // Merge GUI categories from manifest when missing in DB (e.g. after cache clear)
     const knownIds = new Set(dbNodes.map((n) => n._id?.toString()));
@@ -1303,18 +1366,37 @@ export const contentService = {
           // category that only ever existed in the organizational manifest)
           // must not fail the whole save. Re-read once and only fail when a
           // requested path really survived the delete.
-          const remaining = await dbAdapter.content.nodes.getStructure("flat", {
-            tenantId: tenantId as any,
+          const readOptions = {
+            tenantId: (tenantId ?? null) as DatabaseId | null,
             // Only a genuinely global request (no tenant) may bypass the tenant
             // predicate: with a live tenantId, `withSystemScope` empties the
             // clause and this re-read would see every tenant's nodes.
             ...(tenantId ? {} : withSystemScope("bootstrap")),
             bypassCache: true,
-          });
+          };
+          const remaining = await dbAdapter.content.nodes.getStructure("flat", readOptions);
           const remainingPaths = new Set(
             (remaining.success ? remaining.data : []).map((node) => String(node.path ?? "")),
           );
-          const survivors = pathsToDelete.filter((deletePath) => remainingPaths.has(deletePath));
+          let survivors = pathsToDelete.filter((deletePath) => remainingPaths.has(deletePath));
+          // A tenantless/global caller reads with `withSystemScope("bootstrap")`
+          // (seeing nodes seeded under `"global"` or non-null tags). Mirror that
+          // scope on deleteMany when tenantId is unset — never for a real tenant.
+          if (survivors.length > 0 && !tenantId) {
+            const scopedDelete = await dbAdapter.content.nodes.deleteMany(survivors, {
+              tenantId: null,
+              ...(tenantId ? {} : withSystemScope("bootstrap")),
+            });
+            if (scopedDelete.success) {
+              const afterScoped = await dbAdapter.content.nodes.getStructure("flat", readOptions);
+              const afterPaths = new Set(
+                (afterScoped.success ? afterScoped.data : []).map((node) =>
+                  String(node.path ?? ""),
+                ),
+              );
+              survivors = pathsToDelete.filter((deletePath) => afterPaths.has(deletePath));
+            }
+          }
           if (survivors.length > 0) {
             throw new Error(
               `[ContentService] Failed to delete ${survivors.length} structure node(s): ${survivors.join(", ")}`,

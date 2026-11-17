@@ -20,6 +20,7 @@ const state = vi.hoisted(() => ({
   refreshCalls: [] as Array<[string | null | undefined]>,
   getCollectionCalls: [] as Array<[string, string | null | undefined]>,
   getCollectionImpl: null as null | ((identifier: string, tenantId?: string | null) => unknown),
+  dbStructureImpl: null as null | ((tenantId?: string | null) => unknown[]),
   // Widget registry the route's `goThrough()` resolves factory calls against.
   // Empty by default: without a `GuiSchema` the generator leaves each field as
   // plain JSON, which is what the persistence assertions parse. A test that
@@ -59,6 +60,10 @@ vi.mock("@src/content/index.server", () => ({
       state.getCollectionCalls.push([identifier, tenantId]);
       const impl = state.getCollectionImpl;
       return impl ? await impl(identifier, tenantId) : null;
+    },
+    getContentStructureFromDatabase: async (_format: string, tenantId?: string | null) => {
+      const impl = state.dbStructureImpl;
+      return impl ? impl(tenantId) : [];
     },
   },
 }));
@@ -306,6 +311,7 @@ describe("collectionbuilder [action]/[...contentPath] +page.server", () => {
     state.refreshCalls.length = 0;
     state.getCollectionCalls.length = 0;
     state.getCollectionImpl = () => null;
+    state.dbStructureImpl = null;
     vi.mocked(hasCollectionBuilderPermission).mockReturnValue(true);
     state.widgetFunctions = {};
   });
@@ -403,6 +409,39 @@ describe("collectionbuilder [action]/[...contentPath] +page.server", () => {
       body: { message: expect.stringContaining("registry exploded") },
     });
     expect(state.refreshCalls).toHaveLength(0);
+  });
+
+  it("resolves a DB-backed collection when missing from the in-memory compiled store", async () => {
+    state.getCollectionImpl = () => null;
+    state.dbStructureImpl = () => [
+      {
+        _id: "uuidv5-pages-node",
+        name: "pages",
+        path: "/collection/pages",
+        nodeType: "collection",
+        icon: "mdi:file-document-outline",
+        collectionDef: {
+          _id: "pages",
+          name: "Pages",
+          slug: "pages",
+          fields: [{ db_fieldName: "title", label: "Title", widget: { Name: "Input" } }],
+        },
+      },
+    ];
+
+    const byName = (await load(
+      makeLoadEvent("edit", "pages", makeLocals({ tenantId: "demo" as any })),
+    )) as unknown as LoadResult;
+    const collection = requireCollection(byName);
+    expect(collection._id).toBe("pages");
+    expect(collection.name).toBe("Pages");
+    expect(collection.fields).toHaveLength(1);
+
+    // UUIDv5 node._id URLs (seeded demo collections) also resolve via DB fallback.
+    const byNodeId = (await load(
+      makeLoadEvent("edit", "uuidv5-pages-node", makeLocals({ tenantId: "demo" as any })),
+    )) as unknown as LoadResult;
+    expect(requireCollection(byNodeId)._id).toBe("pages");
   });
 
   it("persists a saved collection so a later load reads it back from the store (persistence)", async () => {

@@ -444,9 +444,9 @@ export class MongoContentModule
           systemScope,
           bypassSafeQuery,
         };
-        if (tenantId) {
+        if (options.tenantId !== undefined) {
           fetchOptions.tenantId = tenantId;
-        } else if (filter.tenantId) {
+        } else if (filter.tenantId !== undefined) {
           fetchOptions.tenantId = filter.tenantId;
         }
         const result = await nodesRepo.findMany(filter, fetchOptions as any);
@@ -708,23 +708,28 @@ export class MongoContentModule
 
     deleteMany: async (
       paths: string[],
-      options: { tenantId?: string | null } = {},
+      options: BaseQueryOptions = {},
     ): Promise<DatabaseResult<{ deletedCount: number }>> => {
       if (paths.length === 0) {
         return { success: true, data: { deletedCount: 0 } };
       }
       try {
         const { nodesRepo } = await this._ensureRepos();
-        const { tenantId = null } = options;
+        const { tenantId = null, systemScope, bypassSafeQuery } = options;
         const baseFilter = { path: { $in: paths } };
-        const secureFilter = safeQuery(baseFilter as any, tenantId, {
-          bypassSafeQuery: (options as any)?.bypassSafeQuery,
-        }) as MongoQueryFilter<ContentNode>;
+        const secureFilter = this.adapter.mapQuery(
+          safeQuery(baseFilter as any, tenantId as string, {
+            systemScope,
+            bypassSafeQuery,
+          }),
+        ) as MongoQueryFilter<ContentNode>;
 
-        const result = await nodesRepo.model.deleteMany(secureFilter).exec();
+        const result = nodesRepo.model.collection?.deleteMany
+          ? await nodesRepo.model.collection.deleteMany(secureFilter as any)
+          : await nodesRepo.model.deleteMany(secureFilter).exec();
         await invalidateCategoryCache(CacheCategory.CONTENT);
 
-        return { success: true, data: { deletedCount: result.deletedCount } };
+        return { success: true, data: { deletedCount: result.deletedCount ?? 0 } };
       } catch (error) {
         return {
           success: false,
