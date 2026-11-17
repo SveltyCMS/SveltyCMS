@@ -28,6 +28,7 @@ import { validateCsrfForRequest } from "@utils/security/csrf-utils";
 import { getTurboAuthContext } from "./handle-turbo-get";
 import { isLaneServingAllowed } from "./lane-state-gate";
 import { resolveRequestTenant } from "./request-tenant";
+import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { wafGuard } from "./handle-waf-guard";
 import { dbAdapter } from "@src/databases/db";
 import { LocalCMS } from "@src/services/sdk";
@@ -336,7 +337,10 @@ function openWarmMutation(
   }
   locals.user = turbo.user;
   locals.roles = turbo.roles;
-  locals.tenantId = resolveRequestTenant(request, turbo.tenantId);
+  locals.tenantId = resolveRequestTenant(
+    request,
+    turbo.tenantId ?? (turbo.user?.tenantId as DatabaseId | undefined) ?? null,
+  );
   locals.isAdmin = turbo.isAdmin;
   (locals as { __turboAuth?: boolean }).__turboAuth = true;
   locals.dbAdapter = dbAdapter as typeof locals.dbAdapter;
@@ -718,6 +722,13 @@ export const tryCollectionWriteLane: Handle = async ({ event, resolve }) => {
   // still unread: the endpoint permission map authorizes there and the field
   // guard inside prepareWritePayload still enforces per-field write rules.
   if (kind === "simple" && !isSimpleWriteLaneAuthorized(turbo)) {
+    return resolve(event);
+  }
+  const resolvedWriteTenant = resolveRequestTenant(
+    event.request,
+    turbo.tenantId ?? (turbo.user?.tenantId as DatabaseId | undefined) ?? null,
+  );
+  if (!resolvedWriteTenant && isMultiTenantEnabled()) {
     return resolve(event);
   }
   return serveWarmCollectionWrite(event, turbo);

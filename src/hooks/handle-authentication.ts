@@ -1121,6 +1121,16 @@ function getDemoTTLSeconds(): number {
   }
 }
 
+function readDemoTenantCookie(cookies: RequestEvent["cookies"], isSecure: boolean): string | null {
+  const cookieName = getDemoTenantCookieName(isSecure);
+  return (
+    cookies.get(cookieName) ||
+    // Also check the unprefixed variant for backward compat
+    (!isSecure ? null : cookies.get("demo_tenant_id")) ||
+    null
+  );
+}
+
 /**
  * Handles automatic demo tenant generation and seeding.
  * Each visitor gets their own unique tenantId — no hostname-based dedup.
@@ -1129,11 +1139,7 @@ async function handleDemoTenantAssignment(event: RequestEvent, isUserPresent: bo
   const { cookies, url, locals } = event;
   const isSecure = url.protocol === "https:";
   const cookieName = getDemoTenantCookieName(isSecure);
-  const tenantIdFromCookie =
-    cookies.get(cookieName) ||
-    // Also check the unprefixed variant for backward compat
-    (!isSecure ? null : cookies.get("demo_tenant_id")) ||
-    null;
+  const tenantIdFromCookie = readDemoTenantCookie(cookies, isSecure);
 
   if (tenantIdFromCookie) {
     locals.tenantId = tenantIdFromCookie as DatabaseId;
@@ -1205,6 +1211,39 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
   // 🚀 UNIVERSAL TURBO AUTH: Check session → turbo auth cache BEFORE any
   // dynamic imports, tenant resolution, or CSRF work. On a warm cache hit,
   // this skips ~2ms of per-request auth overhead for ALL request types.
+  const bindWarmTurboTenant = async (
+    turboCtx: NonNullable<ReturnType<typeof getTurboAuthContext>>,
+  ): Promise<void> => {
+    const { multiTenant, isDemoMode } = getCachedSettings();
+    const testMode = process.env.TEST_MODE === "true" || process.env.PLAYWRIGHT_TEST === "true";
+    let baseTenant: DatabaseId | null = null;
+    if (multiTenant || isDemoMode || testMode) {
+      baseTenant =
+        (turboCtx.tenantId as DatabaseId | null | undefined) ??
+        (locals.tenantId as DatabaseId | null | undefined) ??
+        (turboCtx.user.tenantId as DatabaseId | null | undefined) ??
+        null;
+      if (!baseTenant) {
+        if (isDemoMode) {
+          const cookieTenant = readDemoTenantCookie(cookies, isSecure);
+          if (cookieTenant) {
+            baseTenant = cookieTenant as DatabaseId;
+          } else {
+            await handleDemoTenantAssignment(event, true);
+            baseTenant = (locals.tenantId as DatabaseId | null | undefined) ?? null;
+          }
+        } else if (multiTenant) {
+          baseTenant = getTenantIdFromHostname(url.hostname, true) as DatabaseId | null;
+        }
+      }
+    }
+    const resolved = resolveRequestTenant(event.request, baseTenant);
+    (locals as any).tenantId = resolved;
+    if (resolved && !turboCtx.tenantId) {
+      turboCtx.tenantId = resolved;
+    }
+  };
+
   const turboSessionId = readSessionCookie(cookies, isSecure);
   // 🛡️ Turbo-auth only for safe methods — mutations must go through CSRF
   const method = event.request.method;
@@ -1222,18 +1261,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       (locals as any).user = turboCtx.user;
       (locals as any).roles = turboCtx.roles;
       (locals as any).session_id = turboSessionId as DatabaseId;
-      // Fall back to the cached user's own tenant when neither the cached context
-      // nor locals carry one (e.g. Demo Mode's per-visitor cookie was never set on
-      // an authenticated request). Mirrors the post-session bind below — without it
-      // a warm cache hit serves the whole request with a null tenant.
-      const { multiTenant, isDemoMode } = getCachedSettings();
-      const testMode = process.env.TEST_MODE === "true" || process.env.PLAYWRIGHT_TEST === "true";
-      (locals as any).tenantId = resolveRequestTenant(
-        event.request,
-        multiTenant || isDemoMode || testMode
-          ? (turboCtx.tenantId ?? locals.tenantId ?? turboCtx.user.tenantId ?? null)
-          : null,
-      );
+      await bindWarmTurboTenant(turboCtx);
       // 🔒 Tenant fail-closed: this fast path skips session validation, so a
       // tenant-required API path is rejected here when the cached context carries
       // no tenant (MULTI_TENANT on, tenantless request).
@@ -1282,14 +1310,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       (locals as any).user = turboCtx.user;
       (locals as any).roles = turboCtx.roles;
       (locals as any).session_id = turboSessionId as DatabaseId;
-      const { multiTenant, isDemoMode } = getCachedSettings();
-      const testMode = process.env.TEST_MODE === "true" || process.env.PLAYWRIGHT_TEST === "true";
-      (locals as any).tenantId = resolveRequestTenant(
-        event.request,
-        multiTenant || isDemoMode || testMode
-          ? (turboCtx.tenantId ?? locals.tenantId ?? turboCtx.user.tenantId ?? null)
-          : null,
-      );
+      await bindWarmTurboTenant(turboCtx);
       // 🔒 Tenant fail-closed: this fast path skips session validation, so a
       // tenant-required API path is rejected here when the cached context carries
       // no tenant (MULTI_TENANT on, tenantless request).
@@ -1525,6 +1546,24 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
           // per TTL. A per-request write here kept that entry permanently warm and
           // silently disabled the re-read (avatar/role edits from other admins
           // never surfaced).
+          if (sessionId && resolution.status === "ok") {
+            rememberTurboSessionSurface(
+              sessionId as string,
+              resolution.boundIp,
+              resolution.boundUserAgent,
+            );
+          }
+          // Prefer host/header tenant; if only user.tenantId is set, bind that for tenant isolation/test mode.
+          if ((tenantIsolation || testMode) && !locals.tenantId && user.tenantId) {
+            locals.tenantId = user.tenantId as DatabaseId;
+          }
+          // Authenticated demo sessions whose 60-min demo cookie expired still
+          // need a bound tenant workspace when user.tenantId is null (global admin).
+          if (isDemoMode && !locals.tenantId) {
+            await handleDemoTenantAssignment(event, true);
+          } else if (multiTenant && !locals.tenantId) {
+            locals.tenantId = getTenantIdFromHostname(url.hostname, true) as DatabaseId;
+          }
           if (!turboCtx && sessionId) {
             setTurboAuthContext(
               sessionId as string,
@@ -1549,17 +1588,6 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
                   }
                 : undefined,
             );
-          }
-          if (sessionId && resolution.status === "ok") {
-            rememberTurboSessionSurface(
-              sessionId as string,
-              resolution.boundIp,
-              resolution.boundUserAgent,
-            );
-          }
-          // Prefer host/header tenant; if only user.tenantId is set, bind that for tenant isolation/test mode.
-          if ((tenantIsolation || testMode) && !locals.tenantId && user.tenantId) {
-            locals.tenantId = user.tenantId as DatabaseId;
           }
           // Re-bind only when the tenant changed during user resolution (e.g.
           // hostname had no tenant and the user's tenantId was adopted). The

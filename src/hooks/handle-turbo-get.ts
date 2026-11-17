@@ -32,6 +32,7 @@ import { getRoleBitsetVersion } from "@src/databases/auth/permission-bitmask";
 import { validateSessionMfaRequirement } from "@src/databases/auth/permissions";
 import { isSurfaceStepUp, type SessionRiskAction } from "@src/databases/auth/session-user";
 import { resolveRequestTenant } from "./request-tenant";
+import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { applyAllSecurityHeaders } from "./handle-security-headers";
 import { getRequestFlags } from "@utils/hook-utils";
 import {
@@ -256,7 +257,13 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
 
   // 🧪 Always re-apply the per-request test-mode tenant override: the turbo
   // context is session-keyed, so serving it verbatim crosses tenants.
-  const cacheTenant = resolveRequestTenant(request, turboCtx.tenantId);
+  const cacheTenant = resolveRequestTenant(
+    request,
+    turboCtx.tenantId ?? (turboCtx.user?.tenantId as DatabaseId | undefined) ?? null,
+  );
+  if (!cacheTenant && isMultiTenantEnabled()) {
+    return resolve(event);
+  }
   if (cacheTenant) locals.tenantId = cacheTenant as DatabaseId;
 
   const userId = turboCtx.userId;
