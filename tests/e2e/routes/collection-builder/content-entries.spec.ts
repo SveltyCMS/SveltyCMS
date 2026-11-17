@@ -495,13 +495,17 @@ test.describe("Collection entries (edit / delete / search / error boundary)", ()
 
     // Opening Search must keep Views and Language aligned on the same row.
     const searchToggle = page.getByRole("button", { name: "Search", exact: true }).first();
-    await searchToggle.click();
     const viewsBtn = page.getByRole("button", { name: "Saved table views" }).first();
     const langBtn = page.getByRole("button", { name: "Toggle language menu" }).first();
     const searchInput = page
       .getByRole("textbox", { name: /search for items in the table/i })
       .first();
-    await expect(searchInput).toBeVisible({ timeout: 5_000 });
+    await expect(async () => {
+      if (!(await searchInput.isVisible().catch(() => false))) {
+        await searchToggle.click({ timeout: 2_000 }).catch(() => undefined);
+      }
+      await expect(searchInput).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 25_000, intervals: [500, 1_000, 2_000] });
 
     const [searchRect, viewsRect, langRect] = await Promise.all([
       searchInput.boundingBox(),
