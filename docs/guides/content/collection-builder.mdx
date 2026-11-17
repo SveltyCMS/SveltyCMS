@@ -8,7 +8,7 @@ order: 5
 status: "beta"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-10-29"
+updated: "2026-11-17"
 tags:
   - "collection"
   - "builder"
@@ -56,7 +56,7 @@ SveltyCMS provides **true bidirectional parity** between code and GUI:
 | Field validation    | Valibot schemas per field                                                                                                                                      | Visual Logic Builder (`showIf`, `requiredIf`)                                                                                             |
 | Custom hooks        | Four-step lifecycle on the collection and on a field: `resolveInput`, `validate`, `beforeOperation`, `afterOperation`, plus `beforeValidate` / `afterValidate` | [Schema model](/docs/reference/architecture/schema-model) · [Schema lifecycle hooks](/docs/reference/architecture/schema-lifecycle-hooks) |
 
-**How it works**: When you save in the GUI, the builder uses the TypeScript Compiler API to generate a real `.ts` file. This file is then compiled and stored in the database — identical to what a developer would write by hand. When you open an existing collection, it loads from the database regardless of how it was created.
+**How it works**: When you save in the GUI, the builder uses the TypeScript Compiler API to generate a real `.ts` file under `config/collections/`. That file is compiled to `.compiledCollections/` and its structure node and schema definition are persisted in the database (`content_nodes`). Files remain the primary developer source of truth (git-friendly, zero DB round-trip for schema loading), while the database stores tenant-scoped organization (`parentId`, `order`), UI metadata, and a `collectionDef` recovery snapshot. When schema files on disk are absent (such as on ephemeral container deploys or DB-seeded environments), full reload automatically reconstructs missing `.ts`/`.js` files from database `collectionDef` schemas, and the editor falls back to the database definition when opening `/config/collectionbuilder/edit/<name>`.
 
 ```mermaid
 flowchart TB
@@ -123,6 +123,8 @@ The Collection Builder has two main views:
 
 1. **Category Tree View** (`/config/collectionbuilder`)
    - Hierarchical tree showing categories, child counts, and nested collections
+   - Consistent action-bar & empty-state color coding matching node badges: **Quick Start** (amber), **Introspect / Ingest** (green), **Add Category** (blue), and **Add Collection** (red)
+   - Unsaved organizational changes (category creates, renames, moves, deletions, staged presets, or duplicates) surface directly in the sticky **`PageTitle`** header bar next to the **Save** button until persisted
    - Real-time drag-and-drop nesting with floating target preview (`↳ Inside {category}`)
    - Full keyboard reordering support (`Alt + Up/Down`) with roving tabindex
    - Live statistics counter (`X collections · Y categories`)
@@ -153,12 +155,12 @@ Collections are organized into **categories** for structured hierarchy and navig
 **Step-by-Step**:
 
 1. Navigate to `/config/collectionbuilder`
-2. Click **"Add Category"** button in the header toolbar
+2. Click the blue **"Add Category"** button in the header toolbar
 3. Fill in category details:
    - **Name**: Unique category name (e.g., "Blog", "Products", "Pages")
    - **Icon**: Select an icon from IconPicker
-4. Click **"Save Category"** to create
-5. Category appears immediately in the hierarchy with live status badges
+4. Confirm the modal to stage the category in the tree (an unsaved-changes badge appears in the `PageTitle` header)
+5. Click **Save** in the header to persist the new category to the database and filesystem
 
 ### Editing Categories
 
@@ -168,8 +170,7 @@ Collections are organized into **categories** for structured hierarchy and navig
 2. Modify:
    - Category name
    - Category icon
-3. Click **"Save Category"**
-4. Updates appear immediately in the tree view
+3. Confirm the modal, then click **Save** in the header to persist the rename
 
 ### Moving Collections Between Categories
 
@@ -178,7 +179,7 @@ Collections are organized into **categories** for structured hierarchy and navig
 1. Grab the drag handle (`⋮⋮`) or click and hold a collection card
 2. Drag over the desired category (the preview card displays `↳ Inside {target}`)
 3. Release to drop into the category
-4. Hierarchy persists automatically to database and manifest
+4. Click **Save** in the header to persist the updated hierarchy to the database and manifest
 
 **Keyboard**:
 

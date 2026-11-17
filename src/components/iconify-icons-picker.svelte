@@ -70,6 +70,12 @@ Advanced icon picker with search, pagination, and favorites.
 		showFavorites?: boolean;
 		/** When true, hide the text input; user selects only by clicking icons. Shows a "Browse icons" button instead. */
 		hideSearchInput?: boolean;
+		/** Keep the icon browser permanently expanded inside its container (prevents modal height jumps). */
+		alwaysOpen?: boolean;
+		/** Hide the Selected Icon banner (useful when the parent renders its own preview). */
+		hideSelectedBanner?: boolean;
+		/** Tailwind height utility for the scrollable icon grid area. */
+		listHeightClass?: string;
 	}
 
 	let {
@@ -79,7 +85,10 @@ Advanced icon picker with search, pagination, and favorites.
 		icon = $bindable(),
 		searchQuery = $bindable(''),
 		showFavorites = true,
-		hideSearchInput = true
+		hideSearchInput = true,
+		alwaysOpen = false,
+		hideSelectedBanner = false,
+		listHeightClass = 'h-80'
 	}: Props = $props();
 
 	// Sync icon ↔ iconselected so bind:icon from InputSwitch receives picker updates
@@ -358,7 +367,9 @@ Advanced icon picker with search, pagination, and favorites.
 			MAX_RECENT
 		);
 
-		showDropdown = false;
+		if (!alwaysOpen) {
+			showDropdown = false;
+		}
 		toast.success(`Icon selected: ${fullIconName}`);
 	}
 
@@ -423,8 +434,9 @@ Advanced icon picker with search, pagination, and favorites.
 		}
 	}
 
-	// Close dropdown
+	// Close dropdown (no-op when permanently embedded via alwaysOpen)
 	function handleClickOutside(event: MouseEvent): void {
+		if (alwaysOpen) return;
 		const target = event.target as HTMLElement;
 		if (dropdownRef && !dropdownRef.contains(target)) {
 			showDropdown = false;
@@ -433,7 +445,7 @@ Advanced icon picker with search, pagination, and favorites.
 
 	// Keyboard navigation
 	function handleKeyDown(event: KeyboardEvent): void {
-		if (!showDropdown) {
+		if (!showDropdown && !alwaysOpen) {
 			return;
 		}
 
@@ -501,6 +513,18 @@ Advanced icon picker with search, pagination, and favorites.
 
 	// Lifecycle
 	onMount(() => {
+		if (alwaysOpen) {
+			showDropdown = true;
+			fetchIconLibraries();
+			if (icons.length === 0) {
+				if (searchQuery) {
+					searchIcons(searchQuery, selectedLibrary);
+				} else if (selectedLibrary) {
+					fetchCollectionIcons(selectedLibrary);
+				}
+			}
+		}
+
 		const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
 		prefersReducedMotion = mediaQuery.matches;
 
@@ -521,7 +545,7 @@ Advanced icon picker with search, pagination, and favorites.
 
 <div class="icon-picker-container flex w-full flex-col" bind:this={dropdownRef}>
 	<!-- Selected icon display (when hideSearchInput, clicking the icon opens the dropdown) -->
-	{#if iconselected}
+	{#if !hideSelectedBanner && iconselected}
 		<div
 			class="mb-2 flex min-w-0 flex-wrap items-center justify-between gap-2"
 			in:scale={{ duration: prefersReducedMotion ? 0 : 200, easing: quintOut, start: 0.9 }}
@@ -595,7 +619,7 @@ Advanced icon picker with search, pagination, and favorites.
 				</Button>
 			</div>
 		</div>
-	{:else if hideSearchInput}
+	{:else if !hideSelectedBanner && hideSearchInput}
 		<!-- No icon selected: clickable placeholder to open dropdown (no extra button) -->
 		<Button
 			variant="ghost"
@@ -665,10 +689,12 @@ Advanced icon picker with search, pagination, and favorites.
 	{/if}
 
 	<!-- Dropdown -->
-	{#if showDropdown}
+	{#if showDropdown || alwaysOpen}
 		<div
 			id="icon-dropdown"
-			class="mt-2 overflow-hidden rounded border border-surface-500/30 bg-surface-500/10 shadow-2xl dark:text-surface-50 dark:bg-surface-800"
+			class="mt-2 overflow-hidden rounded border border-surface-500/30 bg-surface-500/10 dark:text-surface-50 dark:bg-surface-800/60 {alwaysOpen
+				? ''
+				: 'shadow-2xl'}"
 			role="region"
 			aria-label="Icon picker dropdown"
 			in:scale={{
@@ -761,7 +787,7 @@ Advanced icon picker with search, pagination, and favorites.
 			{/if}
 
 			<!-- Content -->
-			<div class="h-80 overflow-y-auto p-4" onscroll={handleScroll}>
+			<div class="{listHeightClass} overflow-y-auto p-3" onscroll={handleScroll}>
 				{#if isLoading && icons.length === 0}
 					<!-- Loading state (initial) -->
 					<div
@@ -786,14 +812,16 @@ Advanced icon picker with search, pagination, and favorites.
 					>
 						{#each displayIcons as icon, index (icon)}
 							{const fullIconName = icon.includes(':') ? icon : `${selectedLibrary}:${icon}`}
+							{const isSelectedIcon = iconselected === fullIconName}
 							<div
 								onclick={() => selectIcon(icon)}
 								onkeydown={(e) => e.key === 'Enter' && selectIcon(icon)}
 								role="option"
-								aria-selected={iconselected === fullIconName || index === selectedIndex}
+								aria-selected={isSelectedIcon || index === selectedIndex}
 								tabindex="0"
-								class="group relative flex cursor-pointer items-center justify-center rounded p-3 transition-all duration-200 hover:scale-110 hover:bg-tertiary-500 dark:bg-primary-500/10 focus:outline-none focus:ring-2 focus:ring-primary-500 active:scale-95 {index ===
-								selectedIndex
+								class="group relative flex cursor-pointer items-center justify-center rounded p-2.5 transition-all duration-150 hover:scale-105 hover:bg-tertiary-500/10 dark:hover:bg-primary-500/10 focus:outline-none focus:ring-2 focus:ring-primary-500 active:scale-95 {isSelectedIcon
+									? 'bg-primary-500/10 text-tertiary-500 ring-1 ring-tertiary-500 dark:text-primary-400 dark:ring-primary-500'
+									: 'text-(--admin-text-body)'} {index === selectedIndex && !isSelectedIcon
 									? 'ring-2 ring-primary-500'
 									: ''}"
 								id={`icon-option-${index}`}
@@ -801,9 +829,9 @@ Advanced icon picker with search, pagination, and favorites.
 							>
 								<iconify-icon
 									icon={fullIconName}
-									width="24"
+									width="22"
 									aria-hidden="true"
-									class="transition-colors duration-200 group-hover:text-tertiary-500 dark:text-primary-500"
+									class="transition-colors duration-150 group-hover:text-tertiary-500 dark:group-hover:text-primary-400"
 								></iconify-icon>
 
 								{#if activeTab === 'favorites'}

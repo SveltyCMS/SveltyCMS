@@ -136,6 +136,101 @@ function publicBuilderUser(user: { _id?: { toString(): string } | string }, isAd
 }
 
 // Define load function as async function that takes an event parameter
+function deepCloneAndRemoveFunctions(obj: unknown): unknown {
+  if (obj === null || typeof obj !== "object") return obj;
+  if (obj instanceof Date) return new Date(obj.getTime());
+  if (Array.isArray(obj)) return obj.map((item) => deepCloneAndRemoveFunctions(item));
+
+  const newObj: Record<string, unknown> = {};
+  for (const key in obj as Record<string, unknown>) {
+    if (Object.hasOwn(obj, key)) {
+      const value = (obj as Record<string, unknown>)[key];
+      if (typeof value !== "function") {
+        newObj[key] = deepCloneAndRemoveFunctions(value);
+      }
+    }
+  }
+  return newObj;
+}
+
+function parseNodeCollectionDef(node: ContentNode): Partial<Schema> | null {
+  let def: Partial<Schema> | string | undefined = node.collectionDef as
+    | Partial<Schema>
+    | string
+    | undefined;
+  if (typeof def === "string") {
+    try {
+      def = JSON.parse(def) as Partial<Schema>;
+    } catch {
+      return null;
+    }
+  }
+  return def && typeof def === "object" ? def : null;
+}
+
+async function getCollectionByIdentifier(
+  identifier: string,
+  tenantId: string | null | undefined,
+): Promise<Schema | null> {
+  const direct = await contentSystem.getCollection(identifier, tenantId);
+  if (direct) return direct;
+  if (identifier.startsWith("/")) return null;
+  return (await contentSystem.getCollection(`/${identifier}`, tenantId)) ?? null;
+}
+
+async function resolveCollectionForEdit(
+  identifier: string,
+  tenantId: string | null | undefined,
+): Promise<Schema | null> {
+  let currentCollection = await getCollectionByIdentifier(identifier, tenantId);
+
+  if (!currentCollection) {
+    logger.warn(`Collection not found at path: ${identifier}. Refreshing content registry...`, {
+      identifier,
+    });
+    await contentSystem.refresh(tenantId);
+    currentCollection = await getCollectionByIdentifier(identifier, tenantId);
+  }
+
+  if (currentCollection || typeof contentSystem.getContentStructureFromDatabase !== "function") {
+    return currentCollection;
+  }
+
+  const cleanId = identifier.replace(/^\/+/, "").toLowerCase();
+  const strippedId = cleanId.replace(/^collection\//, "");
+  const dbNodes = (await contentSystem
+    .getContentStructureFromDatabase("flat", tenantId)
+    .catch(() => [] as ContentNode[])) as ContentNode[];
+
+  for (const node of dbNodes || []) {
+    if (node?.nodeType !== "collection") continue;
+    const def = parseNodeCollectionDef(node);
+    const candidates = [
+      String(node._id ?? ""),
+      String(node.name ?? ""),
+      String(node.path ?? "").replace(/^\/+/, ""),
+      String(node.path ?? "")
+        .replace(/^\/+/, "")
+        .replace(/^collection\//, ""),
+      String(def?._id ?? ""),
+      String(def?.slug ?? ""),
+    ].map((value) => value.toLowerCase());
+
+    if ((candidates.includes(cleanId) || candidates.includes(strippedId)) && def) {
+      return {
+        ...def,
+        _id: def._id || node._id,
+        name: def.name || node.name,
+        path: def.path || node.path,
+        icon: def.icon || node.icon,
+        description: def.description ?? node.description,
+      } as Schema;
+    }
+  }
+
+  return null;
+}
+
 export const load: PageServerLoad = async ({ locals, params }) => {
   try {
     const user = getAuthenticatedUser(locals);
@@ -163,106 +258,9 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     }
 
     // 6. Handle 'edit' action (default)
-    // Initialize content-manager for this tenant before accessing data.
-    // Note: forced refresh() removed — the save actions already refresh on write,
-    // and the cache TTL handles staleness. Trust the cache on reads.
     await contentSystem.initialize(locals.tenantId);
     const collectionIdentifier = params.contentPath;
-
-    // Try resolving exactly as passed (UUID or relative path). The tenantId MUST
-    // be forwarded: in multi-tenant mode the schema lives only in the tenant's
-    // registry, so a tenant-less lookup falls back to the global scope and 404s
-    // (the collection is visible on the board but unreachable by id for edit).
-    let currentCollection = await contentSystem.getCollection(
-      collectionIdentifier,
-      locals.tenantId,
-    );
-
-    // Fallback: Try identifying as an absolute path if not found
-    if (!(currentCollection || collectionIdentifier.startsWith("/"))) {
-      currentCollection = await contentSystem.getCollection(
-        `/${collectionIdentifier}`,
-        locals.tenantId,
-      );
-    }
-
-    // Self-heal a stale in-memory registry on a full reload (e.g. after a rename
-    // save or when another request/process refreshed the structure). The entry
-    // page does the same before 404ing; without it a browser refresh of the
-    // editor URL can land on "Collection not found" until the next write.
-    if (!currentCollection) {
-      logger.warn(
-        `Collection not found at path: ${collectionIdentifier}. Refreshing content registry...`,
-        { identifier: collectionIdentifier },
-      );
-      await contentSystem.refresh(locals.tenantId);
-      currentCollection = await contentSystem.getCollection(collectionIdentifier, locals.tenantId);
-      if (!currentCollection && !collectionIdentifier.startsWith("/")) {
-        currentCollection = await contentSystem.getCollection(
-          `/${collectionIdentifier}`,
-          locals.tenantId,
-        );
-      }
-    }
-
-    // Fallback: resolve DB-backed structure nodes (e.g. UUIDv5 node._id or
-    // DB-only collections whose compiled files are absent on this worker).
-    if (!currentCollection && typeof contentSystem.getContentStructureFromDatabase === "function") {
-      const cleanId = collectionIdentifier.replace(/^\/+/, "").toLowerCase();
-      const strippedId = cleanId.replace(/^collection\//, "");
-      const dbNodes = (await contentSystem
-        .getContentStructureFromDatabase("flat", locals.tenantId)
-        .catch(() => [] as ContentNode[])) as ContentNode[];
-      const matchedNode = (dbNodes || []).find((node) => {
-        if (node?.nodeType !== "collection") return false;
-        const nodeId = String(node._id ?? "").toLowerCase();
-        const nodeName = String(node.name ?? "").toLowerCase();
-        const nodePath = String(node.path ?? "")
-          .replace(/^\/+/, "")
-          .toLowerCase();
-        const nodeStripped = nodePath.replace(/^collection\//, "");
-        const def =
-          node.collectionDef && typeof node.collectionDef === "object"
-            ? (node.collectionDef as Partial<Schema>)
-            : null;
-        const defId = String(def?._id ?? "").toLowerCase();
-        const defSlug = String(def?.slug ?? "").toLowerCase();
-        return (
-          nodeId === cleanId ||
-          nodeName === cleanId ||
-          nodeName === strippedId ||
-          nodePath === cleanId ||
-          nodeStripped === strippedId ||
-          defId === cleanId ||
-          defId === strippedId ||
-          defSlug === cleanId ||
-          defSlug === strippedId
-        );
-      });
-      if (matchedNode) {
-        let def: Partial<Schema> | string | undefined = matchedNode.collectionDef as
-          | Partial<Schema>
-          | string
-          | undefined;
-        if (typeof def === "string") {
-          try {
-            def = JSON.parse(def) as Partial<Schema>;
-          } catch {
-            def = undefined;
-          }
-        }
-        if (def && typeof def === "object") {
-          currentCollection = {
-            ...def,
-            _id: def._id || matchedNode._id,
-            name: def.name || matchedNode.name,
-            path: def.path || matchedNode.path,
-            icon: def.icon || matchedNode.icon,
-            description: def.description ?? matchedNode.description,
-          } as Schema;
-        }
-      }
-    }
+    const currentCollection = await resolveCollectionForEdit(collectionIdentifier, locals.tenantId);
 
     if (!currentCollection) {
       logger.warn(`Collection not found at path: ${collectionIdentifier}`, {
@@ -271,36 +269,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       throw error(404, "Collection not found");
     }
 
-    // Helper function to deep clone and remove functions
-    function deepCloneAndRemoveFunctions(obj: unknown): unknown {
-      if (obj === null || typeof obj !== "object") {
-        return obj;
-      }
-
-      if (obj instanceof Date) {
-        return new Date(obj.getTime());
-      }
-
-      if (Array.isArray(obj)) {
-        return (obj as unknown[]).map((item) => deepCloneAndRemoveFunctions(item));
-      }
-
-      const newObj: Record<string, unknown> = {};
-      for (const key in obj as Record<string, unknown>) {
-        if (Object.hasOwn(obj, key)) {
-          const value = (obj as Record<string, unknown>)[key];
-          if (typeof value === "function") {
-            continue; // Skip functions
-          }
-          newObj[key] = deepCloneAndRemoveFunctions(value);
-        }
-      }
-      return newObj;
-    }
-
-    const serializableCollection = currentCollection
-      ? deepCloneAndRemoveFunctions(currentCollection)
-      : null;
+    const serializableCollection = deepCloneAndRemoveFunctions(currentCollection);
 
     // An adapter may hand back a non-string `_id` (ObjectId). The deep clone
     // drops its prototype, so stringify from the original before it reaches the

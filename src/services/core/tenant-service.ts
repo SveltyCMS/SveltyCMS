@@ -28,13 +28,35 @@ const DEFAULT_QUOTAS: TenantQuota = {
   maxApiRequestsPerMonth: 10_000,
 };
 
+/** Tables carrying tenantId that must be purged when a tenant is deleted. */
+const TENANT_SCOPED_TABLES = [
+  "auth_users",
+  "auth_sessions",
+  "auth_tokens",
+  "roles",
+  "content_nodes",
+  "content_drafts",
+  "content_revisions",
+  "themes",
+  "widgets",
+  "media_items",
+  "system_virtual_folders",
+  "system_preferences",
+  "svelty_jobs",
+  "website_tokens",
+  "plugin_pagespeed_results",
+  "plugin_states",
+  "plugin_migrations",
+  "plugin_storage",
+  "audit_logs",
+] as const;
+
 /**
  * Multi-Tenancy Management Service
  */
 export class TenantService {
-  constructor() {}
-
-  private async getDbAdapter() {
+  private async getDbAdapter(adapter?: IDBAdapter) {
+    if (adapter) return adapter;
     const { dbAdapter } = await loadDbModule();
     return dbAdapter;
   }
@@ -90,42 +112,26 @@ export class TenantService {
    */
   public async deleteTenant(tenantId: string, adapter?: IDBAdapter): Promise<void> {
     if (!tenantId) return;
-    const dbAdapter = adapter ?? (await this.getDbAdapter());
+    const dbAdapter = await this.getDbAdapter(adapter);
     if (!dbAdapter) throw new Error("Database adapter not initialized");
 
     try {
       // Execute a cascade delete of all data matching this tenant ID via CRUD layer
       const options = { ...withSystemScope("bootstrap"), permanent: true };
 
-      const tablesToDelete = [
-        "auth_users",
-        "auth_sessions",
-        "auth_tokens",
-        "roles",
-        "content_nodes",
-        "content_drafts",
-        "content_revisions",
-        "themes",
-        "widgets",
-        "media_items",
-        "system_virtual_folders",
-        "system_preferences",
-        "svelty_jobs",
-        "website_tokens",
-        "plugin_pagespeed_results",
-        "plugin_states",
-        "plugin_migrations",
-        "plugin_storage",
-        "audit_logs",
-      ];
-
-      // Note: we run deletions in parallel for efficiency
       if (dbAdapter.crud?.deleteMany) {
-        await Promise.allSettled(
-          tablesToDelete.map((table) =>
+        const results = await Promise.allSettled(
+          TENANT_SCOPED_TABLES.map((table) =>
             dbAdapter.crud.deleteMany(table, { tenantId } as any, options),
           ),
         );
+        const failures = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+        if (failures.length > 0) {
+          logger.warn(
+            `Cascade delete had ${failures.length} table failure(s) for tenant ${tenantId}`,
+            { reasons: failures.map((f) => f.reason) },
+          );
+        }
       }
 
       // Finally, delete the tenant record itself

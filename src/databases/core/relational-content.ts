@@ -98,6 +98,59 @@ export class RelationalContentModule implements IContentAdapter {
     return { preparedValues, id, tenantId };
   }
 
+  protected buildDraftConditions(
+    where: { contentId?: string; collectionId?: string; authorId?: string },
+    options?: DraftQueryOptions,
+  ) {
+    const drafts = this.schema.contentDrafts;
+    const conditions: any[] = [];
+    if (where.contentId) conditions.push(eq(drafts.contentId, where.contentId));
+    if (where.collectionId) conditions.push(eq(drafts.collectionId, where.collectionId));
+    const authorId =
+      where.authorId ?? (options?.authorId != null ? String(options.authorId) : undefined);
+    if (authorId) conditions.push(eq(drafts.authorId, authorId));
+    if (options?.kind === "new") {
+      conditions.push(eq(this.adapter.getJsonField("__draft.kind"), "new"));
+    }
+    applyTenantFilter(conditions, drafts.tenantId, options);
+    return conditions;
+  }
+
+  protected async withReturningCount(query: any, fallbackCount = 0): Promise<number> {
+    if (this.adapter.type === "sqlite" || this.adapter.type === "postgresql") {
+      const result = await query.returning();
+      return result.length;
+    }
+    const [result] = await query;
+    return (result as any)?.affectedRows ?? fallbackCount;
+  }
+
+  protected async executeBulkUpsert(db: any, values: Record<string, unknown>[]) {
+    if (values.length === 0) return;
+
+    const insert = db.insert(this.schema.contentNodes).values(values) as any;
+    const sample = values[0];
+    const isMySqlFamily = this.adapter.type === "mariadb" || this.adapter.type === "mysql";
+    const setObj: Record<string, any> = {};
+
+    for (const k of Object.keys(sample)) {
+      if (k === "_id" || k === "createdAt" || k === "path" || k === "tenantId") continue;
+      setObj[k] = isMySqlFamily
+        ? sql`VALUES(${sql.identifier(k)})`
+        : sql`excluded.${sql.identifier(k)}`;
+    }
+
+    if (isMySqlFamily) {
+      await insert.onDuplicateKeyUpdate({ set: setObj });
+      return;
+    }
+
+    await insert.onConflictDoUpdate({
+      target: [this.schema.contentNodes.path, this.schema.contentNodes.tenantId],
+      set: setObj,
+    });
+  }
+
   protected async executeContentNodeUpsert(db: any, values: Record<string, unknown>) {
     const insert = db.insert(this.schema.contentNodes).values(values) as any;
 
@@ -156,19 +209,11 @@ export class RelationalContentModule implements IContentAdapter {
     ): Promise<DatabaseResult<{ publishedCount: number }>> => {
       return this.adapter.wrap(
         async () => {
-          if (this.adapter.type === "sqlite" || this.adapter.type === "postgresql") {
-            const result = await this.db
-              .update(this.schema.contentDrafts)
-              .set({ status: "archived" })
-              .where(inArray(this.schema.contentDrafts._id, draftIds as string[]))
-              .returning();
-            return { publishedCount: result.length };
-          }
-          const [result] = await this.db
+          const query = this.db
             .update(this.schema.contentDrafts)
             .set({ status: "archived" })
             .where(inArray(this.schema.contentDrafts._id, draftIds as string[]));
-          return { publishedCount: (result as any)?.affectedRows || draftIds.length };
+          return { publishedCount: await this.withReturningCount(query, draftIds.length) };
         },
         "PUBLISH_MANY_DRAFTS_FAILED",
         undefined,
@@ -183,30 +228,40 @@ export class RelationalContentModule implements IContentAdapter {
     ): Promise<DatabaseResult<PaginatedResult<ContentDraft>>> => {
       return this.adapter.wrap(
         async () => {
+          const page = options?.page || 1;
           const limit = options?.pageSize || 20;
-          const offset = ((options?.page || 1) - 1) * limit;
+          const offset = (page - 1) * limit;
           const drafts = this.schema.contentDrafts;
-          const conditions: any[] = [eq(drafts.contentId, contentId as string)];
-          if (options?.authorId) conditions.push(eq(drafts.authorId, String(options.authorId)));
-          applyTenantFilter(conditions, drafts.tenantId, { ...dbOptions, ...options });
+          const conditions = this.buildDraftConditions(
+            { contentId: String(contentId) },
+            { ...dbOptions, ...options },
+          );
+          const db = this.getDb(dbOptions);
 
-          const results = await this.getDb(dbOptions)
-            .select(this.adapter.getPhysicalSelection(drafts))
-            .from(drafts)
-            .where(and(...conditions))
-            .limit(limit)
-            .offset(offset)
-            .orderBy(desc(drafts.version));
+          const [results, countRows] = await Promise.all([
+            db
+              .select(this.adapter.getPhysicalSelection(drafts))
+              .from(drafts)
+              .where(and(...conditions))
+              .limit(limit)
+              .offset(offset)
+              .orderBy(desc(drafts.version)),
+            db
+              .select({ count: sql<number>`count(*)` })
+              .from(drafts)
+              .where(and(...conditions)),
+          ]);
+          const total = Number(countRows[0]?.count ?? results.length);
 
           return {
             items: convertArrayDatesToISO(results, {
               table: "contentDrafts",
             }) as unknown as ContentDraft[],
-            total: results.length,
-            page: options?.page || 1,
+            total,
+            page,
             pageSize: limit,
-            hasNextPage: false,
-            hasPreviousPage: false,
+            hasNextPage: page * limit < total,
+            hasPreviousPage: page > 1,
           };
         },
         "GET_DRAFTS_FAILED",
@@ -315,23 +370,11 @@ export class RelationalContentModule implements IContentAdapter {
       return this.adapter.wrap(
         async () => {
           const drafts = this.schema.contentDrafts;
-          const conditions: any[] = [eq(drafts.contentId, contentId as string)];
-          if (options?.authorId) conditions.push(eq(drafts.authorId, String(options.authorId)));
-          if (options?.kind === "new") {
-            conditions.push(eq(this.adapter.getJsonField("__draft.kind"), "new"));
-          }
-          applyTenantFilter(conditions, drafts.tenantId, options);
-          const db = this.getDb(options);
-
-          if (this.adapter.type === "sqlite" || this.adapter.type === "postgresql") {
-            const removed = await db
-              .delete(drafts)
-              .where(and(...conditions))
-              .returning({ _id: drafts._id });
-            return { deletedCount: removed.length };
-          }
-          const [result] = await db.delete(drafts).where(and(...conditions));
-          return { deletedCount: (result as any)?.affectedRows ?? 0 };
+          const conditions = this.buildDraftConditions({ contentId: String(contentId) }, options);
+          const query = this.getDb(options)
+            .delete(drafts)
+            .where(and(...conditions));
+          return { deletedCount: await this.withReturningCount(query, 0) };
         },
         "DELETE_DRAFTS_FOR_CONTENT_FAILED",
         undefined,
@@ -370,16 +413,7 @@ export class RelationalContentModule implements IContentAdapter {
     options?: DraftQueryOptions,
   ): Promise<ContentDraft | null> {
     const drafts = this.schema.contentDrafts;
-    const conditions: any[] = [];
-    if (where.contentId) conditions.push(eq(drafts.contentId, where.contentId));
-    if (where.collectionId) conditions.push(eq(drafts.collectionId, where.collectionId));
-    const authorId =
-      where.authorId ?? (options?.authorId != null ? String(options.authorId) : undefined);
-    if (authorId) conditions.push(eq(drafts.authorId, authorId));
-    if (options?.kind === "new") {
-      conditions.push(eq(this.adapter.getJsonField("__draft.kind"), "new"));
-    }
-    applyTenantFilter(conditions, drafts.tenantId, options);
+    const conditions = this.buildDraftConditions(where, options);
     if (conditions.length === 0) return null;
 
     const rows = await this.getDb(options)
@@ -590,37 +624,7 @@ export class RelationalContentModule implements IContentAdapter {
           await db.delete(this.schema.contentNodes).where(and(...staleConditions));
         }
 
-        const insert = db.insert(this.schema.contentNodes).values(preparedValuesList) as any;
-
-        if (this.adapter.type === "mariadb" || this.adapter.type === "mysql") {
-          // For MySQL/MariaDB bulk, use onDuplicate with VALUES() to pull the new row data per conflict
-          // Build set using sql for the incoming values (works for bulk)
-          const setObj: Record<string, any> = {};
-          if (preparedValuesList.length > 0) {
-            const sample = preparedValuesList[0];
-            Object.keys(sample).forEach((k) => {
-              if (k !== "_id" && k !== "createdAt" && k !== "path" && k !== "tenantId") {
-                setObj[k] = sql`VALUES(${sql.identifier(k)})`;
-              }
-            });
-          }
-          await insert.onDuplicateKeyUpdate({ set: setObj });
-        } else {
-          const conflictTarget = [this.schema.contentNodes.path, this.schema.contentNodes.tenantId];
-          const setObj: Record<string, any> = {};
-          if (preparedValuesList.length > 0) {
-            const sample = preparedValuesList[0];
-            Object.keys(sample).forEach((k) => {
-              if (k !== "_id" && k !== "createdAt" && k !== "path" && k !== "tenantId") {
-                setObj[k] = sql`excluded.${sql.identifier(k)}`;
-              }
-            });
-          }
-          await insert.onConflictDoUpdate({
-            target: conflictTarget,
-            set: setObj,
-          });
-        }
+        await this.executeBulkUpsert(db, preparedValuesList);
 
         // Return the prepared (as before, since we don't fetch back the full row for bulk perf)
         const results = preparedValuesList.map(
@@ -672,16 +676,7 @@ export class RelationalContentModule implements IContentAdapter {
           const q = this.getDb(options)
             .delete(this.schema.contentNodes)
             .where(and(...conditions));
-
-          let count = 0;
-          if (this.adapter.type === "sqlite" || this.adapter.type === "postgresql") {
-            const result = await (q as any).returning();
-            count = result.length;
-          } else {
-            const [result] = await q;
-            count = (result as any).affectedRows || 0;
-          }
-          return { deletedCount: count };
+          return { deletedCount: await this.withReturningCount(q, 0) };
         },
         "DELETE_MANY_NODES_FAILED",
         undefined,
@@ -812,26 +807,37 @@ export class RelationalContentModule implements IContentAdapter {
     ): Promise<DatabaseResult<PaginatedResult<ContentRevision>>> => {
       return this.adapter.wrap(
         async () => {
+          const page = options?.page || 1;
           const limit = options?.pageSize || 20;
-          const offset = ((options?.page || 1) - 1) * limit;
+          const offset = (page - 1) * limit;
+          const revisions = this.schema.contentRevisions;
+          const whereClause = eq(revisions.contentId, contentId as string);
+          const db = this.getDb(options);
 
-          const results = await this.getDb(options)
-            .select(this.adapter.getPhysicalSelection(this.schema.contentRevisions))
-            .from(this.schema.contentRevisions)
-            .where(eq(this.schema.contentRevisions.contentId, contentId as string))
-            .limit(limit)
-            .offset(offset)
-            .orderBy(desc(this.schema.contentRevisions.version));
+          const [results, countRows] = await Promise.all([
+            db
+              .select(this.adapter.getPhysicalSelection(revisions))
+              .from(revisions)
+              .where(whereClause)
+              .limit(limit)
+              .offset(offset)
+              .orderBy(desc(revisions.version)),
+            db
+              .select({ count: sql<number>`count(*)` })
+              .from(revisions)
+              .where(whereClause),
+          ]);
+          const total = Number(countRows[0]?.count ?? results.length);
 
           return {
             items: convertArrayDatesToISO(results, {
               table: "contentRevisions",
             }) as unknown as ContentRevision[],
-            total: results.length,
-            page: options?.page || 1,
+            total,
+            page,
             pageSize: limit,
-            hasNextPage: false,
-            hasPreviousPage: false,
+            hasNextPage: page * limit < total,
+            hasPreviousPage: page > 1,
           };
         },
         "GET_REVISIONS_FAILED",

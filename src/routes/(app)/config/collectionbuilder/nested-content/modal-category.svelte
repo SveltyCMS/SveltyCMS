@@ -67,6 +67,14 @@ Features:
 	}
 
 	const DEFAULT_ICON = 'mdi:folder-outline';
+	const QUICK_CATEGORY_ICONS = [
+		'mdi:folder-outline',
+		'mdi:newspaper-variant-outline',
+		'mdi:shopping-outline',
+		'mdi:image-multiple-outline',
+		'mdi:account-group-outline',
+		'mdi:cog-outline'
+	] as const;
 
 	const { existingCategory = { name: '', icon: '' }, close }: Props = $props();
 
@@ -187,7 +195,7 @@ Features:
 <div class="modal-category-container">
 	{#if formError}
 		<div
-			class="mb-4 rounded-lg border border-error-500/20 bg-error-500/10 p-3 text-sm text-error-600 dark:text-error-400"
+			class="mb-4 rounded-lg border border-error-500/20 bg-error-500/10 p-3 text-sm text-error-500 dark:text-error-400"
 			role="alert"
 		>
 			{formError}
@@ -195,10 +203,10 @@ Features:
 	{/if}
 
 	<form onsubmit={onFormSubmit} class="flex flex-col gap-6">
-		<!-- Two-column layout -->
-		<div class="grid grid-cols-1 gap-6 md:grid-cols-5">
-			<!-- Left column: Form fields (3/5 width) -->
-			<div class="flex flex-col gap-4 md:col-span-3">
+		<!-- Two-column balanced layout (fixed height, never resizes during icon search) -->
+		<div class="grid grid-cols-1 gap-6 md:grid-cols-12">
+			<!-- Left column: Form fields + Live Preview -->
+			<div class="flex flex-col justify-between gap-4 md:col-span-5">
 				<div class="space-y-4">
 					<div class="flex items-center justify-between">
 						<h3 class="text-sm font-semibold uppercase tracking-wide text-(--admin-text-muted)">
@@ -283,64 +291,81 @@ Features:
 						/>
 					</div>
 				</div>
-			</div>
-
-			<!-- Right column: Icon picker + Preview (2/5 width) -->
-			<div class="flex flex-col gap-4 md:col-span-2">
-				<!-- Icon Picker -->
-				<div class="space-y-3">
-					<h3 class="text-sm font-semibold uppercase tracking-wide text-(--admin-text-muted)">
-						{modalcategory_icon()}
-					</h3>
-
-					<div class="block">
-						<span class="mb-2 block text-sm font-medium text-(--admin-text-muted)">
-							{modalcategory_choose_icon()}
-						</span>
-						<div
-							class="min-h-55 rounded-lg border border-surface-500/30 bg-surface-500/10 p-2 dark:border-surface-500/40 dark:bg-surface-800/40"
-						>
-							<IconifyIconsPicker
-								bind:iconselected={formData.newCategoryIcon}
-								icon={previewIcon}
-								bind:searchQuery={categoryIconSearch}
-							/>
-						</div>
-						{#if validationErrors.icon}
-							<span id="icon-error" class="mt-1 block text-xs text-error-500"
-								>{validationErrors.icon}</span
-							>
-						{/if}
-					</div>
-				</div>
 
 				<!-- Live Preview -->
-				<div class="space-y-3">
+				<div class="space-y-2">
 					<h3 class="text-sm font-semibold uppercase tracking-wide text-(--admin-text-muted)">
 						{modalcategory_preview()}
 					</h3>
 					<div
-						class="flex items-center gap-3 rounded-lg border border-surface-500/30 bg-surface-500/10 p-4 dark:border-surface-500/40 dark:bg-surface-800/40"
+						class="flex items-center gap-3 rounded-lg border border-surface-500/30 bg-surface-500/10 p-3.5 dark:border-surface-500/40 dark:bg-surface-800/40"
 						data-testid="category-preview"
 					>
 						<div
-							class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-tertiary-500/10 text-tertiary-600 dark:bg-primary-500/10 dark:text-primary-400"
+							class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-tertiary-500/10 text-tertiary-500 dark:bg-primary-500/10 dark:text-primary-400"
 						>
-							<iconify-icon icon={previewIcon} width="28" height="28" aria-hidden="true"
+							<iconify-icon icon={previewIcon} width="26" height="26" aria-hidden="true"
 							></iconify-icon>
 						</div>
 						<div class="min-w-0 flex-1">
 							<div class="truncate text-base font-semibold text-(--admin-text-body)">
 								{formData.newCategoryName || 'Category name'}
 							</div>
-							{#if formData.newCategoryDescription}
-								<div class="truncate text-xs text-(--admin-text-muted)">
-									{formData.newCategoryDescription}
-								</div>
-							{/if}
+							<div class="truncate font-mono text-xs text-(--admin-text-muted)">
+								{formData.newCategoryDescription || previewIcon}
+							</div>
 						</div>
 					</div>
 				</div>
+			</div>
+
+			<!-- Right column: Fixed-height Icon Picker -->
+			<div class="flex flex-col gap-3 md:col-span-7">
+				<div class="flex items-center justify-between gap-2">
+					<h3 class="text-sm font-semibold uppercase tracking-wide text-(--admin-text-muted)">
+						{modalcategory_icon()}
+					</h3>
+					<!-- Quick presets strip -->
+					<div
+						class="flex items-center gap-1"
+						role="group"
+						aria-label={modalcategory_choose_icon()}
+					>
+						{#each QUICK_CATEGORY_ICONS as quickIcon (quickIcon)}
+							<button
+								type="button"
+								onclick={() => (formData.newCategoryIcon = quickIcon)}
+								aria-label={quickIcon}
+								aria-pressed={previewIcon === quickIcon}
+								class="flex h-8 w-8 items-center justify-center rounded-md border transition-colors {previewIcon ===
+								quickIcon
+									? 'border-tertiary-500 bg-tertiary-500/10 text-tertiary-500 dark:border-primary-500 dark:bg-primary-500/10 dark:text-primary-400'
+									: 'border-surface-500/30 text-(--admin-text-muted) hover:border-surface-500/60 hover:text-(--admin-text-body)'}"
+							>
+								<iconify-icon icon={quickIcon} width="18" aria-hidden="true"></iconify-icon>
+							</button>
+						{/each}
+					</div>
+				</div>
+
+				<div
+					class="rounded-lg border border-surface-500/30 bg-surface-500/10 p-3 dark:border-surface-500/40 dark:bg-surface-800/30"
+				>
+					<IconifyIconsPicker
+						bind:iconselected={formData.newCategoryIcon}
+						icon={previewIcon}
+						bind:searchQuery={categoryIconSearch}
+						hideSearchInput={false}
+						hideSelectedBanner={true}
+						alwaysOpen={true}
+						listHeightClass="h-44"
+					/>
+				</div>
+				{#if validationErrors.icon}
+					<span id="icon-error" class="block text-xs text-error-500 dark:text-error-400">
+						{validationErrors.icon}
+					</span>
+				{/if}
 			</div>
 		</div>
 
@@ -368,7 +393,7 @@ Features:
 					{button_cancel()}
 				</Button>
 				<Button
-					variant="tertiary"
+					variant="primary"
 					type="submit"
 					aria-label={button_save()}
 					disabled={isSubmitting}

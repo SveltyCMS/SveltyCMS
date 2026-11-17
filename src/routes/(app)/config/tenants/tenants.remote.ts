@@ -38,13 +38,21 @@ const guardAdmin = () => {
   };
 };
 
+async function withAdminAction<T>(
+  action: (
+    mod: typeof import("./tenants-actions.server"),
+    ctx: ReturnType<typeof guardAdmin>,
+  ) => Promise<T>,
+): Promise<T> {
+  const ctx = guardAdmin();
+  const mod = await import("./tenants-actions.server");
+  return action(mod, ctx);
+}
+
 export const toggleTenantStatus = command(
   "unchecked",
-  async (data: { tenantId: string; status: "active" | "suspended" }) => {
-    const { dbAdapter } = guardAdmin();
-    const { toggleTenantStatus: fn } = await import("./tenants-actions.server");
-    return fn(data, dbAdapter);
-  },
+  async (data: { tenantId: string; status: "active" | "suspended" }) =>
+    withAdminAction((mod, { dbAdapter }) => mod.toggleTenantStatus(data, dbAdapter)),
 );
 
 export const createTenant = command(
@@ -58,11 +66,7 @@ export const createTenant = command(
       maxCollections?: number;
       maxApiRequestsPerMonth?: number;
     };
-  }) => {
-    const { dbAdapter } = guardAdmin();
-    const { createTenant: fn } = await import("./tenants-actions.server");
-    return fn(data, dbAdapter);
-  },
+  }) => withAdminAction((mod, { dbAdapter }) => mod.createTenant(data, dbAdapter)),
 );
 
 export const updateTenant = command(
@@ -77,15 +81,11 @@ export const updateTenant = command(
       maxCollections?: number;
       maxApiRequestsPerMonth?: number;
     };
-  }) => {
-    const { dbAdapter } = guardAdmin();
-    const { updateTenant: fn } = await import("./tenants-actions.server");
-    return fn(data, dbAdapter);
-  },
+  }) => withAdminAction((mod, { dbAdapter }) => mod.updateTenant(data, dbAdapter)),
 );
 
-export const deleteTenant = command("unchecked", async (data: { tenantId: string }) => {
-  const { dbAdapter, currentTenantId } = guardAdmin();
-  const { deleteTenant: fn } = await import("./tenants-actions.server");
-  return fn({ tenantId: data.tenantId, currentTenantId }, dbAdapter);
-});
+export const deleteTenant = command("unchecked", async (data: { tenantId: string }) =>
+  withAdminAction((mod, { dbAdapter, currentTenantId }) =>
+    mod.deleteTenant({ tenantId: data.tenantId, currentTenantId }, dbAdapter),
+  ),
+);

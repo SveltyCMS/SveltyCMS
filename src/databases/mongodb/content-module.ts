@@ -470,9 +470,18 @@ export class MongoContentModule
 
     upsertContentStructureNode: async (
       node: EntityCreate<ContentNode>,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<ContentNode>> => {
+      const tenantId = options?.tenantId ?? (node as { tenantId?: DatabaseId | null }).tenantId;
+      assertTenantContext({ ...options, tenantId }, "content.nodes.upsertContentStructureNode");
       const { nodesRepo } = await this._ensureRepos();
-      return nodesRepo.upsert({ path: node.path } as any, node as any);
+      const filter = {
+        path: node.path,
+        ...(tenantId !== undefined ? { tenantId } : {}),
+      } as QueryFilter<ContentNode>;
+      const res = await nodesRepo.upsert(filter, node, { ...options, tenantId });
+      if (res.success) await invalidateCategoryCache(CacheCategory.CONTENT);
+      return res;
     },
 
     create: async (node: EntityCreate<ContentNode>): Promise<DatabaseResult<ContentNode>> => {
@@ -684,11 +693,29 @@ export class MongoContentModule
       }
     },
 
-    delete: async (path: string): Promise<DatabaseResult<void>> => {
+    delete: async (path: string, options: BaseQueryOptions = {}): Promise<DatabaseResult<void>> => {
+      if (!path) {
+        return {
+          success: false,
+          message: "Path is required for node delete",
+          error: { code: "INVALID_PATH", message: "Path is undefined" },
+        };
+      }
       try {
+        assertTenantContext(options, "content.nodes.delete");
         const { nodesRepo } = await this._ensureRepos();
-        const result = await nodesRepo.model.deleteOne({ path }).exec();
-        if (result.deletedCount === 0) {
+        const { tenantId = null, systemScope, bypassSafeQuery } = options;
+        const secureFilter = this.adapter.mapQuery(
+          safeQuery({ path } as Record<string, unknown>, tenantId as string, {
+            systemScope,
+            bypassSafeQuery,
+          }),
+        ) as MongoQueryFilter<ContentNode>;
+
+        const result = nodesRepo.model.collection?.deleteOne
+          ? await nodesRepo.model.collection.deleteOne(secureFilter as Record<string, unknown>)
+          : await nodesRepo.model.deleteOne(secureFilter).exec();
+        if ((result.deletedCount ?? 0) === 0) {
           logger.warn(`[deleteNodeByPath] Node not found for path="${path}".`);
         }
         await invalidateCategoryCache(CacheCategory.CONTENT);

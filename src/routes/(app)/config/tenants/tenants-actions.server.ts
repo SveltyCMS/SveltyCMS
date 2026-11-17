@@ -47,6 +47,49 @@ export interface DeleteTenantInput {
 /** Only these statuses may be toggled from the admin UI. */
 const TOGGLEABLE_STATUSES: ReadonlySet<Tenant["status"]> = new Set(["active", "suspended"]);
 
+const PLAN_QUOTAS: Record<"free" | "pro" | "enterprise", TenantQuota> = {
+  free: {
+    maxUsers: 5,
+    maxStorageBytes: 26214400, // 25 MB
+    maxCollections: 10,
+    maxApiRequestsPerMonth: 10000,
+  },
+  pro: {
+    maxUsers: 25,
+    maxStorageBytes: 10737418240, // 10 GB
+    maxCollections: 50,
+    maxApiRequestsPerMonth: 100000,
+  },
+  enterprise: {
+    maxUsers: 100,
+    maxStorageBytes: 107374182400, // 100 GB
+    maxCollections: 200,
+    maxApiRequestsPerMonth: 1000000,
+  },
+};
+
+async function runTenantMutation<T>(
+  failureLabel: string,
+  fn: () => Promise<DatabaseResult<T>>,
+  fallbackMessage = failureLabel,
+): Promise<T> {
+  let result: DatabaseResult<T>;
+  try {
+    result = await fn();
+  } catch (err) {
+    rethrow(err);
+    logger.error(failureLabel, err);
+    raise(500, fallbackMessage, "INTERNAL_SERVER_ERROR");
+  }
+
+  if (!result.success) {
+    logger.error(failureLabel, result.error);
+    raise(500, result.message || fallbackMessage, "INTERNAL_SERVER_ERROR");
+  }
+
+  return result.data as T;
+}
+
 export const toggleTenantStatus = async (data: ToggleTenantStatusInput, dbAdapter: IDBAdapter) => {
   const { tenantId, status } = data;
 
@@ -54,19 +97,11 @@ export const toggleTenantStatus = async (data: ToggleTenantStatusInput, dbAdapte
     raise(400, "Invalid parameters", "BAD_REQUEST");
   }
 
-  let result: DatabaseResult<Tenant>;
-  try {
-    result = await dbAdapter.system.tenants.update(tenantId as DatabaseId, { status });
-  } catch (err) {
-    rethrow(err);
-    logger.error(`Failed to update tenant status ${tenantId}`, err);
-    raise(500, "Update failed", "INTERNAL_SERVER_ERROR");
-  }
-
-  if (!result.success) {
-    logger.error(`Failed to update tenant status ${tenantId}`, result.error);
-    raise(500, result.message || "Update failed", "INTERNAL_SERVER_ERROR");
-  }
+  await runTenantMutation(
+    `Failed to update tenant status ${tenantId}`,
+    () => dbAdapter.system.tenants.update(tenantId as DatabaseId, { status }),
+    "Update failed",
+  );
 
   return { success: true };
 };
@@ -97,17 +132,13 @@ export const updateTenant = async (data: UpdateTenantInput, dbAdapter: IDBAdapte
     };
   }
 
-  try {
-    const result = await dbAdapter.system.tenants.update(tenantId as DatabaseId, patch);
-    if (!result.success) {
-      raise(500, result.message || "Failed to update tenant", "INTERNAL_SERVER_ERROR");
-    }
-    return { success: true, tenant: result.data };
-  } catch (err) {
-    rethrow(err);
-    logger.error(`Failed to update tenant ${tenantId}`, err);
-    raise(500, "Failed to update tenant", "INTERNAL_SERVER_ERROR");
-  }
+  const tenant = await runTenantMutation(
+    `Failed to update tenant ${tenantId}`,
+    () => dbAdapter.system.tenants.update(tenantId as DatabaseId, patch),
+    "Failed to update tenant",
+  );
+
+  return { success: true, tenant };
 };
 
 export const createTenant = async (data: CreateTenantInput, dbAdapter: IDBAdapter) => {
@@ -116,62 +147,35 @@ export const createTenant = async (data: CreateTenantInput, dbAdapter: IDBAdapte
   }
 
   const plan = data.plan || "free";
-  const defaultQuotas: Record<string, TenantQuota> = {
-    free: {
-      maxUsers: 5,
-      maxStorageBytes: 26214400, // 25 MB
-      maxCollections: 10,
-      maxApiRequestsPerMonth: 10000,
-    },
-    pro: {
-      maxUsers: 25,
-      maxStorageBytes: 10737418240, // 10 GB
-      maxCollections: 50,
-      maxApiRequestsPerMonth: 100000,
-    },
-    enterprise: {
-      maxUsers: 100,
-      maxStorageBytes: 107374182400, // 100 GB
-      maxCollections: 200,
-      maxApiRequestsPerMonth: 1000000,
-    },
-  };
-
-  const chosenDefault = defaultQuotas[plan] || defaultQuotas.free;
+  const chosenDefault = PLAN_QUOTAS[plan] ?? PLAN_QUOTAS.free;
   const mergedQuota: TenantQuota = {
     ...chosenDefault,
     ...data.quota,
   };
 
-  let result: DatabaseResult<Tenant>;
-  try {
-    const ownerId = generateUUID() as DatabaseId;
-    result = await dbAdapter.system.tenants.create({
-      name: data.name.trim(),
-      ownerId,
-      plan,
-      status: "active",
-      quota: mergedQuota,
-      usage: {
-        apiRequestsMonth: 0,
-        collectionsCount: 0,
-        lastUpdated: new Date(),
-        storageBytes: 0,
-        usersCount: 0,
-      },
-    });
-  } catch (err) {
-    rethrow(err);
-    logger.error("Failed to create tenant", err);
-    raise(500, "Failed to create tenant", "INTERNAL_SERVER_ERROR");
-  }
+  const tenant = await runTenantMutation(
+    "Failed to create tenant",
+    () => {
+      const ownerId = generateUUID() as DatabaseId;
+      return dbAdapter.system.tenants.create({
+        name: data.name.trim(),
+        ownerId,
+        plan,
+        status: "active",
+        quota: mergedQuota,
+        usage: {
+          apiRequestsMonth: 0,
+          collectionsCount: 0,
+          lastUpdated: new Date(),
+          storageBytes: 0,
+          usersCount: 0,
+        },
+      });
+    },
+    "Failed to create tenant",
+  );
 
-  if (!result.success) {
-    logger.error("Failed to create tenant", result.error);
-    raise(500, result.message || "Failed to create tenant", "INTERNAL_SERVER_ERROR");
-  }
-
-  return { success: true, tenant: result.data };
+  return { success: true, tenant };
 };
 
 export const deleteTenant = async (data: DeleteTenantInput, dbAdapter: IDBAdapter) => {
