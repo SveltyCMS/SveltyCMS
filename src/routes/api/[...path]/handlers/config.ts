@@ -152,7 +152,6 @@ export async function handleConfigRoutes(
       tenantId: tenantId as string,
     });
     return successResponse(event, {
-      success: true,
       dirPath: result.dirPath,
       message: "Configuration exported successfully.",
     });
@@ -296,7 +295,6 @@ export async function handleConfigRoutes(
     planStore.delete(body.planId);
 
     return successResponse(event, {
-      success: true,
       mode: stored.plan.mode,
       message: "Configuration applied successfully.",
       appliedAt: nowISODateString(),

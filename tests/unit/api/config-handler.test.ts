@@ -160,6 +160,21 @@ describe("handleConfigRoutes", () => {
       ["config", "apply"],
     );
     expect(applyRes.status).toBe(200);
+    const applyBody = await applyRes.json();
+    expect(applyBody.data.mode).toBe("mirror");
     expect(mockPerformImport).toHaveBeenCalledWith({ tenantId: "t1", mode: "mirror" });
+  });
+
+  it("POST /api/config/export returns dirPath inside successResponse data envelope", async () => {
+    const res = await handleConfigRoutes(
+      makeEvent("POST", "http://localhost/api/config/export", {}),
+      {} as any,
+      "t1" as DatabaseId,
+      ["config", "export"],
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    expect(body.data.dirPath).toBe("config/sync/export_t1_123");
   });
 });
