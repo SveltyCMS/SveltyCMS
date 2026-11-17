@@ -663,7 +663,7 @@ export class MongoSystemModule extends DatabaseModule<MongoAdapterCore> implemen
       },
       jobs: {
         create: (j: any) => jobRepo.insert(j),
-        getById: (id: DatabaseId) => jobRepo.findOne({ _id: id } as any),
+        getById: (id: DatabaseId, o?: BaseQueryOptions) => jobRepo.findOne({ _id: id } as any, o),
         getNextReady: (limit: number, options?: any) =>
           jobRepo.findMany(
             {
@@ -696,15 +696,17 @@ export class MongoSystemModule extends DatabaseModule<MongoAdapterCore> implemen
           );
         },
         update: (id: DatabaseId, d: any, o?: any) => jobRepo.update(id, d, o),
-        delete: (id: DatabaseId) => jobRepo.delete(id),
-        cleanup: async (olderThan: Date, options?: any) => {
+        delete: (id: DatabaseId, o?: BaseQueryOptions) => jobRepo.delete(id, o),
+        cleanup: async (olderThan: Date, options?: BaseQueryOptions) => {
           // Completed history only — see the SQL adapter parity note.
           const filter: Record<string, unknown> = {
             createdAt: { $lt: olderThan.toISOString() },
             status: "completed",
           };
-          if (options?.tenantId) filter.tenantId = options.tenantId;
-          const res = await jobRepo.deleteMany(filter as any, { permanent: true });
+          const res = await jobRepo.deleteMany(filter as QueryFilter<Job>, {
+            ...options,
+            permanent: true,
+          });
           return res.success ? { success: true, data: res.data.deletedCount } : (res as any);
         },
       },
@@ -851,15 +853,18 @@ export class MongoSystemModule extends DatabaseModule<MongoAdapterCore> implemen
 
   jobs = {
     create: async (job: any) => (await this._getMethods()).jobs.create(job),
-    getById: async (id: DatabaseId) => (await this._getMethods()).jobs.getById(id),
+    getById: async (id: DatabaseId, options?: BaseQueryOptions) =>
+      (await this._getMethods()).jobs.getById(id, options),
     getNextReady: async (limit?: number, options?: any) =>
       (await this._getMethods()).jobs.getNextReady(limit, options),
     list: async (options?: any) => (await this._getMethods()).jobs.list(options),
-    count: async (filter?: any) => (await this._getMethods()).jobs.count(filter),
+    count: async (filter?: Record<string, unknown>) =>
+      (await this._getMethods()).jobs.count(filter),
     update: async (id: DatabaseId, data: any, options?: any) =>
       (await this._getMethods()).jobs.update(id, data, options),
-    delete: async (id: DatabaseId) => (await this._getMethods()).jobs.delete(id),
-    cleanup: async (olderThan: Date, options?: any) =>
+    delete: async (id: DatabaseId, options?: BaseQueryOptions) =>
+      (await this._getMethods()).jobs.delete(id, options),
+    cleanup: async (olderThan: Date, options?: BaseQueryOptions) =>
       (await this._getMethods()).jobs.cleanup(olderThan, options),
   };
 

@@ -32,9 +32,10 @@ export const load: PageServerLoad = async ({ locals }) => {
       throw error(403, "Forbidden: You do not have permission to access this page.");
     }
 
+    const tenantId = locals.tenantId ?? undefined;
     const [status, exports] = await Promise.all([
-      configService.getStatus(locals.tenantId ?? undefined),
-      configService.listExports(locals.tenantId ?? undefined).catch(() => []),
+      configService.getStatus(tenantId),
+      configService.listExports(tenantId).catch(() => []),
     ]);
 
     // NOTE: Do NOT return a `user` key here — the (app) layout already provides the

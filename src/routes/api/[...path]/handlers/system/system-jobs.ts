@@ -30,7 +30,9 @@ export async function handleSystemJobRoutes(
     }
 
     const statusParam = new URL(request.url).searchParams.get("status");
-    const listOptions: { status?: string } = {};
+    const listOptions: { status?: string; tenantId?: DatabaseId | null } = {
+      tenantId: tenantId ?? null,
+    };
     if (statusParam) {
       listOptions.status = statusParam;
     }
@@ -108,7 +110,9 @@ export async function handleSystemJobRoutes(
       throw new AppError("Jobs system not available", 501, "NOT_IMPLEMENTED");
     }
 
-    const result = await db.system.jobs.delete(jobId as DatabaseId);
+    const result = await db.system.jobs.delete(jobId as DatabaseId, {
+      tenantId: tenantId ?? null,
+    });
     if (!result.success) {
       throw new AppError(result.message || "Failed to delete job", 500);
     }

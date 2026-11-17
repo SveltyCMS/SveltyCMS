@@ -47,6 +47,7 @@ describe("queue-actions.server", () => {
       expect(updateMock).toHaveBeenCalledWith(
         "job-1",
         expect.objectContaining({ status: "pending", attempts: 0 }),
+        { tenantId: "test-tenant-id" },
       );
     });
 
@@ -60,7 +61,7 @@ describe("queue-actions.server", () => {
     it("deletes job by id", async () => {
       const result = await deleteJob("job-2");
       expect(result).toEqual({ success: true });
-      expect(deleteMock).toHaveBeenCalledWith("job-2");
+      expect(deleteMock).toHaveBeenCalledWith("job-2", { tenantId: "test-tenant-id" });
     });
 
     it("throws 500 when delete fails", async () => {

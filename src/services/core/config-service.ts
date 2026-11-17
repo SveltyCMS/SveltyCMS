@@ -994,14 +994,14 @@ export class ConfigService {
     }
   }
 
-  private async scanWebhooks(state: Map<string, ConfigEntity>, _tenantId?: string) {
+  private async scanWebhooks(state: Map<string, ConfigEntity>, tenantId?: string) {
     if (!dbAdapter) return;
     try {
       const result = await dbAdapter.crud.findMany(
         "webhooks",
         {},
         {
-          tenantId: (_tenantId as string | null) ?? (undefined as any),
+          tenantId: (tenantId ?? null) as DatabaseId | null,
         },
       );
       if (result.success && Array.isArray(result.data)) {
@@ -1018,14 +1018,14 @@ export class ConfigService {
     }
   }
 
-  private async scanAutomations(state: Map<string, ConfigEntity>, _tenantId?: string) {
+  private async scanAutomations(state: Map<string, ConfigEntity>, tenantId?: string) {
     if (!dbAdapter) return;
     try {
       const result = await dbAdapter.crud.findMany(
         "automations",
         {},
         {
-          tenantId: (_tenantId as string | null) ?? (undefined as any),
+          tenantId: (tenantId ?? null) as DatabaseId | null,
         },
       );
       if (result.success && Array.isArray(result.data)) {
@@ -1088,7 +1088,7 @@ export class ConfigService {
       const collectionsResult = await dbAdapter!.crud.findMany(
         "content_nodes",
         { nodeType: "collection" } as any,
-        { tenantId: (tenantId as any) || undefined },
+        { tenantId: (tenantId ?? null) as DatabaseId | null },
       );
 
       if (collectionsResult.success && Array.isArray(collectionsResult.data)) {
@@ -1162,7 +1162,7 @@ export class ConfigService {
     }
   }
 
-  private async fetchSettingsFromDb(state: Map<string, ConfigEntity>, _tenantId?: string) {
+  private async fetchSettingsFromDb(state: Map<string, ConfigEntity>, tenantId?: string) {
     if (!dbAdapter?.system?.preferences) return;
     try {
       // Use findMany on system_settings for full visibility across adapters
@@ -1170,7 +1170,7 @@ export class ConfigService {
         "system_settings",
         {},
         {
-          tenantId: (_tenantId as string | null) ?? (undefined as any),
+          tenantId: (tenantId ?? null) as DatabaseId | null,
         },
       );
       if (result.success && Array.isArray(result.data)) {
@@ -1233,14 +1233,14 @@ export class ConfigService {
     }
   }
 
-  private async fetchWebhooksFromDb(state: Map<string, ConfigEntity>, _tenantId?: string) {
+  private async fetchWebhooksFromDb(state: Map<string, ConfigEntity>, tenantId?: string) {
     if (!dbAdapter) return;
     try {
       const result = await dbAdapter.crud.findMany(
         "webhooks",
         {},
         {
-          tenantId: (_tenantId as string | null) ?? (undefined as any),
+          tenantId: (tenantId ?? null) as DatabaseId | null,
         },
       );
       if (result.success && Array.isArray(result.data)) {
@@ -1257,14 +1257,14 @@ export class ConfigService {
     }
   }
 
-  private async fetchAutomationsFromDb(state: Map<string, ConfigEntity>, _tenantId?: string) {
+  private async fetchAutomationsFromDb(state: Map<string, ConfigEntity>, tenantId?: string) {
     if (!dbAdapter) return;
     try {
       const result = await dbAdapter.crud.findMany(
         "automations",
         {},
         {
-          tenantId: (_tenantId as string | null) ?? (undefined as any),
+          tenantId: (tenantId ?? null) as DatabaseId | null,
         },
       );
       if (result.success && Array.isArray(result.data)) {

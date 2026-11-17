@@ -24,7 +24,7 @@ export const load: PageServerLoad = async ({ locals }) => {
       throw error(403, "Admin privileges required");
     }
 
-    const tenantId = (locals.tenantId ?? undefined) as DatabaseId | undefined;
+    const tenantId = (locals.tenantId ?? null) as DatabaseId | null;
 
     // Builder chrome is auxiliary: a collections/roles lookup failure must not turn
     // the editor into a 500. A demo/large/legacy install can fail either query while
@@ -32,7 +32,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     let collections: { _id: string; name: string }[] = [];
     try {
       collections = contentSystem
-        .getCollections(tenantId)
+        .getCollections(tenantId ?? undefined)
         .filter((schema) => Boolean(schema._id))
         .map((schema) => ({ _id: String(schema._id), name: String(schema.name ?? schema._id) }));
     } catch (err) {

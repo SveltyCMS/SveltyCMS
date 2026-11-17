@@ -5,6 +5,7 @@
 
 import { getRequestEvent } from "$app/server";
 import { error } from "@sveltejs/kit";
+import type { DatabaseId } from "@src/content/types";
 import { getDb } from "@src/databases/db";
 import { logger } from "@utils/logger";
 
@@ -17,26 +18,40 @@ function requireAdminPermission() {
         throw error(403, "Admin privileges required");
       }
     }
-  } catch (err: any) {
-    if (err?.status) throw err;
+  } catch (err: unknown) {
+    if (err && typeof err === "object" && "status" in err) throw err;
   }
 }
 
-export const retryJob = async (data: any) => {
+function getQueueDb() {
+  const event = getRequestEvent();
+  return event?.locals?.dbAdapter ?? getDb();
+}
+
+function getQueueTenantId(): DatabaseId | null {
+  return (getRequestEvent()?.locals?.tenantId as DatabaseId | null | undefined) ?? null;
+}
+
+export const retryJob = async (data: unknown) => {
   requireAdminPermission();
-  const jobId = String(data);
+  const jobId = String(data) as DatabaseId;
 
   if (!jobId) throw error(400, "Job ID is required");
 
-  const db = getDb();
+  const db = getQueueDb();
   if (!db?.system?.jobs) throw error(500, "Database adapter not ready or jobs not supported.");
 
-  const result = await db.system.jobs.update(jobId as any, {
-    status: "pending",
-    attempts: 0,
-    nextRunAt: new Date(),
-    lastError: undefined,
-  });
+  const tenantId = getQueueTenantId();
+  const result = await db.system.jobs.update(
+    jobId,
+    {
+      status: "pending",
+      attempts: 0,
+      nextRunAt: new Date(),
+      lastError: undefined,
+    },
+    { tenantId },
+  );
 
   if (!result.success) {
     logger.error("Failed to retry job:", result.message);
@@ -45,16 +60,17 @@ export const retryJob = async (data: any) => {
   return { success: true };
 };
 
-export const deleteJob = async (data: any) => {
+export const deleteJob = async (data: unknown) => {
   requireAdminPermission();
-  const jobId = String(data);
+  const jobId = String(data) as DatabaseId;
 
   if (!jobId) throw error(400, "Job ID is required");
 
-  const db = getDb();
+  const db = getQueueDb();
   if (!db?.system?.jobs) throw error(500, "Database adapter not ready or jobs not supported.");
 
-  const result = await db.system.jobs.delete(jobId as any);
+  const tenantId = getQueueTenantId();
+  const result = await db.system.jobs.delete(jobId, { tenantId });
 
   if (!result.success) {
     logger.error("Failed to delete job:", result.message);
@@ -63,14 +79,14 @@ export const deleteJob = async (data: any) => {
   return { success: true };
 };
 
-export const clearCompleted = async (_data?: any) => {
+export const clearCompleted = async (_data?: unknown) => {
   requireAdminPermission();
-  const db = getDb();
+  const db = getQueueDb();
   if (!db?.system?.jobs) throw error(500, "Database adapter not ready or jobs not supported.");
 
   // Tenant-scoped when the request carries one (`null` selects global scope);
   // the adapter only removes `completed` rows, so pending retries and failed jobs survive.
-  const tenantId = (getRequestEvent()?.locals?.tenantId ?? null) as any;
+  const tenantId = getQueueTenantId();
   const result = await db.system.jobs.cleanup(new Date(), { tenantId });
 
   if (!result.success) {

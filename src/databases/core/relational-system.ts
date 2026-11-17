@@ -615,11 +615,16 @@ export class RelationalSystemModule implements ISystemAdapter {
       }, "JOB_UPDATE_FAILED");
     },
 
-    delete: async (jobId: DatabaseId): Promise<DatabaseResult<void>> => {
+    delete: async (
+      jobId: DatabaseId,
+      options?: BaseQueryOptions,
+    ): Promise<DatabaseResult<void>> => {
       return this.adapter.wrap(async () => {
-        await this.db
-          .delete(this.schema.sveltyJobs)
-          .where(eq(this.schema.sveltyJobs._id, jobId as string));
+        const conditions: SQL[] = [eq(this.schema.sveltyJobs._id, jobId as string)];
+        if (options?.tenantId !== undefined) {
+          applyTenantFilter(conditions, this.schema.sveltyJobs.tenantId, options);
+        }
+        await this.db.delete(this.schema.sveltyJobs).where(and(...conditions));
       }, "JOB_DELETE_FAILED");
     },
 

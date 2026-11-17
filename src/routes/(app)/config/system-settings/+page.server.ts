@@ -49,7 +49,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       throw error(403, "Insufficient permissions");
     }
 
-    const tenantId = (locals.tenantId ?? undefined) as DatabaseId | undefined;
+    const tenantId = (locals.tenantId ?? null) as DatabaseId | null;
     const groups = getSettingGroupsByRole(isAdminUser).sort((a, b) => a.name.localeCompare(b.name));
     const valuesByGroup: Record<string, Record<string, unknown>> = {};
 

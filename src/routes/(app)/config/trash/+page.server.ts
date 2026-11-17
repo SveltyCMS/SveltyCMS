@@ -45,7 +45,7 @@ function userDisplayName(user: {
  */
 async function resolveActorNames(
   items: readonly TrashItem[],
-  tenantId: DatabaseId | undefined,
+  tenantId: DatabaseId | null | undefined,
 ): Promise<Record<string, string>> {
   const ids = new Set<string>();
   for (const item of items) {
@@ -82,8 +82,8 @@ export const load = (async ({ locals }) => {
       throw error(403, "Admin privileges required");
     }
 
-    const tenantId = (locals.tenantId ?? undefined) as DatabaseId | undefined;
-    const schemas = await contentSystem.getCollections(tenantId);
+    const tenantId = (locals.tenantId ?? null) as DatabaseId | null;
+    const schemas = await contentSystem.getCollections(tenantId ?? undefined);
 
     const results = await Promise.all(
       schemas
