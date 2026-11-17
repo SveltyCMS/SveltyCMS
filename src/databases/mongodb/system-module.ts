@@ -6,6 +6,7 @@
 
 import { DatabaseModule } from "../core/base-adapter";
 import type { DatabaseId, DatabaseResult, ISystemAdapter } from "../db-interface";
+import { withSystemScope } from "../system-tenant-scope";
 import type { SystemPreferencesDocument } from "@src/content/types";
 import { logger } from "@utils/logger";
 import type { Model } from "mongoose";
@@ -644,10 +645,12 @@ export class MongoSystemModule extends DatabaseModule<MongoAdapterCore> implemen
       widgets: new MongoWidgetMethods(WidgetModel),
       websiteTokens: new MongoWebsiteTokenMethods(WebsiteTokenModel, this.adapter),
       tenants: {
-        create: (t: any) => tenantRepo.insert(t),
-        getById: (id: DatabaseId) => tenantRepo.findOne({ _id: id } as any),
-        update: (id: DatabaseId, d: any) => tenantRepo.update(id, d),
-        delete: (id: DatabaseId) => tenantRepo.delete(id),
+        create: (t: any) => tenantRepo.insert(t, withSystemScope("bootstrap")),
+        getById: (id: DatabaseId) =>
+          tenantRepo.findOne({ _id: id } as any, withSystemScope("bootstrap")),
+        update: (id: DatabaseId, d: any) => tenantRepo.update(id, d, withSystemScope("bootstrap")),
+        delete: (id: DatabaseId) =>
+          tenantRepo.delete(id, { ...withSystemScope("bootstrap"), permanent: true }),
         list: (o: any) =>
           tenantRepo.findMany(o?.filter || {}, { ...o, systemScope: o?.systemScope }),
       },

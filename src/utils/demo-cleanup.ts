@@ -179,7 +179,7 @@ export async function cleanupExpiredDemoTenants() {
 
           // Delete media records via adapter
           const mediaIds = allTenantMedia.map((m) => m._id);
-          await db.media.files.deleteMany(mediaIds);
+          await db.media.files.deleteMany(mediaIds, { tenantId: tenantId as DatabaseId });
 
           // Clean up empty media directories for this tenant
           for (const dir of dirsToClean) {

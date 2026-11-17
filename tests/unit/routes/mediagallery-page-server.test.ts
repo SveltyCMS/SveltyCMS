@@ -19,6 +19,7 @@ vi.mock("@src/databases/db", () => ({
       files: {
         getByFolder: vi.fn().mockResolvedValue({ success: true, data: { items: [], total: 0 } }),
         getAll: vi.fn().mockResolvedValue({ success: true, data: { items: [] } }),
+        delete: vi.fn().mockResolvedValue({ success: true }),
       },
     },
   },
@@ -394,5 +395,76 @@ describe("mediagallery +page.server load — concurrency", () => {
     expect(first.media[0]._id).toBe("t1-asset");
     expect(second.media[0]._id).toBe("t2-asset");
     expect(first.media[0]._id).not.toBe(second.media[0]._id);
+  });
+});
+
+describe("mediagallery +page.server actions.deleteMedia", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function makeDeleteEvent(locals: Record<string, unknown>, image: Record<string, unknown>) {
+    const fd = new FormData();
+    fd.set("imageData", JSON.stringify(image));
+    return {
+      locals,
+      request: {
+        formData: async () => fd,
+      },
+    } as any;
+  }
+
+  it("passes explicit { tenantId: null } for global-scope admins instead of undefined", async () => {
+    const { moveMediaToTrash } = await import("@utils/media/media-storage.server");
+    vi.mocked(moveMediaToTrash).mockRejectedValueOnce(new Error("ENOENT: missing file"));
+    vi.mocked(dbAdapter.media.files.delete).mockResolvedValueOnce({
+      success: true,
+    } as any);
+
+    const res = await actions.deleteMedia(
+      makeDeleteEvent(
+        {
+          user: { _id: "admin-1", email: "a@b.co" },
+          isAdmin: true,
+          roles: [],
+          tenantId: null,
+        },
+        {
+          _id: "media-missing-1",
+          path: "global/original/missing.png",
+        },
+      ),
+    );
+
+    expect(res).toEqual({ success: true });
+    expect(dbAdapter.media.files.delete).toHaveBeenCalledWith("media-missing-1", {
+      tenantId: null,
+    });
+  });
+
+  it("forwards request-scoped tenantId to media.files.delete", async () => {
+    vi.mocked(dbAdapter.media.files.delete).mockResolvedValueOnce({
+      success: true,
+    } as any);
+
+    const res = await actions.deleteMedia(
+      makeDeleteEvent(
+        {
+          user: { _id: "admin-1", email: "a@b.co" },
+          isAdmin: true,
+          roles: [],
+          tenantId: "demo",
+        },
+        {
+          _id: "media-demo-1",
+          path: "global/original/demo.png",
+        },
+      ),
+    );
+
+    expect(res).toEqual({ success: true });
+    expect(dbAdapter.media.files.delete).toHaveBeenCalledWith("media-demo-1", {
+      tenantId: "demo",
+    });
   });
 });

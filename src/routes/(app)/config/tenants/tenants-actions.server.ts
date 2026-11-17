@@ -39,6 +39,11 @@ export interface UpdateTenantInput {
   quota?: Partial<TenantQuota>;
 }
 
+export interface DeleteTenantInput {
+  tenantId: string;
+  currentTenantId?: string | null;
+}
+
 /** Only these statuses may be toggled from the admin UI. */
 const TOGGLEABLE_STATUSES: ReadonlySet<Tenant["status"]> = new Set(["active", "suspended"]);
 
@@ -167,4 +172,30 @@ export const createTenant = async (data: CreateTenantInput, dbAdapter: IDBAdapte
   }
 
   return { success: true, tenant: result.data };
+};
+
+export const deleteTenant = async (data: DeleteTenantInput, dbAdapter: IDBAdapter) => {
+  const tenantId = typeof data?.tenantId === "string" ? data.tenantId.trim() : "";
+  if (!tenantId) {
+    raise(400, "Tenant ID is required", "BAD_REQUEST");
+  }
+
+  if (data.currentTenantId && tenantId === String(data.currentTenantId)) {
+    raise(400, "Cannot delete the active tenant workspace", "BAD_REQUEST");
+  }
+
+  const existing = await dbAdapter.system.tenants.getById(tenantId as DatabaseId);
+  if (!existing.success || !existing.data) {
+    raise(404, "Tenant not found", "NOT_FOUND");
+  }
+
+  try {
+    const { tenantService } = await import("@src/services/core/tenant-service");
+    await tenantService.deleteTenant(tenantId, dbAdapter);
+    return { success: true };
+  } catch (err) {
+    rethrow(err);
+    logger.error(`Failed to delete tenant ${tenantId}`, err);
+    raise(500, "Failed to delete tenant", "INTERNAL_SERVER_ERROR");
+  }
 };

@@ -529,11 +529,11 @@ export const actions: Actions = {
       // Use db-agnostic media adapter for deletion with tenant scoping
       logger.debug(`Deleting media item: ${image._id}`);
 
+      // Explicit tenant scope: module-level dbAdapter has no request binding, so passing
+      // `undefined` fails closed under MULTI_TENANT even for global-scope (`null`) admins.
       const tenantId = (locals.tenantId as DatabaseId | null) ?? null;
-      const result = await dbAdapter.media.files.delete(
-        image._id.toString(),
-        tenantId ? { tenantId } : undefined,
-      );
+      const activeDb = (locals.dbAdapter ?? dbAdapter) as typeof dbAdapter;
+      const result = await activeDb.media.files.delete(image._id.toString(), { tenantId });
 
       if (result.success) {
         logger.debug("Media item deleted successfully");

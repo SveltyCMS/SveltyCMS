@@ -15,7 +15,7 @@ function loadDbModule(): Promise<typeof import("@src/databases/db")> {
   return (dbModulePromise ??= import("@src/databases/db"));
 }
 
-import type { Tenant, TenantQuota } from "@src/databases/db-interface";
+import type { DatabaseId, IDBAdapter, Tenant, TenantQuota } from "@src/databases/db-interface";
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { seedTenantPlan } from "@utils/rate-limit/tenant-plan";
@@ -88,14 +88,14 @@ export class TenantService {
    * Delete a tenant and all its associated data (cascade delete).
    * Ensures data sovereignty by completely purging the tenant's footprint.
    */
-  public async deleteTenant(tenantId: string): Promise<void> {
+  public async deleteTenant(tenantId: string, adapter?: IDBAdapter): Promise<void> {
     if (!tenantId) return;
-    const dbAdapter = await this.getDbAdapter();
+    const dbAdapter = adapter ?? (await this.getDbAdapter());
     if (!dbAdapter) throw new Error("Database adapter not initialized");
 
     try {
       // Execute a cascade delete of all data matching this tenant ID via CRUD layer
-      const options = withSystemScope("bootstrap");
+      const options = { ...withSystemScope("bootstrap"), permanent: true };
 
       const tablesToDelete = [
         "auth_users",
@@ -120,14 +120,19 @@ export class TenantService {
       ];
 
       // Note: we run deletions in parallel for efficiency
-      await Promise.allSettled(
-        tablesToDelete.map((table) =>
-          dbAdapter.crud.deleteMany(table, { tenantId } as any, options),
-        ),
-      );
+      if (dbAdapter.crud?.deleteMany) {
+        await Promise.allSettled(
+          tablesToDelete.map((table) =>
+            dbAdapter.crud.deleteMany(table, { tenantId } as any, options),
+          ),
+        );
+      }
 
       // Finally, delete the tenant record itself
-      await dbAdapter.system.tenants.delete(tenantId as any);
+      const deleteResult = await dbAdapter.system.tenants.delete(tenantId as DatabaseId);
+      if (deleteResult && deleteResult.success === false) {
+        throw new Error(deleteResult.message || "Failed to delete tenant record");
+      }
 
       logger.info(`Tenant ${tenantId} and all associated data successfully deleted.`);
     } catch (err) {

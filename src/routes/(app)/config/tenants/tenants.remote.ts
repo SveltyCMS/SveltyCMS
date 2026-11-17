@@ -30,13 +30,18 @@ const guardAdmin = () => {
     raise(500, "Database adapter not available", "INTERNAL_SERVER_ERROR");
   }
 
-  return event.locals.dbAdapter;
+  const unscoped = (event.locals as { dbAdapterUnscoped?: typeof event.locals.dbAdapter })
+    .dbAdapterUnscoped;
+  return {
+    dbAdapter: unscoped ?? event.locals.dbAdapter,
+    currentTenantId: event.locals.tenantId ?? null,
+  };
 };
 
 export const toggleTenantStatus = command(
   "unchecked",
   async (data: { tenantId: string; status: "active" | "suspended" }) => {
-    const dbAdapter = guardAdmin();
+    const { dbAdapter } = guardAdmin();
     const { toggleTenantStatus: fn } = await import("./tenants-actions.server");
     return fn(data, dbAdapter);
   },
@@ -54,7 +59,7 @@ export const createTenant = command(
       maxApiRequestsPerMonth?: number;
     };
   }) => {
-    const dbAdapter = guardAdmin();
+    const { dbAdapter } = guardAdmin();
     const { createTenant: fn } = await import("./tenants-actions.server");
     return fn(data, dbAdapter);
   },
@@ -73,8 +78,14 @@ export const updateTenant = command(
       maxApiRequestsPerMonth?: number;
     };
   }) => {
-    const dbAdapter = guardAdmin();
+    const { dbAdapter } = guardAdmin();
     const { updateTenant: fn } = await import("./tenants-actions.server");
     return fn(data, dbAdapter);
   },
 );
+
+export const deleteTenant = command("unchecked", async (data: { tenantId: string }) => {
+  const { dbAdapter, currentTenantId } = guardAdmin();
+  const { deleteTenant: fn } = await import("./tenants-actions.server");
+  return fn({ tenantId: data.tenantId, currentTenantId }, dbAdapter);
+});

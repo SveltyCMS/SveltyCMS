@@ -16,7 +16,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import type { Tenant } from '@src/databases/db-interface';
-	import { createTenant, toggleTenantStatus, updateTenant } from './tenants.remote';
+	import { createTenant, deleteTenant, toggleTenantStatus, updateTenant } from './tenants.remote';
 	import { refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import AdminCard from '@components/admin-card.svelte';
@@ -30,6 +30,13 @@
 	import HelpIcon from '@components/ui/help-icon.svelte';
 	import { formatDate } from '@utils/format-date';
 	import { toast } from '@src/stores/toast.svelte';
+	import {
+		button_cancel,
+		button_delete,
+		tenants_delete_confirm_prefix,
+		tenants_delete_confirm_suffix,
+		tenants_delete_title
+	} from '@src/paraglide/messages';
 	import {
 		SMART_TABLE,
 		SMART_TABLE_ROW_HOVER,
@@ -50,6 +57,11 @@
 	let modalOpen = $state(false);
 	let modalMode = $state<'create' | 'edit'>('create');
 	let submitting = $state(false);
+
+	// Delete confirmation modal state
+	let deleteModalOpen = $state(false);
+	let tenantToDelete = $state<Tenant | null>(null);
+	let deleting = $state(false);
 
 	// Form fields
 	let targetTenantId = $state('');
@@ -173,6 +185,32 @@
 		}
 	}
 
+	function openDeleteModal(tenant: Tenant) {
+		tenantToDelete = tenant;
+		deleteModalOpen = true;
+	}
+
+	async function handleDeleteConfirm() {
+		if (!tenantToDelete) return;
+		const target = tenantToDelete;
+		const id = String(target._id);
+		deleting = true;
+		actionLoading[id] = true;
+		try {
+			await deleteTenant({ tenantId: id });
+			toast.success(`Tenant "${target.name}" deleted`);
+			deleteModalOpen = false;
+			tenantToDelete = null;
+			await refreshAll();
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : 'Failed to delete tenant';
+			toast.error(msg);
+		} finally {
+			deleting = false;
+			actionLoading[id] = false;
+		}
+	}
+
 	function formatBytes(bytes: number, decimals = 2) {
 		if (!+bytes) {
 			return '0 Bytes';
@@ -280,6 +318,22 @@
 										onclick={() => handleToggleStatus(tenant)}
 									>
 										{tenant.status === 'active' ? 'Suspend' : 'Activate'}
+									</Button>
+									<Button
+										variant="ghost"
+										size="sm"
+										leadingIcon="mdi:delete-outline"
+										title={page.data.tenantId && String(page.data.tenantId) === id
+											? 'Cannot delete the active tenant workspace'
+											: `Delete tenant ${tenant.name}`}
+										aria-label={`Delete tenant ${tenant.name}`}
+										data-testid={`delete-tenant-${id}`}
+										class="text-error-500 hover:bg-error-500/10"
+										disabled={Boolean(page.data.tenantId && String(page.data.tenantId) === id) ||
+											actionLoading[id]}
+										onclick={() => openDeleteModal(tenant)}
+									>
+										{button_delete()}
 									</Button>
 								</div>
 							</td>
@@ -422,4 +476,38 @@
 			</Button>
 		</div>
 	</form>
+</Modal>
+
+<!-- Delete Tenant Confirmation Modal -->
+<Modal bind:open={deleteModalOpen} title={tenants_delete_title()} size="sm">
+	<div class="space-y-4 p-2">
+		<div
+			class="rounded-lg border border-error-500/30 bg-error-500/10 p-3 text-sm text-error-500 dark:text-error-400"
+		>
+			{tenants_delete_confirm_prefix()} <strong>{tenantToDelete?.name ?? ''}</strong>
+			{tenants_delete_confirm_suffix()}
+		</div>
+		<div class="flex justify-end gap-3 pt-2">
+			<Button
+				variant="ghost"
+				type="button"
+				disabled={deleting}
+				onclick={() => {
+					deleteModalOpen = false;
+					tenantToDelete = null;
+				}}
+			>
+				{button_cancel()}
+			</Button>
+			<Button
+				variant="danger"
+				type="button"
+				loading={deleting}
+				data-testid="confirm-delete-tenant-btn"
+				onclick={handleDeleteConfirm}
+			>
+				{tenants_delete_title()}
+			</Button>
+		</div>
+	</div>
 </Modal>

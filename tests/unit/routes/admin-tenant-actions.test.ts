@@ -9,11 +9,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { IDBAdapter, Tenant } from "@src/databases/db-interface";
 import {
   createTenant,
+  deleteTenant,
   toggleTenantStatus,
 } from "../../../src/routes/(app)/config/tenants/tenants-actions.server";
 
 type CreateTenantFn = IDBAdapter["system"]["tenants"]["create"];
+type GetTenantFn = IDBAdapter["system"]["tenants"]["getById"];
 type UpdateTenantFn = IDBAdapter["system"]["tenants"]["update"];
+type DeleteTenantFn = IDBAdapter["system"]["tenants"]["delete"];
+type CrudDeleteManyFn = IDBAdapter["crud"]["deleteMany"];
 
 function makeTenant(overrides: Partial<Tenant> = {}): Tenant {
   return {
@@ -43,11 +47,18 @@ function makeTenant(overrides: Partial<Tenant> = {}): Tenant {
 
 function makeTenantAdapter() {
   const create = vi.fn<CreateTenantFn>();
+  const getById = vi.fn<GetTenantFn>();
   const update = vi.fn<UpdateTenantFn>();
+  const del = vi.fn<DeleteTenantFn>();
+  const deleteMany = vi.fn<CrudDeleteManyFn>().mockResolvedValue({
+    success: true,
+    data: { deletedCount: 0 },
+  });
   const dbAdapter = {
-    system: { tenants: { create, update } },
+    crud: { deleteMany },
+    system: { tenants: { create, getById, update, delete: del } },
   } as unknown as IDBAdapter;
-  return { create, dbAdapter, update };
+  return { create, getById, dbAdapter, update, del, deleteMany };
 }
 
 describe("createTenant and toggleTenantStatus edge cases", () => {
@@ -193,6 +204,79 @@ describe("toggleTenantStatus", () => {
     ).rejects.toMatchObject({
       status: 500,
       message: "Update failed",
+    });
+  });
+});
+
+describe("deleteTenant", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("rejects empty tenantId with 400", async () => {
+    const { dbAdapter, del, getById } = makeTenantAdapter();
+    await expect(deleteTenant({ tenantId: "  " }, dbAdapter)).rejects.toMatchObject({
+      status: 400,
+      message: "Tenant ID is required",
+    });
+    expect(getById).not.toHaveBeenCalled();
+    expect(del).not.toHaveBeenCalled();
+  });
+
+  it("refuses deleting the caller's active workspace tenant", async () => {
+    const { dbAdapter, del, getById } = makeTenantAdapter();
+    await expect(
+      deleteTenant({ tenantId: "demo", currentTenantId: "demo" }, dbAdapter),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: "Cannot delete the active tenant workspace",
+    });
+    expect(getById).not.toHaveBeenCalled();
+    expect(del).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when the tenant does not exist", async () => {
+    const { dbAdapter, del, getById } = makeTenantAdapter();
+    getById.mockResolvedValue({ success: true, data: null });
+
+    await expect(deleteTenant({ tenantId: "missing" }, dbAdapter)).rejects.toMatchObject({
+      status: 404,
+      message: "Tenant not found",
+    });
+    expect(del).not.toHaveBeenCalled();
+  });
+
+  it("cascade-deletes tenant data across tenant tables and deletes the tenant record", async () => {
+    const { dbAdapter, del, deleteMany, getById } = makeTenantAdapter();
+    getById.mockResolvedValue({ success: true, data: makeTenant({ _id: "kaz" as Tenant["_id"] }) });
+    del.mockResolvedValue({ success: true, data: undefined });
+
+    await expect(
+      deleteTenant({ tenantId: "kaz", currentTenantId: "demo" }, dbAdapter),
+    ).resolves.toEqual({ success: true });
+
+    expect(deleteMany).toHaveBeenCalled();
+    expect(deleteMany.mock.calls[0]?.[1]).toEqual({ tenantId: "kaz" });
+    expect(deleteMany.mock.calls[0]?.[2]).toMatchObject({
+      permanent: true,
+      systemScope: { kind: "system", reason: "bootstrap" },
+    });
+    expect(del).toHaveBeenCalledWith("kaz");
+  });
+
+  it("wraps adapter delete failure as 500", async () => {
+    const { dbAdapter, del, getById } = makeTenantAdapter();
+    getById.mockResolvedValue({ success: true, data: makeTenant({ _id: "kaz" as Tenant["_id"] }) });
+    del.mockResolvedValue({
+      success: false,
+      message: "delete blocked",
+      error: { code: "DELETE_TENANT_FAILED", message: "delete blocked" },
+    });
+
+    await expect(deleteTenant({ tenantId: "kaz" }, dbAdapter)).rejects.toMatchObject({
+      status: 500,
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Failed to delete tenant",
     });
   });
 });

@@ -3765,5 +3765,8 @@
   "useradmin_send_invite": "Send invite",
   "useradmin_status": "Status",
   "dashboard_preset_empty": "No widgets from \"{name}\" are available for this account. Ask an administrator for access, or add widgets one by one.",
-  "dashboard_preset_save_failed": "The dashboard layout could not be saved. Please try again."
+  "dashboard_preset_save_failed": "The dashboard layout could not be saved. Please try again.",
+  "tenants_delete_title": "Eliminar inquilino",
+  "tenants_delete_confirm_prefix": "¿Eliminar permanentemente",
+  "tenants_delete_confirm_suffix": "y todos los usuarios, contenidos, medios y configuraciones asociados? Esta acción no se puede deshacer."
 }

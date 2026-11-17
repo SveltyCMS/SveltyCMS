@@ -3765,5 +3765,8 @@
   "dashboard_widget_source": "Quelle:",
   "dashboard_widget_static": "Statisches Widget",
   "dashboard_widget_title": "Widget-Titel",
-  "dashboard_widget_title_ph": "Anzeigetitel des Widgets eingeben"
+  "dashboard_widget_title_ph": "Anzeigetitel des Widgets eingeben",
+  "tenants_delete_title": "Mandant löschen",
+  "tenants_delete_confirm_prefix": "Möchten Sie",
+  "tenants_delete_confirm_suffix": "sowie alle zugehörigen Benutzer, Inhalte, Medien und Einstellungen dauerhaft löschen? Diese Aktion kann nicht rückgängig gemacht werden."
 }

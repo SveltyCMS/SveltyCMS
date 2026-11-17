@@ -3765,5 +3765,8 @@
   "dashboard_widget_source": "Source:",
   "dashboard_widget_static": "Static Widget",
   "dashboard_widget_title": "Widget Title",
-  "dashboard_widget_title_ph": "Enter widget display title"
+  "dashboard_widget_title_ph": "Enter widget display title",
+  "tenants_delete_title": "Delete Tenant",
+  "tenants_delete_confirm_prefix": "Permanently delete",
+  "tenants_delete_confirm_suffix": "and all associated users, content, media, and settings? This action cannot be undone."
 }
