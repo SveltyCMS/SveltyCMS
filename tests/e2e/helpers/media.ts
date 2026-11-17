@@ -14,11 +14,52 @@
  */
 
 import sharp from "sharp";
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 import { loginAsAdmin, waitForHydration } from "./auth";
 import { dismissCookieConsent, seedCookieConsent } from "./cookie-consent";
 
 export type MediaRow = { _id: string; filename: string };
+
+/** Cycle the single grid-size button to the requested thumbnail size. */
+export async function setMediaGridSize(
+  page: Page,
+  target: "tiny" | "small" | "medium" | "large",
+): Promise<void> {
+  const toggle = page.getByTestId("media-grid-size-toggle");
+  await expect(toggle).toBeVisible({ timeout: 10_000 });
+  for (let attempt = 0; attempt < 4; attempt++) {
+    if ((await toggle.getAttribute("data-size")) === target) break;
+    await toggle.click();
+  }
+  await expect(toggle).toHaveAttribute("data-size", target);
+}
+
+/** Trigger a grid card action regardless of whether it renders inline (M/L) or in the XS/S menu. */
+export async function openMediaCardAction(
+  card: Locator,
+  page: Page,
+  actionPattern: RegExp,
+  inlineLocator?: Locator,
+): Promise<void> {
+  await card.scrollIntoViewIfNeeded().catch(() => undefined);
+  await card.hover();
+
+  const actions = card.getByTestId("media-grid-actions").first();
+  await expect(actions).toBeVisible({ timeout: 10_000 });
+
+  const menuTrigger = actions.locator('button[aria-haspopup="menu"]').first();
+  if (await menuTrigger.isVisible({ timeout: 400 }).catch(() => false)) {
+    await menuTrigger.click();
+    const menu = page.getByRole("menu");
+    await expect(menu).toBeVisible({ timeout: 10_000 });
+    await menu.getByRole("menuitem", { name: actionPattern }).first().click();
+    return;
+  }
+
+  const target = inlineLocator ?? actions.getByLabel(actionPattern).first();
+  await expect(target).toBeVisible({ timeout: 10_000 });
+  await target.click();
+}
 
 /** The rendered card for a specific filename (one per upload, deterministic). */
 export function mediaCard(page: Page, filename: string) {

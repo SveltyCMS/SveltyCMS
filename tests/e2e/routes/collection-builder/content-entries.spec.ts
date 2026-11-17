@@ -396,8 +396,27 @@ test.describe("Collection entries (edit / delete / search / error boundary)", ()
     page,
   }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
+    // Avoid external network & Playwright extraHTTPHeaders CORS preflight on OpenFreeMap
+    // while still exercising real MapLibre initialization, CSS, and WebWorker bundling.
+    await page.route("https://tiles.openfreemap.org/**", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          version: 8,
+          sources: {},
+          layers: [
+            {
+              id: "background",
+              type: "background",
+              paint: { "background-color": "#e5e7eb" },
+            },
+          ],
+        }),
+      }),
+    );
 
-    const id = `richloc_${Date.now().toString(36)}`;
+    const id = `richloc${Date.now().toString(36)}`;
     const createColl = await page.request.post("/api/testing", {
       headers: TEST_API_HEADERS,
       data: {
@@ -437,16 +456,25 @@ test.describe("Collection entries (edit / delete / search / error boundary)", ()
     await openCollectionEntries(page, id);
 
     // Create an entry with Address data via the real edit UI.
-    await page.getByTestId("entry-list-action-create").click();
+    const createBtn = page
+      .getByTestId("entry-list-action-create")
+      .or(page.getByRole("button", { name: /create new entry|create/i }))
+      .first();
     const titleBox = entryTitleBox(page);
-    await expect(titleBox).toBeVisible({ timeout: 15_000 });
+    await expect(async () => {
+      if (!(await titleBox.isVisible().catch(() => false))) {
+        await createBtn.click({ timeout: 2_000 }).catch(() => undefined);
+      }
+      await expect(titleBox).toBeVisible({ timeout: 3_000 });
+    }).toPass({ timeout: 25_000, intervals: [1_000, 2_000] });
     await titleBox.fill("Museum Card Check");
 
     await page.locator("#street").fill("Churchill Place");
     await page.locator("#city").fill("London");
     await page.locator("#pc").fill("E14 5HP");
 
-    // Address map box must remain bounded rather than growing taller than the viewport.
+    // Address map box must remain bounded rather than growing taller than the viewport,
+    // and MapLibre must mount its WebGL canvas with zero worker errors.
     const mapBox = await page
       .locator(".address-widget div.relative.overflow-hidden")
       .first()
@@ -454,6 +482,9 @@ test.describe("Collection entries (edit / delete / search / error boundary)", ()
     expect(mapBox).not.toBeNull();
     expect(mapBox!.height).toBeGreaterThanOrEqual(200);
     expect(mapBox!.height).toBeLessThanOrEqual(400);
+    await expect(page.locator(".address-widget canvas.maplibregl-canvas").first()).toBeVisible({
+      timeout: 15_000,
+    });
 
     const saveBtn = page.getByRole("button", { name: /save/i }).first();
     const writePromise = expectWriteOk(page, "POST", "create address entry");

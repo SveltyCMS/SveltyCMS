@@ -11,7 +11,9 @@ import { seedMediaWithMetadata } from "../../helpers/api";
 import {
   deleteMediaRow,
   mediaCard,
+  openMediaCardAction,
   openMediaGallery,
+  setMediaGridSize,
   uploadUniqueImage,
 } from "../../helpers/media";
 
@@ -220,14 +222,7 @@ test.describe("Media Gallery", () => {
     try {
       const item = page.locator(`[data-media-id="${mediaId}"]`);
       await expect(item).toBeVisible({ timeout: 20_000 });
-      await item.hover();
-
-      const actions = item.getByTestId("media-grid-actions").first();
-      await expect(actions).toBeVisible({ timeout: 5_000 });
-
-      const deleteBtn = actions.getByLabel(`Delete ${filename}`).first();
-      await expect(deleteBtn).toBeVisible({ timeout: 5_000 });
-      await deleteBtn.click();
+      await openMediaCardAction(item, page, /delete/i);
 
       const dialog = page.locator("dialog[open]").first();
       await expect(dialog).toBeVisible({ timeout: 5_000 });
@@ -322,6 +317,7 @@ test.describe("Media Gallery", () => {
   test("tooltip actions appear on hover", async ({ page }) => {
     const row = await uploadUniqueImage(page, `e2e-tips-${Date.now().toString(36)}.png`);
     try {
+      await setMediaGridSize(page, "medium");
       const item = page.locator(`[data-media-id="${row._id}"]`);
       await expect(item).toBeVisible({ timeout: 20_000 });
       await item.hover();
@@ -343,14 +339,7 @@ test.describe("Media Gallery", () => {
     try {
       const item = page.locator(`[data-media-id="${row._id}"]`);
       await expect(item).toBeVisible({ timeout: 20_000 });
-      await item.hover();
-
-      const actions = item.getByTestId("media-grid-actions").first();
-      await expect(actions).toBeVisible({ timeout: 5_000 });
-
-      const tagBtn = actions.getByLabel(/tags for/i).first();
-      await expect(tagBtn).toBeVisible({ timeout: 3_000 });
-      await tagBtn.click();
+      await openMediaCardAction(item, page, /tags/i);
 
       const modal = page.getByRole("dialog").filter({ hasText: /tag/i }).first();
       await expect(modal).toBeVisible({ timeout: 5_000 });
@@ -367,11 +356,12 @@ test.describe("Media Gallery", () => {
     try {
       const item = page.locator(`[data-media-id="${mediaId}"]`);
       await expect(item).toBeVisible({ timeout: 20_000 });
-      await item.hover();
-
-      const actions = item.getByTestId("media-grid-actions").first();
-      await expect(actions).toBeVisible({ timeout: 5_000 });
-      await actions.getByTestId("media-focal-button").click();
+      await openMediaCardAction(
+        item,
+        page,
+        /focal point/i,
+        item.getByTestId("media-grid-actions").first().getByTestId("media-focal-button"),
+      );
 
       const modal = page
         .getByRole("dialog")
@@ -573,15 +563,7 @@ test.describe("Media Gallery", () => {
     try {
       const item = page.locator(`[data-media-id="${row._id}"]`);
       await expect(item).toBeVisible({ timeout: 20_000 });
-      await item.hover();
-
-      const actions = item.getByTestId("media-grid-actions").first();
-      await expect(actions).toBeVisible({ timeout: 5_000 });
-
-      // Keep the image-editor entry point covered.
-      await expect(actions.getByTestId("media-edit-button")).toBeVisible({ timeout: 3_000 });
-
-      await actions.getByLabel(`Details for ${filename}`).first().click();
+      await openMediaCardAction(item, page, /details/i);
       const modal = page.getByTestId("media-details-modal");
       await expect(modal).toBeVisible({ timeout: 10_000 });
 
@@ -603,13 +585,7 @@ test.describe("Media Gallery", () => {
       await waitForHydration(page);
       const reloadedItem = page.locator(`[data-media-id="${row._id}"]`);
       await expect(reloadedItem).toBeVisible({ timeout: 25_000 });
-      await reloadedItem.hover();
-      await reloadedItem
-        .getByTestId("media-grid-actions")
-        .first()
-        .getByLabel(`Details for ${filename}`)
-        .first()
-        .click();
+      await openMediaCardAction(reloadedItem, page, /details/i);
       await expect(page.getByTestId("media-details-modal")).toContainText(renamed, {
         timeout: 10_000,
       });

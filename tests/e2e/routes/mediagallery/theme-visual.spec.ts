@@ -17,7 +17,12 @@
 
 import { expect, test, type Locator, type Page } from "../../fixtures";
 import AxeBuilder from "@axe-core/playwright";
-import { deleteMediaRow, openMediaGallery, uploadUniqueImage } from "../../helpers/media";
+import {
+  deleteMediaRow,
+  openMediaCardAction,
+  openMediaGallery,
+  uploadUniqueImage,
+} from "../../helpers/media";
 
 type Scheme = "light" | "dark";
 
@@ -317,14 +322,15 @@ async function auditSurface(
 
 async function openEditorFor(page: Page, filename: string) {
   const cell = page.getByRole("gridcell").filter({ hasText: filename }).first();
-  await cell.scrollIntoViewIfNeeded();
-  await cell.hover();
-  const edit = cell
-    .getByTestId("media-edit-button")
-    .or(cell.getByRole("button", { name: /edit/i }))
-    .first();
-  await expect(edit).toBeVisible({ timeout: ACTION_TIMEOUT });
-  await edit.evaluate((btn) => (btn as HTMLButtonElement).click());
+  await openMediaCardAction(
+    cell,
+    page,
+    /^edit$/i,
+    cell
+      .getByTestId("media-edit-button")
+      .or(cell.getByRole("button", { name: /edit/i }))
+      .first(),
+  );
   const dialog = page.getByRole("dialog", { name: /image editor/i });
   await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
   await expect(dialog.getByText("Loading editor..."))

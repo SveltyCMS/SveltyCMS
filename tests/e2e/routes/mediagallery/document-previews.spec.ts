@@ -14,7 +14,12 @@
  */
 
 import { test, expect, type Page } from "../../fixtures";
-import { deleteMediaRow, mediaCard, openMediaGallery } from "../../helpers/media";
+import {
+  deleteMediaRow,
+  mediaCard,
+  openMediaCardAction,
+  openMediaGallery,
+} from "../../helpers/media";
 
 const ACTION_TIMEOUT = 25_000;
 
@@ -73,12 +78,7 @@ async function uploadDocument(
 /** Open the details modal from the grid action tooltip. */
 async function openDetails(page: Page, filename: string): Promise<void> {
   const card = mediaCard(page, filename);
-  await card.scrollIntoViewIfNeeded();
-  await card.hover();
-
-  const actions = card.getByTestId("media-grid-actions").first();
-  await expect(actions).toBeVisible({ timeout: 10_000 });
-  await actions.getByLabel(`Details for ${filename}`).first().click();
+  await openMediaCardAction(card, page, /details/i);
   await expect(page.getByTestId("media-details-modal")).toBeVisible({ timeout: 10_000 });
 }
 

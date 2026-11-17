@@ -8,7 +8,7 @@ import { test, expect, type Page } from "../../fixtures";
 import sharp from "sharp";
 import { loginAsAdmin, waitForHydration } from "../../helpers/auth";
 import { dismissCookieConsent } from "../../helpers/cookie-consent";
-import { deleteMediaRow } from "../../helpers/media";
+import { deleteMediaRow, openMediaCardAction } from "../../helpers/media";
 
 const ACTION_TIMEOUT = 25_000;
 
@@ -75,15 +75,15 @@ function mediaCell(page: Page, filename: string) {
 
 async function openImageEditor(page: Page, filename: string) {
   const cell = mediaCell(page, filename);
-  await cell.scrollIntoViewIfNeeded();
-  await cell.hover();
-
-  const editButton = cell
-    .getByTestId("media-edit-button")
-    .or(cell.getByRole("button", { name: /edit/i }))
-    .first();
-  await expect(editButton).toBeVisible({ timeout: ACTION_TIMEOUT });
-  await editButton.evaluate((btn) => (btn as HTMLButtonElement).click());
+  await openMediaCardAction(
+    cell,
+    page,
+    /^edit$/i,
+    cell
+      .getByTestId("media-edit-button")
+      .or(cell.getByRole("button", { name: /edit/i }))
+      .first(),
+  );
 }
 
 async function waitForEditorReady(page: Page) {

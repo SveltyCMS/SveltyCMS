@@ -159,7 +159,13 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 <div
 	class="flex justify-end"
 	onclick={(e) => e.stopPropagation()}
-	onkeydown={(e) => e.stopPropagation()}
+	onkeydown={(e) => {
+		if (e.key === 'Escape') {
+			open = false;
+			return;
+		}
+		e.stopPropagation();
+	}}
 >
 	<span bind:this={triggerEl} class="inline-flex">
 		<Button

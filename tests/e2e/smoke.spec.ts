@@ -32,7 +32,12 @@ import {
   seedCollectionFixture,
 } from "./helpers/collection-builder-flow";
 import { dismissCookieConsent, seedCookieConsent } from "./helpers/cookie-consent";
-import { deleteMediaRow, openMediaGallery, uploadUniqueImage } from "./helpers/media";
+import {
+  deleteMediaRow,
+  openMediaCardAction,
+  openMediaGallery,
+  uploadUniqueImage,
+} from "./helpers/media";
 
 const ACTION_TIMEOUT = 25_000;
 const API_TIMEOUT = 60_000;
@@ -240,11 +245,7 @@ test.describe("Pre-Push E2E Smoke Gate", () => {
     try {
       const item = page.locator(`[data-media-id="${row._id}"]`);
       await expect(item).toBeVisible({ timeout: ACTION_TIMEOUT });
-      await item.hover();
-
-      const actions = item.getByTestId("media-grid-actions").first();
-      await expect(actions).toBeVisible({ timeout: ACTION_TIMEOUT });
-      await actions.getByLabel(`Details for ${filename}`).first().click();
+      await openMediaCardAction(item, page, /details/i);
 
       const modal = page.getByTestId("media-details-modal");
       await expect(modal).toBeVisible({ timeout: ACTION_TIMEOUT });
@@ -266,13 +267,7 @@ test.describe("Pre-Push E2E Smoke Gate", () => {
       await waitForHydration(page);
       const reloadedItem = page.locator(`[data-media-id="${row._id}"]`);
       await expect(reloadedItem).toBeVisible({ timeout: ACTION_TIMEOUT });
-      await reloadedItem.hover();
-      await reloadedItem
-        .getByTestId("media-grid-actions")
-        .first()
-        .getByLabel(`Details for ${filename}`)
-        .first()
-        .click();
+      await openMediaCardAction(reloadedItem, page, /details/i);
       await expect(page.getByTestId("media-details-modal")).toContainText(renamed, {
         timeout: ACTION_TIMEOUT,
       });

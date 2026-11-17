@@ -14,6 +14,7 @@ import { expect, test, type Page } from "../../fixtures";
 import { loginAsAdmin, waitForHydration } from "../../helpers/auth";
 import { dismissCookieConsent, seedCookieConsent } from "../../helpers/cookie-consent";
 import { seedMediaWithMetadata } from "../../helpers/api";
+import { openMediaCardAction } from "../../helpers/media";
 
 const ACTION_TIMEOUT = 25_000;
 const API_TIMEOUT = 60_000;
@@ -30,12 +31,7 @@ async function openGallery(page: Page): Promise<void> {
 async function openDetails(page: Page, filename: string) {
   const item = page.getByTestId("media-item").filter({ hasText: filename }).first();
   await expect(item).toBeVisible({ timeout: ACTION_TIMEOUT });
-  await item.hover();
-  await item
-    .getByTestId("media-grid-actions")
-    .getByLabel(`Details for ${filename}`)
-    .first()
-    .click({ timeout: ACTION_TIMEOUT });
+  await openMediaCardAction(item, page, /details/i);
 
   const modal = page.getByTestId("media-details-modal");
   await expect(modal).toBeVisible({ timeout: ACTION_TIMEOUT });

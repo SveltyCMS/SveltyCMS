@@ -13,7 +13,12 @@
 import { test, expect } from "../../fixtures";
 import { waitForHydration } from "../../helpers/auth";
 import { seedMediaWithMetadata } from "../../helpers/api";
-import { deleteMediaRow, mediaCard, openMediaGallery } from "../../helpers/media";
+import {
+  deleteMediaRow,
+  mediaCard,
+  openMediaCardAction,
+  openMediaGallery,
+} from "../../helpers/media";
 
 test.describe("Media Gallery audit coverage", () => {
   test.beforeEach(async ({ page }) => {
@@ -133,11 +138,7 @@ test.describe("Media Gallery audit coverage", () => {
 
       const item = page.locator(`[data-media-id="${target._id}"]`);
       await expect(item).toBeVisible({ timeout: 25_000 });
-      await item.hover();
-
-      const actions = item.getByTestId("media-grid-actions").first();
-      await expect(actions).toBeVisible({ timeout: 5_000 });
-      await actions.getByLabel(`Delete ${target.filename}`).first().click();
+      await openMediaCardAction(item, page, /delete/i);
 
       const dialog = page.locator("dialog[open]").first();
       await expect(dialog).toBeVisible({ timeout: 5_000 });

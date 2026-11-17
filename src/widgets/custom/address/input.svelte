@@ -307,11 +307,18 @@ Part of the Three Pillars Architecture for the widget system.
 		try {
 			if (!mapElement || isDestroyed?.()) return;
 
-			// Load bundled stylesheet before MapLibre measures the container, avoiding
-			// COEP/CDN delays and unstyled canvas/control flow expansion.
-			await import('maplibre-gl/dist/maplibre-gl.css');
-			const maplibregl = await import('maplibre-gl');
+			// Load bundled stylesheet + worker URL before MapLibre initializes so
+			// Vite/SvelteKit chunks resolve the worker without 404s or COEP blocks.
+			const [maplibregl, workerMod] = await Promise.all([
+				import('maplibre-gl'),
+				import('maplibre-gl/dist/maplibre-gl-worker.mjs?url'),
+				import('maplibre-gl/dist/maplibre-gl.css')
+			]);
 			if (!mapElement || isDestroyed?.()) return;
+
+			if (workerMod?.default && typeof maplibregl.setWorkerUrl === 'function') {
+				maplibregl.setWorkerUrl(workerMod.default);
+			}
 
 			const center: [number, number] = [
 				safeValue?.longitude || (field.mapCenter as any)?.lng || 10.4515,
@@ -328,6 +335,9 @@ Part of the Three Pillars Architecture for the widget system.
 
 			instance.addControl(new maplibregl.NavigationControl(), 'top-right');
 			instance.once('load', () => instance.resize());
+			instance.on('error', (evt) => {
+				logger.warn('MapLibre map error', evt?.error?.message ?? 'unknown');
+			});
 
 			marker = new maplibregl.Marker({ draggable: true }).setLngLat(center).addTo(instance);
 
