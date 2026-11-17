@@ -76,11 +76,13 @@ import {
   isAdminCaller,
   sanitizeClientUserAttributePatch,
 } from "@utils/security/user-attribute-policy";
+import { sanitizeUserForClient } from "@src/databases/auth/session-user";
 import { logger } from "@utils/logger";
 import { generateSecureToken } from "@utils/native-utils";
 import {
   REAUTH_TOKEN_TTL_MS,
   signReauthToken,
+  signUserReauthToken,
   verifyReauthToken,
 } from "@utils/server/session-reauth.server";
 import { RateLimiter } from "@src/hooks/handle-rate-limit";
@@ -108,16 +110,9 @@ const apiLoginLimiter = new RateLimiter({
   IPUA: [15, "m"],
 });
 
-/** Strip sensitive fields from user object before sending to client. */
+/** Strip all credential material and lockout fields before sending a user to the client. */
 function sanitizeUserForResponse(user: any) {
-  if (!user) return user;
-  const {
-    password: _password,
-    failedAttempts: _failedAttempts,
-    lockoutUntil: _lockoutUntil,
-    ...safe
-  } = user;
-  return safe;
+  return sanitizeUserForClient(user);
 }
 
 interface CookieConfig {
@@ -1325,8 +1320,12 @@ async function handleSessionReauth(
     typeof tenantId === "string" ? tenantId : null,
   );
   const userId = String(user._id ?? user.id ?? "");
+  const exp = Date.now() + REAUTH_TOKEN_TTL_MS;
   return successResponse(event, {
-    token: signReauthToken(userId, sessionId, Date.now() + REAUTH_TOKEN_TTL_MS),
+    token: signReauthToken(userId, sessionId, exp),
+    // Surface adoption rotates the session id; clients that keep the old cookie
+    // can still present the user-bound proof for credential changes.
+    userToken: signUserReauthToken(userId, exp),
     expiresIn: REAUTH_TOKEN_TTL_MS / 1000,
   });
 }
@@ -1806,6 +1805,9 @@ export async function handleUserSpecificRoutes(
         "INVALID_BATCH_SIZE",
       );
     }
+    const { assertNonAdminTargetsForCaller } =
+      await import("@utils/server/user-attribute-update.server");
+    await assertNonAdminTargetsForCaller(cms, ids, tenantId, caller);
     const result = await cms.auth.batchAction(ids, body.action, { tenantId });
     if (!result.success) {
       throw new AppError(result.message || "Batch action failed", 400, "BATCH_FAILED");
@@ -1821,37 +1823,21 @@ export async function handleUserSpecificRoutes(
     switch (request.method) {
       case "GET": {
         const targetUser = await cms.auth.getUserById(userId, { tenantId });
-        return successResponse(event, targetUser);
+        return successResponse(event, sanitizeUserForClient(targetUser));
       }
       case "PATCH":
       case "PUT": {
-        // 🛡️ Same privilege boundary as update-user-attributes (self-promote via /user/:id was a bypass)
-        if (!caller?._id) throw new AppError("Unauthorized", 401);
-        const isAdmin = isAdminCaller(caller);
-        const isSelf = String(userId) === String(caller._id);
-        const roles = (event.locals.roles ?? []) as Parameters<typeof hasPermissionWithRoles>[2];
-        const canManageUsers =
-          isAdmin || hasPermissionWithRoles(caller as User, "user:write", roles);
-        if (!isSelf && !canManageUsers) {
-          throw new AppError("Forbidden: cannot update another user", 403);
-        }
+        // Unified with POST /api/user/update-user-attributes: enforces reauth on
+        // self credential changes, blocks non-admin cross-user credential resets
+        // and admin-target modifications, invalidates caches, and strips secrets.
         const raw = (await request.json()) as Record<string, unknown>;
-        if (hasPrivilegedUserFields(raw) && !isAdmin) {
-          logger.warn(
-            `[Auth] Stripped privileged fields from PUT/PATCH /user/${userId} (user=${caller._id})`,
-          );
-        }
-        const data = sanitizeClientUserAttributePatch(raw, { isAdmin });
-        if (Object.keys(data).length === 0) {
-          throw new AppError("At least one user attribute is required", 400);
-        }
-        return successResponse(
-          event,
-          await cms.auth.updateUserAttributes(userId, data, {
-            tenantId,
-            ...(isAdmin ? { allowPrivilegeEscalation: true } : {}),
-          }),
-        );
+        const { applyUserAttributeUpdate } =
+          await import("@utils/server/user-attribute-update.server");
+        const updated = await applyUserAttributeUpdate(event, cms, tenantId, {
+          ...raw,
+          user_id: userId,
+        });
+        return successResponse(event, updated);
       }
       default:
         throw notAllowed();

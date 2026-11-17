@@ -91,7 +91,7 @@ function stripScriptBlocks(str: string): string {
   return output;
 }
 
-function sanitizeCss(css: string): string {
+export function sanitizeCss(css: string): string {
   let cleaned = css;
   let prev: string;
   // Complete multi-character token removal via fixpoint loop

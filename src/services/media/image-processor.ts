@@ -213,7 +213,7 @@ export async function processImage(
 
   const meta = await sharp(buffer, {
     limitInputPixels: MAX_INPUT_PIXELS,
-    failOn: "none",
+    failOn: "warning",
   }).metadata();
   const originalWidth = meta.width ?? 0;
   const originalHeight = meta.height ?? 0;
@@ -330,7 +330,7 @@ export async function processImageWithPresets(
   const sharp = await getSharp();
   const meta = await sharp(buffer, {
     limitInputPixels: MAX_INPUT_PIXELS,
-    failOn: "none",
+    failOn: "warning",
   }).metadata();
   const originalWidth = meta.width ?? 0;
   const originalHeight = meta.height ?? 0;
@@ -413,7 +413,7 @@ async function generateVariant(
 
   // Build the sharp pipeline
   const pipeline = applyEncoder(
-    sharp(buffer, { limitInputPixels: MAX_INPUT_PIXELS, failOn: "none" })
+    sharp(buffer, { limitInputPixels: MAX_INPUT_PIXELS, failOn: "warning" })
       // Auto-fix orientation from EXIF
       .rotate()
       // Resize preserving aspect ratio, capped at MAX_OUTPUT_DIMENSION
@@ -660,7 +660,7 @@ export function isAnimatedRaster(head: Buffer, mime: string): boolean {
 export async function renderTransformVariant(source: Buffer, plan: TransformPlan): Promise<Buffer> {
   const sharp = await getSharp();
   const pipeline: SharpPipeline = applyEncoder(
-    sharp(source, { limitInputPixels: MAX_INPUT_PIXELS, failOn: "none" })
+    sharp(source, { limitInputPixels: MAX_INPUT_PIXELS, failOn: "warning" })
       .rotate()
       .resize(plan.width || null, plan.height || null, {
         fit: "inside",

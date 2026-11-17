@@ -52,11 +52,13 @@ export async function handleSetupRoutes(
     // After setup: block all unauthenticated setup mutations. Recovery
     // "reinitialize" requires a real admin session (not the synthetic turbo user).
     const { isSetupCompleteAsync } = await import("@src/utils/server/setup-check");
+    const { constantTimeCompare } = await import("@utils/test-bypass.server");
     const testSecret = process.env.TEST_API_SECRET;
+    const suppliedTestSecret = request.headers.get("x-test-secret") ?? "";
     const isTestReq =
       Boolean(testSecret) &&
       (process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true") &&
-      request.headers.get("x-test-secret") === testSecret;
+      constantTimeCompare(suppliedTestSecret, testSecret ?? "");
     const setupDone = await isSetupCompleteAsync();
     const caller = event.locals.user;
     const isRealAdmin =

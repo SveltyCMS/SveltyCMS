@@ -41,6 +41,16 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
     maxAge: 60 * 60,
   });
 
+  // Store the HMAC-signed token so subsequent intra-frame navigations verify
+  // cryptographic proof rather than trusting the unsigned cms_draft_mode flag.
+  cookies.set("cms_preview_token", previewToken, {
+    path: "/",
+    httpOnly: true,
+    sameSite: isSecure ? "none" : "lax",
+    secure: isSecure,
+    maxAge: 60 * 60,
+  });
+
   // 🛡️ Only allow relative paths — block protocol-relative (//evil.com) and
   // absolute URLs so a crafted slug cannot turn this into an open redirect.
   if (

@@ -30,7 +30,10 @@ import {
 } from "@src/utils/hook-utils";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { hasPermissionWithRoles, isMfaRequiredForUser } from "@src/databases/auth/permissions";
-import { getPermissionBit, hasPermissionBitmask } from "@src/databases/auth/permission-bitmask";
+import {
+  getStaticPermissionBit,
+  hasPermissionBitmask,
+} from "@src/databases/auth/permission-bitmask";
 import {
   AUTHENTICATED_ENDPOINT_PERMISSION,
   resolvePermissionId,
@@ -211,20 +214,26 @@ export function _checkEndpointPermission(
   // Check if endpoint is an exempt auth/2FA/logout path
   const action = segments[1];
   const isExemptAuthPath =
-    (namespace === "auth" || namespace === "user") &&
-    (!action ||
-      action === "me" ||
-      action === "login" ||
-      action === "logout" ||
-      action === "oidc-logout" ||
-      action === "oidc-login" ||
-      action === "oidc-callback" ||
-      action === "sso-providers" ||
-      action === "frontchannel-logout" ||
-      action === "backchannel-logout" ||
-      action === "saml" ||
-      action === "2fa" ||
-      action.startsWith("2fa"));
+    (namespace === "auth" &&
+      ((!action && method === "GET") ||
+        action === "me" ||
+        action === "login" ||
+        action === "logout" ||
+        action === "oidc-logout" ||
+        action === "oidc-login" ||
+        action === "oidc-callback" ||
+        action === "sso-providers" ||
+        action === "frontchannel-logout" ||
+        action === "backchannel-logout" ||
+        action === "saml" ||
+        action === "2fa" ||
+        action?.startsWith("2fa"))) ||
+    (namespace === "user" &&
+      (action === "me" ||
+        action === "login" ||
+        action === "logout" ||
+        action === "2fa" ||
+        action?.startsWith("2fa")));
 
   // 🛡️ ROLE-BASED MFA ENFORCEMENT (P0):
   // If the user's role mandates MFA, verify that the session carries interactive MFA in AMR.
@@ -357,8 +366,9 @@ export function _checkEndpointPermission(
   // source the mask was derived from — which still denies a user with no grants.
   if (permMask !== undefined && permMask !== 0n) {
     const reqBit = dashboardAccess
-      ? getPermissionBit(DASHBOARD_READ_PERMISSION) | getPermissionBit(SYSTEM_DASHBOARD_PERMISSION)
-      : getPermissionBit(requiredPermission);
+      ? getStaticPermissionBit(DASHBOARD_READ_PERMISSION) |
+        getStaticPermissionBit(SYSTEM_DASHBOARD_PERMISSION)
+      : getStaticPermissionBit(requiredPermission);
     if (reqBit !== 0n) {
       return hasPermissionBitmask(permMask, reqBit);
     }

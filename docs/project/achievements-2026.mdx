@@ -932,6 +932,7 @@ Selected 2025–2026 engineering milestones. Metrics are self-measured unless no
 - **DB parity**: MongoDB, MariaDB, PostgreSQL, SQLite as production adapters.
 
 - **Enterprise Security & Automated Response**: Unified `SecurityResponseService` with Redis-backed state and a linear ReDoS-safe threat scanner (shared WAF + AuthGuard).
+- **Auth, Preview, Media & Pentest Hardening (November 2026)**: Closed privilege escalation and credential disclosure vectors across `PUT`/`PATCH /api/user/:id`, `/api/user/batch`, `deleteUser`, `POST /api/export { type: "users" }`, `GET /api/settings/export`, `/api/trash`, `POST /api/api-keys`, `POST /api/theme/update-theme`, WASM egress checks, and `(site)` draft preview cookies (`cms_preview_token`). Hardened media Sharp pipelines (`failOn: "warning"`, pixel caps, `Content-Disposition` sanitization, cloud gate ordering), added responsive dashboard grid clamping and container-query resizing, and shipped `tests/unit/security/pentest-invariants.test.ts` (`T1–T16`) alongside `scripts/security/pentest.ts`. See [Tested Security Features](../reference/security/tested-security-features.mdx).
 - **CI Pipeline Restoration**: Playwright E2E suite stabilized across all supported databases.
 - **Active Database Driver Validation**: Eliminated "lazy connection" false positives in setup via mandatory `SELECT 1` pings.
 - **GraphQL JIT Execution Engine**: Multi-fold increase in RPS via `@envelop/graphql-jit`.

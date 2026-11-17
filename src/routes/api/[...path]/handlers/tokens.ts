@@ -351,10 +351,13 @@ function scrubApiKey(key: any) {
  */
 export async function handleApiKeyRoutes(
   event: RequestEvent,
-  tenantId: DatabaseId,
-  segments: string[],
+  cmsOrTenantId: LocalCMS | DatabaseId,
+  tenantIdOrSegments: DatabaseId | string[],
+  maybeSegments?: string[],
 ) {
   const { request, locals, url } = event;
+  const tenantId = (maybeSegments !== undefined ? tenantIdOrSegments : cmsOrTenantId) as DatabaseId;
+  const segments = (maybeSegments !== undefined ? maybeSegments : tenantIdOrSegments) as string[];
   const keyId = segments[1];
 
   const { auth, getDbInitPromise } = await loadDbModule();
@@ -411,8 +414,10 @@ export async function handleApiKeyRoutes(
   }
 
   if (request.method === "POST" && !keyId) {
-    if (!userIsAdmin && !locals.user._id) {
-      raise(403, "Forbidden", "FORBIDDEN");
+    // Defense-in-depth: API keys grant bearer permissions and may specify userId;
+    // keep creation strictly admin-only (matches API_PERMISSIONS "api:api-keys": ["admin"]).
+    if (!userIsAdmin) {
+      raise(403, "Admin privileges required to manage API keys", "FORBIDDEN");
     }
 
     const body = await validateRequestBody(event, schema);

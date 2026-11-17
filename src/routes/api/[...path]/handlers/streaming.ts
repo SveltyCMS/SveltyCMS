@@ -12,6 +12,7 @@
  */
 
 import { logger } from "@utils/logger";
+import { safeContentDispositionFilename } from "@utils/security/constants";
 import { redactSecretsDeep } from "@utils/security/stream-redaction";
 import {
   csvRowFromRecord,
@@ -269,7 +270,7 @@ export function streamingExportResponse(
   return new Response(stream, {
     headers: {
       "Content-Type": exportContentType(format),
-      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Content-Disposition": `attachment; filename="${safeContentDispositionFilename(filename)}"`,
       "Transfer-Encoding": "chunked",
       "X-Content-Type-Options": "nosniff",
       "Cache-Control": "no-store",

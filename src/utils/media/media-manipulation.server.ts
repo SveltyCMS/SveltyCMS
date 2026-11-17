@@ -214,7 +214,7 @@ export async function executeMediaManipulation(
   const originalBuffer = await getFile(existing.path);
   const meta = await sharp(originalBuffer, {
     limitInputPixels: MAX_INPUT_PIXELS,
-    failOn: "none",
+    failOn: "warning",
   }).metadata();
   const imgW = meta.width ?? 1;
   const imgH = meta.height ?? 1;
@@ -262,7 +262,7 @@ export async function executeMediaManipulation(
   if (cropRect) {
     let cropped = sharp(originalBuffer, {
       limitInputPixels: MAX_INPUT_PIXELS,
-      failOn: "none",
+      failOn: "warning",
     }).extract({
       left: cropRect.x,
       top: cropRect.y,
@@ -285,7 +285,7 @@ export async function executeMediaManipulation(
 
   let pipeline = sharp(preparedBuffer, {
     limitInputPixels: MAX_INPUT_PIXELS,
-    failOn: "none",
+    failOn: "warning",
   });
   if (flipH) pipeline = pipeline.flop();
   if (flipV) pipeline = pipeline.flip();
@@ -420,7 +420,10 @@ export async function executeMediaManipulation(
       const compositeLeft = Math.max(0, rx - cropX);
       const compositeTop = Math.max(0, ry - cropY);
       if (compositeLeft >= workW || compositeTop >= workH) continue;
-      const blurBuf = await sharp(originalBuffer)
+      const blurBuf = await sharp(originalBuffer, {
+        limitInputPixels: MAX_INPUT_PIXELS,
+        failOn: "warning",
+      })
         .extract({ left: rx, top: ry, width: rw, height: rh })
         .blur(Math.max(0.3, (region.strength ?? 20) * 0.5))
         .toBuffer();
@@ -472,7 +475,7 @@ export async function executeMediaManipulation(
           if (wmW > 0 && wmH > 0) {
             const wmBuf = await sharp(Buffer.from(wm.imageUrl.split(",")[1] ?? "", "base64"), {
               limitInputPixels: MAX_INPUT_PIXELS,
-              failOn: "none",
+              failOn: "warning",
             })
               .resize(wmW, wmH, { fit: "contain" })
               .ensureAlpha()
@@ -497,18 +500,21 @@ export async function executeMediaManipulation(
         const stroke = guardAttr(a.stroke ?? "#ff0000", SAFE_COLOR, "#ff0000");
         const fill = a.fill === "none" ? "none" : guardAttr(a.fill ?? "none", SAFE_COLOR, "none");
         const sw = guardNumeric(a.strokeWidth ?? 2, 2);
-        const ax = (a.x ?? 0) - cropX;
-        const ay = (a.y ?? 0) - cropY;
+        const ax = guardNumeric((a.x ?? 0) - cropX, 0);
+        const ay = guardNumeric((a.y ?? 0) - cropY, 0);
+        const aw = guardNumeric(a.width ?? 50, 50);
+        const ah = guardNumeric(a.height ?? 50, 50);
+        const ar = guardNumeric(a.radius ?? 25, 25);
         switch (a.type) {
           case "rect":
-            return `<rect x="${ax}" y="${ay}" width="${a.width ?? 50}" height="${a.height ?? 50}" stroke="${stroke}" fill="${fill}" stroke-width="${sw}"/>`;
+            return `<rect x="${ax}" y="${ay}" width="${aw}" height="${ah}" stroke="${stroke}" fill="${fill}" stroke-width="${sw}"/>`;
           case "circle":
-            return `<circle cx="${ax}" cy="${ay}" r="${a.radius ?? 25}" stroke="${stroke}" fill="${fill}" stroke-width="${sw}"/>`;
+            return `<circle cx="${ax}" cy="${ay}" r="${ar}" stroke="${stroke}" fill="${fill}" stroke-width="${sw}"/>`;
           case "text":
             return `<text x="${ax}" y="${ay}" font-size="${guardNumeric(a.fontSize ?? 20, 20)}" fill="${stroke}" font-family="sans-serif">${escXml(String(a.text ?? ""))}</text>`;
           case "arrow":
           case "line":
-            return `<line x1="${ax}" y1="${ay}" x2="${ax + (a.width ?? 50)}" y2="${ay + (a.height ?? 0)}" stroke="${stroke}" stroke-width="${sw}"/>`;
+            return `<line x1="${ax}" y1="${ay}" x2="${guardNumeric(ax + (a.width ?? 50), ax + 50)}" y2="${guardNumeric(ay + (a.height ?? 0), ay)}" stroke="${stroke}" stroke-width="${sw}"/>`;
           default:
             return "";
         }
@@ -547,7 +553,7 @@ export async function executeMediaManipulation(
         : Math.min(Math.max(Math.round(value), 32), MAX_OUTPUT_DIMENSION);
     const resized = sharp(outputBuffer, {
       limitInputPixels: MAX_INPUT_PIXELS,
-      failOn: "none",
+      failOn: "warning",
     }).resize({
       width: clampDimension(requestedResize.width),
       height: clampDimension(requestedResize.height),
@@ -555,7 +561,9 @@ export async function executeMediaManipulation(
       withoutEnlargement: true,
     });
     outputBuffer = await encodeManipulatedOutput(resized, ext, isCircle);
-    const resizedMeta = await sharp(outputBuffer).metadata();
+    const resizedMeta = await sharp(outputBuffer, {
+      limitInputPixels: MAX_INPUT_PIXELS,
+    }).metadata();
     outputW = resizedMeta.width ?? outputW;
     outputH = resizedMeta.height ?? outputH;
     logger.debug(`[manipulateMedia] Explicit resize → ${outputW}x${outputH}`);
@@ -565,7 +573,7 @@ export async function executeMediaManipulation(
   if (capped.width !== outputW || capped.height !== outputH) {
     const downscaled = sharp(encoded, {
       limitInputPixels: MAX_INPUT_PIXELS,
-      failOn: "none",
+      failOn: "warning",
     }).resize({
       width: capped.width,
       height: capped.height,

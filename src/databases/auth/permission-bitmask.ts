@@ -45,11 +45,8 @@ export const EMPTY_PERM_MASK: bigint = 0n;
  */
 export const FIELD_PERMISSION_OVERFLOW_BIT: bigint = 1n << 63n;
 
-// Dynamic permission bit registry (for dynamically registered permissions).
-// Allocate after the highest statically assigned catalog bit (bits 45..62 today)
-// so a dynamic id can never collide with `ai:use`/`ai:admin` or any future bit.
-const _dynamicPermBits = new Map<string, bigint>();
-let _nextDynamicBit = (() => {
+/** Bitmask of all statically assigned catalog bits (0..(highestStaticBit - 1)). */
+const _highestStaticBit = (() => {
   let next = 0n;
   for (const permission of PERMISSION_CATALOG) {
     if (permission.bitIndex !== undefined && BigInt(permission.bitIndex) >= next) {
@@ -59,14 +56,40 @@ let _nextDynamicBit = (() => {
   return next;
 })();
 
+export const STATIC_PERM_BITS_MASK: bigint = (1n << _highestStaticBit) - 1n;
+
+// Dynamic permission bit registry (for dynamically registered permissions).
+// Allocate after the highest statically assigned catalog bit (bits 45..62 today)
+// so a dynamic id can never collide with `ai:use`/`ai:admin` or any future bit.
+const _dynamicPermBits = new Map<string, bigint>();
+let _nextDynamicBit = _highestStaticBit;
+
+/**
+ * Returns the fixed catalog 64-bit mask for a permission ID, or `0n` if the
+ * permission is dynamic/unmapped. Safe for cross-node session masks.
+ */
+export function getStaticPermissionBit(permissionId: string): bigint {
+  return PERMISSION_BITS[permissionId] ?? PERMISSION_BITS[resolvePermissionId(permissionId)] ?? 0n;
+}
+
+/**
+ * Strip process-local dynamic permission bits (45..62) before persisting a
+ * session `permMask` into shared storage (Redis/cluster), preventing bit
+ * collisions across workers or restarts. Static bits (0..44) and `ADMIN_PERM_MASK`
+ * are preserved verbatim.
+ */
+export function toPersistablePermMask(mask: bigint): bigint {
+  if (mask === ADMIN_PERM_MASK) return ADMIN_PERM_MASK;
+  return mask & STATIC_PERM_BITS_MASK;
+}
+
 /**
  * Returns the 64-bit BigInt mask for a permission ID.
  * Returns 0n if the permission is unmapped or field-specific.
  */
 export function getPermissionBit(permissionId: string): bigint {
-  const staticBit =
-    PERMISSION_BITS[permissionId] ?? PERMISSION_BITS[resolvePermissionId(permissionId)];
-  if (staticBit !== undefined) return staticBit;
+  const staticBit = getStaticPermissionBit(permissionId);
+  if (staticBit !== 0n) return staticBit;
 
   const dynamicBit = _dynamicPermBits.get(permissionId);
   if (dynamicBit !== undefined) return dynamicBit;

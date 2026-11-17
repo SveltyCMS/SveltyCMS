@@ -267,7 +267,7 @@ export async function saveResized(
   preDecodedMeta?: { width?: number; height?: number; hasAlpha?: boolean },
 ): Promise<Record<string, ResizedImage>> {
   const sharp = await getSharp();
-  const baseInstance = sharp(buffer, { limitInputPixels: MAX_INPUT_PIXELS, failOn: "none" });
+  const baseInstance = sharp(buffer, { limitInputPixels: MAX_INPUT_PIXELS, failOn: "warning" });
   const meta = preDecodedMeta ?? (await baseInstance.metadata());
 
   const formatConfig = getPublicSettingSync("MEDIA_OUTPUT_FORMAT_QUALITY") as
@@ -398,7 +398,7 @@ export async function saveAvatar(file: File, userId: string): Promise<string> {
 
   const buf = Buffer.from(await file.arrayBuffer());
   const sharp = await getSharp();
-  const resized = await sharp(buf, { limitInputPixels: MAX_INPUT_PIXELS, failOn: "none" })
+  const resized = await sharp(buf, { limitInputPixels: MAX_INPUT_PIXELS, failOn: "warning" })
     .resize(200, 200, { fit: "cover", position: "center" })
     .toBuffer();
 

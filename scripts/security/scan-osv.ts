@@ -203,6 +203,11 @@ const KNOWN_EXEMPTIONS: Record<string, string[]> = {
   // Transitive dependency of @sveltejs/vite-plugin-svelte (build-time Vite plugin only, not runtime code).
   // No patched version released on npm yet.
   "pkg:npm/deepmerge@4.3.1": ["GHSA-gcqx-w48m-w2h4"],
+
+  // picomatch <= 4.0.7: ReDoS in repeated extglob (CVE-2026-112366 / GHSA-fc5q-39xc-vjpf).
+  // Transitive dev-dependency of Vite, Vitest, lint-staged, tinyglobby (build/test tooling only, not runtime code).
+  // No patched version released on npm yet.
+  "pkg:npm/picomatch@4.0.7": ["GHSA-fc5q-39xc-vjpf"],
 };
 
 async function main() {

@@ -19,6 +19,7 @@ import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { successResponse, rawResponse } from "./base";
 import { collectionTableName } from "@src/databases/core/collection-name";
+import { isAdminCaller } from "@utils/security/user-attribute-policy";
 import { toTrashItem } from "@utils/trash-item";
 import { nowISODateString } from "@utils/date";
 
@@ -280,10 +281,10 @@ async function handleOpenApiSpec(event: RequestEvent, tenantId: DatabaseId, url:
   const l1Cached = (service as any).l1Cache?.get(l1Key);
   const bodyStr = l1Cached?.specString || JSON.stringify(specObj);
 
-  // Seed dispatcher L1 cache for future hits
+  // Seed dispatcher L1 cache under an admin-scoped key (never bare pathname+search)
   const cache = await getCacheService();
   if (cache?.set) {
-    await cache.set(url.pathname + url.search, bodyStr, 300, tenantId as string);
+    await cache.set(`openapi:admin:${url.pathname}${url.search}`, bodyStr, 300, tenantId as string);
   }
 
   return new Response(bodyStr, {
@@ -381,7 +382,15 @@ async function handleTrashRoutes(
   tenantId: DatabaseId,
   method: string | undefined,
 ) {
-  const { url, request } = event;
+  const { url, request, locals } = event;
+  // Parity with /config/trash SSR: cross-collection trash reads and restores are admin-only
+  // so a collection:read/write role cannot enumerate or restore restricted collections.
+  if (!locals.user) {
+    raise(401, "Unauthorized", "UNAUTHORIZED");
+  }
+  if (!(locals.isAdmin === true || isAdminCaller(locals.user))) {
+    raise(403, "Admin privileges required for trash management", "FORBIDDEN");
+  }
 
   // List deleted items across all collections
   if (request.method === "GET") {

@@ -290,6 +290,18 @@ function isBlockedIP(ip: string, allowPrivate: boolean): boolean {
 }
 
 /**
+ * Synchronous hostname/IP SSRF gate for runtimes (such as WASM host ABI calls)
+ * that cannot perform async DNS resolution inside a synchronous trap.
+ */
+export function isBlockedEgressHost(rawHostname: string): boolean {
+  const hostname = rawHostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (!hostname) return true;
+  if (ALWAYS_BLOCKED_HOSTS.has(hostname) || BLOCKED_HOSTS.has(hostname)) return true;
+  if (hostname.endsWith(".local") || hostname.endsWith(".internal")) return true;
+  return isBlockedIP(hostname, false);
+}
+
+/**
  * Validates a URL for outbound requests, proactively resolving DNS to block
  * SSRF and DNS Rebinding attacks.
  */

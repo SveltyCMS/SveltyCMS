@@ -32,3 +32,29 @@ export const BASE_HEADERS: Record<string, string> = {
   "X-DNS-Prefetch-Control": "off",
   "X-Permitted-Cross-Domain-Policies": "none",
 };
+
+/**
+ * Sanitize a filename before interpolating it into a quoted `Content-Disposition`
+ * header (`attachment; filename="..."`), stripping CR/LF, quotes, backslashes,
+ * and path separators so a crafted filename cannot inject headers or break out
+ * of quotes.
+ */
+export function safeContentDispositionFilename(
+  rawFilename: unknown,
+  fallback = "download",
+): string {
+  const str = typeof rawFilename === "string" ? rawFilename : "";
+  const base = str.split(/[/\\]/).pop() ?? "";
+  let cleaned = "";
+  for (let i = 0; i < base.length && cleaned.length < 200; i++) {
+    const ch = base[i];
+    const code = ch.charCodeAt(0);
+    if (code <= 0x1f || code === 0x7f || ch === '"' || ch === "\\" || ch === ";") {
+      cleaned += "_";
+    } else {
+      cleaned += ch;
+    }
+  }
+  cleaned = cleaned.trim();
+  return cleaned.length > 0 ? cleaned : fallback;
+}

@@ -4,6 +4,7 @@
  */
 
 import { AppError } from "@utils/error-handling";
+import { safeContentDispositionFilename } from "@utils/security/constants";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
@@ -52,7 +53,7 @@ export async function handleLogsRoutes(
       status: 200,
       headers: {
         "Content-Type": exported.contentType,
-        "Content-Disposition": `attachment; filename="${exported.filename}"`,
+        "Content-Disposition": `attachment; filename="${safeContentDispositionFilename(exported.filename)}"`,
         "Cache-Control": "no-store",
         "X-Content-Type-Options": "nosniff",
       },

@@ -887,7 +887,7 @@ export class CollectionsNamespace {
     entryId: string,
     options: LocalApiOptions & { limit?: number; page?: number } = {},
   ) {
-    const { tenantId, limit, page } = options;
+    const { tenantId, user, limit, page } = options;
     const { HistoryService } = await getHistoryServiceLazy();
     const result = await HistoryService.getRevisions({
       collectionId,
@@ -907,18 +907,27 @@ export class CollectionsNamespace {
         typeof reconstructRevisionSnapshot
       >[0];
       const scope = tenantId ? { tenantId: tenantId as DatabaseId } : undefined;
+      const cs = await getContentSystem();
+      const schema = await cs.getCollection(collectionId, tenantId);
+      const schemaFields = (schema?.fields ?? []) as unknown as readonly FieldInstance[];
       const expanded = await Promise.all(
         rows.map(async (item) => {
           const row = item as Record<string, unknown>;
           const version = Number(row.version);
-          if (!Number.isInteger(version) || version < 1) return item;
+          if (!Number.isInteger(version) || version < 1) {
+            return user && row.data && typeof row.data === "object"
+              ? { ...row, data: redactRecord(row.data, schemaFields, user) }
+              : item;
+          }
           const snapshot = await reconstructRevisionSnapshot(
             store,
             entryId as DatabaseId,
             version,
             scope,
           );
-          return snapshot ? { ...row, data: snapshot } : item;
+          if (!snapshot) return item;
+          const redacted = user ? redactRecord(snapshot, schemaFields, user) : snapshot;
+          return { ...row, data: redacted };
         }),
       );
       (result as { data: { items: unknown[] } }).data.items = expanded;

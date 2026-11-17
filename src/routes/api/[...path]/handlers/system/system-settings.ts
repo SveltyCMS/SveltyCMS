@@ -3,14 +3,48 @@
  * @description System settings read/write routes for the system dispatcher.
  */
 
-import { AppError } from "@utils/error-handling";
+import { AppError, raise } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { rawResponse, successResponse } from "../base";
 import { requireAdminUser } from "./system-shared";
 import { settingsGroups } from "@src/services/system/settings-groups.server";
+import { getPrivateSettingSync } from "@src/services/core/settings-service";
+import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
+import type { User } from "@src/databases/auth/types";
 import { handleWebhookRoutes } from "./system-webhooks";
+
+const SECRET_KEY_RE =
+  /(secret|password|passwd|token|api[_-]?key|private[_-]?key|credential|refresh|jwt|encryption)/i;
+
+/** Strip sensitive credential values from exported settings payloads. */
+function redactExportedSettings(payload: unknown): unknown {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return payload;
+  const rec = payload as Record<string, unknown>;
+  const clean: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(rec)) {
+    if (k === "private" && v && typeof v === "object" && !Array.isArray(v)) {
+      const redactedPriv: Record<string, unknown> = {};
+      for (const [pk, pv] of Object.entries(v as Record<string, unknown>)) {
+        if (SECRET_KEY_RE.test(pk)) {
+          redactedPriv[pk] = pv ? "[REDACTED]" : "";
+        } else {
+          redactedPriv[pk] = pv;
+        }
+      }
+      clean[k] = redactedPriv;
+    } else if (SECRET_KEY_RE.test(k)) {
+      // Drop plain-text secret fields from exported groups
+      continue;
+    } else if (v && typeof v === "object" && !Array.isArray(v)) {
+      clean[k] = redactExportedSettings(v);
+    } else {
+      clean[k] = v;
+    }
+  }
+  return clean;
+}
 
 /**
  * --- SETTINGS ---
@@ -51,10 +85,26 @@ export async function handleSettingsRoutes(
     }
 
     if (action === "export") {
-      return successResponse(
-        event,
-        await cms.system.settings.getAll({ tenantId: tenantId as any }),
-      );
+      // CWE-200 / privilege boundary: system:read alone must NEVER dump system secrets.
+      requireAdminUser(event, "Admin access required for settings export");
+      const all = await cms.system.settings.getAll({ tenantId: tenantId as any });
+      return successResponse(event, redactExportedSettings(all));
+    }
+
+    if (action === "private" && subAction === "OLLAMA_URL") {
+      const caller = event.locals.user;
+      if (!caller) {
+        raise(401, "Unauthorized", "UNAUTHORIZED");
+      }
+      const roles = (event.locals.roles ?? []) as Parameters<typeof hasPermissionWithRoles>[2];
+      const allowed =
+        event.locals.isAdmin === true ||
+        hasPermissionWithRoles(caller as User, "ai:use", roles) ||
+        hasPermissionWithRoles(caller as User, "system:settings", roles);
+      if (!allowed) {
+        raise(403, "Forbidden", "FORBIDDEN");
+      }
+      return successResponse(event, { value: getPrivateSettingSync("OLLAMA_URL") ?? "" });
     }
 
     const group = settingsGroups.find((g) => g.id === action);
@@ -81,10 +131,10 @@ export async function handleSettingsRoutes(
 
   if (["POST", "PATCH", "PUT"].includes(request.method)) {
     if (action === "export") {
-      return successResponse(
-        event,
-        await cms.system.settings.getAll({ tenantId: tenantId as any }),
-      );
+      // CWE-200 / privilege boundary: system:read alone must NEVER dump system secrets.
+      requireAdminUser(event, "Admin access required for settings export");
+      const all = await cms.system.settings.getAll({ tenantId: tenantId as any });
+      return successResponse(event, redactExportedSettings(all));
     }
     if (action === "import") {
       return successResponse(event, { success: true });

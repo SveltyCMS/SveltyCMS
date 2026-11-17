@@ -111,6 +111,7 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
       raise(410, "This share link has expired.");
     }
 
+    const hasPassword = Boolean(link.passwordHash);
     return {
       token,
       mediaId,
@@ -118,8 +119,9 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
       size: mediaItem.size,
       type: mediaItem.type,
       mimeType: mediaItem.mimeType,
-      url: mediaItem.url,
-      passwordRequired: Boolean(link.passwordHash),
+      // Do not expose direct media path until share password is verified.
+      url: hasPassword ? undefined : mediaItem.url,
+      passwordRequired: hasPassword,
     };
   } catch (err) {
     rethrow(err);

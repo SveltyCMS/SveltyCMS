@@ -376,6 +376,7 @@ Features:
 
 	// Resize and menu logic
 	let widgetEl = $state<HTMLElement | undefined>(undefined);
+	let headerEl = $state<HTMLElement | undefined>(undefined);
 	let showSizeMenu = $state(false);
 	let isResizing = $state(false);
 	let previewSize = $state<WidgetSize | null>(null);
@@ -419,18 +420,25 @@ Features:
 			return;
 		}
 
-		const gridGap = Number.parseFloat(getComputedStyle(gridContainer).gap) || 16;
-		const gridCols = getComputedStyle(gridContainer)
-			.gridTemplateColumns.split(' ')
-			.filter(Boolean).length;
+		const gridComputed = getComputedStyle(gridContainer);
+		const gridGap = Number.parseFloat(gridComputed.gap) || 16;
+		const gridCols = gridComputed.gridTemplateColumns.split(' ').filter(Boolean).length;
 		const totalGapWidth = gridGap * (gridCols - 1);
-		const singleColumnWidth = (gridContainer.offsetWidth - totalGapWidth) / gridCols;
-		const singleRowHeight = dashboardEvents.density === 'compact' ? 120 : 160;
+		const singleColumnWidth = (gridContainer.offsetWidth - totalGapWidth) / Math.max(1, gridCols);
+		const parsedRowHeight = Number.parseFloat(gridComputed.gridAutoRows);
+		const singleRowHeight =
+			Number.isFinite(parsedRowHeight) && parsedRowHeight > 0
+				? parsedRowHeight
+				: dashboardEvents.density === 'compact'
+					? 120
+					: 160;
 
 		const currentColumns = size.w;
 		const currentRows = size.h;
+		let cancelled = false;
 
 		const handlePointerMove = (moveEvent: PointerEvent) => {
+			if (cancelled) return;
 			const deltaX = moveEvent.clientX - startX;
 			const deltaY = moveEvent.clientY - startY;
 
@@ -457,11 +465,25 @@ Features:
 			previewSize = { w: newColumns, h: newRows };
 		};
 
-		const handlePointerUp = () => {
+		const cleanup = () => {
 			window.removeEventListener('pointermove', handlePointerMove);
 			window.removeEventListener('pointerup', handlePointerUp);
+			window.removeEventListener('keydown', handleCancelKey);
+		};
+
+		const handleCancelKey = (keyEvent: KeyboardEvent) => {
+			if (keyEvent.key === 'Escape') {
+				cancelled = true;
+				isResizing = false;
+				previewSize = null;
+				cleanup();
+			}
+		};
+
+		const handlePointerUp = () => {
+			cleanup();
 			isResizing = false;
-			if (previewSize && (previewSize.w !== size.w || previewSize.h !== size.h)) {
+			if (!cancelled && previewSize && (previewSize.w !== size.w || previewSize.h !== size.h)) {
 				onSizeChange(previewSize);
 			}
 			previewSize = null;
@@ -469,6 +491,7 @@ Features:
 
 		window.addEventListener('pointermove', handlePointerMove);
 		window.addEventListener('pointerup', handlePointerUp, { once: true });
+		window.addEventListener('keydown', handleCancelKey);
 	}
 
 	function handleMenuSizeChange(newSize: WidgetSize) {
@@ -489,6 +512,17 @@ Features:
 			document.removeEventListener('click', handleClickOutside);
 		}
 		return () => document.removeEventListener('click', handleClickOutside);
+	});
+
+	$effect(() => {
+		if (!headerEl) return;
+		const onHeaderDblClick = (e: MouseEvent) => {
+			if (!(e.target as HTMLElement | null)?.closest('button, a, input')) {
+				showMaximizeModal = !showMaximizeModal;
+			}
+		};
+		headerEl.addEventListener('dblclick', onHeaderDblClick);
+		return () => headerEl?.removeEventListener('dblclick', onHeaderDblClick);
 	});
 
 	function handleSaveSettings(updated: {
@@ -520,6 +554,7 @@ Features:
 		'var(--admin-shadow-elevation, 0 1px 3px 0 rgb(0 0 0 / 0.1))'}; background-color: var(--admin-bg-card, var(--color-surface-50)); color: var(--admin-text-body, var(--color-surface-900));"
 >
 	<header
+		bind:this={headerEl}
 		class="widget-header flex cursor-grab items-center justify-between border-b border-(--admin-border-default) py-2 ps-3.5 pe-2"
 		style="touch-action: none; overflow: visible; position: relative; z-index: 10;"
 	>
@@ -666,7 +701,7 @@ Features:
 	<!-- Widget Content Body -->
 	<section
 		class="widget-body relative min-h-0 flex-1 overflow-y-auto px-3 pb-2 pt-1"
-		style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: stretch; align-items: stretch;"
+		style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: stretch; align-items: stretch; container-type: size; container-name: widget-body;"
 	>
 		<div aria-live="polite" class="contents">
 			{#if !accessAllowed}
@@ -733,7 +768,7 @@ Features:
 			{#each [{ dir: 'nw', classes: 'top-0 inset-s-0 cursor-nw-resize', icon: 'clarity:drag-handle-corner-line', rotation: 'rotate-180' }, { dir: 'n', classes: 'top-0 inset-x-0 mx-auto cursor-n-resize', icon: 'mdi:drag-vertical', style: 'transform: rotate(90deg);', rotation: '' }, { dir: 'ne', classes: 'top-0 end-0 cursor-ne-resize', icon: 'clarity:drag-handle-corner-line', rotation: '-rotate-90' }, { dir: 'e', classes: 'top-1/2 end-0 cursor-e-resize', icon: 'mdi:drag-vertical', style: 'transform: translateY(-50%) rotate(180deg);', rotation: '' }, { dir: 'se', classes: 'bottom-0 end-0 cursor-se-resize', icon: 'clarity:drag-handle-corner-line', rotation: '' }, { dir: 's', classes: 'bottom-0 inset-x-0 mx-auto cursor-s-resize', icon: 'mdi:drag-vertical', style: 'transform: rotate(90deg);', rotation: '' }, { dir: 'sw', classes: 'bottom-0 inset-s-0 cursor-sw-resize', icon: 'clarity:drag-handle-corner-line', rotation: 'rotate-90' }, { dir: 'w', classes: 'top-1/2 inset-s-0 cursor-w-resize', icon: 'mdi:drag-vertical', style: 'transform: translateY(-50%) rotate(180deg);', rotation: '' }] as handle (handle.dir)}
 				<div
 					class="pointer-events-auto absolute z-20 flex items-center justify-center opacity-0 transition-all duration-200 hover:scale-125 hover:opacity-100 group-hover:opacity-60 {handle.classes} {handle.rotation}"
-					style="width: 16px; height: 16px; {handle.style || ''}"
+					style="width: 16px; height: 16px; touch-action: none; {handle.style || ''}"
 					data-direction={handle.dir}
 					title={widget_base_resize_title({ dir: handle.dir })}
 					aria-label={widget_base_resize_aria({ dir: handle.dir })}

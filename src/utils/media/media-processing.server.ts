@@ -86,7 +86,7 @@ export async function extractMetadata(buffer: Buffer): Promise<any> {
     const sharp = await getSharp();
     return await sharp(buffer, {
       limitInputPixels: MAX_INPUT_PIXELS,
-      failOn: "none",
+      failOn: "warning",
     })
       .rotate()
       .metadata();
@@ -187,7 +187,7 @@ export class MediaProcessingService {
       const sharp = await getSharp();
       const instance = sharp(buffer, {
         limitInputPixels: MAX_INPUT_PIXELS,
-        failOn: "none",
+        failOn: "warning",
       });
       const meta = await instance.metadata();
 

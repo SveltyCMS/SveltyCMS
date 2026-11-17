@@ -75,6 +75,7 @@ interface StepResult {
 /** Known devtool/build-time advisories with no upstream patch available yet on npm. */
 const SUPPRESSED_AUDIT_ADVISORIES: readonly string[] = [
   "GHSA-gcqx-w48m-w2h4", // deepmerge <= 4.3.1 (transitive from @sveltejs/vite-plugin-svelte, build-time only, patch pending)
+  "GHSA-fc5q-39xc-vjpf", // picomatch <= 4.0.7 (transitive from vite/vitest/lint-staged, build-time only, patch pending)
 ];
 
 const GHSA_PATTERN = /GHSA-[a-z0-9-]+/i;

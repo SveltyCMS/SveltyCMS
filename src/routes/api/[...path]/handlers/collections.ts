@@ -161,6 +161,7 @@ export async function handleCollectionsRoutes(
         event,
         await cms.collections.getRevisions(collectionId, targetId as string, {
           tenantId,
+          user,
         }),
       );
     }

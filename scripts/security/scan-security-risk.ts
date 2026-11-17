@@ -777,6 +777,35 @@ export function scanGlobalRisk(relPath: string, content: string): RiskViolation[
         }
       }
     }
+    // 5. Permissive sharp failOn ("none") accepts corrupt/truncated uploads
+    for (let i = 0; i < lines.length; i++) {
+      const line = stripComments(lines[i]).trim();
+      if (!line || line.startsWith("*")) continue;
+      if (/\bfailOn\s*:\s*["']none["']/.test(line)) {
+        violations.push({
+          path: relPath,
+          line: i + 1,
+          category: "sharp-fail-on-none",
+          message:
+            'sharp({ failOn: "none" }) widens the libvips parser surface for untrusted uploads — use failOn: "warning"',
+          severity: "error",
+        });
+      }
+      if (
+        /\bContent-Disposition\b/.test(line) &&
+        /filename="\$\{/.test(line) &&
+        !/safeContentDispositionFilename|sanitizeExportBasename/.test(content)
+      ) {
+        violations.push({
+          path: relPath,
+          line: i + 1,
+          category: "unsafe-content-disposition",
+          message:
+            "Content-Disposition filename interpolated without safeContentDispositionFilename() — header/quote injection risk (CWE-113)",
+          severity: "error",
+        });
+      }
+    }
   }
 
   return violations;

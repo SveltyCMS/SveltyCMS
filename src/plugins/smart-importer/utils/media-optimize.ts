@@ -96,7 +96,7 @@ export async function optimizeMedia(
     const sharp = await getSharp();
     let pipeline = sharp(Buffer.from(buffer), {
       limitInputPixels: MAX_INPUT_PIXELS,
-      failOn: "none",
+      failOn: "warning",
     }).resize(cfg.maxWidth, cfg.maxHeight, {
       fit: "inside",
       withoutEnlargement: true,

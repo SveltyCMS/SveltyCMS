@@ -11,7 +11,7 @@
  */
 
 import type { Cookies } from "@sveltejs/kit";
-import { SESSION_USER_SENSITIVE_FIELDS } from "@src/databases/auth/session-user";
+import { sanitizeUserForClient } from "@src/databases/auth/session-user";
 import { CSRF_TOKEN_COOKIE_NAME, CSRF_TOKEN_HEADER } from "@utils/security/csrf-utils";
 
 /**
@@ -92,25 +92,14 @@ export interface UserTableRow {
   _id: string;
 }
 
-/** Never sent to the client from the admin table (see `SESSION_USER_SENSITIVE_FIELDS`). */
-const ADMIN_TABLE_HIDDEN_FIELDS = new Set<string>([
-  ...SESSION_USER_SENSITIVE_FIELDS,
-  "failedAttempts",
-  "lockoutUntil",
-]);
-
 /**
  * Strip credential material and lockout state from a user record before it
- * reaches the client. Uses the canonical session sensitive-field list
- * (`password`, TOTP seed, backup codes, reset/OAuth tokens, trusted devices)
- * plus the two lockout fields the `/api/user` list handler also drops.
+ * reaches the client. Reuses the canonical `sanitizeUserForClient()` helper
+ * and stringifies `_id` for the admin table.
  */
 export function sanitizeUserTableRow(value: unknown): UserTableRow | null {
   if (!value || typeof value !== "object") return null;
-  const safe: Record<string, unknown> = {};
-  for (const [key, field] of Object.entries(value as Record<string, unknown>)) {
-    if (!ADMIN_TABLE_HIDDEN_FIELDS.has(key)) safe[key] = field;
-  }
+  const safe = sanitizeUserForClient(value as Record<string, unknown>);
   return { ...safe, _id: safe._id != null ? String(safe._id) : "" };
 }
 

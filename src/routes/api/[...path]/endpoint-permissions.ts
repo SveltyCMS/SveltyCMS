@@ -105,7 +105,7 @@ export const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => 
   // reaches it through `__testBypass` (x-test-secret), which skips this map; a
   // normal authenticated non-admin must not pass the namespace root gate.
   testing: "system:admin",
-  trash: (method: string) => (isReadMethod(method) ? "collection:read" : "collection:write"),
+  trash: "system:admin",
   debug: "system:admin",
   cache: "system:admin",
   metrics: (method: string) => (isReadMethod(method) ? "system:read" : "system:settings"),

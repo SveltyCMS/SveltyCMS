@@ -134,7 +134,11 @@ export function validateCsrfForRequest(
       if (originUrl.host === host) {
         return CSRF_RESULT_VALID;
       }
-      if (isLoopbackHost(originUrl.host) && isLoopbackHost(host)) {
+      // Restrict cross-port/cross-name loopback convenience to non-production dev/test.
+      const isProd =
+        (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env
+          ?.NODE_ENV === "production";
+      if (!isProd && isLoopbackHost(originUrl.host) && isLoopbackHost(host)) {
         return CSRF_RESULT_VALID;
       }
     } catch {

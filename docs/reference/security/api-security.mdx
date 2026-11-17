@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:shield-lock"
 author: "SveltyCMS Team"
 created: "2026-05-14"
-updated: "2026-10-11"
+updated: "2026-11-17"
 tags:
   - "security"
   - "auth"
@@ -38,7 +38,10 @@ Request → Layer 1 (Middleware) → Layer 2 (Dispatcher) → Layer 3 (Handler) 
 > **Fail-Closed Default**: If a permission mapping is missing or ambiguous, the dispatcher returns 403 — never 200 with leaked data.
 
 > [!IMPORTANT]
-> **Namespace roots are not public (September 2026).** For `user` and `auth`, the dispatcher no longer treats a route with no action segment as an exemption: `GET /api/user` (directory listing) requires `user:read` and `POST /api/user` (account creation) requires `user:write`. Only named self-service actions (`me`, `login`, `logout`, OIDC/SAML callbacks, `2fa*`) and bare `GET /api/auth` (the caller's own session user) skip the permission lookup; non-admin create payloads are additionally stripped of `role`/`roles`/`isAdmin`/`roleIds`/`permissions` via `sanitizeClientUserAttributePatch`. `tests/unit/api/authz-bypass-guard.test.ts` enumerates every namespace root and public-route exemption against a reasoned contract so a new bypass fails a unit test.
+> **Namespace roots are not public (September 2026).** For `user` and `auth`, the dispatcher no longer treats a route with no action segment as an exemption: `GET /api/user` (directory listing) requires `user:read` and `POST /api/user` (account creation) requires `user:write`. Only named self-service actions (`me`, `login`, `logout`, OIDC/SAML callbacks, `2fa*`) and bare `GET /api/auth` (the caller's own session user — MFA is not bypassed on `GET`/`POST /api/user`) skip the permission lookup; non-admin create payloads are additionally stripped of `role`/`roles`/`isAdmin`/`roleIds`/`permissions` via `sanitizeClientUserAttributePatch`. `tests/unit/api/authz-bypass-guard.test.ts` enumerates every namespace root and public-route exemption against a reasoned contract so a new bypass fails a unit test.
+
+> [!NOTE]
+> **November 2026 hardening additions:** Self email/password updates require server-verified `x-reauth-token` or `currentPassword`; non-admin `user:write` holders cannot reset other users' credentials or alter admin accounts; all REST/GraphQL/export user payloads pass through `sanitizeUserForClient()`; `trash` requires `system:admin`; session bitmasks strip process-local dynamic bits (`toPersistablePermMask()`); `(site)` draft preview requires signed `preview_token` / `cms_preview_token` rather than unsigned `cms_draft_mode`; and `tests/unit/security/pentest-invariants.test.ts` enforces `T1–T16` invariants on every CI run.
 
 ---
 

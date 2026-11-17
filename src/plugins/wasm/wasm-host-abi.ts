@@ -13,6 +13,7 @@
 
 import type { DatabaseId } from "@databases/db-interface";
 import { logger } from "@utils/logger";
+import { isBlockedEgressHost } from "@utils/egress-guard";
 import { WasmErrorCode, WasmLogLevel, type WasmHostContext } from "./types";
 
 /** Maximum DB queries a WASM plugin can execute per hook call */
@@ -414,15 +415,7 @@ export function createWasmHostImports(
             logger.warn(`[WASM:${ctx.pluginId}] Disallowed protocol in URL "${targetUrl}"`);
             return WasmErrorCode.ERR_PERMISSION_DENIED;
           }
-          const hostname = parsed.hostname.toLowerCase();
-          if (
-            hostname === "localhost" ||
-            hostname === "127.0.0.1" ||
-            hostname === "::1" ||
-            hostname === "169.254.169.254" ||
-            hostname.endsWith(".local") ||
-            hostname.endsWith(".internal")
-          ) {
+          if (isBlockedEgressHost(parsed.hostname)) {
             logger.warn(`[WASM:${ctx.pluginId}] Blocked SSRF attempt to ${targetUrl}`);
             return WasmErrorCode.ERR_SSRF_BLOCKED;
           }

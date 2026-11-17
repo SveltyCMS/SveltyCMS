@@ -117,8 +117,10 @@ export async function handleThemeRoutes(
   if (action === "update-theme" && request.method === "POST") {
     const { themeId, customCss } = await request.json();
     if (!themeId) throw new AppError("themeId is required", 400);
+    const { sanitizeCss } = await loadAdminThemeServiceModule();
+    const sanitizedCss = typeof customCss === "string" ? sanitizeCss(customCss) : undefined;
     const result = await cms.db.system.themes.update(themeId as DatabaseId, {
-      customCss,
+      customCss: sanitizedCss,
     });
     if (!result.success || !result.data)
       throw new AppError("Theme update failed or theme not found", 404);

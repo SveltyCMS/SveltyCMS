@@ -165,10 +165,17 @@ function streamFile(options: FileStreamOptions): Response {
   // Range Requests (video/audio seeking)
   if (range?.startsWith("bytes=")) {
     const parts = range.replace(/bytes=/, "").split("-");
-    const start = parseInt(parts[0], 10);
-    const end = parts[1] ? parseInt(parts[1], 10) : size - 1;
+    const start = parts[0] ? Number.parseInt(parts[0], 10) : Number.NaN;
+    const end = parts[1] ? Number.parseInt(parts[1], 10) : size - 1;
 
-    if (start >= size || end >= size || start > end) {
+    if (
+      !Number.isFinite(start) ||
+      !Number.isFinite(end) ||
+      start < 0 ||
+      start >= size ||
+      end >= size ||
+      start > end
+    ) {
       return new Response(null, {
         status: 416,
         headers: { "Content-Range": `bytes */${size}` },
@@ -420,6 +427,50 @@ export const GET = apiHandler(async ({ params, request, locals }) => {
   const ifModifiedSince = request.headers.get("if-modified-since");
   const requestUrl = new URL(request.url);
 
+  // ====================== SECURITY GATES (local & cloud) ======================
+  const { base: basePath, folder: normalizedFolder } = getMediaPaths();
+  const fullPath = path.join(basePath, filePath);
+  const resolvedPath = path.resolve(fullPath);
+
+  // Directory traversal guard (must run before cloud redirects too)
+  const relative = path.relative(basePath, resolvedPath);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    logger.warn("Directory traversal attempt blocked", { requested: filePath });
+    raise(403, "Access denied", "ACCESS_DENIED");
+  }
+
+  // 🛡️ Tenant access control — extract tenant from file path
+  // Path format: {tenantId}/{hash}/original/file.jpg or global/{hash}/original/file.jpg
+  const pathTenant = filePath.split("/")[0];
+  if (isMultiTenantEnabled() && pathTenant && pathTenant !== "global") {
+    const userTenantId = locals.tenantId;
+    // Reject when: no tenantId (undefined/null), OR tenantId doesn't match path tenant and isn't "global" bypass
+    if (!userTenantId || (userTenantId !== pathTenant && userTenantId !== "global")) {
+      logger.warn("Cross-tenant file access blocked", {
+        requested: filePath,
+        userTenant: userTenantId,
+        fileTenant: pathTenant,
+      });
+      raise(403, "Access denied: tenant mismatch", "TENANT_MISMATCH");
+    }
+  }
+
+  // 🛡️ Signed URL enforcement (opt-in via MEDIA_SIGNED_URL_ENABLED)
+  // Global files remain public unless explicitly signed; tenant-scoped files require a valid signature
+  const signedUrlEnabled = getPublicSettingSync("MEDIA_SIGNED_URL_ENABLED");
+  if (signedUrlEnabled && pathTenant !== "global") {
+    const { validateSignedMediaUrl } = await import("@src/utils/media/signed-urls");
+    const userTenantId = locals.tenantId;
+    const validation = validateSignedMediaUrl(requestUrl, filePath, userTenantId);
+    if (!validation.valid) {
+      logger.warn("Signed URL validation failed", {
+        requested: filePath,
+        reason: validation.reason,
+      });
+      raise(403, "Signed URL required or invalid", "SIGNATURE_REQUIRED");
+    }
+  }
+
   // ====================== CLOUD STORAGE REDIRECT ======================
   if (storageType !== "local") {
     // A 302 hands the response to the bucket/CDN, which decides the headers.
@@ -451,7 +502,6 @@ export const GET = apiHandler(async ({ params, request, locals }) => {
         return new Response(null, { status: 304 });
       }
 
-      const { folder: normalizedFolder } = getMediaPaths();
       const baseUrl = cloudPublicUrl.replace(/\/+$/, "");
       const fullUrl = normalizedFolder
         ? `${baseUrl}/${normalizedFolder}/${filePath}`
@@ -472,48 +522,6 @@ export const GET = apiHandler(async ({ params, request, locals }) => {
   }
 
   // ====================== LOCAL STORAGE SERVING ======================
-  const { base: basePath } = getMediaPaths();
-  const fullPath = path.join(basePath, filePath);
-  const resolvedPath = path.resolve(fullPath);
-
-  // Directory traversal guard
-  const relative = path.relative(basePath, resolvedPath);
-  if (relative.startsWith("..") || path.isAbsolute(relative)) {
-    logger.warn("Directory traversal attempt blocked", { requested: filePath });
-    raise(403, "Access denied", "ACCESS_DENIED");
-  }
-
-  // 🛡️ Tenant access control — extract tenant from file path
-  // Path format: {tenantId}/{hash}/original/file.jpg or global/{hash}/original/file.jpg
-  const pathTenant = filePath.split("/")[0];
-  if (isMultiTenantEnabled() && pathTenant && pathTenant !== "global") {
-    const userTenantId = locals.tenantId;
-    // Reject when: no tenantId (undefined/null), OR tenantId doesn't match path tenant and isn't "global" bypass
-    if (!userTenantId || (userTenantId !== pathTenant && userTenantId !== "global")) {
-      logger.warn("Cross-tenant file access blocked", {
-        requested: filePath,
-        userTenant: userTenantId,
-        fileTenant: pathTenant,
-      });
-      raise(403, "Access denied: tenant mismatch", "TENANT_MISMATCH");
-    }
-  }
-
-  // 🛡️ Signed URL enforcement (opt-in via MEDIA_SIGNED_URL_ENABLED)
-  // Global files remain public; tenant-scoped files require a valid signature
-  const signedUrlEnabled = getPublicSettingSync("MEDIA_SIGNED_URL_ENABLED");
-  if (signedUrlEnabled && pathTenant !== "global") {
-    const { validateSignedMediaUrl } = await import("@src/utils/media/signed-urls");
-    const userTenantId = locals.tenantId;
-    const validation = validateSignedMediaUrl(requestUrl, filePath, userTenantId);
-    if (!validation.valid) {
-      logger.warn("Signed URL validation failed", {
-        requested: filePath,
-        reason: validation.reason,
-      });
-      raise(403, "Signed URL required or invalid", "SIGNATURE_REQUIRED");
-    }
-  }
 
   let stats;
   try {

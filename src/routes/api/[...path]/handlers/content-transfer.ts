@@ -18,6 +18,7 @@
  */
 
 import { AppError } from "@utils/error-handling";
+import { safeContentDispositionFilename } from "@utils/security/constants";
 import { type RequestEvent } from "@sveltejs/kit";
 import { successResponse, errorResponse } from "./base";
 import type { DatabaseId } from "@src/content/types";
@@ -258,7 +259,7 @@ export async function handleContentExportRoutes(
       status: 200,
       headers: {
         "Content-Type": "application/json; charset=utf-8",
-        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Disposition": `attachment; filename="${safeContentDispositionFilename(filename)}"`,
         "Content-Length": String(new TextEncoder().encode(serialized).length),
       },
     });

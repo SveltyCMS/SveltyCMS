@@ -43,7 +43,7 @@ export const load: PageServerLoad = async ({
     pathname,
     tenantId,
     draft: parentData.isDraft,
-    entryId: parentData.previewEntryId || url.searchParams.get("entryId") || undefined,
+    entryId: parentData.isDraft ? parentData.previewEntryId : undefined,
     user: locals.user,
   });
 

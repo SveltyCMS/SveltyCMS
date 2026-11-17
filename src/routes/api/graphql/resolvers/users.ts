@@ -9,6 +9,7 @@ import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { logger } from "@utils/logger";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import type { PublicationFilter } from "@src/utils/security/publication-policy";
+import { sanitizeUserForClient } from "@src/databases/auth/session-user";
 import { nowISODateString } from "@utils/date";
 
 // GraphQL types
@@ -124,7 +125,7 @@ export function userResolvers(dbAdapter: DatabaseAdapter) {
           throw new Error(result.error?.message || "Query failed");
         }
 
-        return result.data || [];
+        return sanitizeUserForClient(result.data || []);
       } catch (error) {
         logger.error("Error fetching users:", {
           error: error instanceof Error ? error.message : String(error),
@@ -137,7 +138,7 @@ export function userResolvers(dbAdapter: DatabaseAdapter) {
       if (!context.user) {
         throw new Error("Authentication required");
       }
-      return context.user;
+      return sanitizeUserForClient(context.user);
     },
   };
 }

@@ -10,6 +10,7 @@
  */
 
 import type { ISODateString, DatabaseId } from "@src/content/types";
+import { toPersistablePermMask } from "./permission-bitmask";
 import type {
   DatabaseAdapter,
   DatabaseResult,
@@ -461,11 +462,13 @@ export class Auth {
         }
       }
     }
+    const persistableMask =
+      typeof permMask === "bigint" ? toPersistablePermMask(permMask) : permMask;
     const permMaskHex =
-      typeof permMask === "bigint"
-        ? "0x" + permMask.toString(16)
-        : typeof permMask === "string"
-          ? permMask
+      typeof persistableMask === "bigint"
+        ? "0x" + persistableMask.toString(16)
+        : typeof persistableMask === "string"
+          ? persistableMask
           : undefined;
 
     const sessionMetadata = {

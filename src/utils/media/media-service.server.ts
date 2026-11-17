@@ -710,7 +710,7 @@ export class MediaService {
       const sharp = await getSharp();
       const imgMeta = await sharp(buffer, {
         limitInputPixels: MAX_INPUT_PIXELS,
-        failOn: "none",
+        failOn: "warning",
       }).metadata();
       if (imgMeta.width) metadata.width = imgMeta.width;
       if (imgMeta.height) metadata.height = imgMeta.height;

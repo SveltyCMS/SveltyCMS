@@ -20,28 +20,31 @@
 /** Credential / secret fields that must never ride in session caches or stores. */
 export const SESSION_USER_SENSITIVE_FIELDS = [
   "password", // argon2id hash
+  "passwordHash", // alias if returned by any adapter
   "totpSecret", // TOTP seed (encrypted at rest, but never cached)
   "backupCodes", // 2FA recovery codes (hashed, but never cached)
   "resetToken", // password-reset token
+  "resetRequestedAt", // reset flow timing metadata
   "googleRefreshToken", // OAuth refresh token
   "twoFactorTrustedDevices", // trusted-device fingerprints
+  "authenticators", // WebAuthn credential public keys & counters
 ] as const;
 
 export type SensitiveUserField = (typeof SESSION_USER_SENSITIVE_FIELDS)[number];
 
 const SENSITIVE_SET = new Set<string>(SESSION_USER_SENSITIVE_FIELDS);
+const CLIENT_HIDDEN_SET = new Set<string>([
+  ...SESSION_USER_SENSITIVE_FIELDS,
+  "failedAttempts",
+  "lockoutUntil",
+]);
 
-/**
- * Returns a shallow copy of the user with all credential material removed.
- * When the user carries no sensitive fields the ORIGINAL reference is returned
- * — the hot path (session cache hits) stays allocation-free.
- */
-export function toSafeSessionUser<T extends object>(user: T): T {
+function stripFields<T extends object>(user: T, blocked: Set<string>): T {
   if (!user || typeof user !== "object") return user;
-  let needsCopy = false;
   const userRec = user as Record<string, unknown>;
-  for (const field of SESSION_USER_SENSITIVE_FIELDS) {
-    if (userRec[field] !== undefined) {
+  let needsCopy = false;
+  for (const field of blocked) {
+    if (Object.hasOwn(userRec, field) && userRec[field] !== undefined) {
       needsCopy = true;
       break;
     }
@@ -51,11 +54,39 @@ export function toSafeSessionUser<T extends object>(user: T): T {
   // Build clean object without delete operator to preserve V8 fast-mode hidden class
   const safe: Record<string, unknown> = {};
   for (const key in userRec) {
-    if (Object.hasOwn(userRec, key) && !SENSITIVE_SET.has(key)) {
+    if (Object.hasOwn(userRec, key) && !blocked.has(key)) {
       safe[key] = userRec[key];
     }
   }
   return safe as T;
+}
+
+/**
+ * Returns a shallow copy of the user with all credential material removed.
+ * When the user carries no sensitive fields the ORIGINAL reference is returned
+ * — the hot path (session cache hits) stays allocation-free.
+ */
+export function toSafeSessionUser<T extends object>(user: T): T {
+  return stripFields(user, SENSITIVE_SET);
+}
+
+/**
+ * Returns a copy of a user record safe to return over HTTP / GraphQL / admin
+ * table responses: removes all credential material plus lockout counters.
+ */
+export function sanitizeUserForClient<T>(user: T): T {
+  if (!user || typeof user !== "object") return user;
+  if (Array.isArray(user)) {
+    return user.map((item) => sanitizeUserForClient(item)) as unknown as T;
+  }
+  const rec = user as Record<string, unknown>;
+  if ("success" in rec && "data" in rec && rec.data && typeof rec.data === "object") {
+    return {
+      ...rec,
+      data: sanitizeUserForClient(rec.data),
+    } as unknown as T;
+  }
+  return stripFields(user as object, CLIENT_HIDDEN_SET) as T;
 }
 
 /**

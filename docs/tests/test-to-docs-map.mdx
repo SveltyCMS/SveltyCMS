@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:file-document-check"
 author: "SveltyCMS Team"
 created: "2026-08-23"
-updated: "2026-11-13"
+updated: "2026-11-17"
 tags:
   - "tests"
   - "documentation"
@@ -326,6 +326,14 @@ tags:
 | `tests/unit/ci/check-pinned-actions.test.ts`                            | `docs/project/achievements-2026.mdx` (Scorecard SHA pinning), `scripts/check/check-pinned-actions.ts`                                                                                       |
 | `tests/e2e/routes/mobile/shell.spec.ts`                                 | `docs/project/achievements-2026.mdx` (phone-viewport E2E), `docs/development/ui/shells.mdx`                                                                                                 |
 | `tests/e2e/routes/mobile/layout.spec.ts`                                | `docs/project/achievements-2026.mdx` (mobile layout overflow & touch targets), `docs/contributing/accessibility.mdx`                                                                        |
+| `tests/unit/security/pentest-invariants.test.ts`                        | `docs/reference/security/tested-security-features.mdx` (Nov 2026 T1–T16 invariants, negative authz matrix, canary scanner, schema-derived `authUsers` allowlist)                            |
+| `scripts/security/pentest.ts`                                           | `docs/reference/security/tested-security-features.mdx`, `docs/security/threat-models/auth-session.mdx` (live localhost HTTP T1–T12 pentest CLI)                                             |
+| `tests/unit/routes/site-page-servers.test.ts`                           | `docs/development/site-starter.mdx`, `docs/security/threat-models/content-write.mdx` ((site) public/preview gating)                                                                         |
+| `tests/unit/routes/preview-server.test.ts`                              | `docs/security/threat-models/content-write.mdx`, `docs/reference/architecture/live-preview-architecture.mdx` (/api/preview token handshake)                                                 |
 | `tests/unit/ci/check-pinned-actions.test.ts`                            | `docs/project/achievements-2026.mdx` (Scorecard SHA pinning), `scripts/check/check-pinned-actions.ts`                                                                                       |
 | `tests/e2e/routes/mobile/shell.spec.ts`                                 | `docs/project/achievements-2026.mdx` (phone-viewport E2E), `docs/development/ui/shells.mdx`                                                                                                 |
 | `tests/e2e/routes/mobile/layout.spec.ts`                                | `docs/project/achievements-2026.mdx` (mobile layout overflow & touch targets), `docs/contributing/accessibility.mdx`                                                                        |
+| `tests/unit/security/pentest-invariants.test.ts`                        | `docs/reference/security/tested-security-features.mdx` (Nov 2026 T1–T16 invariants, negative authz matrix, canary scanner, schema-derived `authUsers` allowlist)                            |
+| `scripts/security/pentest.ts`                                           | `docs/reference/security/tested-security-features.mdx`, `docs/security/threat-models/auth-session.mdx` (live localhost HTTP T1–T12 pentest CLI)                                             |
+| `tests/unit/routes/site-page-servers.test.ts`                           | `docs/development/site-starter.mdx`, `docs/security/threat-models/content-write.mdx` ((site) public/preview gating)                                                                         |
+| `tests/unit/routes/preview-server.test.ts`                              | `docs/security/threat-models/content-write.mdx`, `docs/reference/architecture/live-preview-architecture.mdx` (/api/preview token handshake)                                                 |

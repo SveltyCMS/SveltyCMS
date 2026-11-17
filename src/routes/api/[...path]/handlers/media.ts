@@ -22,6 +22,8 @@ import { hasMediaPermission } from "./media-permissions";
 import { handleMediaTranscode } from "./media-transcode";
 import { getPrivateEnv } from "@src/databases/db";
 import { getPublicSettingSync } from "@src/services/core/settings-service";
+import { safeContentDispositionFilename } from "@utils/security/constants";
+import { RateLimiter } from "@src/hooks/handle-rate-limit";
 
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import {
@@ -1092,6 +1094,11 @@ export async function handleMediaShareExtend(
   });
 }
 
+const sharePasswordLimiter = new RateLimiter({
+  IP: [15, "m"],
+  IPUA: [15, "m"],
+});
+
 export async function handleMediaShareDownload(
   event: RequestEvent,
   cms: LocalCMS,
@@ -1099,7 +1106,14 @@ export async function handleMediaShareDownload(
 ) {
   const id = event.url.searchParams.get("id");
   const token = event.url.searchParams.get("token");
-  const password = event.url.searchParams.get("password") || "";
+  let password =
+    event.request.headers.get("x-share-password") || event.url.searchParams.get("password") || "";
+  if (!password && event.request.method === "POST") {
+    const body = await event.request.json().catch(() => null);
+    if (body && typeof (body as { password?: unknown }).password === "string") {
+      password = (body as { password: string }).password;
+    }
+  }
   if (!id || !token)
     throw new AppError("Resource context matrix validation tracking values expected", 400);
 
@@ -1139,8 +1153,13 @@ export async function handleMediaShareDownload(
 
   // 🛡️ Timing-safe HMAC verification (every link stores hashSharePassword;
   // the pre-HMAC plain-SHA-256 scheme was removed in 2026-08).
-  if (shareLink.passwordHash && !verifySharePassword(password, shareLink.passwordHash)) {
-    return successResponse(event, { passwordRequired: true });
+  if (shareLink.passwordHash) {
+    if (await sharePasswordLimiter.isLimited(event)) {
+      raise(429, "Too many share password attempts. Please try again later.", "RATE_LIMITED");
+    }
+    if (!verifySharePassword(password, shareLink.passwordHash)) {
+      return successResponse(event, { passwordRequired: true });
+    }
   }
 
   // Bump the counter through a partial patch: the whole-blob write also
@@ -1202,12 +1221,14 @@ export async function handleMediaShareDownload(
     event.request.signal.addEventListener("abort", () => fileStream.destroy(), { once: true });
     const webStream = Readable.toWeb(fileStream);
 
+    const safeDownloadName = safeContentDispositionFilename(item.filename);
+
     return new Response(webStream as any, {
       status: 200,
       headers: {
         "Content-Type": mimeType,
         "Content-Length": stats.size.toString(),
-        "Content-Disposition": `attachment; filename="${item.filename}"`,
+        "Content-Disposition": `attachment; filename="${safeDownloadName}"`,
         "Cache-Control": "public, max-age=31536000, immutable",
         "X-Content-Type-Options": "nosniff",
       },

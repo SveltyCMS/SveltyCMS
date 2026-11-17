@@ -22,6 +22,7 @@ import { pipeline } from "node:stream/promises";
 import { createGzip } from "node:zlib";
 import { logger } from "@utils/logger";
 import { raise } from "@utils/error-handling";
+import { safeContentDispositionFilename } from "@utils/security/constants";
 import type { StoredMedia } from "./media-models";
 import { resolveConfiguredMediaFolder } from "./storage-adapters";
 import { constantTimeBufferEqual } from "@utils/security/constant-time";
@@ -413,7 +414,10 @@ export function streamArchive(
   setHeader: (name: string, value: string) => void,
 ): ReadableStream {
   setHeader("Content-Type", "application/gzip");
-  setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  setHeader(
+    "Content-Disposition",
+    `attachment; filename="${safeContentDispositionFilename(filename)}"`,
+  );
 
   const nodeStream = createReadStream(archivePath);
   return new ReadableStream({

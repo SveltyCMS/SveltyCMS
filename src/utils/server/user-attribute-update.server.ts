@@ -9,10 +9,14 @@ import type { DatabaseId } from "@src/databases/db-interface";
 import type { User } from "@src/databases/auth/types";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import {
+  hasCredentialChangeFields,
   hasPrivilegedUserFields,
   isAdminCaller,
   sanitizeClientUserAttributePatch,
 } from "@utils/security/user-attribute-policy";
+import { verifyPassword } from "@src/databases/auth";
+import { sanitizeUserForClient } from "@src/databases/auth/session-user";
+import { verifyReauthToken, verifyUserReauthToken } from "@utils/server/session-reauth.server";
 import { AppError, raise, rethrow } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { invalidateSessionCache, primeSessionMemoryCache } from "@src/hooks/handle-authentication";
@@ -48,6 +52,18 @@ function tenantIdOf(user: unknown): string | null {
   return String(raw);
 }
 
+/** Extract a User from either `{ data }` adapter results or direct user objects. */
+function extractUserRecord(res: unknown): User | null {
+  if (!res || typeof res !== "object") return null;
+  if ("data" in res) {
+    return ((res as { data?: User | null }).data ?? null) as User | null;
+  }
+  if ("success" in res) {
+    return null;
+  }
+  return res as User;
+}
+
 export async function applyUserAttributeUpdate(
   event: RequestEvent,
   cms: LocalCMS,
@@ -76,6 +92,29 @@ export async function applyUserAttributeUpdate(
       ? { ...directUpdates, ...(newUserData as Record<string, unknown>) }
       : { ...directUpdates };
 
+  // Non-admin user:write holders may never reset another user's credentials or
+  // touch an administrator account (prevents role-denylist bypass via password reset).
+  if (!isSelf && !isAdmin) {
+    if (hasCredentialChangeFields(merged)) {
+      raise(
+        403,
+        "Admin privileges required to change another user's email or password",
+        "FORBIDDEN_CREDENTIAL_RESET",
+      );
+    }
+    try {
+      const targetLookupOpts = tenantId ? { tenantId } : withSystemScope("auth-bootstrap");
+      const targetRes = await cms.auth.getUserById(targetIdStr, targetLookupOpts as never);
+      const targetUser = extractUserRecord(targetRes);
+      if (targetUser && isAdminCaller(targetUser as { isAdmin?: boolean; role?: string })) {
+        raise(403, "Forbidden: cannot modify an administrator account", "FORBIDDEN_TARGET_RANK");
+      }
+    } catch (err) {
+      rethrow(err);
+      if (err instanceof AppError && err.status === 403) throw err;
+    }
+  }
+
   if (hasPrivilegedUserFields(merged) && !isAdmin) {
     logger.warn(
       `[Auth] Stripped privileged fields from update-user-attributes (user=${caller._id})`,
@@ -83,6 +122,51 @@ export async function applyUserAttributeUpdate(
   }
 
   const updates = sanitizeClientUserAttributePatch(merged, { isAdmin });
+
+  // H1: a self-service change of email or password must prove the current
+  // password for THIS request, either via x-reauth-token (5 min TTL) or
+  // server-side verification of currentPassword against the stored hash.
+  const isPasswordUpdating =
+    "password" in merged &&
+    merged.password !== undefined &&
+    String(merged.password).trim().length > 0;
+  const callerEmail = typeof caller.email === "string" ? caller.email.trim().toLowerCase() : "";
+  const isEmailUpdating =
+    "email" in merged &&
+    merged.email !== undefined &&
+    String(merged.email).trim().toLowerCase() !== callerEmail;
+
+  if (isSelf && (isPasswordUpdating || isEmailUpdating)) {
+    const sessionCandidates = [
+      String((event.locals.session_id as DatabaseId | undefined) ?? ""),
+      String(readSessionCookie(event.cookies, event.url.protocol === "https:") ?? ""),
+    ].filter((id) => id.length > 0);
+    const proof = event.request.headers.get("x-reauth-token");
+    let proven =
+      sessionCandidates.some((id) => verifyReauthToken(proof, callerIdStr, id)) ||
+      verifyUserReauthToken(proof, callerIdStr);
+
+    if (
+      !proven &&
+      typeof merged.currentPassword === "string" &&
+      merged.currentPassword.length > 0
+    ) {
+      try {
+        const freshOpts = tenantId ? { tenantId } : withSystemScope("auth-bootstrap");
+        const freshRes = await cms.auth.getUserById(callerIdStr, freshOpts as never);
+        const freshUser = extractUserRecord(freshRes);
+        if (freshUser?.password) {
+          proven = Boolean(await verifyPassword(freshUser.password, merged.currentPassword));
+        }
+      } catch {
+        proven = false;
+      }
+    }
+
+    if (!proven) {
+      raise(403, "Re-authentication required to change email or password", "REAUTH_REQUIRED");
+    }
+  }
   if (Object.keys(updates).length === 0) {
     throw new AppError("At least one user attribute is required", 400);
   }
@@ -198,5 +282,31 @@ export async function applyUserAttributeUpdate(
     }
   }
 
-  return result.data;
+  return sanitizeUserForClient(result.data);
+}
+
+/**
+ * Prevents non-admin callers (e.g. a role holding `user:write`) from deleting,
+ * blocking, or unblocking administrator accounts via batch operations.
+ */
+export async function assertNonAdminTargetsForCaller(
+  cms: LocalCMS,
+  targetIds: readonly string[],
+  tenantId: DatabaseId | undefined,
+  caller: { isAdmin?: boolean; role?: string } | null | undefined,
+): Promise<void> {
+  if (isAdminCaller(caller)) return;
+  const lookupOpts = tenantId ? { tenantId } : withSystemScope("auth-bootstrap");
+  for (const id of targetIds) {
+    try {
+      const targetRes = await cms.auth.getUserById(id, lookupOpts as never);
+      const targetUser = extractUserRecord(targetRes);
+      if (targetUser && isAdminCaller(targetUser as { isAdmin?: boolean; role?: string })) {
+        raise(403, "Forbidden: cannot modify an administrator account", "FORBIDDEN_TARGET_RANK");
+      }
+    } catch (err) {
+      rethrow(err);
+      if (err instanceof AppError && err.status === 403) throw err;
+    }
+  }
 }

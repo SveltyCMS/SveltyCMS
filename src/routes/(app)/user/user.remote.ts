@@ -75,6 +75,9 @@ export const deleteUser = command(
         hasPermissionWithRoles(caller as User, "user:write", event.locals.roles ?? []);
       if (!canManage) throw new AppError("Forbidden", 403);
       const { cms, tenantId } = await getRequestLocalCMS();
+      const { assertNonAdminTargetsForCaller } =
+        await import("@utils/server/user-attribute-update.server");
+      await assertNonAdminTargetsForCaller(cms, userIds.map(String), tenantId as never, caller);
       const result = await cms.auth.batchAction(userIds.map(String), "delete", {
         tenantId: tenantId as never,
       });

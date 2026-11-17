@@ -812,6 +812,22 @@
 	}
 
 	function handleWidgetKeydown(event: KeyboardEvent, item: DashboardWidgetConfig) {
+		if (event.shiftKey) {
+			const nextSize = { ...item.size };
+			if (event.key === 'ArrowRight') nextSize.w = Math.min(MAX_COLUMNS, item.size.w + 1);
+			else if (event.key === 'ArrowLeft') nextSize.w = Math.max(1, item.size.w - 1);
+			else if (event.key === 'ArrowDown') nextSize.h = Math.min(MAX_ROWS, item.size.h + 1);
+			else if (event.key === 'ArrowUp') nextSize.h = Math.max(1, item.size.h - 1);
+			else return;
+
+			event.preventDefault();
+			if (nextSize.w !== item.size.w || nextSize.h !== item.size.h) {
+				resizeWidget(item.id, nextSize);
+				announce(`Resized ${item.label || item.component} to ${nextSize.w} by ${nextSize.h}`);
+			}
+			return;
+		}
+
 		const currentWidgets = [...currentPreferences];
 		const currentIndex = currentWidgets.findIndex((w) => w.id === item.id);
 
@@ -1328,8 +1344,8 @@
 							data-widget-id={item.id}
 							data-widget-order={item.order ?? 0}
 							data-testid="dashboard-widget"
-							style:grid-column="span {item.size.w}"
-							style:grid-row="span {item.size.h}"
+							style:--w={item.size.w}
+							style:--h={item.size.h}
 							style:touch-action="manipulation"
 							style:min-height="{item.size.h *
 								(dashboardEvents.density === 'compact' ? 120 : 160)}px"
@@ -1489,31 +1505,39 @@
 
 <style>
 	.responsive-dashboard-grid {
+		--grid-cols: 4;
 		position: relative;
 		display: grid;
-		grid-template-columns: repeat(4, 1fr);
+		grid-template-columns: repeat(var(--grid-cols), minmax(0, 1fr));
 		grid-auto-rows: var(--dashboard-row-height, 160px);
 		grid-auto-flow: row dense;
 		gap: 1rem;
 	}
 
+	.widget-container {
+		min-width: 0;
+		grid-column: span min(var(--w, 1), var(--grid-cols, 4));
+		grid-row: span var(--h, 1);
+		transition:
+			grid-column 180ms cubic-bezier(0.22, 0.9, 0.24, 1),
+			grid-row 180ms cubic-bezier(0.22, 0.9, 0.24, 1);
+	}
+
 	@media (max-width: 1023px) {
 		.responsive-dashboard-grid {
-			grid-template-columns: repeat(2, 1fr);
-		}
-
-		.widget-container {
-			grid-column: span 2 !important;
+			--grid-cols: 2;
 		}
 	}
 
 	@media (max-width: 767px) {
 		.responsive-dashboard-grid {
-			grid-template-columns: repeat(1, 1fr);
+			--grid-cols: 1;
 		}
+	}
 
+	@media (prefers-reduced-motion: reduce) {
 		.widget-container {
-			grid-column: span 1 !important;
+			transition: none;
 		}
 	}
 </style>

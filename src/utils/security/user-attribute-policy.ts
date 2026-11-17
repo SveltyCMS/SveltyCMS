@@ -114,6 +114,17 @@ export function hasPrivilegedUserFields(updates: Record<string, unknown>): boole
   return false;
 }
 
+/** Fields whose change must be backed by a fresh password proof (H1). */
+const CREDENTIAL_CHANGE_FIELDS = ["password", "email"] as const;
+
+/** True if any key in the patch is a credential-change field (checked before stripping). */
+export function hasCredentialChangeFields(body: Record<string, unknown>): boolean {
+  for (const field of CREDENTIAL_CHANGE_FIELDS) {
+    if (Object.prototype.hasOwnProperty.call(body, field)) return true;
+  }
+  return false;
+}
+
 /** Caller is a system/super admin for attribute-update purposes. */
 
 export function isAdminCaller(

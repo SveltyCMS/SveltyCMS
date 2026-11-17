@@ -4,7 +4,7 @@ title: "Tested Security Features"
 description: "Comprehensive list of security features covered by automated tests"
 author: "SveltyCMS Team"
 created: "2026-03-13"
-updated: "2026-10-11"
+updated: "2026-11-17"
 tags:
   - security
   - testing
@@ -30,6 +30,17 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 ---
 
 ## Security Vulnerabilities Fixed
+
+### November 2026 Penetration & Authorization Hardening
+
+1. **Credential Re-Authentication & Target-Rank Enforcement (`CWE-620` / `CWE-269`)**: `applyUserAttributeUpdate()` in `src/utils/server/user-attribute-update.server.ts` requires either a fresh `x-reauth-token` or server-verified `currentPassword` when email or password actually changes, and blocks non-admin `user:write` holders from resetting other users' credentials (`FORBIDDEN_CREDENTIAL_RESET`) or modifying/deleting administrators (`FORBIDDEN_TARGET_RANK`) across `PUT`/`PATCH /api/user/:id`, `/api/user/batch`, and `deleteUser`.
+2. **Unified User Response Redaction (`CWE-200`)**: `sanitizeUserForClient()` in `src/databases/auth/session-user.ts` strips credential hashes, TOTP envelopes, backup codes, reset tokens, OAuth refresh tokens, WebAuthn authenticators, and lockout metadata at `/api/user`, `/api/user/:id`, user updates, `POST /api/export { type: "users" }`, and GraphQL `users`/`me` resolvers.
+3. **Settings Export & Trash Access Control (`CWE-862`)**: `GET /api/settings/export` enforces `requireAdminUser()` and `redactExportedSettings()`; `/api/trash` is mapped to `system:admin` across `endpoint-permissions.ts` and `handleTrashRoutes()`.
+4. **Cross-Node Dynamic Permission Isolation (`CWE-863`)**: `toPersistablePermMask()` and `getStaticPermissionBit()` restrict persisted session masks and dispatcher bit-checks to the static catalog (bits `0..44`), preventing process-local dynamic bit (`45..62`) collisions across cluster nodes.
+5. **Share Links, Media Serving & SVG Bounds (`CWE-288` / `CWE-113`)**: Password-protected shares omit `/files/` URLs from unauthenticated SSR payloads and accept `x-share-password`/`POST` bodies behind rate limiting; `/files/` runs traversal, tenant, and signed-URL gates before cloud redirects and returns `416` on malformed `Range` headers; Sharp pipelines enforce `failOn: "warning"` and blur pixel caps, SVG geometry uses `guardNumeric()`, and downloads sanitize `Content-Disposition` filenames.
+6. **Signed Preview Cookie & Theme CSS Sanitization**: `(site)/+layout.server.ts` validates HMAC `cms_preview_token` (ignoring forged unsigned `cms_draft_mode=true` cookies and unverified `?entryId=` queries), and `POST /api/theme/update-theme` runs `sanitizeCss()`. `csrf-utils.ts` restricts cross-port loopback equivalence to non-production builds.
+
+**Tests**: `tests/unit/security/pentest-invariants.test.ts` (`T1–T16` including negative authz matrix, canary secret scanner, and schema-derived `authUsers` classifier), `scripts/security/pentest.ts`.
 
 ### 1. Localhost Rate Limit Bypass (Protected March 2026)
 

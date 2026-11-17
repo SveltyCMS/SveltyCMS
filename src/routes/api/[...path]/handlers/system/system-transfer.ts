@@ -8,6 +8,8 @@ import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { successResponse } from "../base";
+import { requireAdminUser } from "./system-shared";
+import { sanitizeUserForClient } from "@src/databases/auth/session-user";
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { streamingArrayResponse } from "../streaming";
 
@@ -56,9 +58,11 @@ export async function handleExportRoutes(
   if (request.method === "POST") {
     const { type, preview } = await request.json().catch(() => ({}));
     if (type === "users") {
+      requireAdminUser(event, "Admin access required to export user directory");
       const result = await cms.auth.listUsers({ tenantId });
       if (!result.success) throw new AppError(result.message || "Failed to list users", 500);
-      const items = Array.isArray(result.data) ? result.data : [];
+      const rawItems = Array.isArray(result.data) ? result.data : [];
+      const items = rawItems.map((u) => sanitizeUserForClient(u));
       return streamingArrayResponse(items, items.length);
     }
     if (type === "static-site") {
