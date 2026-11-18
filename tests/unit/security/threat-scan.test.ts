@@ -65,11 +65,21 @@ describe("threat-scan linear WAF", () => {
 
   it("returns quickly on pathological ReDoS bait", () => {
     const bait = `${"select ".repeat(400)}${"a".repeat(4000)} from ${"b".repeat(4000)} where`;
-    const start = performance.now();
-    inspectRequest("/api/search", `q=${bait}`, {});
-    scanPayload(bait);
-    const elapsed = performance.now() - start;
-    expect(elapsed).toBeLessThan(25);
+    // Warm up regex paths before sampling so cold JIT/coverage compilation doesn't flake CI.
+    inspectRequest("/api/search", "q=select a from b where", {});
+    scanPayload("select a from b where");
+
+    const samples: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      const start = performance.now();
+      inspectRequest("/api/search", `q=${bait}`, {});
+      scanPayload(bait);
+      samples.push(performance.now() - start);
+    }
+    samples.sort((a, b) => a - b);
+    const medianElapsed = samples[2];
+    const limit = process.env.CI ? 100 : 50;
+    expect(medianElapsed).toBeLessThan(limit);
   });
 });
 

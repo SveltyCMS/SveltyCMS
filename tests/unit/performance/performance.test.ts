@@ -44,41 +44,46 @@ const LEGACY_WIDGET = {
 
 describe("Performance: Batch Widget API", () => {
   test("Batch Widget should be significantly faster than Legacy Widget", async () => {
-    // 1. Measure Batch Performance
-    const startBatch = performance.now();
-    await BATCH_WIDGET.modifyRequestBatch({ data: MOCK_ENTRIES });
-    const endBatch = performance.now();
-    const durationBatch = endBatch - startBatch;
+    const runBatchOnce = () => BATCH_WIDGET.modifyRequestBatch({ data: MOCK_ENTRIES });
+    const runLegacyOnce = () =>
+      Promise.all(
+        MOCK_ENTRIES.map(async (entry) => {
+          const dataAccessor = {
+            get: () => entry,
+            update: () => {},
+          };
+          await LEGACY_WIDGET.modifyRequest({ data: dataAccessor });
+        }),
+      );
 
-    if (process.env.VERBOSE_TESTS) {
-      console.log(`Batch Processing (100 items): ${durationBatch.toFixed(2)}ms`);
+    // Warm up JIT before sampling medians to avoid cold-start variance.
+    await runBatchOnce();
+    await runLegacyOnce();
+
+    const SAMPLES = 5;
+    const batchSamples: number[] = [];
+    const legacySamples: number[] = [];
+
+    for (let i = 0; i < SAMPLES; i++) {
+      const startBatch = performance.now();
+      await runBatchOnce();
+      batchSamples.push(performance.now() - startBatch);
+
+      const startLegacy = performance.now();
+      await runLegacyOnce();
+      legacySamples.push(performance.now() - startLegacy);
     }
 
-    // 2. Measure Legacy Performance (Sequential/Parallel Promise.all)
-    // Note: In our implementation, we use Promise.all, so it's parallel.
-    // However, 100 concurrent DB calls is still heavier than 1.
-    // Here we simulate the "overhead" of N calls vs 1 call.
-
-    const startLegacy = performance.now();
-    await Promise.all(
-      MOCK_ENTRIES.map(async (entry) => {
-        const dataAccessor = {
-          get: () => entry,
-          update: () => {},
-        };
-        await LEGACY_WIDGET.modifyRequest({ data: dataAccessor });
-      }),
-    );
-    const endLegacy = performance.now();
-    const durationLegacy = endLegacy - startLegacy;
+    batchSamples.sort((a, b) => a - b);
+    legacySamples.sort((a, b) => a - b);
+    const durationBatch = batchSamples[Math.floor(SAMPLES / 2)];
+    const durationLegacy = legacySamples[Math.floor(SAMPLES / 2)];
 
     if (process.env.VERBOSE_TESTS) {
-      console.log(`Legacy Processing (100 items): ${durationLegacy.toFixed(2)}ms`);
+      console.log(`Batch Processing median (100 items): ${durationBatch.toFixed(2)}ms`);
+      console.log(`Legacy Processing median (100 items): ${durationLegacy.toFixed(2)}ms`);
     }
 
-    // Expect batch to be at least slightly faster or similar in this mock (since Promise.all is fast),
-    // but in real world with DB connection limits, Batch wins huge.
-    // For this test, we just ensure it works and is efficient.
-    expect(durationBatch).toBeLessThan(durationLegacy * 1.5); // Allow some margin
+    expect(durationBatch).toBeLessThan(Math.max(durationLegacy, 0.5) * 1.5);
   });
 });

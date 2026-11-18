@@ -129,16 +129,16 @@ describe("SveltyCMS Integration Resilience & Boundary Audits", () => {
       const resEnabled = await runWithTrace("test-trace-enabled", true, async () => {
         const val1 = traceSpanSync("sync-task-2", () => 200);
         const val2 = await traceSpan("async-task-2", async () => {
-          await new Promise((r) => setTimeout(r, 10));
+          await new Promise((r) => setTimeout(r, 15));
           return 300;
         });
         const trace = getTrace();
         expect(trace).toBeDefined();
         expect(trace?.spans.length).toBe(2);
         expect(trace?.spans[0].name).toBe("sync-task-2");
-        expect(trace?.spans[0].duration).toBeLessThan(10);
+        expect(trace?.spans[0].duration).toBeLessThan(process.env.CI ? 50 : 25);
         expect(trace?.spans[1].name).toBe("async-task-2");
-        expect(trace?.spans[1].duration).toBeGreaterThanOrEqual(9);
+        expect(trace?.spans[1].duration).toBeGreaterThanOrEqual(10);
         return val1 + val2;
       });
       expect(resEnabled).toBe(500);

@@ -73,19 +73,34 @@ describe("Dual-Track Post-Write Path (Native vs WASM)", () => {
 
   it("bails immediately when no plugin implements the hook (0.00ms baseline)", () => {
     const rawData = { title: "Unmodified Post" };
-    const t0 = performance.now();
-    const result = triggerLifecycleHook(
-      mockDbAdapter,
-      "beforeSave",
-      "posts",
-      rawData,
-      { tenantId: "default" as DatabaseId },
-      mockSchema,
-    );
-    const duration = performance.now() - t0;
+    const ctx = { tenantId: "default" as DatabaseId };
+    for (let i = 0; i < 200; i++) {
+      triggerLifecycleHook(mockDbAdapter, "beforeSave", "posts", rawData, ctx, mockSchema);
+    }
 
-    expect(result).toBe(rawData);
-    expect(duration).toBeLessThan(0.5);
+    const BATCHES = 5;
+    const ITERATIONS = 100;
+    const perCallSamples: number[] = [];
+    let lastResult: unknown;
+    for (let batch = 0; batch < BATCHES; batch++) {
+      const t0 = performance.now();
+      for (let i = 0; i < ITERATIONS; i++) {
+        lastResult = triggerLifecycleHook(
+          mockDbAdapter,
+          "beforeSave",
+          "posts",
+          rawData,
+          ctx,
+          mockSchema,
+        );
+      }
+      perCallSamples.push((performance.now() - t0) / ITERATIONS);
+    }
+    perCallSamples.sort((a, b) => a - b);
+    const medianDuration = perCallSamples[Math.floor(BATCHES / 2)];
+
+    expect(lastResult).toBe(rawData);
+    expect(medianDuration).toBeLessThan(0.5);
   });
 
   it("executes 1st-party plugin natively in-process without WASM overhead", async () => {

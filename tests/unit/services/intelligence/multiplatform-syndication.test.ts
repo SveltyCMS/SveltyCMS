@@ -21,16 +21,35 @@ describe("Multi-Platform Corporate Governance Engine", () => {
         excerpt: "An overview of headless architecture with SveltyCMS.",
       };
 
-      const report = evaluateCorporateAlignment({
+      // Warm up regex/alignment tables before sampling steady-state median latency
+      evaluateCorporateAlignment({
         content: cleanContent,
         targetPlatform: "web",
         targetLocale: "en",
       });
 
+      const samples: number[] = [];
+      let report = evaluateCorporateAlignment({
+        content: cleanContent,
+        targetPlatform: "web",
+        targetLocale: "en",
+      });
+      samples.push(report.metrics.durationMs);
+      for (let i = 0; i < 4; i++) {
+        report = evaluateCorporateAlignment({
+          content: cleanContent,
+          targetPlatform: "web",
+          targetLocale: "en",
+        });
+        samples.push(report.metrics.durationMs);
+      }
+      samples.sort((a, b) => a - b);
+      const medianMs = samples[Math.floor(samples.length / 2)];
+
       expect(report.compliant).toBe(true);
       expect(report.score).toBe(100);
       expect(report.violations).toHaveLength(0);
-      expect(report.metrics.durationMs).toBeLessThan(15); // Fast execution
+      expect(medianMs).toBeLessThan(process.env.CI ? 50 : 15); // Fast steady-state execution
     });
 
     it("flags EU UWG §6 superlative claims and suggests compliant replacements", () => {

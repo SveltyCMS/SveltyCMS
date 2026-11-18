@@ -132,19 +132,28 @@ describe("WASM Micro-Sandbox — Pool Lifecycle and Pre-warming", () => {
       await pool.executeHook("beforeSave", payload, ctx);
     }
 
-    const t0 = performance.now();
-    const result = await pool.executeHook("beforeSave", payload, ctx);
-    const duration = performance.now() - t0;
+    // Median of batches: a single sample flakes under V8 coverage / CI VM jitter.
+    const BATCHES = 5;
+    const ITERATIONS = 20;
+    const perCallSamples: number[] = [];
+    for (let batch = 0; batch < BATCHES; batch++) {
+      const t0 = performance.now();
+      for (let i = 0; i < ITERATIONS; i++) {
+        const result = await pool.executeHook("beforeSave", payload, ctx);
+        expect(result.success).toBe(true);
+        expect(result.data).toBeDefined();
+      }
+      perCallSamples.push((performance.now() - t0) / ITERATIONS);
+    }
+    perCallSamples.sort((a, b) => a - b);
+    const medianDuration = perCallSamples[Math.floor(BATCHES / 2)];
 
-    expect(result.success).toBe(true);
-    expect(result.data).toBeDefined();
-
-    // Must be well under 1.5ms on virtualized CI and < 0.5ms locally
+    // Must be well under 2.5ms on virtualized CI (under V8 coverage) and < 1.0ms locally
     const maxBudgetMs = process.env.CI ? 2.5 : 1.0;
-    expect(duration).toBeLessThan(maxBudgetMs);
+    expect(medianDuration).toBeLessThan(maxBudgetMs);
 
     const metrics = pool.getMetrics();
-    expect(metrics.invocationsTotal).toBeGreaterThanOrEqual(51);
+    expect(metrics.invocationsTotal).toBeGreaterThanOrEqual(50 + BATCHES * ITERATIONS);
     expect(metrics.invocationsFailed).toBe(0);
   });
 

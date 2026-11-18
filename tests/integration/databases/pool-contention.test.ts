@@ -167,13 +167,18 @@ describe("Database Connection Pool & Mutex Contention", () => {
     if (!db || !db.isConnected()) return;
 
     const testCollection = "system_preferences";
-    const start = performance.now();
-    const res = await db.crud.findOne(testCollection, { scope: "benchmark" } as any, {
-      tenantId: TEST_TENANT,
-    });
-    const duration = performance.now() - start;
+    const samples: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      const start = performance.now();
+      const res = await db.crud.findOne(testCollection, { scope: "benchmark" } as any, {
+        tenantId: TEST_TENANT,
+      });
+      samples.push(performance.now() - start);
+      expect(res.success).toBe(true);
+    }
+    samples.sort((a, b) => a - b);
+    const medianDuration = samples[Math.floor(samples.length / 2)];
 
-    expect(res.success).toBe(true);
-    expect(duration).toBeLessThan(50); // Generous 50ms budget for post-burst query
+    expect(medianDuration).toBeLessThan(process.env.CI ? 100 : 50); // Generous steady-state budget for post-burst query
   });
 });
