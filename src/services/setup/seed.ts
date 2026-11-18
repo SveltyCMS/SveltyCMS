@@ -1016,22 +1016,31 @@ export async function seedWebsiteStarterPages(
       },
     ];
 
+    const targetTenant = tenantId ?? null;
     const missing: Array<Record<string, unknown>> = [];
     let changed = false;
     for (const page of pages) {
       const found = await dbAdapter.crud.findMany(
         "pages",
-        { slug: page.slug, ...(tenantId && { tenantId: tenantId as DatabaseId }) } as Record<
-          string,
-          unknown
-        >,
-        { ...scope, limit: 1 },
+        {
+          slug: page.slug,
+          ...(targetTenant && { tenantId: targetTenant as DatabaseId }),
+        } as Record<string, unknown>,
+        // `scope` carries `withSystemScope("seed")`, so when `targetTenant` is
+        // `null` `findMany` can see rows owned by named tenants (e.g. "global")
+        // and would otherwise update their row in-place instead of inserting a
+        // single-tenant (`tenantId: null`) homepage. Filter in memory so each
+        // tenant keeps its own seeded homepage.
+        { ...scope, limit: targetTenant ? 1 : 50 },
       );
       const rows = listedSeedRows(found);
       if (rows === null) continue;
-      if (rows.length > 0) {
+      const matching = rows.filter(
+        (row) => ((row as Record<string, unknown>).tenantId ?? null) === targetTenant,
+      );
+      if (matching.length > 0) {
         if (page.slug === "home" && dbAdapter.crud.update) {
-          const id = seedRowId(rows[0]);
+          const id = seedRowId(matching[0]);
           if (id) {
             await dbAdapter.crud.update("pages", id, page, scope);
             changed = true;

@@ -1396,12 +1396,10 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       } else {
         locals.tenantId = getTenantIdFromHostname(url.hostname, true) as DatabaseId;
       }
-    } else {
-      const workerIndex = event.request.headers.get("x-test-worker-index");
-      if (process.env.TEST_MODE === "true" && workerIndex) {
-        locals.tenantId = `test-worker-${workerIndex}` as DatabaseId;
-      }
     }
+    // Single-tenant requests must keep locals.tenantId unset (`null`/`undefined`),
+    // even when `x-test-worker-index` is present for DB-worker isolation.
+    // Multi-tenant isolation tests opt in explicitly via `x-test-tenant-id` below.
 
     // TEST_MODE: allow black-box multi-tenant isolation tests without flipping
     // MULTI_TENANT for the whole process. Header is ignored outside test mode.

@@ -91,6 +91,10 @@ export async function seedWebsiteStarterBlueprint(
   if (enablePlugin) {
     try {
       const { pluginRegistry } = await import("@src/plugins/registry");
+      if (!pluginRegistry.isInitialized()) {
+        const { initializePlugins } = await import("@src/plugins/init.server");
+        await initializePlugins(adapter, (tenantId || "default") as string);
+      }
       pluginEnabled = await pluginRegistry.togglePlugin(
         "editable-website",
         true,

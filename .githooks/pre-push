@@ -278,6 +278,18 @@ if [ "${SKIP_E2E_SMOKE:-false}" != "true" ]; then
     info "Config UI/API changes detected — adding the config goldens"
     E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/config/design-system.spec.ts tests/e2e/routes/config/appearance-golden.spec.ts tests/e2e/routes/config/data-ops.spec.ts tests/e2e/routes/config/access-management.spec.ts"
   fi
+  if has_push_changes '^(src/routes/\(app\)/config/system-settings/|src/utils/modal\.svelte\.ts)'; then
+    info "System Settings or leave-guard changes detected — adding settings suite"
+    E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/system/settings.spec.ts"
+  fi
+  if has_push_changes '^(src/components/iconify-icons-picker\.svelte|src/routes/\(app\)/config/collectionbuilder/)'; then
+    info "Collection Builder or icon picker changes detected — adding builder suite"
+    E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/collection-builder/builder.spec.ts"
+  fi
+  if has_push_changes '^(src/routes/\(site\)/|src/services/site/|src/services/setup/|src/hooks/handle-authentication\.ts|src/plugins/registry\.ts)'; then
+    info "Site, setup, auth hook, or plugin registry changes detected — adding site-starter and commerce-golden suites"
+    E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/site/site-starter.spec.ts tests/e2e/routes/site/commerce-golden.spec.ts"
+  fi
   if has_push_changes '^(src/widgets/|src/components/collection-display/|src/routes/\(app\)/\[language\]/\[\.\.\.collection\]/)'; then
     info "Collection or widget changes detected — expanding gate to include Kitchen Sink journey"
     E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/collection-builder/kitchen-sink.spec.ts"

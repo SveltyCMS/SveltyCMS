@@ -21,6 +21,7 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "../../fixtures";
 import { TEST_API_HEADERS, ensureAuthenticated, resetAndSeedDatabase } from "../../helpers/api";
 import { dismissCookieConsent, seedCookieConsent } from "../../helpers/cookie-consent";
+import { runAfterHydration } from "../../helpers/hydration";
 import { assertNoZeroErrors, attachZeroErrorGuard } from "../../helpers/zero-error-guard";
 
 test.describe.configure({ mode: "serial", timeout: 120_000 });
@@ -78,7 +79,7 @@ test.describe("QA audit regressions — browser-only", () => {
     // control by its tag + aria-label rather than by role alone.
     const toCard = page.locator('button[aria-label="Switch to card view"]');
     await expect(toCard).toBeVisible({ timeout: 30_000 });
-    await toCard.click();
+    await runAfterHydration(page, () => toCard.click());
 
     // The label flips only if the controller accepted the new mode — the old
     // getter-only accessor threw before it did.

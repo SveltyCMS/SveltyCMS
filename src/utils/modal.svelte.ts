@@ -395,8 +395,11 @@ export function createUnsavedLeaveHandler(opts: {
   body: string;
   onDiscard?: () => void;
   navigate: (href: string, toUrl: URL) => void | Promise<void>;
+  /** Skip prompt when only search/hash changes on the same pathname (default true). */
+  ignoreSamePathname?: boolean;
 }) {
   let allow = false;
+  let confirming = false;
   return (nav: {
     cancel: () => void;
     from?: { url: URL } | null;
@@ -407,25 +410,34 @@ export function createUnsavedLeaveHandler(opts: {
       allow = false;
       return;
     }
-    if (!opts.isDirty() || (nav.from && nav.to && nav.to.url.pathname === nav.from.url.pathname))
-      return;
+    if (!opts.isDirty()) return;
+    if (nav.from && nav.to) {
+      if (nav.to.url.href === nav.from.url.href) return;
+      if ((opts.ignoreSamePathname ?? true) && nav.to.url.pathname === nav.from.url.pathname)
+        return;
+    }
     nav.cancel();
-    if (nav.willUnload || !nav.to?.url) return;
+    if (nav.willUnload || !nav.to?.url || confirming) return;
     const url = nav.to.url;
+    confirming = true;
     void Promise.resolve(
       modalState.showConfirm({
         title: opts.title ?? "Unsaved Changes",
         body: opts.body,
       }),
-    ).then(async (confirmed) => {
-      if (!confirmed) return;
-      opts.onDiscard?.();
-      allow = true;
-      try {
-        await opts.navigate(url.href, url);
-      } finally {
-        allow = false;
-      }
-    });
+    )
+      .then(async (confirmed) => {
+        if (!confirmed) return;
+        opts.onDiscard?.();
+        allow = true;
+        try {
+          await opts.navigate(url.href, url);
+        } finally {
+          allow = false;
+        }
+      })
+      .finally(() => {
+        confirming = false;
+      });
   };
 }

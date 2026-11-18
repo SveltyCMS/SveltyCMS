@@ -203,75 +203,85 @@ Advanced icon picker with search, pagination, and favorites.
 		}, DEBOUNCE_MS);
 	}
 
+	let activeFetchControllers = new Set<AbortController>();
+	let isDestroyed = false;
+
+	async function fetchIconify<T>(
+		url: string,
+		label: string,
+		errorMessage: string,
+		timeoutMessage?: string
+	): Promise<{ data: T | null; aborted: boolean }> {
+		const controller = new AbortController();
+		activeFetchControllers.add(controller);
+		const timeout = setTimeout(() => controller.abort(), 10_000);
+		try {
+			const response = await fetch(url, { signal: controller.signal });
+			if (!response.ok) throw new Error(`${label} error: ${response.status}`);
+			const data = (await response.json()) as T;
+			return isDestroyed || controller.signal.aborted
+				? { data: null, aborted: true }
+				: { data, aborted: false };
+		} catch (error) {
+			const aborted =
+				isDestroyed ||
+				controller.signal.aborted ||
+				(error instanceof Error && error.name === 'AbortError');
+			if (aborted) {
+				if (!isDestroyed && timeoutMessage) searchError = timeoutMessage;
+			} else {
+				logger.warn(`${label} unavailable:`, error);
+				searchError = errorMessage;
+			}
+			return { data: null, aborted };
+		} finally {
+			clearTimeout(timeout);
+			activeFetchControllers.delete(controller);
+		}
+	}
+
 	// Fetch icons from Iconify API
 	async function searchIcons(query: string, library: string, append = false): Promise<void> {
-		// If no query, load the library's icons instead of clearing
 		if (!query.trim()) {
-			if (library && !append) {
-				await fetchCollectionIcons(library);
-			}
+			if (library && !append) await fetchCollectionIcons(library);
 			return;
 		}
 
 		isLoading = true;
 		searchError = null;
-
 		try {
 			const url = new URL(`${ICONIFY_API_BASE}/search`);
 			url.searchParams.set('query', query);
-			// Only set prefix if a specific library is selected
-			if (library) {
-				url.searchParams.set('prefix', library);
-			}
+			if (library) url.searchParams.set('prefix', library);
 			url.searchParams.set('start', startIndex.toString());
 			url.searchParams.set('limit', ICONS_PER_PAGE.toString());
 
-			const controller = new AbortController();
-			const timeout = setTimeout(() => controller.abort(), 10_000);
-
-			const response = await fetch(url.toString(), {
-				signal: controller.signal
-			});
-
-			clearTimeout(timeout);
-
-			if (!response.ok) {
-				throw new Error(`API error: ${response.status}`);
+			const { data } = await fetchIconify<IconSearchResponse>(
+				url.toString(),
+				'Iconify search',
+				'Failed to fetch icons',
+				'Search timeout - please try again'
+			);
+			if (!data) {
+				icons = [];
+				return;
 			}
 
-			const data: IconSearchResponse = await response.json();
-
-			if (data?.icons && Array.isArray(data.icons)) {
+			if (data.icons && Array.isArray(data.icons)) {
 				const newIcons = data.icons;
-
 				if (append) {
 					icons = [...icons, ...newIcons];
-					visibleLimit += newIcons.length; // Ensure they are visible
+					visibleLimit += newIcons.length;
 				} else {
 					icons = newIcons;
 					visibleLimit = 50;
 					currentPage = 0;
 				}
-
-				// Preload icons for better UX
-				const iconIds = newIcons.map((icon) => {
-					// If global search, icon already includes prefix
-					return library ? `${library}:${icon}` : icon;
-				});
-				await loadIcons(iconIds);
-
+				await loadIcons(newIcons.map((icon) => (library ? `${library}:${icon}` : icon)));
 				activeTab = 'search';
 			} else if (!append) {
 				icons = [];
 			}
-		} catch (error) {
-			if (error instanceof Error && error.name === 'AbortError') {
-				searchError = 'Search timeout - please try again';
-			} else {
-				logger.error('Error fetching icons:', error);
-				searchError = 'Failed to fetch icons';
-			}
-			icons = [];
 		} finally {
 			isLoading = false;
 		}
@@ -282,39 +292,26 @@ Advanced icon picker with search, pagination, and favorites.
 		isLoading = true;
 		searchError = null;
 		icons = [];
-
 		try {
-			const response = await fetch(`${ICONIFY_API_BASE}/collection?prefix=${library}`);
-			if (!response.ok) {
-				throw new Error(`Failed to load collection: ${response.status}`);
-			}
+			const { data } = await fetchIconify<{
+				uncategorized?: string[];
+				categories?: Record<string, string[]>;
+			}>(
+				`${ICONIFY_API_BASE}/collection?prefix=${library}`,
+				'Iconify collection fetch',
+				'Failed to load library icons'
+			);
+			if (!data) return;
 
-			const data = await response.json();
-
-			// Flatten the collection data into a simple list of icon names
-			let allIcons: string[] = [];
-
-			// Add uncategorized
-			if (data.uncategorized) {
-				allIcons.push(...data.uncategorized);
-			}
-
-			// Add categorized
+			const allIcons: string[] = [];
+			if (data.uncategorized) allIcons.push(...data.uncategorized);
 			if (data.categories) {
-				Object.values(data.categories).forEach((categoryIcons: unknown) => {
-					allIcons.push(...(categoryIcons as string[]));
-				});
+				for (const categoryIcons of Object.values(data.categories)) {
+					allIcons.push(...categoryIcons);
+				}
 			}
-
-			// Add hidden/aliases if needed, but usually main icons are enough
-
 			icons = allIcons;
-			visibleLimit = 50; // Reset for new collection
-			// Reset to page 0 for new collection
-			// currentPage = 0; // Don't reset here, handled by caller if needed
-		} catch (error) {
-			logger.error('Error fetching collection icons:', error);
-			searchError = 'Failed to load library icons';
+			visibleLimit = 50;
 		} finally {
 			isLoading = false;
 		}
@@ -322,32 +319,16 @@ Advanced icon picker with search, pagination, and favorites.
 
 	// Fetch available icon libraries
 	async function fetchIconLibraries(): Promise<void> {
-		if (librariesLoaded || isLoadingLibraries) {
-			return;
-		}
-
+		if (librariesLoaded || isLoadingLibraries) return;
 		isLoadingLibraries = true;
 		searchError = null;
-
 		try {
-			const controller = new AbortController();
-			const timeout = setTimeout(() => controller.abort(), 10_000);
-
-			const response = await fetch(`${ICONIFY_API_BASE}/collections`, {
-				signal: controller.signal
-			});
-
-			clearTimeout(timeout);
-
-			if (!response.ok) {
-				throw new Error(`Failed to fetch libraries: ${response.status}`);
-			}
-
-			const data: Record<string, IconLibrary> = await response.json();
-			iconLibraries = data;
-		} catch (error) {
-			logger.error('Error fetching icon libraries:', error);
-			searchError = 'Failed to load libraries';
+			const { data } = await fetchIconify<Record<string, IconLibrary>>(
+				`${ICONIFY_API_BASE}/collections`,
+				'Iconify libraries fetch',
+				'Failed to load libraries'
+			);
+			if (data) iconLibraries = data;
 		} finally {
 			isLoadingLibraries = false;
 		}
@@ -537,6 +518,11 @@ Advanced icon picker with search, pagination, and favorites.
 	});
 
 	onDestroy(() => {
+		isDestroyed = true;
+		for (const controller of activeFetchControllers) {
+			controller.abort();
+		}
+		activeFetchControllers.clear();
 		if (debounceTimer) {
 			clearTimeout(debounceTimer);
 		}

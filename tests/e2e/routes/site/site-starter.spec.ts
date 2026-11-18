@@ -39,12 +39,15 @@ test.describe("Site Starter", () => {
     // outcome assertion: without the editable-website plugin it does not render.
   });
 
-  test("guest sees seeded homepage at /", async ({ browser }) => {
+  test.describe("guest homepage", () => {
     // A real guest must not inherit the admin storageState — otherwise / renders
     // the admin dashboard and the seeded public homepage is never exercised.
-    const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
-    const page = await context.newPage();
-    try {
+    // Using `test.use` keeps the project's `extraHTTPHeaders` (`x-test-worker-index`,
+    // `x-test-secret`) intact, whereas raw `browser.newContext()` drops them and
+    // hits an unseeded worker DB.
+    test.use({ storageState: { cookies: [], origins: [] } });
+
+    test("guest sees seeded homepage at /", async ({ page }) => {
       const response = await page.goto("/", { waitUntil: "domcontentloaded" });
       // The Svedit renderer draws the hero as article text (no heading role),
       // so assert on the seeded content text itself — the outcome that matters.
@@ -68,9 +71,7 @@ test.describe("Site Starter", () => {
       expect(ssrHtml, "SSR must not render the no-page fallback").not.toContain(
         "The SvelteKit site starter is active",
       );
-    } finally {
-      await context.close();
-    }
+    });
   });
 
   test("admin can open pages collection and Live Preview tab", async ({ page }) => {

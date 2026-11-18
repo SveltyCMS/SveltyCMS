@@ -137,6 +137,10 @@ export async function handleTestingConfigSeedRoutes(
       } catch {
         dbAdapter = undefined;
       }
+      if (!pluginRegistry.isInitialized() && dbAdapter) {
+        const { initializePlugins } = await import("@src/plugins/init.server");
+        await initializePlugins(dbAdapter, String(tenantId || "default"));
+      }
       const ok = await pluginRegistry.togglePlugin(
         pluginId,
         enabled,

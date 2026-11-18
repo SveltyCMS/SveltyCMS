@@ -424,6 +424,8 @@ export async function seedDatabase(configData: DbConfig, systemData: SystemSetti
       multiTenant: systemData.multiTenant,
       demoMode: systemData.demoMode,
     });
+    const { invalidateFastSetupCache } = await import("@src/utils/server/setup-check");
+    invalidateFastSetupCache();
     const { initSystemFast } = await import("./seed");
     const { getSetupDatabaseAdapter } = await import("./setup-utils");
     const { setupManager } = await import("./setup-manager");
@@ -515,6 +517,12 @@ export async function completeSetup(
       error: `Critical database seeding failed: ${setupManager.seedingError}`,
     };
   }
+
+  // Flush the 2s negative setup-check cache before re-initializing DB core services;
+  // otherwise initializeCoreServices() sees cached false and stays in 2-service SETUP mode
+  // (skipping cache, content, and plugin initialization).
+  const { invalidateFastSetupCache } = await import("@src/utils/server/setup-check");
+  invalidateFastSetupCache();
 
   const { initializeWithConfig, dbAdapter: ga } = await loadDbModule();
   let dbAdapter: IDBAdapter | undefined;

@@ -93,6 +93,7 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 		createUnsavedLeaveHandler({
 			isDirty: () => hasUnsavedChanges,
 			body: 'You have unsaved settings changes. Leave this page anyway?',
+			ignoreSamePathname: false,
 			onDiscard: () => (hasUnsavedChanges = false),
 			// slop:suppress — resuming an interrupted navigation after the user confirmed discard
 			navigate: (href) => goto(href)
