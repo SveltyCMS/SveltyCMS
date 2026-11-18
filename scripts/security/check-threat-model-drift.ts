@@ -2,7 +2,7 @@
 /**
  * @file scripts/security/check-threat-model-drift.ts
  * @description CLI for the threat-model drift gate. Every security surface in
- * `docs/security/threat-model.json` owns a set of paths. When one of those files
+ * `scripts/security/threat-model.json` owns a set of paths. When one of those files
  * changes, its fingerprint no longer matches and CI fails until the surface's
  * MDX model is reviewed and the manifest is refreshed.
  *
@@ -55,7 +55,7 @@ function usage(): string {
     "Usage: bun run scripts/security/check-threat-model-drift.ts [--check | --update] [--date YYYY-MM-DD] [--json]",
     "",
     "  --check   Verify fingerprints, models, coverage and review age (default).",
-    "  --update  Recompute fingerprints and write docs/security/threat-model.json.",
+    "  --update  Recompute fingerprints and write scripts/security/threat-model.json.",
     "  --date    Review date recorded by --update (default: today, UTC).",
     "  --json    Print machine-readable JSON.",
   ].join("\n");

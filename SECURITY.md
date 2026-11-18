@@ -26,7 +26,7 @@ SveltyCMS is built with defense in depth: a fail-closed API permission map, a li
 - **Advisory process**: [docs/reference/security/advisory-process.mdx](./docs/reference/security/advisory-process.mdx)
 - **Patch latency**: [docs/reference/security/patch-latency.mdx](./docs/reference/security/patch-latency.mdx)
 
-As of 2026-11-05, an external penetration test **has not been performed**. The machine-readable record in [`docs/security/external-validation.json`](./docs/security/external-validation.json) shows `pending` for the penetration test, bug bounty, OpenSSF Scorecard, SLSA, and Sigstore. Internal scanner and regression results are self-assessments, not an audit.
+As of 2026-11-05, an external penetration test **has not been performed**. The machine-readable record in [`scripts/security/external-validation.json`](./scripts/security/external-validation.json) shows `pending` for the penetration test, bug bounty, OpenSSF Scorecard, SLSA, and Sigstore. Internal scanner and regression results are self-assessments, not an audit.
 
 ### AI-assisted security
 

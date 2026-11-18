@@ -88,13 +88,13 @@ describe("--update safety", () => {
           id: "empty-surface",
           description: "matches nothing",
           paths: ["src/routes/missing/**"],
-          model: "docs/security/threat-models/empty-surface.mdx",
+          model: "docs/reference/security/threat-models/empty-surface.mdx",
           reviewed_at: "2026-11-05",
           fingerprint: PLACEHOLDER,
         },
       ],
     };
-    write(root, "docs/security/threat-model.json", JSON.stringify(manifest, null, 2));
+    write(root, "scripts/security/threat-model.json", JSON.stringify(manifest, null, 2));
 
     // `tests/unit/setup.ts` stubs `node:child_process`; use the real one.
     const { spawnSync: realSpawnSync } =
@@ -109,7 +109,7 @@ describe("--update safety", () => {
     expect(result.stderr).toContain("match no files");
 
     const onDisk = JSON.parse(
-      readFileSync(join(root, "docs/security/threat-model.json"), "utf8"),
+      readFileSync(join(root, "scripts/security/threat-model.json"), "utf8"),
     ) as { surfaces: Array<{ fingerprint: string }> };
     expect(onDisk.surfaces[0].fingerprint).toBe(PLACEHOLDER);
   }, 30_000);

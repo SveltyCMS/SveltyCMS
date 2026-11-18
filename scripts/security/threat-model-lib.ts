@@ -17,10 +17,10 @@ import { join, relative, resolve } from "node:path";
 import * as v from "valibot";
 
 /** Manifest location relative to the repository root. */
-export const MANIFEST_PATH = "docs/security/threat-model.json";
+export const MANIFEST_PATH = "scripts/security/threat-model.json";
 
 /** Directory that holds one MDX threat model per surface. */
-export const MODEL_DIR = "docs/security/threat-models";
+export const MODEL_DIR = "docs/reference/security/threat-models";
 
 /** Every SvelteKit server route that must be owned by a surface. */
 export const ROUTE_SERVER_GLOBS = [
@@ -229,13 +229,16 @@ export const ThreatSurfaceSchema = v.object({
   paths: v.pipe(v.array(v.pipe(v.string(), v.minLength(1))), v.minLength(1)),
   model: v.pipe(
     v.string(),
-    v.regex(/^docs\/security\/threat-models\/[a-z0-9-]+\.mdx$/, "expected threat model path"),
+    v.regex(
+      /^docs\/reference\/security\/threat-models\/[a-z0-9-]+\.mdx$/,
+      "expected threat model path",
+    ),
   ),
   reviewed_at: IsoDateSchema,
   fingerprint: FingerprintSchema,
 });
 
-/** Versioned manifest stored at `docs/security/threat-model.json`. */
+/** Versioned manifest stored at `scripts/security/threat-model.json`. */
 export const ManifestSchema = v.pipe(
   v.object({
     version: v.literal(1),

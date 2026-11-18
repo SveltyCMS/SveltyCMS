@@ -16,27 +16,27 @@ tags:
 # Threat-Model Drift Gate
 
 Six broad surfaces cover the server-side attack surface. Each surface owns a set
-of paths in `docs/security/threat-model.json` and a STRIDE page in
-`docs/security/threat-models/`. When a file inside a surface changes, its
+of paths in `scripts/security/threat-model.json` and a STRIDE page in
+`docs/reference/security/threat-models/`. When a file inside a surface changes, its
 fingerprint no longer matches the recorded value and CI fails until the model is
 reviewed and the manifest is refreshed. Coverage is currently **58/58 server
 route files (100.0%)**.
 
-| Surface         | Files | Threat model                                                          |
-| :-------------- | ----: | :-------------------------------------------------------------------- |
-| `api-dispatch`  |    78 | [API dispatch](/docs/security/threat-models/api-dispatch)             |
-| `auth-session`  |    82 | [Authentication & session](/docs/security/threat-models/auth-session) |
-| `content-write` |    51 | [Content write](/docs/security/threat-models/content-write)           |
-| `media-files`   |    53 | [Media & files](/docs/security/threat-models/media-files)             |
-| `admin-pages`   |   207 | [Admin pages](/docs/security/threat-models/admin-pages)               |
-| `system-ops`    |    84 | [System operations](/docs/security/threat-models/system-ops)          |
+| Surface         | Files | Threat model                                                 |
+| :-------------- | ----: | :----------------------------------------------------------- |
+| `api-dispatch`  |    78 | [API dispatch](./threat-models/api-dispatch.mdx)             |
+| `auth-session`  |    82 | [Authentication & session](./threat-models/auth-session.mdx) |
+| `content-write` |    51 | [Content write](./threat-models/content-write.mdx)           |
+| `media-files`   |    53 | [Media & files](./threat-models/media-files.mdx)             |
+| `admin-pages`   |   207 | [Admin pages](./threat-models/admin-pages.mdx)               |
+| `system-ops`    |    84 | [System operations](./threat-models/system-ops.mdx)          |
 
-The per-surface MDX pages live in `docs/security/threat-models/`; the numbers
+The per-surface MDX pages live in `docs/reference/security/threat-models/`; the numbers
 above are the file counts reported by the last `--update`.
 
 ## Manifest contract
 
-`docs/security/threat-model.json` is versioned and validated with Valibot by
+`scripts/security/threat-model.json` is versioned and validated with Valibot by
 `scripts/security/threat-model-lib.ts` (`ManifestSchema`):
 
 ```json
@@ -47,7 +47,7 @@ above are the file counts reported by the last `--update`.
       "id": "api-dispatch",
       "description": "HTTP API dispatch, endpoint permission mapping and request-lane hooks.",
       "paths": ["src/routes/api/**", "src/hooks/handle-api-requests.ts"],
-      "model": "docs/security/threat-models/api-dispatch.mdx",
+      "model": "docs/reference/security/threat-models/api-dispatch.mdx",
       "reviewed_at": "2026-11-05",
       "fingerprint": "<64 hex chars>"
     }
@@ -60,7 +60,7 @@ Rules enforced by the schema:
 - `version` is exactly `1`; surface ids are unique kebab-case strings.
 - `reviewed_at` is a real `YYYY-MM-DD` calendar date.
 - `fingerprint` is a lowercase sha256 hex digest.
-- `model` must resolve inside `docs/security/threat-models/` and end in `.mdx`.
+- `model` must resolve inside `docs/reference/security/threat-models/` and end in `.mdx`.
 - Every route matched by `src/routes/**/+server.ts` or
   `src/routes/**/+page.server.ts` must match at least one surface path.
 
@@ -134,5 +134,5 @@ the test file.
 
 `.github/workflows/security-governance.yml` runs the drift gate and the
 invariant suite on every pull request that touches `src/**`,
-`scripts/security/**`, `docs/security/**` or the workflow itself, plus a weekly
+`scripts/security/**`, `docs/reference/security/threat-models/**` or the workflow itself, plus a weekly
 scheduled run so a stale review cannot hide in an untouched subtree.

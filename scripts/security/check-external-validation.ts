@@ -1,7 +1,7 @@
 /**
  * @file scripts/security/check-external-validation.ts
  * @description Fail-closed gate for the externally verifiable security evidence
- *   recorded in `docs/security/external-validation.json`.
+ *   recorded in `scripts/security/external-validation.json`.
  *
  * The record is the machine-readable counterpart of
  * `docs/reference/security/security-case.mdx`. It starts fully `pending`
@@ -21,7 +21,7 @@
  * ### Usage
  *   bun run scripts/security/check-external-validation.ts
  *   bun run scripts/security/check-external-validation.ts --json
- *   bun run scripts/security/check-external-validation.ts --file=docs/security/external-validation.json
+ *   bun run scripts/security/check-external-validation.ts --file=scripts/security/external-validation.json
  */
 
 import { readFileSync } from "node:fs";
@@ -38,7 +38,7 @@ export const REVIEW_MAX_AGE_DAYS = 180;
 const DAY_MS = 86_400_000;
 
 /** Repository-relative record path, used for stable human/JSON output. */
-export const DEFAULT_DOCUMENT_SOURCE = "docs/security/external-validation.json";
+export const DEFAULT_DOCUMENT_SOURCE = "scripts/security/external-validation.json";
 
 /** Absolute record path used when `--file` is omitted. */
 export const DEFAULT_DOCUMENT_PATH = join(import.meta.dirname, "../..", DEFAULT_DOCUMENT_SOURCE);

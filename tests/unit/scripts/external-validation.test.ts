@@ -236,7 +236,7 @@ describe("CLI contract", () => {
     if (parsed.ok) {
       expect(parsed.options.json).toBe(false);
       expect(parsed.options.file.replaceAll("\\", "/")).toContain(
-        "docs/security/external-validation.json",
+        "scripts/security/external-validation.json",
       );
     }
   });
@@ -331,11 +331,11 @@ describe("report rendering", () => {
     const evaluation = evaluateExternalValidation(document, NOW);
     const report = buildJsonReport(document, evaluation, {
       now: NOW,
-      source: "docs/security/external-validation.json",
+      source: "scripts/security/external-validation.json",
     });
 
     expect(JSON.parse(JSON.stringify(report))).toEqual(report);
     expect(report.status.penetration_test).toBe("pending");
-    expect(report.source).toBe("docs/security/external-validation.json");
+    expect(report.source).toBe("scripts/security/external-validation.json");
   });
 });

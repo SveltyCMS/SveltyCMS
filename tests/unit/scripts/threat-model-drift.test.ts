@@ -21,7 +21,7 @@ import {
 } from "../../../scripts/security/threat-model-lib";
 
 const SCRIPT = resolve(process.cwd(), "scripts/security/check-threat-model-drift.ts");
-const MODEL = "docs/security/threat-models/test-surface.mdx";
+const MODEL = "docs/reference/security/threat-models/test-surface.mdx";
 
 const roots: string[] = [];
 
@@ -176,7 +176,7 @@ describe("CLI round-trip", () => {
   it("--update recomputes fingerprints so --check passes", async () => {
     const root = makeRoot();
     write(root, "src/routes/api/ping/+server.ts", "export const GET = () => 'pong';\n");
-    write(root, "docs/security/threat-models/test-surface.mdx", "# Test surface\n");
+    write(root, "docs/reference/security/threat-models/test-surface.mdx", "# Test surface\n");
 
     const placeholder: Manifest = {
       version: 1,
@@ -191,7 +191,7 @@ describe("CLI round-trip", () => {
         },
       ],
     };
-    write(root, "docs/security/threat-model.json", JSON.stringify(placeholder, null, 2));
+    write(root, "scripts/security/threat-model.json", JSON.stringify(placeholder, null, 2));
 
     // `tests/unit/setup.ts` stubs `node:child_process`; the round-trip needs the
     // real CLI under Bun, so load the actual module explicitly.
@@ -207,7 +207,7 @@ describe("CLI round-trip", () => {
     expect(update.status, update.stderr).toBe(0);
 
     const updated = parseManifest(
-      JSON.parse(readFileSync(join(root, "docs/security/threat-model.json"), "utf8")),
+      JSON.parse(readFileSync(join(root, "scripts/security/threat-model.json"), "utf8")),
     );
     expect(updated.surfaces[0].reviewed_at).toBe("2026-11-05");
     expect(updated.surfaces[0].fingerprint).not.toBe("0".repeat(64));
@@ -231,7 +231,7 @@ describe("CLI round-trip", () => {
 
   it("--check exits 2 on an unreadable manifest", async () => {
     const root = makeRoot();
-    write(root, "docs/security/threat-model.json", "{ not json");
+    write(root, "scripts/security/threat-model.json", "{ not json");
     const { spawnSync: realSpawnSync } =
       await vi.importActual<typeof import("node:child_process")>("node:child_process");
 

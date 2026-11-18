@@ -13,7 +13,7 @@
         "src/hooks/handle-compression.ts",
         "src/databases/auth/permission-catalog.ts"
       ],
-      "model": "docs/security/threat-models/api-dispatch.mdx",
+      "model": "docs/reference/security/threat-models/api-dispatch.mdx",
       "reviewed_at": "2026-11-18",
       "fingerprint": "81f568e8511cd94a041ae2cc2cb3dd4ef9046e0092e89ef2ffceea91094ca47d"
     },
@@ -36,7 +36,7 @@
         "src/routes/api/[...path]/handlers/tokens.ts",
         "src/routes/api/[...path]/handlers/scim.ts"
       ],
-      "model": "docs/security/threat-models/auth-session.mdx",
+      "model": "docs/reference/security/threat-models/auth-session.mdx",
       "reviewed_at": "2026-11-18",
       "fingerprint": "3e6586335a66f4c1d46bb9ad76a947a0d93265c27ed08cf34aafc3ba66556d01"
     },
@@ -56,7 +56,7 @@
         "src/services/content/**",
         "src/hooks/handle-collection-write-lane.ts"
       ],
-      "model": "docs/security/threat-models/content-write.mdx",
+      "model": "docs/reference/security/threat-models/content-write.mdx",
       "reviewed_at": "2026-11-18",
       "fingerprint": "928bf54f961791bd064b703a2d02d57507f717374b0e00c7ef84e1b11ed8cd94"
     },
@@ -73,7 +73,7 @@
         "src/routes/api/[...path]/handlers/media-permissions.ts",
         "src/routes/api/[...path]/handlers/media-transcode.ts"
       ],
-      "model": "docs/security/threat-models/media-files.mdx",
+      "model": "docs/reference/security/threat-models/media-files.mdx",
       "reviewed_at": "2026-11-18",
       "fingerprint": "ed3439964d2e636a6cd84a5c107cafefb35878eb1d9f1c070a7fb0c9d2d548e6"
     },
@@ -88,7 +88,7 @@
         "src/routes/(app)/plugin/**",
         "src/utils/page-guards.server.ts"
       ],
-      "model": "docs/security/threat-models/admin-pages.mdx",
+      "model": "docs/reference/security/threat-models/admin-pages.mdx",
       "reviewed_at": "2026-11-18",
       "fingerprint": "16f3894a7ccd161229fc147d8c2390803b838a32b8df942ff46a6daa8ccbd578"
     },
@@ -129,7 +129,7 @@
         "src/routes/api/[...path]/handlers/migrations.ts",
         "src/utils/test-bypass.server.ts"
       ],
-      "model": "docs/security/threat-models/system-ops.mdx",
+      "model": "docs/reference/security/threat-models/system-ops.mdx",
       "reviewed_at": "2026-11-18",
       "fingerprint": "e45a39ed6637f9188e58a1bc3dd1d35c0d64608c216a565a8b23f882cf82638e"
     }

@@ -2,7 +2,7 @@
  * @file scripts/security/advisory-ledger.ts
  * @description
  * Zero-I/O model for the security advisory ledger: the Valibot schema that
- * every `docs/security/advisories/*.json` record must satisfy, the semantic
+ * every `scripts/security/advisories/*.json` record must satisfy, the semantic
  * rules a schema cannot express (state ↔ timestamp implications, CVSS /
  * severity agreement, monotonic timeline), and the release-latency maths that
  * both `check-advisories.ts` and the generated `patch-latency` table share.

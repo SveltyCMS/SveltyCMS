@@ -2,7 +2,7 @@
 /**
  * @file scripts/security/check-advisories.ts
  * @description
- * Gatekeeper for the advisory ledger in `docs/security/advisories/`. Every
+ * Gatekeeper for the advisory ledger in `scripts/security/advisories/`. Every
  * `*.json` file is parsed against the shared Valibot schema, checked against
  * the semantic rules in `advisory-ledger.ts`, and rejected on duplicate ids —
  * a ledger with two records for one advisory cannot be trusted to measure
@@ -38,7 +38,7 @@ import {
   validateAdvisoryRecord,
 } from "./advisory-ledger";
 
-const ADVISORIES_DIR = join("docs", "security", "advisories");
+const ADVISORIES_DIR = join("scripts", "security", "advisories");
 const PATCH_LATENCY_DOC = join("docs", "reference", "security", "patch-latency.mdx");
 
 export const GENERATED_BLOCK_BEGIN = "<!-- BEGIN GENERATED:patch-latency -->";

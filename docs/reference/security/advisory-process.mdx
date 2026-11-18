@@ -90,18 +90,20 @@ can re-check.
 ## What the machine enforces
 
 `scripts/security/check-advisories.ts` validates every record in
-[the ledger](../../security/advisories/readme.mdx). It runs as part of
+`scripts/security/advisories/` against the Valibot schema in
+`scripts/security/advisory-ledger.ts`. It runs as part of
 `bun run security:assurance` — which `bun run check` and the CI whitebox job
 execute on every change — and again in the scheduled
 `.github/workflows/security-assurance.yml` run, so an advisory that ages past
-its SLA fails even when nobody pushes. It checks:
+its SLA fails even when nobody pushes. Unknown JSON keys fail the gate so typos
+cannot silently drop fields. It checks:
 
-- the schema (required fields, id shape, ISO 8601 timestamps, one-decimal CVSS);
+- the schema (required fields, `SC-YYYY-NNN` id shape, ISO 8601 timestamps, one-decimal CVSS);
 - the timeline (`received_at ≤ triaged_at ≤ patched_at ≤ released_at ≤ published_at`);
-- the state implications (a `released` record carries `osv_id`, `fixed_version`,
-  `published_at`, and a regression test; `critical` and `high` also carry a CVE);
+- the state implications (`received` → `triaged` → `patched` → `released`: a `released` record carries `osv_id`, `fixed_version`, `published_at`, and at least one `regression_tests` path; `critical` and `high` also carry a `cve_id` requested via GitHub Security Advisories as CNA);
 - CVSS score against severity;
 - duplicate ids;
+- exclusion of synthetic `provenance: "example"` fixtures from all published statistics;
 - the SLA, when invoked with `--fail-on-breach`.
 
 What it cannot check is whether the CVSS vector is an honest reading of the

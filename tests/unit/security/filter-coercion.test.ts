@@ -5,7 +5,7 @@
  *
  * Without this, `filter[featured]=true` is a string: SQLite/Mongo match no rows
  * and MariaDB compares `'true'` against a TINYINT as `0` (returns the opposite
- * rows). See `docs/security/threat-models/` (input handling).
+ * rows). See `docs/reference/security/threat-models/` (input handling).
  */
 
 import { describe, expect, it } from "vitest";

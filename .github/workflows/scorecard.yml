@@ -2,7 +2,7 @@
 # OpenSSF Scorecard — supply-chain posture for the repository.
 #
 # The published score feeds `openssf_scorecard.latest_score` in
-# docs/security/external-validation.json. When a run first exists, record the
+# scripts/security/external-validation.json. When a run first exists, record the
 # score, flip `status` to `tracked`, and point `report_url` at the public
 # Scorecard result. Until then the file honestly stays `pending`.
 #
