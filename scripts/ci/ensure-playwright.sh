@@ -6,10 +6,29 @@
 
 set -eu
 
+# `playwright-core` declares an "exports" map that does not expose
+# ./browsers.json, so resolving that subpath throws ERR_PACKAGE_PATH_NOT_EXPORTED
+# on current releases and the whole E2E job dies before it can install anything.
+# Resolve the package root through an exportable specifier and read the manifest
+# from disk instead.
 eval "$(node -e '
   const path = require("node:path");
+  const fs = require("node:fs");
   const pwDir = path.dirname(require.resolve("playwright"));
-  const { browsers } = require(require.resolve("playwright-core/browsers.json", { paths: [pwDir] }));
+  let coreDir = null;
+  for (const spec of ["playwright-core/package.json", "playwright-core"]) {
+    try {
+      const dir = path.dirname(require.resolve(spec, { paths: [pwDir] }));
+      if (fs.existsSync(path.join(dir, "browsers.json"))) {
+        coreDir = dir;
+        break;
+      }
+    } catch {
+      // export not allowed (or not installed) - try the next specifier
+    }
+  }
+  if (!coreDir) throw new Error("playwright-core/browsers.json not reachable");
+  const { browsers } = JSON.parse(fs.readFileSync(path.join(coreDir, "browsers.json"), "utf8"));
   const fullRev = browsers.find((b) => b.name === "chromium")?.revision || "";
   const headRev = browsers.find((b) => b.name === "chromium-headless-shell")?.revision || fullRev;
   console.log(`FULL_REV=${fullRev} HEAD_REV=${headRev}`);
