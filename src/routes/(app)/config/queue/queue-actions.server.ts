@@ -95,3 +95,44 @@ export const clearCompleted = async (_data?: unknown) => {
   }
   return { success: true, count: result.data };
 };
+
+export const retryFailed = async (_data?: unknown) => {
+  requireAdminPermission();
+  const db = getQueueDb();
+  if (!db?.system?.jobs) throw error(500, "Database adapter not ready or jobs not supported.");
+
+  const tenantId = getQueueTenantId();
+  const failedList = await db.system.jobs.list({
+    status: "failed",
+    limit: 100,
+    offset: 0,
+    tenantId,
+  });
+  if (!failedList.success) {
+    logger.error("Failed to list failed jobs:", failedList.message);
+    throw error(500, failedList.message);
+  }
+
+  const jobs = failedList.data ?? [];
+  if (jobs.length === 0) {
+    return { success: true, count: 0 };
+  }
+
+  const now = new Date();
+  let retried = 0;
+  for (const job of jobs) {
+    const updated = await db.system.jobs.update(
+      job._id,
+      {
+        status: "pending",
+        attempts: 0,
+        nextRunAt: now,
+        lastError: undefined,
+      },
+      { tenantId },
+    );
+    if (updated.success) retried += 1;
+  }
+
+  return { success: true, count: retried };
+};

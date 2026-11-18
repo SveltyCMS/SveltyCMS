@@ -388,3 +388,44 @@ export const showCloneModal = (options: any) => {
     onConfirm: options.onConfirm,
   });
 };
+
+export function createUnsavedLeaveHandler(opts: {
+  isDirty: () => boolean;
+  title?: string;
+  body: string;
+  onDiscard?: () => void;
+  navigate: (href: string, toUrl: URL) => void | Promise<void>;
+}) {
+  let allow = false;
+  return (nav: {
+    cancel: () => void;
+    from?: { url: URL } | null;
+    to?: { url: URL } | null;
+    willUnload?: boolean;
+  }) => {
+    if (allow) {
+      allow = false;
+      return;
+    }
+    if (!opts.isDirty() || (nav.from && nav.to && nav.to.url.pathname === nav.from.url.pathname))
+      return;
+    nav.cancel();
+    if (nav.willUnload || !nav.to?.url) return;
+    const url = nav.to.url;
+    void Promise.resolve(
+      modalState.showConfirm({
+        title: opts.title ?? "Unsaved Changes",
+        body: opts.body,
+      }),
+    ).then(async (confirmed) => {
+      if (!confirmed) return;
+      opts.onDiscard?.();
+      allow = true;
+      try {
+        await opts.navigate(url.href, url);
+      } finally {
+        allow = false;
+      }
+    });
+  };
+}

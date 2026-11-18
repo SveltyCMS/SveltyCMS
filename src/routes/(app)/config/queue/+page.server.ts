@@ -6,14 +6,11 @@
 import type { DatabaseId } from "@src/content/types";
 import { getDb } from "@src/databases/db";
 import { raise } from "@utils/error-handling";
-import { getAuthenticatedUser } from "@utils/page-guards.server";
+import { requireAdminPage } from "@utils/page-guards.server";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ url, locals }) => {
-  getAuthenticatedUser(locals);
-  if (!locals.isAdmin) {
-    raise(403, "Admin privileges required");
-  }
+  requireAdminPage(locals, "queue");
 
   // Request-scoped, tenant-bound adapter. `system.jobs.*` is fail-closed under
   // multi-tenancy (assertTenantContext), so the raw global adapter would reject

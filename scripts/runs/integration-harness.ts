@@ -188,8 +188,8 @@ export const privateEnv = {
   PREVIEW_SECRET: ${JSON.stringify(process.env.PREVIEW_SECRET || "Integration-Preview-Secret-2026")},
   PASSWORD_MIN_LENGTH: 8,
   USE_REDIS: false,
-  MULTI_TENANT: false,
-  DEMO: false,
+  MULTI_TENANT: ${process.env.MULTI_TENANT === "true"},
+  DEMO: ${process.env.DEMO === "true"},
   HOST_PROD: ${JSON.stringify(apiBaseUrl)},
 };
 export const privateConfig = privateEnv;

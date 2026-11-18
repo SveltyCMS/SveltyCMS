@@ -341,6 +341,16 @@ const plugins = await dbAdapter.crud.findMany(
 > [!CAUTION]
 > There is no longer a `sudo: true` backdoor to bypass tenant isolation. Every query must either be explicitly scoped to a `tenantId` or intentionally declared global with `null`. Attempting to omit the tenant context will result in a hard Security Violation.
 
+#### **Active Multi-Tenant + Demo Smoke Verification**
+
+Default harness runs boot with `MULTI_TENANT: false` and `DEMO: false`, which skips `tests/e2e/multi-tenancy/isolation.spec.ts` and masks missing explicit `null` global-scope passing in mocked unit tests. To exercise active tenant isolation and ephemeral `DEMO` visitor provisioning end to end:
+
+```bash
+MULTI_TENANT=true DEMO=true bun run test:e2e -- tests/e2e/multi-tenancy/isolation.spec.ts tests/e2e/routes/config/tenants.spec.ts tests/e2e/multi-tenancy/demo-mt-smoke.spec.ts
+```
+
+In CI (`.github/workflows/ci.yml`), the `e2e-demo-mt` job runs this suite on every full-tier run against an active `MULTI_TENANT: true` + `DEMO: true` configuration.
+
 ```mermaid
 sequenceDiagram
     participant Client

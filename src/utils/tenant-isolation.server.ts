@@ -22,6 +22,33 @@ const MULTI_TENANT_TTL_MS = 5000;
 
 let _multiTenantCached: boolean | null = null;
 let _multiTenantCachedAt = 0;
+let _demoModeCached: boolean | null = null;
+let _demoModeCachedAt = 0;
+
+/**
+ * Demo mode detection via config/private.ts (5s TTL with bootstrap private-env fallback).
+ */
+export function isDemoModeEnabled(): boolean {
+  const now = Date.now();
+  if (_demoModeCached !== null && now - _demoModeCachedAt < MULTI_TENANT_TTL_MS) {
+    return _demoModeCached;
+  }
+
+  try {
+    const demoSetting = getPrivateSettingSync("DEMO");
+    const envSnapshot = getPrivateEnv();
+    const demo = demoSetting ?? envSnapshot?.DEMO;
+    const resolved = demo === true || String(demo) === "true";
+    // Do not poison the 5s cache with a pre-boot `false` before config/settings finish loading.
+    if (demoSetting !== undefined || envSnapshot != null) {
+      _demoModeCached = resolved;
+      _demoModeCachedAt = now;
+    }
+    return resolved;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Multi-tenant mode detection via config/private.ts.
@@ -38,17 +65,22 @@ export function isMultiTenantEnabled(): boolean {
 
   try {
     const mtSetting = getPrivateSettingSync("MULTI_TENANT");
+    const envSnapshot = getPrivateEnv();
     // MULTI_TENANT is an infrastructure key: the sync settings cache may not be
     // warmed on API-only cold boots, so fall back to the bootstrap private env.
-    const mt = mtSetting ?? getPrivateEnv()?.MULTI_TENANT;
-    const demo = getPrivateSettingSync("DEMO");
-    _multiTenantCached =
+    const mt = mtSetting ?? envSnapshot?.MULTI_TENANT;
+    const demo = getPrivateSettingSync("DEMO") ?? envSnapshot?.DEMO;
+    const resolved =
       mt === true || String(mt) === "true" || demo === true || String(demo) === "true";
+    // Do not poison the 5s cache with a pre-boot `false` before config/settings finish loading.
+    if (mtSetting !== undefined || envSnapshot != null) {
+      _multiTenantCached = resolved;
+      _multiTenantCachedAt = now;
+    }
+    return resolved;
   } catch {
-    _multiTenantCached = false;
+    return false;
   }
-  _multiTenantCachedAt = now;
-  return _multiTenantCached;
 }
 
 /**
@@ -57,6 +89,8 @@ export function isMultiTenantEnabled(): boolean {
 export function resetMultiTenantCache(): void {
   _multiTenantCached = null;
   _multiTenantCachedAt = 0;
+  _demoModeCached = null;
+  _demoModeCachedAt = 0;
 }
 
 /**

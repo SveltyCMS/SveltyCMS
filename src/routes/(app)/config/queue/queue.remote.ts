@@ -36,3 +36,9 @@ export const clearCompleted = command("unchecked", async (_input: Record<string,
   const { clearCompleted: fn } = await import("./queue-actions.server");
   return fn();
 });
+
+export const retryFailed = command("unchecked", async (_input: Record<string, never>) => {
+  requireAdmin();
+  const { retryFailed: fn } = await import("./queue-actions.server");
+  return fn();
+});

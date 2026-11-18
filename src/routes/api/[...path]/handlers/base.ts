@@ -278,7 +278,12 @@ export function isDatabaseResult(obj: any): obj is {
   meta?: any;
   error?: { code?: string; message?: string; statusCode?: number };
 } {
-  return obj && typeof obj === "object" && typeof (obj as any).success === "boolean";
+  return (
+    Boolean(obj) &&
+    typeof obj === "object" &&
+    typeof (obj as { success?: unknown }).success === "boolean" &&
+    ("data" in obj || "error" in obj)
+  );
 }
 
 /**

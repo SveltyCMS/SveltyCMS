@@ -6,6 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+const listMock = vi.fn();
 const updateMock = vi.fn();
 const deleteMock = vi.fn();
 const cleanupMock = vi.fn();
@@ -14,6 +15,7 @@ vi.mock("@src/databases/db", () => ({
   getDb: () => ({
     system: {
       jobs: {
+        list: listMock,
         update: updateMock,
         delete: deleteMock,
         cleanup: cleanupMock,
@@ -28,6 +30,7 @@ vi.mock("@utils/logger", () => ({
 
 import {
   retryJob,
+  retryFailed,
   deleteJob,
   clearCompleted,
 } from "../../../src/routes/(app)/config/queue/queue-actions.server";
@@ -35,6 +38,7 @@ import {
 describe("queue-actions.server", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    listMock.mockResolvedValue({ success: true, data: [] });
     updateMock.mockResolvedValue({ success: true });
     deleteMock.mockResolvedValue({ success: true });
     cleanupMock.mockResolvedValue({ success: true, data: 3 });
@@ -82,6 +86,29 @@ describe("queue-actions.server", () => {
       // tenant admin from clearing another tenant's history.
       await clearCompleted();
       expect(cleanupMock).toHaveBeenCalledWith(expect.any(Date), { tenantId: "test-tenant-id" });
+    });
+  });
+
+  describe("retryFailed", () => {
+    it("resets all tenant-scoped failed jobs back to pending", async () => {
+      listMock.mockResolvedValue({
+        success: true,
+        data: [{ _id: "f1" }, { _id: "f2" }],
+      });
+      const result = await retryFailed();
+      expect(result).toEqual({ success: true, count: 2 });
+      expect(listMock).toHaveBeenCalledWith({
+        status: "failed",
+        limit: 100,
+        offset: 0,
+        tenantId: "test-tenant-id",
+      });
+      expect(updateMock).toHaveBeenCalledTimes(2);
+      expect(updateMock).toHaveBeenCalledWith(
+        "f1",
+        expect.objectContaining({ status: "pending", attempts: 0 }),
+        { tenantId: "test-tenant-id" },
+      );
     });
   });
 });

@@ -86,9 +86,8 @@ None (TreeView has its own keyboard navigation)
 	import AdminCard from '@components/admin-card.svelte';
 	// Logger
 	import { logger } from '@utils/logger';
-	import { modalState } from '@utils/modal.svelte';
-	import { showConfirm } from '@utils/modal.svelte';
-	import { goto, invalidate } from '$app/navigation';
+	import { modalState, createUnsavedLeaveHandler, showConfirm } from '@utils/modal.svelte';
+	import { beforeNavigate, goto, invalidate } from '$app/navigation';
 	import { registerHotkey } from '@src/utils/hotkeys';
 	import { onMount, untrack } from 'svelte';
 
@@ -162,6 +161,22 @@ None (TreeView has its own keyboard navigation)
 	let selectedCategoryId = $state<string | null>(null);
 	/** Incremented when immediate category operations intentionally adopt a server structure. */
 	let treeVersion = $state(0);
+
+	const hasUnsavedChanges = $derived(
+		!isLoading &&
+			(Object.keys(nodesToSave).length > 0 ||
+				pendingPresetId !== null ||
+				pendingDuplicates.length > 0)
+	);
+
+	beforeNavigate(
+		createUnsavedLeaveHandler({
+			isDirty: () => hasUnsavedChanges,
+			body: 'You have unsaved collection or category layout changes. Leave without saving?',
+			// slop:suppress — resuming an interrupted navigation after user confirmed discard
+			navigate: (href) => goto(href)
+		})
+	);
 
 	/**
 	 * The visible draft is seeded from page data above. This effect only mirrors

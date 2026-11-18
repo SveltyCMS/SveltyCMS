@@ -349,7 +349,6 @@ async function handleSendMail(event: RequestEvent, cms: LocalCMS, tenantId: Data
       raise(500, result?.message || "Email send failed");
     }
     return successResponse(event, {
-      success: true,
       message: "Email sent successfully",
     });
   } catch (err: any) {
@@ -441,7 +440,7 @@ async function handleTrashRoutes(
       tenantId: tenantId as DatabaseId,
     });
     if (!result.success) raise(500, result.message || "Failed to restore item");
-    return successResponse(event, { success: true, restored: true });
+    return successResponse(event, { restored: true });
   }
 
   raise(404, `Trash action '${method}' not implemented`);

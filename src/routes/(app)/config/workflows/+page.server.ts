@@ -12,17 +12,13 @@ import { contentSystem } from "@src/content/index.server";
 import { dbAdapter } from "@src/databases/db";
 import type { DatabaseId } from "@src/databases/db-interface";
 import { logger } from "@utils/logger";
-import { getAuthenticatedUser } from "@utils/page-guards.server";
+import { requireAdminPage } from "@utils/page-guards.server";
 import { rethrow } from "@utils/error-handling";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals }) => {
   try {
-    const user = getAuthenticatedUser(locals);
-    if (!locals.isAdmin) {
-      logger.warn(`User ${user._id} denied access to workflows (admin only)`);
-      throw error(403, "Admin privileges required");
-    }
+    requireAdminPage(locals, "workflows");
 
     const tenantId = (locals.tenantId ?? null) as DatabaseId | null;
 

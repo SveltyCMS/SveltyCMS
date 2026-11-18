@@ -64,6 +64,11 @@ const JOBS: Array<{ key: string; label: string; fix: string }> = [
     fix: "Open failed shard job summary + playwright-report-* + preview-log-*; start with first ::error annotation",
   },
   {
+    key: "RESULT_E2E_DEMO_MT",
+    label: "e2e-demo-mt (MULTI_TENANT + DEMO smoke)",
+    fix: "Open playwright-report-Demo-MT + preview-log-demo-mt; reproduce locally with MULTI_TENANT=true DEMO=true bun run test:e2e",
+  },
+  {
     key: "RESULT_DB_TESTS",
     label: "db-tests (4 adapters)",
     fix: "Open 📋 DB Summary + db-results-*; fix adapter-specific contract/API failures",

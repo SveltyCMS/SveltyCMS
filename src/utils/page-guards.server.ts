@@ -13,6 +13,8 @@
 
 import type { User } from "@src/databases/auth/types";
 import type { Role } from "@src/databases/auth/types";
+import { isAdmin } from "@src/databases/auth/constants";
+import { logger } from "@utils/logger";
 import { error, redirect } from "@sveltejs/kit";
 
 /**
@@ -53,4 +55,22 @@ export function requirePagePermission(
   if (!hasPagePermission(locals, permission)) {
     throw error(403, message);
   }
+}
+
+/**
+ * Ensures an authenticated admin user for `(app)` page loaders.
+ * Redirects unauthenticated visitors via `getAuthenticatedUser`, logs denials,
+ * and throws HTTP 403 for non-admin sessions.
+ */
+export function requireAdminPage(
+  locals: App.Locals,
+  area = "this area",
+  message = "Admin privileges required",
+): User {
+  const user = getAuthenticatedUser(locals);
+  if (locals.isAdmin !== true && !isAdmin(user)) {
+    logger.warn(`User ${user._id} denied access to ${area} (admin only)`);
+    throw error(403, message);
+  }
+  return user;
 }

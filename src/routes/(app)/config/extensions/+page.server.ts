@@ -13,22 +13,15 @@ import { LocalCMS } from "@src/services/sdk";
 import { dbAdapter } from "@src/databases/db";
 import type { DatabaseId } from "@src/databases/db-interface";
 import { isAppError, raise, rethrow } from "@utils/error-handling";
-import { getAuthenticatedUser } from "@utils/page-guards.server";
+import { requireAdminPage } from "@utils/page-guards.server";
 import { getLayoutPluginStates } from "@utils/server/layout-caches.server";
 import { getInstalledDashboardWidgets } from "@src/services/core/dashboard-manifest-registry";
-import { isAdmin } from "@src/databases/auth/constants";
 import { logger } from "@utils/logger";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals }) => {
   try {
-    const user = getAuthenticatedUser(locals);
-    const isAdminUser = locals.isAdmin === true || isAdmin(user);
-
-    if (!isAdminUser) {
-      logger.warn(`User ${user._id} denied access to extensions (admin only)`);
-      raise(403, "Admin privileges required");
-    }
+    requireAdminPage(locals, "extensions");
 
     const tenantId = locals.tenantId || "default";
     // The runtime registry is only populated once `initializePlugins` has run.

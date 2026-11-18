@@ -54,50 +54,45 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     const valuesByGroup: Record<string, Record<string, unknown>> = {};
 
     if (dbAdapter.system?.preferences) {
-      const results = await Promise.all(
-        groups.map(async (group) => {
-          const keys = group.fields.map((f) => f.key);
-          const values: Record<string, unknown> = {};
-
-          if (keys.length > 0) {
-            const prefResult = await dbAdapter.system.preferences
-              .getMany(keys, {
-                scope: "system",
-                tenantId,
-              })
-              .catch(() => null);
-
-            if (prefResult?.success && prefResult.data) {
-              Object.assign(values, prefResult.data);
-            }
-          }
-
-          // Also check fallback group doc if any
-          const pref = await dbAdapter.system.preferences
-            .get(group.id, {
-              scope: "system",
-              tenantId,
-            })
-            .catch(() => null);
-
-          if (pref?.success && pref.data && typeof pref.data === "object") {
-            Object.assign(values, pref.data);
-          }
-
-          // Mirror the form's historical default: an unset system timezone seeds
-          // with the host timezone instead of rendering an empty required select.
-          if (group.id === "site" && (!values.TIMEZONE || values.TIMEZONE === "")) {
-            try {
-              values.TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Berlin";
-            } catch {
-              values.TIMEZONE = "Europe/Berlin";
-            }
-          }
-          return [group.id, values] as const;
-        }),
+      // Single batched preference read for all scalar field keys + legacy group documents
+      // replaces 2 * N_groups sequential/concurrent DB round trips on every load & tab switch.
+      const requestKeys = Array.from(
+        new Set(groups.flatMap((g) => [...g.fields.map((f) => f.key), g.id])),
       );
-      for (const [groupId, values] of results) {
-        valuesByGroup[groupId] = values;
+      const prefResult =
+        requestKeys.length > 0
+          ? await dbAdapter.system.preferences
+              .getMany(requestKeys, { scope: "system", tenantId })
+              .catch(() => null)
+          : null;
+      const allValues = prefResult?.success && prefResult.data ? prefResult.data : {};
+
+      for (const group of groups) {
+        const values: Record<string, unknown> = {};
+        for (const field of group.fields) {
+          if (field.key in allValues && allValues[field.key] !== undefined) {
+            values[field.key] = allValues[field.key];
+          }
+        }
+        const legacyGroupDoc = allValues[group.id];
+        if (
+          legacyGroupDoc &&
+          typeof legacyGroupDoc === "object" &&
+          !Array.isArray(legacyGroupDoc)
+        ) {
+          Object.assign(values, legacyGroupDoc as Record<string, unknown>);
+        }
+
+        // Mirror the form's historical default: an unset system timezone seeds
+        // with the host timezone instead of rendering an empty required select.
+        if (group.id === "site" && (!values.TIMEZONE || values.TIMEZONE === "")) {
+          try {
+            values.TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Berlin";
+          } catch {
+            values.TIMEZONE = "Europe/Berlin";
+          }
+        }
+        valuesByGroup[group.id] = values;
       }
     }
 

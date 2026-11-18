@@ -12,6 +12,14 @@ function loadEngineServerModule(): Promise<typeof import("@src/content/engine.se
   return (engineServerModulePromise ??= import("@src/content/engine.server"));
 }
 
+function requireAdminCommand(errorMessage: string): string | null {
+  const event = getRequestEvent();
+  if (!event.locals.isAdmin) {
+    return errorMessage;
+  }
+  return null;
+}
+
 export const repairContentCache = command(
   "unchecked",
   async (_payload?: {}): Promise<{
@@ -19,15 +27,11 @@ export const repairContentCache = command(
     message?: string;
     error?: string;
   }> => {
+    const denied = requireAdminCommand("Only administrators can repair the content cache.");
+    if (denied) return { success: false, error: denied };
+
     const event = getRequestEvent();
     const { contentService } = await loadEngineServerModule();
-
-    if (!event.locals.isAdmin) {
-      return {
-        success: false,
-        error: "Only administrators can repair the content cache.",
-      };
-    }
 
     logger.info(`Repair Cache triggered by user: ${event.locals.user?._id}`);
 
@@ -57,13 +61,8 @@ export const testRedisConnection = command(
     latencyMs?: number;
     error?: string;
   }> => {
-    const event = getRequestEvent();
-    if (!event.locals.isAdmin) {
-      return {
-        success: false,
-        error: "Only administrators can test the Redis connection.",
-      };
-    }
+    const denied = requireAdminCommand("Only administrators can test the Redis connection.");
+    if (denied) return { success: false, error: denied };
 
     const { testRedisConnection: runTest } = await import("@src/services/setup/setup.server");
     return runTest(payload.host || "localhost", Number(payload.port) || 6379, payload.password);
@@ -79,13 +78,8 @@ export const setMultiTenantConfig = command(
     message?: string;
     error?: string;
   }> => {
-    const event = getRequestEvent();
-    if (!event.locals.isAdmin) {
-      return {
-        success: false,
-        error: "Only administrators can configure multi-tenancy mode.",
-      };
-    }
+    const denied = requireAdminCommand("Only administrators can configure multi-tenancy mode.");
+    if (denied) return { success: false, error: denied };
 
     try {
       const { updatePrivateConfigMode } = await import("@src/services/setup/write-private-config");
@@ -128,12 +122,10 @@ export const runTenantMigration = command(
       warnings: string[];
     };
   }> => {
-    const event = getRequestEvent();
-    if (!event.locals.isAdmin) {
-      return { success: false, error: "Only administrators can run tenant migration." };
-    }
+    const denied = requireAdminCommand("Only administrators can run tenant migration.");
+    if (denied) return { success: false, error: denied };
 
-    logger.info(`Tenant migration triggered by user: ${event.locals.user?._id}`);
+    logger.info(`Tenant migration triggered by user: ${getRequestEvent().locals.user?._id}`);
 
     try {
       const { runFullMigration } = await import("@utils/collections-migration.server");
@@ -209,13 +201,8 @@ export const detectTenantStructure = command(
     warnings?: string[];
     error?: string;
   }> => {
-    const event = getRequestEvent();
-    if (!event.locals.isAdmin) {
-      return {
-        success: false,
-        error: "Only administrators can inspect tenant structure.",
-      };
-    }
+    const denied = requireAdminCommand("Only administrators can inspect tenant structure.");
+    if (denied) return { success: false, error: denied };
 
     try {
       const { detectFullStructure } = await import("@utils/collections-migration.server");

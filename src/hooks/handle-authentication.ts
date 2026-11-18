@@ -160,7 +160,11 @@ function getCookiePath(): string {
 import { getClientIp, getRequestFlags } from "@utils/hook-utils";
 import { getPrivateSettingSync, getPublicSettingSync } from "@src/services/core/settings-service";
 import { getTenantIdFromHostname } from "@utils/tenant";
-import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
+import {
+  isDemoModeEnabled,
+  isMultiTenantEnabled,
+  resetMultiTenantCache,
+} from "@utils/tenant-isolation.server";
 import { assertTenantRequiredForApiPath } from "@utils/security/tenant-required.server";
 import { dev } from "$app/env";
 import { runWithContext } from "@src/utils/context";
@@ -185,19 +189,13 @@ function getSessionManagerLazy() {
 }
 
 // --- MODULE-LEVEL CACHES & STATE ---
-let multiTenantCached: boolean | null = null;
-let demoModeCached: boolean | null = null;
 let rotationRateLimiter: RateLimiter | null = null;
 
 function getCachedSettings() {
-  if (multiTenantCached === null) {
-    multiTenantCached = isMultiTenantEnabled();
-  }
-  if (demoModeCached === null) {
-    const val = getPrivateSettingSync("DEMO");
-    demoModeCached = String(val) === "true" || val === true;
-  }
-  return { multiTenant: multiTenantCached, isDemoMode: demoModeCached };
+  return {
+    multiTenant: isMultiTenantEnabled(),
+    isDemoMode: isDemoModeEnabled(),
+  };
 }
 
 /**
@@ -1350,11 +1348,36 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     if (!(locals as any).roles) {
       (locals as any).roles = [(locals.user as any).role || "user"];
     }
+    const { multiTenant, isDemoMode } = getCachedSettings();
+    const tenantIsolation = multiTenant || isDemoMode;
+    const testMode = process.env.TEST_MODE === "true" || process.env.PLAYWRIGHT_TEST === "true";
+    const explicitTestTenant = testMode ? event.request.headers.get("x-test-tenant-id") : null;
+    if (
+      isDemoMode &&
+      !locals.tenantId &&
+      !(locals.user as { tenantId?: unknown }).tenantId &&
+      explicitTestTenant !== "null" &&
+      dbAdapter
+    ) {
+      await handleDemoTenantAssignment(event, true);
+    }
     // 🔒 Tenant fail-closed: user is already validated upstream, but the tenant
     // may still be unresolved — never serve a tenant-owned namespace without one.
     assertTenantRequiredForApiPath(event.request.method, url.pathname, locals.tenantId ?? null);
-    locals.dbAdapter = dbAdapter;
-    (locals as any).dbAdapterUnscoped = dbAdapter;
+    if (dbAdapter) {
+      const bound = bindRequestDbAdapter(
+        dbAdapter,
+        (locals.tenantId as DatabaseId | null | undefined) ?? null,
+        tenantIsolation || testMode,
+      );
+      locals.dbAdapter = bound.dbAdapter as any;
+      (locals as any).dbAdapterUnscoped = bound.dbAdapterUnscoped;
+      const tenantP = applyAdapterTenantContext(bound.dbAdapterUnscoped, locals.tenantId ?? null);
+      if (tenantP) await tenantP;
+    } else {
+      locals.dbAdapter = dbAdapter;
+      (locals as any).dbAdapterUnscoped = dbAdapter;
+    }
     return await resolve(event);
   }
 
@@ -1373,7 +1396,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       } else {
         locals.tenantId = getTenantIdFromHostname(url.hostname, true) as DatabaseId;
       }
-
+    } else {
       const workerIndex = event.request.headers.get("x-test-worker-index");
       if (process.env.TEST_MODE === "true" && workerIndex) {
         locals.tenantId = `test-worker-${workerIndex}` as DatabaseId;
@@ -1651,6 +1674,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
             // __Secure-/__Host-prefixed while cookieName resolved to a different
             // variant; leaving it behind creates an infinite invalid-cookie loop.
             clearAllSessionCookies(event);
+            if (isDemoMode && !locals.tenantId) {
+              await handleDemoTenantAssignment(event, false);
+            }
           }
         } else {
           // Transient (DB blip / in-flight coalesce): keep the cookie so the user
@@ -2060,8 +2086,7 @@ export function clearAllSessionCaches(): void {
   lastRotationAttempt.clear();
   lastAnomalyLog.clear();
   negativeSessionCache.clear();
-  multiTenantCached = null;
-  demoModeCached = null;
+  resetMultiTenantCache();
 }
 
 /**

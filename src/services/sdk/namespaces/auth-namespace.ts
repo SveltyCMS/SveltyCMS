@@ -234,7 +234,8 @@ export class AuthNamespace {
       }
       const auth = await this.getAuth();
       if (!auth) throw new AppError("Authentication system not initialized", 500);
-      const result = await auth.createUser({ ...userData, tenantId });
+      const resolvedTenantId = tenantId !== undefined ? tenantId : userData.tenantId;
+      const result = await auth.createUser({ ...userData, tenantId: resolvedTenantId });
       // Unwrap the adapter DatabaseResult: safeCall must surface adapter failures
       // (e.g. duplicate email) as { success: false }, not nest them under data.
       if (!result || (typeof result === "object" && "success" in result && !result.success)) {
@@ -290,15 +291,10 @@ export class AuthNamespace {
       const { tenantId } = options;
       const auth = await this.getAuth();
       if (!auth) throw new AppError("Authentication system not initialized", 500);
-      // System scope (or tenant unset): look up by email only
+      // System scope or explicit global scope (`null`): forward explicit tenant decision
       const criteria: { email: string; tenantId?: DatabaseId | null } = { email };
-      if (
-        !hasTenantBypass(options) &&
-        tenantId !== undefined &&
-        tenantId !== null &&
-        tenantId !== ""
-      ) {
-        criteria.tenantId = tenantId as DatabaseId;
+      if (!hasTenantBypass(options) && tenantId !== undefined && tenantId !== "") {
+        criteria.tenantId = tenantId as DatabaseId | null;
       }
       const result = await auth.getUserByEmail(criteria, {
         tenantId: criteria.tenantId,
@@ -370,8 +366,8 @@ export class AuthNamespace {
       // Single options bag — the conditional spreads built up to three
       // throwaway objects per call; assign conditionally instead (same keys).
       const updateOptions: BaseQueryOptions & { allowPrivilegeEscalation?: boolean } = {};
-      if (tenantId !== undefined && tenantId !== null && tenantId !== "") {
-        updateOptions.tenantId = tenantId as DatabaseId;
+      if (tenantId !== undefined && tenantId !== "") {
+        updateOptions.tenantId = tenantId as DatabaseId | null;
       }
       if (systemScope) updateOptions.systemScope = systemScope;
       if (allowPrivilegeEscalation) updateOptions.allowPrivilegeEscalation = true;
@@ -455,16 +451,21 @@ export class AuthNamespace {
       const auth = await this.getAuth();
       if (!auth) throw new AppError("Authentication system not initialized", 500);
 
-      if (isMultiTenantEnabled() && !tenantId) {
+      if (isMultiTenantEnabled() && (tenantId === undefined || tenantId === "")) {
         throw new AppError("Tenant ID required for login", 400);
       }
 
       const userLookup: { email: string; tenantId?: DatabaseId | null } = {
         email,
       };
-      if (isMultiTenantEnabled()) userLookup.tenantId = tenantId as DatabaseId;
+      if (isMultiTenantEnabled()) {
+        userLookup.tenantId = (tenantId ?? null) as DatabaseId | null;
+      }
 
-      const result = await auth.getUserByEmail(userLookup);
+      const result = await auth.getUserByEmail(
+        userLookup,
+        isMultiTenantEnabled() ? { tenantId: userLookup.tenantId } : undefined,
+      );
       if (!result.success || !result.data) {
         // 🛡️ TIMING DEFENSE (CWE-208): verify against dummy Argon2id hash so response
         // latency matches valid-user verification, neutralizing email enumeration.
@@ -492,10 +493,16 @@ export class AuthNamespace {
           );
         }
         // Lockout expired, clear it
-        await auth.updateUserAttributes(user._id, {
-          lockoutUntil: null,
-          failedAttempts: 0,
-        });
+        await auth.updateUserAttributes(
+          user._id,
+          {
+            lockoutUntil: null,
+            failedAttempts: 0,
+          },
+          isMultiTenantEnabled()
+            ? { tenantId: (tenantId ?? null) as DatabaseId | null }
+            : undefined,
+        );
       }
 
       if (user.blocked || !user.password) {
@@ -550,10 +557,16 @@ export class AuthNamespace {
       // --- SUCCESS: RESET LOCKOUT STATE (parity with Auth.authenticate) ---
       if (user.failedAttempts || user.lockoutUntil) {
         try {
-          await auth.updateUserAttributes(user._id, {
-            failedAttempts: 0,
-            lockoutUntil: null,
-          });
+          await auth.updateUserAttributes(
+            user._id,
+            {
+              failedAttempts: 0,
+              lockoutUntil: null,
+            },
+            isMultiTenantEnabled()
+              ? { tenantId: (tenantId ?? null) as DatabaseId | null }
+              : undefined,
+          );
         } catch (err) {
           logger.warn("Failed to reset failed-attempt counter", {
             email,

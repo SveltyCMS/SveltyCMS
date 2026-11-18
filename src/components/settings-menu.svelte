@@ -11,7 +11,10 @@ Sidebar navigation for System Settings
 	import Input from '@components/ui/input.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import type { SettingGroupSummary } from '@src/services/system/settings-groups.meta';
-	import { getSettingGroupSummariesByRole } from '@src/services/system/settings-groups.meta';
+	import {
+		filterSettingGroups,
+		getSettingGroupSummariesByRole
+	} from '@src/services/system/settings-groups.meta';
 	import { isAdmin as checkIsAdmin } from '@src/databases/auth/constants';
 	// Stores
 	import { groupsNeedingConfig } from '@src/routes/(app)/config/system-settings/settings-state.svelte';
@@ -38,31 +41,10 @@ Sidebar navigation for System Settings
 	);
 	const selectedGroupId = $derived(page.url.searchParams.get('group'));
 
-	// Filter logic
-	const filteredGroups = $derived.by(() => {
-		if (!searchTerm) {
-			return availableGroups;
-		}
-		const lowerCaseSearchTerm = searchTerm.toLowerCase();
-		return availableGroups.filter((group) => {
-			if (group.name.toLowerCase().includes(lowerCaseSearchTerm)) {
-				return true;
-			}
-			if (group.description?.toLowerCase().includes(lowerCaseSearchTerm)) {
-				return true;
-			}
-			if (
-				group.fields.some(
-					(field) =>
-						field.label.toLowerCase().includes(lowerCaseSearchTerm) ||
-						field.key.toLowerCase().includes(lowerCaseSearchTerm)
-				)
-			) {
-				return true;
-			}
-			return false;
-		});
-	});
+	// Filter logic (shared helper with System Settings page)
+	const filteredGroups = $derived(
+		filterSettingGroups(availableGroups, searchTerm).map((entry) => entry.group)
+	);
 </script>
 
 <div class="mt-2 flex flex-col h-full bg-transparent">

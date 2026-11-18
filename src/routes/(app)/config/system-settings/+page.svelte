@@ -29,6 +29,7 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 	import AdminCard from '@components/admin-card.svelte';
 	import Alert from '@components/ui/alert.svelte';
 	import Badge from '@components/ui/badge.svelte';
+	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
 	import {
 		syssettings_action_required,
@@ -47,6 +48,8 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 		syssettings_mt_intro,
 		syssettings_open,
 		syssettings_repair_aria,
+		settings_no_results,
+		settings_search_placeholder,
 		syssettings_select_group,
 		syssettings_selected_group_missing_part1,
 		syssettings_selected_group_missing_part2,
@@ -61,9 +64,12 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 	import GenericSettingsGroup from './generic-settings-group.svelte';
 
 	// Import settings structure
-	import { getSettingGroupSummariesByRole } from '@src/services/system/settings-groups.meta';
+	import {
+		filterSettingGroups,
+		getSettingGroupSummariesByRole
+	} from '@src/services/system/settings-groups.meta';
 	import { beforeNavigate } from '$app/navigation';
-	import { showConfirm } from '@utils/modal.svelte';
+	import { createUnsavedLeaveHandler, showConfirm } from '@utils/modal.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Toggle from '@components/ui/toggle.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
@@ -83,21 +89,15 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 	});
 	let saving = $state(false);
 
-	// Unsaved changes guard (modal confirm instead of window.confirm)
-	beforeNavigate(({ cancel, to }) => {
-		if (!hasUnsavedChanges) return;
-		cancel();
-		showConfirm({
-			title: 'Unsaved Changes',
+	beforeNavigate(
+		createUnsavedLeaveHandler({
+			isDirty: () => hasUnsavedChanges,
 			body: 'You have unsaved settings changes. Leave this page anyway?',
-			onConfirm: () => {
-				hasUnsavedChanges = false;
-				// slop:suppress — resuming an interrupted navigation after the user
-				// confirmed discard; not a static link, cannot be an <a data-preload>
-				if (to?.url) goto(to.url.toString());
-			}
-		});
-	});
+			onDiscard: () => (hasUnsavedChanges = false),
+			// slop:suppress — resuming an interrupted navigation after the user confirmed discard
+			navigate: (href) => goto(href)
+		})
+	);
 
 	function selectGroup(groupId: string) {
 		if (groupId === activeGroupId) return;
@@ -212,6 +212,12 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 	const groupOptions = $derived(
 		availableGroups.map((group) => ({ value: group.id, label: group.name }))
 	);
+	let settingQuery = $state('');
+	const quickSearchMatches = $derived(
+		settingQuery.trim().length > 0
+			? filterSettingGroups(availableGroups, settingQuery).slice(0, 8)
+			: []
+	);
 
 	// Reset save button state when switching groups
 	$effect(() => {
@@ -295,7 +301,7 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 	{/snippet}
 
 	<div data-testid="system-settings-page" class="flex flex-col gap-4">
-		<!-- Summary: group count + groups that still need configuration -->
+		<!-- Summary: group count + quick cross-group jump + unconfigured groups badge -->
 		<div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
 			<p class="text-sm text-(--admin-text-muted)">
 				{syssettings_intro_part1()}{' '}<span
@@ -303,13 +309,53 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 					data-testid="system-settings-group-count">{availableGroups.length}</span
 				>{' '}{syssettings_logical_groups()}
 			</p>
-			{#if unconfiguredCount > 0}
-				<Badge variant="warning" size="sm">
-					{unconfiguredCount}
-					{unconfiguredCount === 1 ? syssettings_group_needs() : syssettings_groups_need()}
-				</Badge>
-			{/if}
+			<div class="flex flex-wrap items-center gap-2">
+				<div class="w-full sm:w-64">
+					<Input
+						bind:value={settingQuery}
+						type="search"
+						inputClass="h-8 text-sm"
+						placeholder={settings_search_placeholder()}
+						aria-label={settings_search_placeholder()}
+						data-testid="settings-quick-search"
+					/>
+				</div>
+				{#if unconfiguredCount > 0}
+					<Badge variant="warning" size="sm">
+						{unconfiguredCount}
+						{unconfiguredCount === 1 ? syssettings_group_needs() : syssettings_groups_need()}
+					</Badge>
+				{/if}
+			</div>
 		</div>
+
+		{#if settingQuery.trim().length > 0}
+			<div
+				class="rounded-(--admin-radius) border border-(--admin-border-default) bg-(--admin-bg-card) p-3"
+				data-testid="settings-quick-search-results"
+			>
+				{#if quickSearchMatches.length === 0}
+					<p class="text-xs text-(--admin-text-muted)">{settings_no_results()}</p>
+				{:else}
+					<div class="flex flex-wrap gap-2">
+						{#each quickSearchMatches as match (match.group.id)}
+							<a
+								href={`/config/system-settings?group=${match.group.id}`}
+								data-preload="hover"
+								onclick={() => (settingQuery = '')}
+								class="inline-flex items-center gap-1.5 rounded border border-(--admin-border-default) bg-(--admin-bg-input) px-2.5 py-1 text-xs font-medium text-(--admin-text-base) transition-colors hover:border-tertiary-500 hover:text-tertiary-500 dark:hover:border-primary-500 dark:hover:text-primary-400"
+							>
+								<GroupIcon icon={match.group.icon} />
+								<span>{match.group.name}</span>
+								{#if match.matchedFieldLabel}
+									<span class="text-(--admin-text-muted)">· {match.matchedFieldLabel}</span>
+								{/if}
+							</a>
+						{/each}
+					</div>
+				{/if}
+			</div>
+		{/if}
 
 		{#if repairResult}
 			<div role="status" aria-live="polite" data-testid="system-settings-repair-status">
@@ -339,17 +385,15 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 						<div class="mt-2 flex flex-wrap items-center gap-x-1 gap-y-1">
 							<span>{syssettings_configure_following()}</span>
 							{#each availableGroups.filter((g) => needsConfigIds.has(g.id)) as group, i (group.id)}
-								<Button
-									type="button"
-									variant="transparent"
-									size="sm"
-									class="h-auto! min-w-0! px-1! py-0! font-semibold! underline decoration-dotted underline-offset-2 hover:opacity-90"
+								<a
+									href={`/config/system-settings?group=${group.id}`}
+									data-preload="hover"
+									class="inline-flex items-center gap-1 px-1 font-semibold underline decoration-dotted underline-offset-2 hover:opacity-90"
 									data-testid={`settings-needs-config-${group.id}`}
-									onclick={() => selectGroup(group.id)}
 								>
 									<GroupIcon icon={group.icon} class="inline" />
 									{group.name}
-								</Button>{i < unconfiguredCount - 1 ? ',' : ''}
+								</a>{i < unconfiguredCount - 1 ? ',' : ''}
 							{/each}
 						</div>
 					</div>

@@ -55,21 +55,31 @@ const h = vi.hoisted(() => ({
 
 vi.mock("@utils/http-client", () => ({ fetchApi: h.fetchApi }));
 
-vi.mock("@utils/modal.svelte", () => ({
-  showConfirm: h.confirm,
-  showModal: vi.fn(),
-  showDeleteConfirm: vi.fn(),
-  showStatusChangeConfirm: vi.fn(),
-  showScheduleModal: vi.fn(),
-  showCloneModal: vi.fn(),
-  modalState: {
+vi.mock("@utils/modal.svelte", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@utils/modal.svelte")>();
+  const modalMock = {
     isOpen: false,
     active: null,
     trigger: vi.fn(),
     close: vi.fn(),
     clear: vi.fn(),
-  },
-}));
+    showConfirm: h.confirm,
+  };
+  return {
+    showConfirm: h.confirm,
+    createUnsavedLeaveHandler: (opts: Parameters<typeof actual.createUnsavedLeaveHandler>[0]) => {
+      // Keep the real navigation guard logic while binding the test's confirm stub.
+      actual.modalState.showConfirm = h.confirm;
+      return actual.createUnsavedLeaveHandler(opts);
+    },
+    showModal: vi.fn(),
+    showDeleteConfirm: vi.fn(),
+    showStatusChangeConfirm: vi.fn(),
+    showScheduleModal: vi.fn(),
+    showCloneModal: vi.fn(),
+    modalState: modalMock,
+  };
+});
 
 vi.mock("@src/stores/toast.svelte.ts", () => ({ toast: h.toast }));
 

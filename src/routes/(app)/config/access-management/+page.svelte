@@ -49,12 +49,10 @@
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { logger } from '@utils/logger';
 	import { deepClone } from '@utils/native-utils';
-	import { rethrow } from '@utils/rethrow';
 	import { page } from '$app/state';
 	import { beforeNavigate, goto } from '$app/navigation';
 	import { untrack } from 'svelte';
-	import { showConfirm } from '@utils/modal.svelte';
-	import { modalState } from '@utils/modal.svelte';
+	import { createUnsavedLeaveHandler, modalState } from '@utils/modal.svelte';
 	import Button from '@components/ui/button.svelte';
 
 	// Use $state for local component state
@@ -142,60 +140,26 @@
 		toast.info('Changes have been reset.');
 	};
 
-	// Accessibility: Unsaved changes warning.
-	//
-	// `cancel()` runs synchronously, so the destination the user picked is still
-	// known once the confirmation resolves. A confirmed prompt resumes exactly
-	// that navigation through a one-use bypass — without it the first confirmed
-	// action only cleared the dirty flag and left the user on this page (audit F04).
-	let allowNextNavigation = false;
+	const unsavedGuard = createUnsavedLeaveHandler({
+		isDirty: () => hasModifiedChanges,
+		body: 'You have unsaved changes in the Access Management configuration. Are you sure you want to leave this page?',
+		onDiscard: () => {
+			hasModifiedChanges = false;
+			modifiedCount = 0;
+			toast.info('Changes discarded.');
+		},
+		// slop:suppress — resuming an interrupted navigation after the user confirmed discard
+		navigate: (href) => goto(href)
+	});
 
-	/**
-	 * Show the discard prompt, then resume the cancelled destination.
-	 *
-	 * `willUnload` navigations (tab close, cross-document links) belong to the
-	 * browser's native beforeunload prompt and cannot be resumed with `goto`.
-	 */
-	const confirmDiscardAndResume = async (destination: URL | undefined, willUnload: boolean) => {
-		const confirmed = await showConfirm({
-			title: 'Unsaved Changes',
-			body: 'You have unsaved changes in the Access Management configuration. Are you sure you want to leave this page?'
-		});
-		// Cancel keeps this page and its draft untouched.
-		if (!confirmed) return;
-
-		hasModifiedChanges = false;
-		modifiedCount = 0;
-		toast.info('Changes discarded.');
-
-		if (willUnload || !destination) return;
-
-		allowNextNavigation = true;
-		try {
-			await goto(destination.href);
-		} catch (err) {
-			rethrow(err);
-			logger.error('Failed to resume navigation after discarding changes', err);
-			toast.error('The selected page could not be opened. Please navigate again.');
-		} finally {
-			allowNextNavigation = false;
-		}
-	};
-
-	beforeNavigate(({ cancel, to, willUnload }) => {
-		if (allowNextNavigation) {
-			// Consume the bypass — it covers exactly one resumed navigation.
-			allowNextNavigation = false;
-			return;
-		}
+	beforeNavigate((nav) => {
 		if (!hasModifiedChanges && !modalState.isOpen) return;
-
-		cancel();
 		if (modalState.isOpen) {
+			nav.cancel();
 			toast.warning('Please close the edit modal before navigating away.');
 			return;
 		}
-		void confirmDiscardAndResume(to?.url, willUnload);
+		unsavedGuard(nav);
 	});
 </script>
 

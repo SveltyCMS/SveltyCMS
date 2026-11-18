@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:chart-box-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-11-13"
+updated: "2026-11-18"
 tags:
   - "achievements"
   - "log"
@@ -2427,6 +2427,15 @@ Consolidated the database CRUD access layers across all four production engines 
 - **AUD-001 is a browser contract, not only a lint.** `tests/e2e/routes/dashboard/dashboard.spec.ts` proves every add-widget trigger opens a menu that survives the click, because the empty-state trigger shares the surface with the toolbar trigger. The static scanner rejects the defect shape; the spec proves the behaviour in a real browser.
 - **AUD-002/016 — dirty state follows real edits.** `src/stores/collection-store.svelte.ts` defines `hasChanges` as “the value differs **and** the user has interacted”: widgets normalise missing values on mount, so a freshly opened entry used to report “Unsaved changes”. `markInteracted()` is raised by the native `input`/`change` capture listener in `src/components/collection-display/fields.svelte`, and `stableSnapshot()` sorts object keys so key order alone is not a change. `tests/e2e/routes/collection-builder/kitchen-sink.spec.ts` asserts clean-on-open, dirty-after-typing and a confirm dialog before closing.
 - **Docs:** `docs/tests/testing-scripts.mdx` (source-lint rule table, the 18-entry registry, the new linters and the copy ratchet), `docs/contributing/validation-pipeline.mdx` (gate count, one-read grouping), `docs/tests/test-to-docs-map.mdx` (new suite rows and the AUD contracts) and `AGENTS.md` §4 (the drift-gate list).
+
+### 3.80 November 2026 — Multi-Tenant / Demo Mode Hardening, Admin UX & CI Smoke (2026-11-18)
+
+Active `MULTI_TENANT=true` + `DEMO=true` browser verification and an end-to-end audit of admin loaders, auth hooks, and SDK collection/auth paths landed cleanly with zero competitive workload regression:
+
+- **Cold-boot Demo/Multi-Tenant cache non-poisoning & upstream user binding.** `isDemoModeEnabled()` and `isMultiTenantEnabled()` (`src/utils/tenant-isolation.server.ts`) now skip populating the 5s TTL memo when neither `getPrivateSettingSync()` nor `getPrivateEnv()` is loaded yet, preventing cold-boot requests from caching `false` for 5 seconds. `handleAuthentication` (`src/hooks/handle-authentication.ts`) replaces boot-frozen module booleans with dynamic checks, resets tenant cache cleanly on session clear, assigns `demo_tenant_id` on invalidated-session fallthrough and upstream-validated Demo admins, and binds `x-test-worker-index` only when tenant isolation is inactive.
+- **Explicit global vs. tenant scope & SDK parity.** Fixed `CollectionsNamespace` list reads (`src/services/sdk/namespaces/collections/find-many.ts` `fetchOpts.tenantId` + `createModel` tenant forwarding) and `AuthNamespace` (`src/services/sdk/namespaces/auth-namespace.ts` explicit `tenantId: null` preservation in `login`, `createUser`, `getUserByEmail`, `updateUserAttributes`). Added shared `requireAdminPage` (`src/utils/page-guards.server.ts`) across config loaders and `requireAdminCommand` in `system-settings/admin.remote.ts`; batched system-settings preference reads (`preferences.getMany`); hardened `isDatabaseResult` (`src/routes/api/[...path]/handlers/base.ts`) so non-DB `{ success: true, ... }` payloads are never stripped.
+- **Admin UX & component deduplication.** Extracted shared `createUnsavedLeaveHandler` (`src/utils/modal.svelte.ts`) across `collectionbuilder` (newly protected), `system-settings`, `design-system`, and `access-management`; shared `filterSettingGroups` (`src/services/system/settings-groups.meta.ts`) across menu and page search (`data-testid="settings-quick-search"`); added bulk `"Retry Failed"` (`retryFailed`) queue action and deduplicated queue table headers in `src/routes/(app)/config/queue/+page.svelte`.
+- **Active Multi-Tenant + Demo CI smoke & performance parity.** Added `.github/workflows/ci.yml` `e2e-demo-mt` job (`MULTI_TENANT=true`, `DEMO=true`) running `tests/e2e/multi-tenancy/isolation.spec.ts`, `tests/e2e/routes/config/tenants.spec.ts`, and `tests/e2e/multi-tenancy/demo-mt-smoke.spec.ts` (**9 passed, 1 MT-off skip, 0 failures** locally). Re-verified `tests/benchmarks/competitive-workload-replica.test.ts` on SQLite HTTP production (`benchmark_sqlite.mdx` **24/25 metrics stable, evaluator: All stable**; `findById` 8c **21,059 RPS** / 0.375 ms avg, `listPlain` 8c **17,148 RPS** / 0.459 ms avg, `create` 8c **3,476 RPS** / 2.284 ms avg, `update` 8c **4,785 RPS** / 1.652 ms avg, `mixed` 8c **2,323 RPS** / 3.368 ms avg, `graphql` 8c **11,273 RPS** / 0.697 ms avg, Seed Burst **13,614 RPS**).
 
 ## Related
 

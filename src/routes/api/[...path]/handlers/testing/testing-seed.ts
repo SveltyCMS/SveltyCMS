@@ -222,7 +222,11 @@ export async function handleTestingSeedRoutes(ctx: TestingContext): Promise<Resp
       const collectionId = schema._id || schema.id || schema.name;
       try {
         logger.debug(`[testing] Provisioning collection: ${collectionId}...`);
-        await initializedAdapter.collection.createModel(schema);
+        await initializedAdapter.collection.createModel(
+          schema,
+          false,
+          tenantId ? { tenantId } : withSystemScope("bootstrap"),
+        );
         logger.debug(`[testing] Model created for: ${collectionId}`);
 
         if (initializedAdapter.content?.nodes?.upsertContentStructureNode) {

@@ -14,7 +14,7 @@ import { collectionTableName } from "@src/databases/core/collection-name";
 import { dbAdapter } from "@src/databases/db";
 import type { DatabaseId } from "@src/databases/db-interface";
 import { logger } from "@utils/logger";
-import { getAuthenticatedUser } from "@utils/page-guards.server";
+import { requireAdminPage } from "@utils/page-guards.server";
 import { rethrow } from "@utils/error-handling";
 import { toTrashItem, type TrashItem } from "@utils/trash-item";
 import type { PageServerLoad } from "./$types";
@@ -76,11 +76,7 @@ async function resolveActorNames(
 
 export const load = (async ({ locals }) => {
   try {
-    const user = getAuthenticatedUser(locals);
-    if (!locals.isAdmin) {
-      logger.warn(`User ${user._id} denied access to trash (admin only)`);
-      throw error(403, "Admin privileges required");
-    }
+    requireAdminPage(locals, "trash");
 
     const tenantId = (locals.tenantId ?? null) as DatabaseId | null;
     const schemas = await contentSystem.getCollections(tenantId ?? undefined);

@@ -64,4 +64,55 @@ describe("Multi-Tenant & Demo Mode explicit tenant-scope audit", () => {
     expect(delRes.status).toBe(200);
     expect(deleteMock).toHaveBeenCalledWith("job-99", { tenantId: "demo" });
   });
+
+  it("isDatabaseResult does not strip non-DatabaseResult payloads carrying success=true", async () => {
+    const { isDatabaseResult, successResponse } =
+      await import("@src/routes/api/[...path]/handlers/base");
+
+    expect(isDatabaseResult({ success: true, data: { ok: 1 } })).toBe(true);
+    expect(isDatabaseResult({ success: false, error: { code: "E" } })).toBe(true);
+    expect(isDatabaseResult({ success: true, dirPath: "config/sync/x" })).toBe(false);
+
+    const res = successResponse({ locals: {} } as any, {
+      success: true,
+      restored: true,
+    });
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    expect(body.data.restored).toBe(true);
+  });
+
+  it("isDemoModeEnabled and isMultiTenantEnabled do not poison TTL cache before privateEnv loads", async () => {
+    const { getPrivateEnv, setPrivateEnv } = await import("@src/databases/config-state");
+    const settingsMod = await import("@src/services/core/settings-service");
+    const { isDemoModeEnabled, isMultiTenantEnabled, resetMultiTenantCache } =
+      await import("@src/utils/tenant-isolation.server");
+
+    const prev = getPrivateEnv();
+    // Simulate cold boot where neither settings cache nor privateEnv has loaded yet.
+    const spy = vi.spyOn(settingsMod, "getPrivateSettingSync").mockReturnValue(undefined as any);
+    try {
+      setPrivateEnv(null);
+      resetMultiTenantCache();
+      expect(isDemoModeEnabled()).toBe(false);
+      expect(isMultiTenantEnabled()).toBe(false);
+
+      // Once bootstrap privateEnv loads, the very next call immediately picks up DEMO/MULTI_TENANT.
+      setPrivateEnv({
+        DB_TYPE: "sqlite",
+        DB_HOST: "127.0.0.1",
+        DB_NAME: "unit_test_mt_demo",
+        JWT_SECRET_KEY: "Unit-Test-JWT-Secret-Key-32-Chars-Long!!",
+        ENCRYPTION_KEY: "Unit-Test-Encryption-Key-32-Chars-Long!!",
+        MULTI_TENANT: true,
+        DEMO: true,
+      } as any);
+      expect(isDemoModeEnabled()).toBe(true);
+      expect(isMultiTenantEnabled()).toBe(true);
+    } finally {
+      spy.mockRestore();
+      setPrivateEnv(prev);
+      resetMultiTenantCache();
+    }
+  });
 });

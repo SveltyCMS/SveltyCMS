@@ -5,6 +5,8 @@
 
 import { AppError } from "@utils/error-handling";
 import { contentSystem } from "@src/content/index.server";
+import type { DatabaseId } from "@src/databases/db-interface";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 import {
   loadCacheServiceModule,
   loadDbModule,
@@ -19,10 +21,25 @@ export async function handleTestingAuthSessionRoutes(
   const { event, cms, tenantId, params, action } = ctx;
 
   if (action === "login") {
-    const { email, password } = params;
+    const { email, password, tenantId: explicitTenantId } = params;
     if (!email || !password) throw new AppError("Email and password required", 400);
 
-    const loginResult = await cms.auth.login({ email, password }, { tenantId });
+    // Resolve tenant ownership for test logins whenever `params.tenantId` is omitted:
+    // the caller's Playwright context may still carry the previous user's session cookie
+    // (whose tenant differs from the target test user, e.g. switching user-a -> user-b).
+    let resolvedTenantId: DatabaseId | null =
+      explicitTenantId !== undefined ? (explicitTenantId ?? null) : (tenantId ?? null);
+    if (explicitTenantId === undefined && ctx.initializedAdapter?.auth?.getUserByEmail) {
+      const found = await ctx.initializedAdapter.auth.getUserByEmail(
+        { email },
+        withSystemScope("bootstrap"),
+      );
+      if (found.success && found.data) {
+        resolvedTenantId = (found.data.tenantId ?? null) as DatabaseId | null;
+      }
+    }
+
+    const loginResult = await cms.auth.login({ email, password }, { tenantId: resolvedTenantId });
     if (!loginResult.success) {
       return rawResponse({ success: false, message: loginResult.message }, 401);
     }

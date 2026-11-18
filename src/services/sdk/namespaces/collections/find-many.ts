@@ -835,6 +835,7 @@ export async function executeFind(
 
   const loadFullData = async () => {
     const fetchOpts: AdapterFindOptions = {
+      tenantId: tenantId as DatabaseId,
       limit: keysetMode || shouldCount ? limit + 1 : limit,
       offset: keysetMode ? 0 : offset,
       sort: sortForDb as AdapterFindOptions["sort"],
@@ -850,7 +851,11 @@ export async function executeFind(
       );
       if (!r.success) {
         try {
-          await ctx._dbAdapter.collection?.createModel?.(schema);
+          await ctx._dbAdapter.collection?.createModel?.(
+            schema,
+            false,
+            tenantId ? { tenantId } : undefined,
+          );
         } catch (healError) {
           logger.warn(`[CollectionsNamespace] Physical model heal failed for ${schema._id}`, {
             healError,

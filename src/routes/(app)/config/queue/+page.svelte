@@ -12,7 +12,7 @@
 <script lang="ts">
 	import { goto, refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
-	import { clearCompleted, deleteJob, retryJob } from './queue.remote';
+	import { clearCompleted, deleteJob, retryFailed, retryJob } from './queue.remote';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { showConfirm } from '@utils/modal.svelte';
 	import { formatRelativeDate } from '@utils/date';
@@ -35,6 +35,7 @@
 	import {
 		button_close,
 		button_refresh,
+		button_retry,
 		queue_actions,
 		queue_attempts,
 		queue_clear_completed,
@@ -95,6 +96,7 @@
 	}
 
 	let isRetrying = $state(false);
+	let isRetryingFailed = $state(false);
 	let isDeleting = $state(false);
 	let isClearing = $state(false);
 	let detailsOpen = $state(false);
@@ -129,53 +131,63 @@
 	const currentPage = $derived(Math.floor(data.pagination.offset / Math.max(1, pageSize)) + 1);
 	const pagesCount = $derived(Math.max(1, Math.ceil(data.totalCount / Math.max(1, pageSize))));
 
-	async function handleClearCompleted() {
+	function confirmJobAction(
+		title: string,
+		body: string,
+		setBusy: (v: boolean) => void,
+		run: () => Promise<{ success?: boolean; count?: number }>,
+		successMsg: (count?: number) => string,
+		failMsg: string
+	) {
 		showConfirm({
-			title: 'Clear Completed Jobs',
-			body: 'Remove completed jobs from the queue history? Running and failed jobs are kept.',
+			title,
+			body,
 			onConfirm: async () => {
-				isClearing = true;
+				setBusy(true);
 				try {
-					const result = await clearCompleted({});
-					if (result.success) {
-						toast.success('Completed jobs cleared.');
+					const res = await run();
+					if (res.success) {
+						toast.success(successMsg(res.count));
 						await refreshAll();
-					} else {
-						toast.error('Failed to clear completed jobs.');
-					}
+					} else toast.error(failMsg);
 				} catch (e: unknown) {
-					toast.error(
-						e instanceof Error ? e.message || String(e) : 'Failed to clear completed jobs.'
-					);
+					toast.error(e instanceof Error ? e.message || String(e) : failMsg);
 				} finally {
-					isClearing = false;
+					setBusy(false);
 				}
 			}
 		});
 	}
 
-	function handleDeleteJob(jobId: string) {
-		showConfirm({
-			title: 'Delete Job',
-			body: 'Are you sure you want to delete this job? This cannot be undone.',
-			onConfirm: async () => {
-				isDeleting = true;
-				try {
-					const result = await deleteJob(jobId);
-					if (result.success) {
-						toast.success('Job deleted.');
-						await refreshAll();
-					} else {
-						toast.error('Failed to delete job.');
-					}
-				} catch (e: unknown) {
-					toast.error(e instanceof Error ? e.message || String(e) : 'Failed to delete job.');
-				} finally {
-					isDeleting = false;
-				}
-			}
-		});
-	}
+	const handleClearCompleted = () =>
+		confirmJobAction(
+			'Clear Completed Jobs',
+			'Remove completed jobs from the queue history? Running and failed jobs are kept.',
+			(v) => (isClearing = v),
+			() => clearCompleted({}),
+			() => 'Completed jobs cleared.',
+			'Failed to clear completed jobs.'
+		);
+
+	const handleRetryFailed = () =>
+		confirmJobAction(
+			'Retry Failed Jobs',
+			'Reset failed jobs to pending so workers retry them immediately?',
+			(v) => (isRetryingFailed = v),
+			() => retryFailed({}),
+			(c) => `Re-queued ${c ?? 0} failed job(s).`,
+			'Failed to retry failed jobs.'
+		);
+
+	const handleDeleteJob = (jobId: string) =>
+		confirmJobAction(
+			'Delete Job',
+			'Are you sure you want to delete this job? This cannot be undone.',
+			(v) => (isDeleting = v),
+			() => deleteJob(jobId),
+			() => 'Job deleted.',
+			'Failed to delete job.'
+		);
 
 	const statusBadgeProps: Record<
 		string,
@@ -527,6 +539,18 @@
 				</Button>
 
 				<Button
+					variant="warning"
+					disabled={isRetryingFailed || (data.stats.failed ?? 0) === 0}
+					onclick={handleRetryFailed}
+					size="sm"
+					leadingIcon="mdi:refresh"
+					data-testid="queue-retry-failed"
+				>
+					{button_retry()}
+					{queue_failed()}
+				</Button>
+
+				<Button
 					variant="ghost"
 					disabled={isClearing || (data.stats.completed ?? 0) === 0}
 					onclick={handleClearCompleted}
@@ -565,108 +589,25 @@
 							<tr
 								class="border-b border-surface-500/30 text-xs uppercase tracking-wide dark:border-surface-600"
 							>
-								<th class="{SMART_TABLE_TH} text-center">
-									<button
-										type="button"
-										class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
-										onclick={() => handleSort('_id')}
-									>
-										{queue_job_id()}
-										{#if (page.url.searchParams.get('sort') || 'createdAt') === '_id'}
-											<iconify-icon
-												icon={page.url.searchParams.get('order') === 'asc'
-													? 'mdi:arrow-up'
-													: 'mdi:arrow-down'}
-												class="text-primary-500"
-											></iconify-icon>
-										{/if}
-									</button>
-								</th>
-								<th class="{SMART_TABLE_TH} text-center">
-									<button
-										type="button"
-										class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
-										onclick={() => handleSort('taskType')}
-									>
-										{queue_task_type()}
-										{#if page.url.searchParams.get('sort') === 'taskType'}
-											<iconify-icon
-												icon={page.url.searchParams.get('order') === 'asc'
-													? 'mdi:arrow-up'
-													: 'mdi:arrow-down'}
-												class="text-primary-500"
-											></iconify-icon>
-										{/if}
-									</button>
-								</th>
-								<th class="{SMART_TABLE_TH} text-center">
-									<button
-										type="button"
-										class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
-										onclick={() => handleSort('status')}
-									>
-										{queue_status()}
-										{#if page.url.searchParams.get('sort') === 'status'}
-											<iconify-icon
-												icon={page.url.searchParams.get('order') === 'asc'
-													? 'mdi:arrow-up'
-													: 'mdi:arrow-down'}
-												class="text-primary-500"
-											></iconify-icon>
-										{/if}
-									</button>
-								</th>
-								<th class="{SMART_TABLE_TH} text-center">
-									<button
-										type="button"
-										class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
-										onclick={() => handleSort('attempts')}
-									>
-										{queue_attempts()}
-										{#if page.url.searchParams.get('sort') === 'attempts'}
-											<iconify-icon
-												icon={page.url.searchParams.get('order') === 'asc'
-													? 'mdi:arrow-up'
-													: 'mdi:arrow-down'}
-												class="text-primary-500"
-											></iconify-icon>
-										{/if}
-									</button>
-								</th>
-								<th class="{SMART_TABLE_TH} text-center">
-									<button
-										type="button"
-										class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
-										onclick={() => handleSort('nextRunAt')}
-									>
-										{queue_next_run()}
-										{#if page.url.searchParams.get('sort') === 'nextRunAt'}
-											<iconify-icon
-												icon={page.url.searchParams.get('order') === 'asc'
-													? 'mdi:arrow-up'
-													: 'mdi:arrow-down'}
-												class="text-primary-500"
-											></iconify-icon>
-										{/if}
-									</button>
-								</th>
-								<th class="{SMART_TABLE_TH} text-center">
-									<button
-										type="button"
-										class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
-										onclick={() => handleSort('createdAt')}
-									>
-										{queue_created()}
-										{#if (page.url.searchParams.get('sort') || 'createdAt') === 'createdAt'}
-											<iconify-icon
-												icon={page.url.searchParams.get('order') === 'asc'
-													? 'mdi:arrow-up'
-													: 'mdi:arrow-down'}
-												class="text-primary-500"
-											></iconify-icon>
-										{/if}
-									</button>
-								</th>
+								{#each [{ key: '_id', label: queue_job_id() }, { key: 'taskType', label: queue_task_type() }, { key: 'status', label: queue_status() }, { key: 'attempts', label: queue_attempts() }, { key: 'nextRunAt', label: queue_next_run() }, { key: 'createdAt', label: queue_created() }] as col (col.key)}
+									<th class="{SMART_TABLE_TH} text-center">
+										<button
+											type="button"
+											class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
+											onclick={() => handleSort(col.key)}
+										>
+											{col.label}
+											{#if (page.url.searchParams.get('sort') || 'createdAt') === col.key}
+												<iconify-icon
+													icon={page.url.searchParams.get('order') === 'asc'
+														? 'mdi:arrow-up'
+														: 'mdi:arrow-down'}
+													class="text-primary-500"
+												></iconify-icon>
+											{/if}
+										</button>
+									</th>
+								{/each}
 								<th class="{SMART_TABLE_TH} text-center">{queue_actions()}</th>
 							</tr>
 						</thead>

@@ -42,7 +42,7 @@ tags:
 
 <!-- EXECUTIVE_FIX_NOTES_END -->
 
-(15/11/2026, 16:13:44)
+(18/11/2026, 01:17:29)
 
 **✅ PASS** · 62/62 tests · **SQLITE** · Bun 1.4.2
 
@@ -50,7 +50,7 @@ tags:
 
 | Dimension      | Tests | Status | Worst Δ | Issues |
 | -------------- | ----: | ------ | ------- | ------ |
-| **Core**       |    22 | 🟢     | -18%    | 0      |
+| **Core**       |    22 | 🟢     | -1%     | 0      |
 | **API**        |    16 | 🟢     | —       | 0      |
 | **Scale**      |    19 | 🟢     | —       | 0      |
 | **Resilience** |     5 | 🟢     | —       | 0      |
@@ -89,22 +89,6 @@ xychart-beta
 ```
 
 </details>
-<details>
-<summary>📊 Regression severity matrix (quadrant)</summary>
-
-```mermaid
-quadrantChart
-  title "Regression severity (impact vs delta)"
-  x-axis Low latency impact --> High latency impact
-  y-axis Low delta --> High delta
-  quadrant-1 Monitor
-  quadrant-2 Investigate soon
-  quadrant-3 Acceptable variance
-  quadrant-4 Critical — fix first
-    COMPETITIVE 9-WORKLOAD REPLI: [0.68, 0.91]
-```
-
-</details>
 
 <!-- EXECUTIVE_PARTIAL_WATERMARK -->
 
@@ -116,11 +100,19 @@ quadrantChart
 
 ### 🔴 Top Regressions
 
-> **🔴 competitive-workload-replica [listFilterSort (Warm Sequential)]** (sqlite): +150% | 0.36ms vs 0.15ms baseline
-> **🔴 competitive-workload-replica [findByIdRandom (Warm Sequential)]** (sqlite): +121% | 0.27ms vs 0.12ms baseline
-> **🔴 competitive-workload-replica [listPopulated (Warm Sequential)]** (sqlite): +112% | 0.33ms vs 0.15ms baseline
-> **🔴 competitive-workload-replica [findMissing (Warm Sequential)]** (sqlite): +96% | 0.24ms vs 0.12ms baseline
-> **🔴 competitive-workload-replica [listPlain (Warm Sequential)]** (sqlite): +79% | 0.25ms vs 0.14ms baseline
+> **🔴 competitive-workload-replica [listLarge (Warm Sequential)]** (sqlite): +58% | 0.53ms vs 0.33ms baseline
+> **🔴 competitive-workload-replica [listLarge (Warm Concurrent 8c)]** (sqlite): +48% | 1.60ms vs 1.08ms baseline
+> **🔴 competitive-workload-replica [listFilterSort (Warm Sequential)]** (sqlite): +45% | 0.27ms vs 0.18ms baseline
+> **🔴 competitive-workload-replica [findById (Warm Sequential)]** (sqlite): +43% | 0.19ms vs 0.14ms baseline
+> **🔴 competitive-workload-replica [listPlain (Warm Concurrent 8c)]** (sqlite): +29% | 0.46ms vs 0.36ms baseline
+
+### 🟢 Top Improvements
+
+> **competitive-workload-replica [graphql (Warm Sequential)]** (sqlite): -43% | 0.23ms vs 0.41ms baseline
+> **competitive-workload-replica [update (Warm Concurrent 8c)]** (sqlite): -39% | 1.19ms vs 1.95ms baseline
+> **competitive-workload-replica [mixed (Warm Concurrent 8c)]** (sqlite): -37% | 2.71ms vs 4.27ms baseline
+> **competitive-workload-replica [create (Warm Concurrent 8c)]** (sqlite): -35% | 1.63ms vs 2.51ms baseline
+> **competitive-workload-replica [Seed Burst (500 docs, HTTP)]** (sqlite): -32% | 0.07ms vs 0.10ms baseline
 
 <!-- EXECUTIVE_ALERTS_END --><!-- EXECUTIVE_END -->
 
@@ -167,7 +159,7 @@ quadrantChart
 
 <!-- SUMMARY_HISTORY_START -->
 
-### Historical Trends (2026-11-15)
+### Historical Trends (2026-11-18)
 
 > **Mode:** production-parity matrix runs only (`run_mode='matrix'` + `server_mode='production'` — `NODE_ENV=production`, no `TEST_MODE`). Standalone/mode-variant samples are recorded but never trended here.
 
@@ -179,7 +171,7 @@ quadrantChart
 
 | Metric                              | Trend | Sparkline (last 7) | Latest  |
 | ----------------------------------- | ----- | ------------------ | ------- |
-| COMPETITIVE WORKLOAD REPLICA (warm) | 🟢    | `▁▁▁█▂▅▂`          | 0.678ms |
+| COMPETITIVE WORKLOAD REPLICA (warm) | 🟢    | `▁▂▁█▂▄▂`          | 0.493ms |
 
 <!-- SUMMARY_HISTORY_END --><!-- SUMMARY_END -->
 
@@ -1686,15 +1678,8 @@ Throughput dropped 74% — check connection pool saturation or lock contention.
 
 <!-- SECTION:COMPETITIVE:START -->
 <details id="section-competitive">
-<summary><strong>🏷️ COMPETITIVE 9-WORKLOAD REPLICA</strong> · ⚪ 0.678ms · ↘️ — · <a href="../../../tests/benchmarks/competitive-workload-replica.test.ts">source</a></summary>
-<!-- LEDGER_INSIGHT_START -->
-> [!NOTE]
-> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.  
-Throughput dropped 69% — check connection pool saturation or lock contention.
-<!-- LEDGER_INSIGHT_END -->
-
+<summary><strong>🏷️ COMPETITIVE 9-WORKLOAD REPLICA</strong> · ⚪ 0.493ms · ➡️ — · <a href="../../../tests/benchmarks/competitive-workload-replica.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
-
 ```text
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                    COMPETITIVE HARNESS REPLICA (SQLITE — 20000 Docs, COLD vs WARM)                    ║
@@ -1752,7 +1737,6 @@ Throughput dropped 69% — check connection pool saturation or lock contention.
 ║ mixed (Warm Concurrent 8c)   │ Cold:     0.36 ms │ Warm:     5.106 ms │ p95:     9.299 ms │   1,537 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
-
 <!-- LEDGER_TRUTH_END -->
 
 </details>

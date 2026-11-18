@@ -149,7 +149,7 @@ Deep links: /config/design-system?tab=themes|customizer|preview|overrides
 	} from '@utils/layout-state-prefs';
 	import { untrack, onMount } from 'svelte';
 	import { beforeNavigate, goto, invalidate } from '$app/navigation';
-	import { showConfirm } from '@utils/modal.svelte';
+	import { createUnsavedLeaveHandler } from '@utils/modal.svelte';
 	import { page } from '$app/state';
 	import { browser } from '$app/env';
 	import {
@@ -672,38 +672,21 @@ Deep links: /config/design-system?tab=themes|customizer|preview|overrides
 	}
 
 	// ── Leave guard ──
-	// The form edits a draft that is pushed into the *shared* live theme, so a leave
-	// without saving both drops the edit and keeps its unsaved preview applied to the
-	// whole admin shell. Prompt like System Settings does, and discard on confirm so
-	// the shared theme returns to the persisted values. Tab switches are same-page
-	// navigations (`?tab=`), not a leave, so only a different pathname prompts;
-	// unloads (`type === 'leave'`) use the browser's native guard instead.
-	beforeNavigate(({ cancel, to, type }) => {
-		if (!hasChanges || !isAdmin || saving) return;
-		if (type === 'leave') {
-			cancel();
-			return;
-		}
-		if (to?.url.pathname === page.url.pathname) return;
-		cancel();
-		showConfirm({
-			title: 'Unsaved Changes',
+	beforeNavigate(
+		createUnsavedLeaveHandler({
+			isDirty: () => hasChanges && isAdmin && !saving,
 			body: 'You have unsaved theme changes. Leave this page anyway?',
-			onConfirm: () => {
-				discardChanges();
-				const destination = to?.url;
-				if (!destination) return;
-				// A destination outside the app cannot be resumed with `goto`.
-				if (destination.origin !== page.url.origin) {
-					window.location.href = destination.href;
+			onDiscard: discardChanges,
+			navigate: (href, url) => {
+				if (url.origin !== page.url.origin) {
+					window.location.href = url.href;
 					return;
 				}
-				// slop:suppress — resuming an interrupted navigation after the user
-				// confirmed discard; not a static link, cannot be an <a data-preload>
-				goto(destination.toString());
+				// slop:suppress — resuming an interrupted navigation after user confirmed discard
+				return goto(href);
 			}
-		});
-	});
+		})
+	);
 
 	// ── Options ──
 	const densityOptions = [

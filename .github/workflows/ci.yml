@@ -1079,6 +1079,145 @@ jobs:
           retention-days: 7
 
   # ------------------------------------------------
+  # 7a. E2E Multi-Tenant + Demo Smoke Pass
+  # ------------------------------------------------
+  # Default shards boot with MULTI_TENANT=false / DEMO=false, skipping isolation.spec.ts
+  # and masking global-admin (`tenantId: null`) + demo visitor regressions.
+  e2e-demo-mt:
+    name: 🧪 E2E — Demo & Multi-Tenant Smoke
+    needs: [plan, bootstrap, e2e-prep]
+    if: needs.plan.outputs.tier == 'full'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/setup-sveltycms
+        with:
+          bun-version: "1.3.14"
+          node-version: "24"
+          pnpm-run-install: "false"
+
+      - name: Download E2E Environment
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: e2e-env-${{ github.sha }}
+          path: .
+
+      - name: Extract E2E Environment
+        run: |
+          if [ ! -f e2e-env.tar.zst ]; then
+            echo "::error::E2E prep artifact missing. Re-run workflow."
+            exit 1
+          fi
+          tar --zstd -xf e2e-env.tar.zst
+          rm e2e-env.tar.zst
+          mkdir -p config/collections
+
+      - name: Enable MULTI_TENANT and DEMO in E2E private config
+        run: |
+          node -e '
+            const fs = require("fs");
+            for (const p of ["config/private.test.ts", "config/private.ts"]) {
+              if (!fs.existsSync(p)) continue;
+              let s = fs.readFileSync(p, "utf8");
+              s = s.replace(/\bMULTI_TENANT\s*:\s*(true|false)/, "MULTI_TENANT: true");
+              s = s.replace(/\bDEMO\s*:\s*(true|false)/, "DEMO: true");
+              fs.writeFileSync(p, s, "utf8");
+            }
+          '
+
+      - name: Restore Playwright Browsers cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-v3-${{ runner.os }}-${{ needs.bootstrap.outputs.pw-version }}
+          fail-on-cache-miss: false
+
+      - name: Ensure Playwright Chromium
+        timeout-minutes: 3
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: sh scripts/ci/ensure-playwright.sh
+
+      - name: Run Multi-Tenant + Demo Smoke Tests
+        env:
+          DB_TYPE: sqlite
+          DB_HOST: 127.0.0.1
+          DB_NAME: e2e_auth_test
+          DB_USER: ""
+          DB_PASSWORD: ""
+          MEDIA_FOLDER: tests/e2e/.media
+          PASSWORD_MIN_LENGTH: 8
+          MULTI_TENANT: "true"
+          DEMO: "true"
+          TEST_MODE: "true"
+          SKIP_TEST_CLEANUP: "true"
+          ADMIN_PASSWORD: Password123!
+          JWT_SECRET_KEY: Integration-Test-JWT-Secret-Key-2026
+          ENCRYPTION_KEY: Integration-Encryption-Key-2026-32ch
+          TEST_API_SECRET: ${{ needs.bootstrap.outputs.test-secret }}
+          PREVIEW_SECRET: Integration-Preview-Secret-2026
+          HOST: 127.0.0.1
+          PORT: 4173
+          ORIGIN: http://127.0.0.1:4173
+          SKIP_E2E_DEPS: "true"
+          ALLOW_PASSWORD_RESET_LINK_IN_RESPONSE: "true"
+          RATE_LIMIT_MAX_REQUESTS: "1000000"
+          RATE_LIMIT_COMMERCE_MAX_REQUESTS: "1000000"
+          NODE_OPTIONS: "--max-old-space-size=4096"
+        run: |
+          if [ -z "${TEST_API_SECRET}" ]; then
+            TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
+          fi
+          export TEST_API_SECRET
+          export PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173
+          export ORIGIN="${ORIGIN:-http://127.0.0.1:4173}"
+          if [ -f build/index.js ]; then
+            node build/index.js > preview.log 2>&1 &
+          else
+            node index.cjs > preview.log 2>&1 &
+          fi
+          SERVER_PID=$!
+          trap "kill $SERVER_PID 2>/dev/null || true" EXIT INT TERM
+          if ! bun run scripts/probe/wait-for-ready.ts http://127.0.0.1:4173/api/system/health --timeout=120000 --interval=500 --pid=$SERVER_PID; then
+            echo "Server did not become ready - crash in preview.log:"
+            tail -100 preview.log
+            exit 1
+          fi
+          bun x playwright test \
+            --project=chromium \
+            --workers=1 \
+            tests/e2e/multi-tenancy/isolation.spec.ts \
+            tests/e2e/routes/config/tenants.spec.ts \
+            tests/e2e/multi-tenancy/demo-mt-smoke.spec.ts
+
+      - name: Smart Playwright summary (Demo/MT)
+        if: always()
+        run: bun run scripts/ci/ci-report-playwright.ts --label="E2E — Demo & MT Smoke" --json=tests/playwright-results.json --preview=preview.log
+
+      - name: Flake budget (Demo/MT)
+        if: always()
+        run: bun run scripts/check/check-flake-budget.ts --json=tests/playwright-results.json --max-flaky=1 --allow-missing
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: playwright-report-Demo-MT
+          path: |
+            tests/playwright-report
+            tests/playwright-results.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: preview-log-demo-mt
+          path: preview.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ------------------------------------------------
   # 7b. Flake probe — newest specs × 3 (nightly / manual only)
   # ------------------------------------------------
   # A per-run budget only sees one shard's retries. This job re-runs the specs
@@ -1243,6 +1382,7 @@ jobs:
       - whitebox
       - e2e-prep
       - e2e
+      - e2e-demo-mt
       - db-tests
       - bench-core
       - flake-probe
@@ -1274,6 +1414,7 @@ jobs:
           RESULT_WHITEBOX: ${{ needs.whitebox.result }}
           RESULT_E2E_PREP: ${{ needs.e2e-prep.result }}
           RESULT_E2E: ${{ needs.e2e.result }}
+          RESULT_E2E_DEMO_MT: ${{ needs.e2e-demo-mt.result }}
           RESULT_DB_TESTS: ${{ needs.db-tests.result }}
           RESULT_BENCH_CORE: ${{ needs.bench-core.result }}
           RESULT_FLAKE_PROBE: ${{ needs.flake-probe.result }}

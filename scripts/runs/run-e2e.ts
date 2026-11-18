@@ -353,7 +353,7 @@ function computeSetupFingerprint(): string {
     "tests/e2e/routes/login/login.spec.ts",
     "tests/e2e/auth.setup.ts",
   ];
-  return tracked
+  const fileStamps = tracked
     .map((rel) => {
       const full = join(ROOT, rel);
       try {
@@ -363,6 +363,29 @@ function computeSetupFingerprint(): string {
       }
     })
     .join("|");
+  return `${fileStamps}|MULTI_TENANT=${process.env.MULTI_TENANT === "true"}|DEMO=${process.env.DEMO === "true"}`;
+}
+
+/**
+ * Mirrors explicit `MULTI_TENANT=true` / `DEMO=true` runner flags into `config/private.test.ts`
+ * after the setup wizard creates the default single-tenant test file. Never touches `config/private.ts`.
+ */
+function syncModesIntoPrivateTestConfig(): boolean {
+  const mt = process.env.MULTI_TENANT === "true";
+  const demo = process.env.DEMO === "true";
+  if (!mt && !demo) return false;
+
+  const privateTestPath = join(ROOT, "config", "private.test.ts");
+  if (!existsSync(privateTestPath)) return false;
+
+  let content = readFileSync(privateTestPath, "utf8");
+  const updatedMt = content.replace(/\bMULTI_TENANT\s*:\s*(true|false)/, `MULTI_TENANT: ${mt}`);
+  const updatedDemo = updatedMt.replace(/\bDEMO\s*:\s*(true|false)/, `DEMO: ${demo}`);
+  if (updatedDemo !== content) {
+    writeFileSync(privateTestPath, updatedDemo, "utf8");
+    return true;
+  }
+  return false;
 }
 
 function canUseAuthSnapshot(): boolean {
@@ -489,7 +512,7 @@ async function main() {
     );
   }
 
-  const server = DEV_MODE ? await startDevServer() : await startPreviewServer();
+  let server = DEV_MODE ? await startDevServer() : await startPreviewServer();
 
   process.on("exit", () => cleanupSync(server));
   process.on("SIGINT", () => {
@@ -551,6 +574,16 @@ async function main() {
         const authDir = join(ROOT, "tests", "e2e", ".auth");
         mkdirSync(authDir, { recursive: true });
         writeFileSync(join(authDir, "test-secret.txt"), resolveTestSecret());
+      }
+      if (syncModesIntoPrivateTestConfig()) {
+        // Reboot the preview server so bootstrap MULTI_TENANT / DEMO flags take effect before Phase 2.
+        cleanupSync(server);
+        await waitForPortFree(PORT);
+        server = await startPreviewServer();
+        await waitForServerOrExit(server, BASE_URL);
+        console.log(
+          `🔁 Restarted preview server with MULTI_TENANT=${process.env.MULTI_TENANT === "true"}, DEMO=${process.env.DEMO === "true"}`,
+        );
       }
       saveAuthSnapshot();
       console.log("");

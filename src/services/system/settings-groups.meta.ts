@@ -366,3 +366,22 @@ export const SETTINGS_GROUP_SUMMARIES: readonly SettingGroupSummary[] = [
 export function getSettingGroupSummariesByRole(isAdmin: boolean): SettingGroupSummary[] {
   return SETTINGS_GROUP_SUMMARIES.filter((group) => group.enabled && (!group.adminOnly || isAdmin));
 }
+
+export function filterSettingGroups(
+  groups: readonly SettingGroupSummary[],
+  query: string,
+): Array<{ group: SettingGroupSummary; matchedFieldLabel: string | null }> {
+  const q = query.trim().toLowerCase();
+  if (!q) return groups.map((group) => ({ group, matchedFieldLabel: null }));
+  return groups.flatMap((group) => {
+    const f = group.fields.find(
+      (x) => x.label.toLowerCase().includes(q) || x.key.toLowerCase().includes(q),
+    );
+    const hit =
+      f ||
+      group.name.toLowerCase().includes(q) ||
+      group.id.toLowerCase().includes(q) ||
+      group.description?.toLowerCase().includes(q);
+    return hit ? [{ group, matchedFieldLabel: f?.label ?? null }] : [];
+  });
+}
