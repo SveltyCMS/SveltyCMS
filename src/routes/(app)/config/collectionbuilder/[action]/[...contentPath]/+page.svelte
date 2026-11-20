@@ -4,6 +4,7 @@
  -->
 <script lang="ts">
 	import AdminPageShell from '@components/admin-page-shell.svelte';
+	import StickyActions from '@components/ui/sticky-actions.svelte';
 	import { StatusTypes } from '@src/content/status';
 	import type { FieldInstance, Schema } from '@src/content/types';
 	import type { User } from '@src/databases/auth/types';
@@ -184,6 +185,7 @@
 		stepProgress.steps.map((s) => ({
 			id: s.id,
 			label: s.label,
+			shortLabel: s.label,
 			icon: s.icon,
 			done: s.done
 		}))
@@ -487,133 +489,68 @@
 	showBackButton={true}
 	backUrl="/config/collectionbuilder"
 	fullHeight={true}
+	flushContent={true}
+	titleCompact={true}
 	spaceY="4"
 	animate={false}
 >
 	{#snippet subtitle()}
 		<div class="flex flex-wrap items-center gap-2 text-xs">
 			<span class="font-semibold text-(--admin-text-muted)">
-				{builder_editor_step()}
-				{activeTab === 'define' ? '1' : activeTab === 'widgets' ? '2' : '3'}{' '}
-				{builder_editor_of_3()}
-				{activeTab === 'define'
-					? 'Collection Definition'
-					: activeTab === 'widgets'
-						? 'Field Schema'
-						: 'Permissions'}
+				<span class="sm:hidden">
+					{builder_editor_step()}
+					{activeTab === 'define' ? '1' : activeTab === 'widgets' ? '2' : '3'}/3
+				</span>
+				<span class="hidden sm:inline">
+					{builder_editor_step()}
+					{activeTab === 'define' ? '1' : activeTab === 'widgets' ? '2' : '3'}{' '}
+					{builder_editor_of_3()}
+					{activeTab === 'define'
+						? 'Collection Definition'
+						: activeTab === 'widgets'
+							? 'Field Schema'
+							: 'Permissions'}
+				</span>
 			</span>
 			<span class="text-surface-300 dark:text-(--admin-text-muted)">•</span>
 			<span
 				class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-tertiary-500/10 text-tertiary-500 dark:bg-primary-900/20 dark:text-primary-400"
 			>
 				{stepProgress.completedCount}/{stepProgress.total}
-				{builder_editor_steps_ready()}
+				<span class="hidden sm:inline">{builder_editor_steps_ready()}</span>
+				<span class="sm:hidden">ready</span>
 			</span>
-			<span class="text-surface-300 dark:text-(--admin-text-muted)">•</span>
 			{#if !stepProgress.allRequiredDone}
-				<span class="text-warning-500 dark:text-warning-400 font-medium flex items-center gap-1">
+				<span class="hidden sm:inline text-surface-300 dark:text-(--admin-text-muted)">•</span>
+				<span
+					class="hidden sm:flex text-warning-500 dark:text-warning-400 font-medium items-center gap-1"
+				>
 					<iconify-icon icon="mdi:information" width="14"></iconify-icon>
 					{builder_editor_finish_hint()}
 				</span>
+				<span class="sm:hidden inline-flex items-center">
+					<SystemTooltip title={builder_editor_finish_hint()}>
+						<iconify-icon icon="mdi:information-outline" width="15" class="text-warning-500"
+						></iconify-icon>
+					</SystemTooltip>
+				</span>
 			{:else}
-				<span class="text-success-500 dark:text-success-400 font-medium flex items-center gap-1">
+				<span class="hidden sm:inline text-surface-300 dark:text-(--admin-text-muted)">•</span>
+				<span
+					class="hidden sm:flex text-success-500 dark:text-success-400 font-medium items-center gap-1"
+				>
 					<iconify-icon icon="mdi:check-circle" width="14"></iconify-icon>
 					{builder_editor_ready()}
 				</span>
+				<iconify-icon icon="mdi:check-circle" width="15" class="sm:hidden text-success-500"
+				></iconify-icon>
 			{/if}
-		</div>
-	{/snippet}
-	{#snippet actions()}
-		<div class="flex flex-wrap items-center gap-2">
-			{#if action === 'edit'}
-				<SystemTooltip
-					title={builder_editor_delete_aria()}
-					role={null}
-					tabindex={null}
-					positioning={{ placement: 'bottom', gutter: 8 }}
-				>
-					<Button
-						variant="error"
-						onclick={handleCollectionDelete}
-						disabled={isLoading}
-						aria-label={builder_editor_delete_aria()}
-						class="flex items-center gap-1"
-					>
-						<iconify-icon icon="mdi:delete" width="20"></iconify-icon>
-						<span class="hidden sm:inline">{button_delete()}</span>
-					</Button>
-				</SystemTooltip>
-			{/if}
-
-			{#if activeTab !== 'define'}
-				<SystemTooltip
-					title={builder_editor_previous_aria()}
-					role={null}
-					tabindex={null}
-					positioning={{ placement: 'bottom', gutter: 8 }}
-				>
-					<Button
-						variant="outline"
-						onclick={goBack}
-						aria-label={builder_editor_previous_aria()}
-						data-testid="collection-step-back"
-						class="flex items-center gap-1"
-					>
-						<iconify-icon icon="mdi:arrow-left" width="18"></iconify-icon>
-						<span class="hidden sm:inline">{builder_editor_back()}</span>
-					</Button>
-				</SystemTooltip>
-			{/if}
-
-			{#if activeTab !== 'permissions'}
-				<Button
-					variant="tertiary"
-					onclick={goNext}
-					disabled={activeTab === 'define' && !canGoNext}
-					aria-label={activeTab === 'define' ? 'Continue to Widgets' : 'Next step'}
-					data-testid={activeTab === 'define' ? 'collection-define-next' : 'collection-step-next'}
-					class="flex items-center gap-1.5 dark:bg-primary-500 dark:text-white"
-				>
-					<span>{activeTab === 'define' ? 'Continue to Widgets' : 'Next'}</span>
-					<iconify-icon icon="mdi:arrow-right" width="18"></iconify-icon>
-				</Button>
-			{/if}
-
-			<!-- Always expose Save (E2E + power users); disable until name+icon are set.
-			     Not wrapped in StickyActions: with the theme sticky action bar enabled the
-			     layout renders those actions at the bottom-right where the toast region
-			     (fixed, z-9999) overlays them — a lingering toast (never auto-dismissed in
-			     TEST_MODE) swallows the click and the save never fires. The header actions
-			     row is never covered. -->
-			<Button
-				variant="tertiary"
-				onclick={() => handleCollectionSave()}
-				disabled={isLoading || !stepProgress.allRequiredDone}
-				aria-label={builder_editor_save_aria()}
-				data-testid="save-collection-button"
-				class="flex min-w-25 items-center gap-1 dark:bg-primary-500 dark:text-white"
-				title={!stepProgress.defineOk
-					? builder_tip_save_need_name()
-					: !stepProgress.widgetsOk
-						? builder_tip_save_need_widgets()
-						: undefined}
-			>
-				{#if isLoading}
-					<iconify-icon icon="mdi:loading" width="20" class="animate-spin"></iconify-icon>
-				{:else}
-					<iconify-icon icon="mdi:content-save" width="20"></iconify-icon>
-				{/if}
-				<span>{button_save()}</span>
-			</Button>
 		</div>
 	{/snippet}
 
 	<!-- Tab Navigation -->
-	<div
-		class="z-20 shrink-0 {TAB_RULE} bg-(--admin-bg-card) px-4 pt-2 shadow-xs"
-		data-testid="collection-editor-tabs"
-	>
-		<div class="flex items-center justify-between gap-4">
+	<div class="z-20 shrink-0 {TAB_RULE} px-2 sm:px-4 pb-0" data-testid="collection-editor-tabs">
+		<div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-4">
 			<Tabs
 				tabs={editorTabs}
 				bind:activeTab
@@ -638,7 +575,7 @@
 					</div>
 					<!-- View Mode Switcher -->
 					<div
-						class="flex items-center rounded-lg border border-surface-500/30 bg-surface-500/10 p-0.5 dark:border-surface-500/40 dark:bg-surface-500/10"
+						class="grid w-full grid-cols-4 md:flex md:w-auto items-center rounded-lg border border-surface-500/30 bg-surface-500/10 p-0.5 dark:border-surface-500/40 dark:bg-surface-500/10"
 						role="group"
 						aria-label={builder_editor_view_mode_aria()}
 					>
@@ -652,7 +589,8 @@
 								type="button"
 								variant="transparent"
 								size="sm"
-								class="h-auto! px-2.5! py-1! text-xs! font-medium! {viewMode === 'canvas'
+								class="h-auto! w-full md:w-auto justify-center px-1.5! sm:px-2.5! py-1! text-[11px]! sm:text-xs! font-medium! truncate {viewMode ===
+								'canvas'
 									? 'bg-(--admin-bg-card) shadow-xs text-tertiary-500 dark:text-primary-400 font-bold!'
 									: 'text-(--admin-text-muted) hover:text-(--admin-text-body) dark:text-(--admin-text-muted) dark:hover:text-surface-100'}"
 								onclick={() => (viewMode = 'canvas')}
@@ -671,13 +609,15 @@
 								type="button"
 								variant="transparent"
 								size="sm"
-								class="h-auto! px-2.5! py-1! text-xs! font-medium! {viewMode === 'split'
+								class="h-auto! w-full md:w-auto justify-center px-1.5! sm:px-2.5! py-1! text-[11px]! sm:text-xs! font-medium! truncate {viewMode ===
+								'split'
 									? 'bg-(--admin-bg-card) shadow-xs text-tertiary-500 dark:text-primary-400 font-bold!'
 									: 'text-(--admin-text-muted) hover:text-(--admin-text-body) dark:text-(--admin-text-muted) dark:hover:text-surface-100'}"
 								onclick={() => (viewMode = 'split')}
 								data-testid="view-mode-split"
 							>
-								{builder_editor_split_view()}
+								<span class="sm:hidden">Split</span>
+								<span class="hidden sm:inline">{builder_editor_split_view()}</span>
 							</Button>
 						</SystemTooltip>
 						<SystemTooltip
@@ -690,13 +630,15 @@
 								type="button"
 								variant="transparent"
 								size="sm"
-								class="h-auto! px-2.5! py-1! text-xs! font-medium! {viewMode === 'code'
+								class="h-auto! w-full md:w-auto justify-center px-1.5! sm:px-2.5! py-1! text-[11px]! sm:text-xs! font-medium! truncate {viewMode ===
+								'code'
 									? 'bg-(--admin-bg-card) shadow-xs text-tertiary-500 dark:text-primary-400 font-bold!'
 									: 'text-(--admin-text-muted) hover:text-(--admin-text-body) dark:text-(--admin-text-muted) dark:hover:text-surface-100'}"
 								onclick={() => (viewMode = 'code')}
 								data-testid="view-mode-code"
 							>
-								{builder_editor_typescript()}
+								<span class="sm:hidden">Code</span>
+								<span class="hidden sm:inline">{builder_editor_typescript()}</span>
 							</Button>
 						</SystemTooltip>
 						<SystemTooltip
@@ -709,7 +651,8 @@
 								type="button"
 								variant="transparent"
 								size="sm"
-								class="h-auto! px-2.5! py-1! text-xs! font-medium! {viewMode === 'preview'
+								class="h-auto! w-full md:w-auto justify-center px-1.5! sm:px-2.5! py-1! text-[11px]! sm:text-xs! font-medium! truncate {viewMode ===
+								'preview'
 									? 'bg-(--admin-bg-card) shadow-xs text-tertiary-500 dark:text-primary-400 font-bold!'
 									: 'text-(--admin-text-muted) hover:text-(--admin-text-body) dark:text-(--admin-text-muted) dark:hover:text-surface-100'}"
 								onclick={() => (viewMode = 'preview')}
@@ -737,10 +680,10 @@
 		<div class="w-full flex-1 overflow-y-auto scroll-smooth">
 			<div
 				class="h-full min-h-0 {activeTab === 'define'
-					? 'w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8'
+					? 'w-full max-w-7xl mx-auto px-2 py-2 sm:p-6 lg:p-8'
 					: activeTab === 'widgets'
-						? 'flex h-full min-h-128 flex-col p-0'
-						: 'w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8'}"
+						? 'flex lg:h-full lg:min-h-128 flex-col p-0'
+						: 'w-full max-w-7xl mx-auto px-2 py-2 sm:p-6 lg:p-8'}"
 			>
 				{#if activeTab === 'define'}
 					<div
@@ -777,4 +720,83 @@
 			</div>
 		</div>
 	</div>
+
+	<StickyActions>
+		<div class="flex w-full items-center justify-center sm:justify-end gap-2">
+			{#if action === 'edit'}
+				<SystemTooltip
+					title={builder_editor_delete_aria()}
+					role={null}
+					tabindex={null}
+					positioning={{ placement: 'top', gutter: 8 }}
+				>
+					<Button
+						variant="error"
+						onclick={handleCollectionDelete}
+						disabled={isLoading}
+						aria-label={builder_editor_delete_aria()}
+						class="size-9 min-w-0! p-0! sm:h-10 sm:w-auto sm:px-3 flex items-center justify-center gap-1"
+					>
+						<iconify-icon icon="mdi:delete" width="18"></iconify-icon>
+						<span class="hidden sm:inline">{button_delete()}</span>
+					</Button>
+				</SystemTooltip>
+			{/if}
+
+			{#if activeTab !== 'define'}
+				<SystemTooltip
+					title={builder_editor_previous_aria()}
+					role={null}
+					tabindex={null}
+					positioning={{ placement: 'top', gutter: 8 }}
+				>
+					<Button
+						variant="outline"
+						onclick={goBack}
+						aria-label={builder_editor_previous_aria()}
+						data-testid="collection-step-back"
+						class="h-9 sm:h-10 px-3 text-xs sm:text-sm flex items-center justify-center gap-1"
+					>
+						<iconify-icon icon="mdi:arrow-left" width="16"></iconify-icon>
+						<span>{builder_editor_back()}</span>
+					</Button>
+				</SystemTooltip>
+			{/if}
+
+			{#if activeTab !== 'permissions'}
+				<Button
+					variant="tertiary"
+					onclick={goNext}
+					disabled={activeTab === 'define' && !canGoNext}
+					aria-label={activeTab === 'define' ? 'Continue to Widgets' : 'Next step'}
+					data-testid={activeTab === 'define' ? 'collection-define-next' : 'collection-step-next'}
+					class="h-9 sm:h-10 px-3 text-xs sm:text-sm flex items-center gap-1.5 dark:bg-primary-500 dark:text-white"
+				>
+					<span>{activeTab === 'define' ? 'Continue to Widgets' : 'Next'}</span>
+					<iconify-icon icon="mdi:arrow-right" width="16"></iconify-icon>
+				</Button>
+			{/if}
+
+			<Button
+				variant="primary"
+				onclick={() => handleCollectionSave()}
+				disabled={isLoading || !stepProgress.allRequiredDone}
+				aria-label={builder_editor_save_aria()}
+				data-testid="save-collection-button"
+				class="h-9 sm:h-10 px-3.5 sm:px-4 text-xs sm:text-sm flex items-center gap-1.5"
+				title={!stepProgress.defineOk
+					? builder_tip_save_need_name()
+					: !stepProgress.widgetsOk
+						? builder_tip_save_need_widgets()
+						: undefined}
+			>
+				{#if isLoading}
+					<iconify-icon icon="mdi:loading" width="18" class="animate-spin"></iconify-icon>
+				{:else}
+					<iconify-icon icon="mdi:content-save" width="18"></iconify-icon>
+				{/if}
+				<span>{button_save()}</span>
+			</Button>
+		</div>
+	</StickyActions>
 </AdminPageShell>

@@ -21,20 +21,24 @@ function suppressExtensionNoise(): void {
   if ((window as any)[KEY]) return;
   (window as any)[KEY] = true;
 
-  window.addEventListener("unhandledrejection", (event: PromiseRejectionEvent) => {
-    const reason = event.reason;
-    const message = reason?.message ?? String(reason ?? "");
+  window.addEventListener(
+    "unhandledrejection",
+    (event: PromiseRejectionEvent) => {
+      const reason = event.reason;
+      const message = reason?.message ?? String(reason ?? "");
 
-    // This is the exact Chrome extension error we want to suppress
-    if (
-      typeof message === "string" &&
-      message.includes("message channel closed") &&
-      message.includes("asynchronous response")
-    ) {
-      event.preventDefault(); // Prevents the error from appearing in the console
-      return;
-    }
-  });
+      // This is the exact Chrome extension error we want to suppress
+      if (
+        typeof message === "string" &&
+        message.includes("message channel closed") &&
+        message.includes("asynchronous response")
+      ) {
+        event.preventDefault(); // Prevents the error from appearing in the console
+        return;
+      }
+    },
+    { capture: true },
+  );
 }
 
 suppressExtensionNoise();

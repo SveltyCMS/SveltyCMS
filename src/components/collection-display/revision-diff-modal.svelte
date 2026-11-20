@@ -7,7 +7,6 @@
 	import { fade, slide } from 'svelte/transition';
 	import type { FieldInstance } from '@src/content/types';
 	import Badge from '@components/ui/badge.svelte';
-	import Button from '@components/ui/button.svelte';
 	import Checkbox from '@components/ui/checkbox.svelte';
 
 	interface Props {
@@ -34,12 +33,19 @@
 		showOnlyChanged ? diffs.filter((d) => d.type !== 'unchanged') : diffs
 	);
 
-	// Stats summary
-	const stats = $derived({
-		added: diffs.filter((d) => d.type === 'added').length,
-		modified: diffs.filter((d) => d.type === 'modified').length,
-		removed: diffs.filter((d) => d.type === 'removed').length,
-		unchanged: diffs.filter((d) => d.type === 'unchanged').length
+	// Stats summary (single pass)
+	const stats = $derived.by(() => {
+		let added = 0,
+			modified = 0,
+			removed = 0,
+			unchanged = 0;
+		for (const d of diffs) {
+			if (d.type === 'added') added++;
+			else if (d.type === 'modified') modified++;
+			else if (d.type === 'removed') removed++;
+			else unchanged++;
+		}
+		return { added, modified, removed, unchanged };
 	});
 
 	function formatValue(val: unknown): string {
@@ -97,7 +103,14 @@
 				<Checkbox bind:checked={showOnlyChanged} />
 				<span class="text-xs font-bold">Show Only Changes</span>
 			</label>
-			<Button variant="surface" onclick={close} aria-label="Close dialog" size="sm">Close</Button>
+			<button
+				type="button"
+				onclick={close}
+				aria-label="Close dialog"
+				class="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-surface-500/30 bg-surface-800/40 text-(--admin-text-muted) transition-colors hover:bg-surface-500/10 hover:text-(--admin-text-body)"
+			>
+				<iconify-icon icon="mdi:close"></iconify-icon>
+			</button>
 		</div>
 	</div>
 

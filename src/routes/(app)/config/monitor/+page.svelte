@@ -75,6 +75,8 @@
 	icon="mdi:shield-check-outline"
 	showBackButton={true}
 	backUrl="/config"
+	fullHeight={true}
+	titleCompact={true}
 	spaceY="4"
 >
 	{#snippet actions()}
@@ -97,38 +99,40 @@
 		</Badge>
 	{/snippet}
 
-	<div data-testid="monitor-page" class="contents">
+	<div
+		data-testid="monitor-page"
+		class="min-h-0 flex-1 overflow-y-auto space-y-3 sm:space-y-4 pe-0.5 pb-4"
+	>
 		<!-- Stats Grid -->
-		<div
-			class="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-4"
-			data-testid="monitor-stats"
-		>
+		<div class="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-4" data-testid="monitor-stats">
 			<!-- Security Card -->
 			<AdminCard
-				class="space-y-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) p-4 sm:p-5 shadow-sm backdrop-blur-md dark:bg-surface-900/50"
+				class="space-y-2 sm:space-y-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) p-2.5 sm:p-5 shadow-sm backdrop-blur-md dark:bg-surface-900/50"
 				data-testid="monitor-card-security"
 			>
-				<div class="flex items-center justify-between">
+				<div class="flex items-center justify-between gap-1">
 					<div
-						class="flex size-10 items-center justify-center rounded bg-tertiary-500/10 dark:bg-primary-500/10"
+						class="flex size-8 sm:size-10 items-center justify-center rounded bg-tertiary-500/10 dark:bg-primary-500/10"
 					>
 						<iconify-icon
 							icon="mdi:shield-lock"
-							class="text-2xl text-tertiary-500 dark:text-primary-500"
+							class="text-lg sm:text-2xl text-tertiary-500 dark:text-primary-500"
 						></iconify-icon>
 					</div>
-					<Badge variant="primary">{common_active()}</Badge>
+					<Badge variant="primary" size="sm">{common_active()}</Badge>
 				</div>
 				<div>
-					<h3 class="text-sm font-bold uppercase tracking-widest opacity-40">
+					<h3 class="text-[11px] sm:text-sm font-bold uppercase tracking-wider opacity-50">
 						{monitor_security()}
 					</h3>
-					<p class="text-3xl font-black">
+					<p class="text-xl sm:text-3xl font-black leading-tight">
 						{data.security?.incidentCount || 0}
-						<span class="text-base font-normal opacity-50">{monitor_incidents()}</span>
+						<span class="text-xs sm:text-base font-normal opacity-50">{monitor_incidents()}</span>
 					</p>
 				</div>
-				<div class="flex justify-between border-t border-(--admin-border-default) pt-2 text-xs">
+				<div
+					class="flex justify-between border-t border-(--admin-border-default) pt-1.5 sm:pt-2 text-[11px] sm:text-xs"
+				>
 					<span
 						>{monitor_blocked()}
 						<b class="text-error-500">{data.security?.blockedIpsCount || 0}</b></span
@@ -139,26 +143,35 @@
 
 			<!-- System State Card -->
 			<AdminCard
-				class="space-y-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) p-4 sm:p-5 shadow-sm backdrop-blur-md dark:bg-surface-900/50"
+				class="space-y-2 sm:space-y-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) p-2.5 sm:p-5 shadow-sm backdrop-blur-md dark:bg-surface-900/50"
 				data-testid="monitor-card-system"
 			>
-				<div class="flex items-center justify-between">
-					<div class="flex size-10 items-center justify-center rounded bg-tertiary-500/10">
-						<iconify-icon icon="mdi:server-network" class="text-2xl text-tertiary-500"
+				<div class="flex items-center justify-between gap-1">
+					<div
+						class="flex size-8 sm:size-10 items-center justify-center rounded bg-tertiary-500/10"
+					>
+						<iconify-icon icon="mdi:server-network" class="text-lg sm:text-2xl text-tertiary-500"
 						></iconify-icon>
 					</div>
-					<Badge variant={systemState?.overallState === 'READY' ? 'success' : 'warning'}
+					<Badge variant={systemState?.overallState === 'READY' ? 'success' : 'warning'} size="sm"
 						>{systemState?.overallState || 'Unknown'}</Badge
 					>
 				</div>
 				<div>
-					<h3 class="text-sm font-bold uppercase tracking-widest opacity-40">{monitor_system()}</h3>
-					<p class="text-3xl font-black" data-testid="monitor-uptime">
+					<h3 class="text-[11px] sm:text-sm font-bold uppercase tracking-wider opacity-50">
+						{monitor_system()}
+					</h3>
+					<p
+						class="text-xl sm:text-3xl font-black leading-tight truncate"
+						data-testid="monitor-uptime"
+					>
 						{formatUptimeMs(system?.uptime ?? 0)}
-						<span class="text-base font-normal opacity-50">{monitor_uptime()}</span>
+						<span class="text-xs sm:text-base font-normal opacity-50">{monitor_uptime()}</span>
 					</p>
 				</div>
-				<div class="flex justify-between border-t border-(--admin-border-default) pt-2 text-xs">
+				<div
+					class="flex justify-between border-t border-(--admin-border-default) pt-1.5 sm:pt-2 text-[11px] sm:text-xs"
+				>
 					<span>{monitor_services()} <b>{systemState?.services?.length ?? 0}</b></span>
 					<span class="opacity-50"
 						>{monitor_avg()}
@@ -171,25 +184,30 @@
 
 			<!-- API Traffic Card -->
 			<AdminCard
-				class="space-y-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) p-4 sm:p-5 shadow-sm backdrop-blur-md dark:bg-surface-900/50"
+				class="space-y-2 sm:space-y-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) p-2.5 sm:p-5 shadow-sm backdrop-blur-md dark:bg-surface-900/50"
 				data-testid="monitor-card-requests"
 			>
-				<div class="flex items-center justify-between">
-					<div class="flex size-10 items-center justify-center rounded bg-tertiary-500/10">
-						<iconify-icon icon="mdi:chart-line" class="text-2xl text-tertiary-500"></iconify-icon>
+				<div class="flex items-center justify-between gap-1">
+					<div
+						class="flex size-8 sm:size-10 items-center justify-center rounded bg-tertiary-500/10"
+					>
+						<iconify-icon icon="mdi:chart-line" class="text-lg sm:text-2xl text-tertiary-500"
+						></iconify-icon>
 					</div>
 					<Badge preset="tonal" color="surface" size="sm">API</Badge>
 				</div>
 				<div>
-					<h3 class="text-sm font-bold uppercase tracking-widest opacity-40">
+					<h3 class="text-[11px] sm:text-sm font-bold uppercase tracking-wider opacity-50">
 						{monitor_requests()}
 					</h3>
-					<p class="text-3xl font-black">
+					<p class="text-xl sm:text-3xl font-black leading-tight">
 						{system?.requests?.total ?? 0}
-						<span class="text-base font-normal opacity-50">{monitor_total()}</span>
+						<span class="text-xs sm:text-base font-normal opacity-50">{monitor_total()}</span>
 					</p>
 				</div>
-				<div class="flex justify-between border-t border-(--admin-border-default) pt-2 text-xs">
+				<div
+					class="flex justify-between border-t border-(--admin-border-default) pt-1.5 sm:pt-2 text-[11px] sm:text-xs"
+				>
 					<span
 						>{monitor_errors()} <b class="text-error-500">{system?.requests?.errors ?? 0}</b></span
 					>
@@ -203,38 +221,41 @@
 
 			<!-- Background Worker / Queue Card -->
 			<AdminCard
-				class="space-y-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) p-4 sm:p-5 shadow-sm backdrop-blur-md dark:bg-surface-900/50"
+				class="space-y-2 sm:space-y-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) p-2.5 sm:p-5 shadow-sm backdrop-blur-md dark:bg-surface-900/50"
 				data-testid="monitor-card-actions"
 			>
-				<div class="flex items-center justify-between">
+				<div class="flex items-center justify-between gap-1">
 					<div
-						class="flex size-10 items-center justify-center rounded bg-tertiary-500/10 dark:bg-primary-500/10"
+						class="flex size-8 sm:size-10 items-center justify-center rounded bg-tertiary-500/10 dark:bg-primary-500/10"
 					>
 						<iconify-icon
 							icon="mdi:tray-full"
-							class="text-2xl text-tertiary-500 dark:text-primary-500"
+							class="text-lg sm:text-2xl text-tertiary-500 dark:text-primary-500"
 						></iconify-icon>
 					</div>
 					<Badge preset="tonal" color="primary" size="sm">Queue</Badge>
 				</div>
 				<div>
-					<h3 class="text-sm font-bold uppercase tracking-widest opacity-40">Background Tasks</h3>
-					<p class="text-3xl font-black">
+					<h3 class="text-[11px] sm:text-sm font-bold uppercase tracking-wider opacity-50">
+						Background Tasks
+					</h3>
+					<p class="text-xl sm:text-3xl font-black leading-tight">
 						{webhooks?.active ?? 0}
-						<span class="text-base font-normal opacity-50">Webhooks Active</span>
+						<span class="text-xs sm:text-base font-normal opacity-50">Active</span>
 					</p>
 				</div>
-				<div class="space-y-2 border-t border-(--admin-border-default) pt-2">
+				<div class="border-t border-(--admin-border-default) pt-1.5 sm:pt-2">
 					<Button
 						variant="tertiary"
 						size="sm"
 						href="/config/queue"
-						class="w-full justify-between"
+						class="w-full justify-between h-7 sm:h-8 text-[11px] sm:text-xs px-2 sm:px-3"
 						data-sveltekit-preload-data="hover"
 						data-preload="hover"
 						data-testid="monitor-link-queue"
 					>
-						<span>View Background Queue</span>
+						<span class="sm:hidden">View Queue</span>
+						<span class="hidden sm:inline">View Background Queue</span>
 						<iconify-icon icon="mdi:arrow-right"></iconify-icon>
 					</Button>
 				</div>

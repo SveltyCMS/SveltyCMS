@@ -260,20 +260,23 @@ It provides the following functionality:
 {#if error}
 	<p class="error">{error}</p>
 {:else}
-	<h3 class="mb-2 text-center text-xl font-bold">{access_roles_heading()}</h3>
+	<h3 class="mb-1 sm:mb-2 text-center text-lg sm:text-xl font-bold">{access_roles_heading()}</h3>
 
-	<p class="mb-4 justify-center text-center text-sm text-(--admin-text-muted)">
+	<p class="hidden sm:block mb-4 justify-center text-center text-sm text-(--admin-text-muted)">
 		{access_roles_intro()}
 	</p>
 
 	<div class="wrapper my-2">
-		<div class="mb-4 flex flex-wrap items-center justify-between gap-2">
-			<div class="flex items-center gap-2">
+		<div
+			class="mb-3 sm:mb-4 flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-2"
+		>
+			<div class="grid grid-cols-2 sm:flex items-center gap-2">
 				<Button
 					variant="primary"
 					onclick={() => openModal(null, '')}
 					leadingIcon="mdi:plus-circle-outline"
 					data-testid="access-create-role"
+					class="w-full sm:w-auto justify-center"
 				>
 					{access_roles_create()}
 				</Button>
@@ -282,6 +285,7 @@ It provides the following functionality:
 					onclick={deleteSelectedRoles}
 					disabled={selectedRoles.size === 0}
 					data-testid="access-delete-roles"
+					class="w-full sm:w-auto justify-center"
 				>
 					{access_roles_delete_selected({ count: selectedRoles.size })}
 				</Button>
@@ -315,7 +319,7 @@ It provides the following functionality:
 						{#each filteredRoles as role (role.id)}
 							<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 							<li
-								class="animate-flip flex items-center justify-between rounded border border-(--admin-border-default) p-2 hover:bg-surface-200 dark:hover:bg-surface-700 md:flex-row transition-colors"
+								class="animate-flip flex flex-col gap-1.5 rounded border border-(--admin-border-default) p-2.5 sm:p-3 hover:bg-surface-200 dark:hover:bg-surface-700 md:flex-row md:items-center md:justify-between transition-colors"
 								role="listitem"
 								use:draggable={{ container: 'roles', dragData: role, keyboard: true }}
 								use:droppable={{
@@ -328,47 +332,59 @@ It provides the following functionality:
 								tabindex="0"
 								aria-label={access_roles_role_aria({ name: role.name })}
 							>
-								<div class="flex items-center gap-2">
-									<div
-										class="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-surface-300 dark:hover:bg-surface-600"
-										role="button"
-										tabindex="0"
-										aria-label={access_roles_drag_aria({ name: role.name })}
-									>
-										<iconify-icon icon="mdi:drag" width={24}></iconify-icon>
-									</div>
-
-									{#if !role.isAdmin}
-										<Checkbox
-											checked={selectedRoles.has(role._id)}
-											onchange={() => toggleRoleSelection(role._id)}
-											label={`Select ${role.name}`}
-											class="[&_label:last-of-type]:sr-only"
-										/>
-									{/if}
-
-									<div class="flex flex-col">
-										<span
-											class="flex items-center text-lg font-bold text-tertiary-500 dark:text-primary-500"
+								<div class="flex items-center justify-between gap-2">
+									<div class="flex min-w-0 items-center gap-1.5 sm:gap-2">
+										<div
+											class="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-surface-300 dark:hover:bg-surface-600 shrink-0"
+											role="button"
+											tabindex="0"
+											aria-label={access_roles_drag_aria({ name: role.name })}
 										>
-											{role.name}
+											<iconify-icon icon="mdi:drag" width={20}></iconify-icon>
+										</div>
+
+										{#if !role.isAdmin}
+											<Checkbox
+												checked={selectedRoles.has(role._id)}
+												onchange={() => toggleRoleSelection(role._id)}
+												label={`Select ${role.name}`}
+												class="[&_label:last-of-type]:sr-only shrink-0"
+											/>
+										{/if}
+
+										<span
+											class="flex min-w-0 items-center truncate text-base sm:text-lg font-bold text-tertiary-500 dark:text-primary-500"
+										>
+											<span class="truncate">{role.name}</span>
 											{#if role.isAdmin}
-												<Badge preset="filled" color="secondary" size="sm" class="ms-2"
+												<Badge preset="filled" color="secondary" size="sm" class="ms-2 shrink-0"
 													>{access_tab_admin()}</Badge
 												>
 											{/if}
 										</span>
-										<span class="text-xs opacity-60 md:hidden"
-											>{role.description || 'No description'}</span
-										>
 									</div>
+
+									<Button
+										variant="surface"
+										onclick={() => openModal(role)}
+										aria-label={`Edit role ${role.name}`}
+										size="sm"
+										leadingIcon="mdi:pencil"
+										class="shrink-0 md:hidden"
+									>
+										{access_roles_edit()}
+									</Button>
 								</div>
 
-								<p class="mt-2 hidden text-sm opacity-70 md:ms-4 md:mt-0 md:block flex-1">
+								<p class="ps-8 text-xs text-(--admin-text-muted) md:hidden">
+									{role.description || 'No description'}
+								</p>
+
+								<p class="hidden text-sm opacity-70 md:ms-4 md:block flex-1">
 									{role.description}
 								</p>
 
-								<div class="flex gap-2">
+								<div class="hidden md:flex gap-2 shrink-0">
 									<Button
 										variant="surface"
 										onclick={() => openModal(role)}

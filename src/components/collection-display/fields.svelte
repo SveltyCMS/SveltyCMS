@@ -781,14 +781,16 @@
 		onValueChange={(e) => (localTabSet = e.value)}
 		class="flex flex-1 flex-col items-center {CONTENT_PADDING} w-full min-h-0"
 	>
-		<Tabs.List class="flex justify-between md:justify-around w-full shrink-0">
-			<Tabs.Trigger value="0" class="flex-1">
+		<Tabs.List
+			class="flex w-full shrink-0 flex-nowrap gap-1 overflow-x-auto overflow-y-clip md:justify-around"
+		>
+			<Tabs.Trigger value="0" class="shrink-0 px-2.5 text-xs sm:px-4 sm:text-sm md:flex-1">
 				<iconify-icon icon="mdi:pen" width="18" height="18" aria-hidden="true"></iconify-icon>
 				{button_edit()}
 			</Tabs.Trigger>
 
 			{#if activeCollection?.revision}
-				<Tabs.Trigger value="1" class="flex-1">
+				<Tabs.Trigger value="1" class="shrink-0 px-2.5 text-xs sm:px-4 sm:text-sm md:flex-1">
 					<iconify-icon icon="mdi:history" width="18" height="18" aria-hidden="true"></iconify-icon>
 					{applayout_version()}
 					<Badge variant="secondary">{revisions.length}</Badge>
@@ -796,7 +798,7 @@
 			{/if}
 
 			{#if user?.isAdmin}
-				<Tabs.Trigger value="3" class="flex-1">
+				<Tabs.Trigger value="3" class="shrink-0 px-2.5 text-xs sm:px-4 sm:text-sm md:flex-1">
 					<iconify-icon icon="mdi:api" width="18" height="18" aria-hidden="true"></iconify-icon>
 					API
 				</Tabs.Trigger>
@@ -804,7 +806,7 @@
 
 			<!-- Plugin Slots Triggers -->
 			{#each entryEditSlots as slot (slot.id)}
-				<Tabs.Trigger value={slot.id} class="flex-1">
+				<Tabs.Trigger value={slot.id} class="shrink-0 px-2.5 text-xs sm:px-4 sm:text-sm md:flex-1">
 					<iconify-icon
 						icon={slot.props?.icon || 'mdi:puzzle-outline'}
 						width="18"
@@ -820,9 +822,9 @@
 
 		<Tabs.Content value="0" class="w-full">
 			<div
-				class="rounded border border-(--admin-border-default) bg-(--admin-bg-card) px-3 py-4 sm:px-4"
+				class="rounded border-0 bg-transparent px-0 py-2 sm:border sm:border-(--admin-border-default) sm:bg-(--admin-bg-card) sm:px-3 sm:py-3"
 			>
-				<div class="flex w-full flex-col gap-1">
+				<div class="flex w-full flex-col gap-2.5 sm:gap-3">
 					{#if validationIssues.length > 0 && validationStore.surfaced}
 						<!-- Shared error surface: required-field errors also reach widgets (SEO,
 						     rich text, select) that do not render their own message. -->
@@ -850,15 +852,13 @@
 							{@const fieldName = getFieldName(field, false)}
 							{@const isRequired = isFieldRequired(field, currentCollectionValue)}
 							<div
-								class="w-full min-w-0 text-start"
+								class="w-full min-w-0 space-y-1 text-start"
 								id="field-container-{fieldName}"
 								data-field-name={fieldName}
 							>
-								<div
-									class="mb-1 flex items-center justify-between gap-2 px-0.5 text-start field-label"
-								>
+								<div class="flex items-center justify-between gap-1 px-0.5 text-start field-label">
 									<!-- Field label: widget icon → label → tooltip → required marker -->
-									<div class="flex min-w-0 items-center gap-1.5">
+									<div class="flex min-w-0 items-center gap-1">
 										{#if fieldIcon}
 											<iconify-icon
 												icon={fieldIcon}
@@ -941,7 +941,7 @@
 												{#if availableLanguages.length > 1 && currentFieldLocale !== sourceLocale}
 													<Button
 														variant="ghost"
-														class="flex h-7 items-center gap-0.5 rounded-full px-1.5 text-xs transition-colors hover:bg-tertiary-500/10 dark:hover:bg-primary-500/20"
+														class="flex h-7 items-center gap-1 rounded-full px-1 text-xs transition-colors hover:bg-tertiary-500/10 dark:hover:bg-primary-500/20"
 														style="color: var(--color-tertiary-500)"
 														onclick={() =>
 															aiTranslateField(field, fieldName, sourceLocale, currentFieldLocale)}
@@ -1167,13 +1167,15 @@
 				<div class="shrink-0">
 					<label
 						for="api-url-input"
-						class="mb-1.5 block text-sm font-semibold text-(--admin-text-muted)">API URL</label
+						class="mb-1.5 block text-sm font-semibold text-tertiary-500 dark:text-primary-500"
+						>API URL</label
 					>
 					<div class="flex items-center gap-2">
 						<Input
 							id="api-url-input"
 							type="text"
 							class="grow space-y-0"
+							inputClass="font-mono text-xs text-tertiary-500 sm:text-sm dark:text-primary-500"
 							readonly
 							value={apiUrl}
 							aria-label="API URL"
@@ -1193,7 +1195,8 @@
 				<div
 					class="flex-1 min-h-0 rounded border border-(--admin-border-default) bg-surface-900/80 dark:bg-surface-900/80 p-3 font-mono text-xs sm:text-sm text-white overflow-auto"
 				>
-					<pre class="whitespace-pre-wrap wrap-break-word">{JSON.stringify(
+					<pre
+						class="whitespace-pre-wrap wrap-break-word text-tertiary-500 dark:text-primary-500">{JSON.stringify(
 							collections.activeValue,
 							null,
 							2

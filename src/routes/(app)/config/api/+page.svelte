@@ -15,6 +15,7 @@
 	import Textarea from '@components/ui/textarea.svelte';
 	import Select from '@components/ui/select.svelte';
 	import SegmentedControl from '@components/ui/segmented-control.svelte';
+	import StickyActions from '@components/ui/sticky-actions.svelte';
 	import Tabs from '@components/ui/tabs.svelte';
 	import {
 		api_codegen_heading,
@@ -36,7 +37,6 @@
 		api_gql_running,
 		api_gql_variables,
 		api_help_body,
-		api_help_copy_code,
 		api_help_endpoint,
 		api_help_gql_query,
 		api_help_gql_result,
@@ -59,7 +59,10 @@
 		api_status_label,
 		api_system_version,
 		api_tenant_label,
-		api_vqb_help_collection
+		api_vqb_copy_rest,
+		api_vqb_executing,
+		api_vqb_help_collection,
+		api_vqb_run_now
 	} from '@src/paraglide/messages';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
@@ -104,7 +107,12 @@
 	}
 
 	/** Shared card chrome — mirrors the `/user` account panels. */
-	const cardClass = 'p-5 sm:p-6';
+	const cardClass = 'p-3.5 sm:p-6';
+
+	let vqbRef = $state<{ executeQuery: () => Promise<void>; copyRestUrl: () => void } | undefined>(
+		undefined
+	);
+	let vqbExecuting = $state(false);
 
 	const apiTabs = [
 		{
@@ -122,6 +130,8 @@
 		},
 		{ id: 'codegen', label: 'SDK & Code Snippets', shortLabel: 'SDK', icon: 'mdi:code-tags' }
 	];
+
+	const apiTabOptions = apiTabs.map((t) => ({ value: t.id, label: t.label }));
 
 	// ── REST State ──
 	let restMethod = $state<'GET' | 'POST'>('GET');
@@ -317,10 +327,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 	icon="mdi:api"
 	showBackButton={true}
 	backUrl="/config"
-	description="Test REST and GraphQL endpoints directly with active session credentials"
+	fullHeight={true}
+	flushContent={true}
+	titleCompact={true}
 >
 	{#snippet actions()}
-		<div class="flex items-center gap-2">
+		<div class="hidden md:flex items-center gap-2">
 			{#if data.tenantId}
 				<Badge variant="tertiary" size="sm">
 					{api_tenant_label()}
@@ -339,405 +351,476 @@ export const load: PageServerLoad = async ({ locals }) => {
 		</div>
 	{/snippet}
 
-	<!-- Tab Switcher — shared Tabs component (same design as /user) -->
-	<div class="mb-6">
-		<Tabs
-			tabs={apiTabs}
-			bind:activeTab
-			variant="underline"
-			ariaLabel="API playground sections"
-			testId="api-tabs"
-			onTabChange={(id) => {
-				activeTab = id as Tab;
-				syncTabToUrl(activeTab);
-			}}
-		/>
-	</div>
+	<div data-testid="api-page" class="flex min-h-0 flex-1 flex-col -mt-1 sm:mt-0">
+		<!-- Mobile: dropdown selector -->
+		<div class="shrink-0 pb-2 md:hidden">
+			<Select
+				value={activeTab}
+				options={apiTabOptions}
+				aria-label="API playground sections"
+				data_testid="api-tab-select"
+				onchange={(val: string) => {
+					activeTab = val as Tab;
+					syncTabToUrl(activeTab);
+				}}
+			/>
+		</div>
 
-	<!-- TAB 0: Visual Query Builder -->
-	{#if activeTab === 'builder'}
-		<VisualQueryBuilder collections={data.collections} />
-	{/if}
+		<!-- Desktop/Tablet: shared Tabs component -->
+		<div class="hidden md:block shrink-0 border-b border-(--admin-border-default) mb-3">
+			<Tabs
+				tabs={apiTabs}
+				bind:activeTab
+				variant="underline"
+				ariaLabel="API playground sections"
+				testId="api-tabs"
+				onTabChange={(id) => {
+					activeTab = id as Tab;
+					syncTabToUrl(activeTab);
+				}}
+			/>
+		</div>
 
-	<!-- TAB 1: REST API / OpenAPI -->
-	{#if activeTab === 'rest'}
-		<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-			<!-- Request Form -->
-			<AdminCard class={cardClass}>
-				<h3 class="mb-4 text-base font-semibold text-surface-900 dark:text-surface-50">
-					{api_send_request()}
-				</h3>
+		<div class="min-h-0 flex-1 overflow-y-auto pb-4 pe-0.5">
+			<!-- TAB 0: Visual Query Builder -->
+			{#if activeTab === 'builder'}
+				<VisualQueryBuilder
+					bind:this={vqbRef}
+					bind:isExecuting={vqbExecuting}
+					collections={data.collections}
+				/>
+			{/if}
 
-				<div class="space-y-4">
-					<!-- Method + Endpoint Bar -->
-					<div class="flex items-center gap-1.5">
-						<div class="w-28">
-							<Select
-								value={restMethod}
-								options={[
-									{ value: 'GET', label: 'GET' },
-									{ value: 'POST', label: 'POST' }
-								]}
-								onchange={(val: string) => (restMethod = val as 'GET' | 'POST')}
-							/>
-						</div>
-						{@render helpTrigger(api_help_method(), 'HTTP method')}
-						<div class="flex-1">
-							<Input bind:value={restEndpoint} placeholder={api_endpoint_placeholder()} />
-						</div>
-						{@render helpTrigger(api_help_endpoint(), 'Endpoint')}
-					</div>
+			<!-- TAB 1: REST API / OpenAPI -->
+			{#if activeTab === 'rest'}
+				<div class="grid grid-cols-1 gap-3 sm:gap-6 lg:grid-cols-2">
+					<!-- Request Form -->
+					<AdminCard class={cardClass}>
+						<h3 class="mb-4 text-base font-semibold text-surface-900 dark:text-surface-50">
+							{api_send_request()}
+						</h3>
 
-					<!-- Presets for fast testing -->
-					<div class="flex flex-wrap items-center gap-1.5">
-						<span class="inline-flex items-center gap-1.5 text-xs text-surface-500">
-							{api_quick_presets()}
-							{@render helpTrigger(api_help_presets(), 'Quick presets')}
-						</span>
-						<Button
-							type="button"
-							variant="ghost"
-							size="sm"
-							onclick={() => {
-								restMethod = 'GET';
-								restEndpoint = '/api/openapi.json';
-							}}
-						>
-							{api_openapi_spec()}
-						</Button>
-						<Button
-							type="button"
-							variant="ghost"
-							size="sm"
-							onclick={() => {
-								restMethod = 'GET';
-								restEndpoint = '/api/system/version';
-							}}
-						>
-							{api_system_version()}
-						</Button>
-						{#each data.collections.slice(0, 3) as col (col.id)}
-							<Button
-								type="button"
-								variant="ghost"
-								size="sm"
-								onclick={() => {
-									restMethod = 'GET';
-									restEndpoint = `/api/collections/${col.id}`;
-								}}
-							>
-								{col.name}
-							</Button>
-						{/each}
-					</div>
-
-					<!-- Request Body (for POST) -->
-					{#if restMethod === 'POST'}
-						<div class="space-y-1">
+						<div class="space-y-4">
+							<!-- Method + Endpoint Bar -->
 							<div class="flex items-center gap-1.5">
-								<label for="rest-body-input" class="block text-xs font-medium text-surface-500">
-									{api_request_body()}
-								</label>
-								{@render helpTrigger(api_help_body(), api_request_body())}
+								<div class="w-28">
+									<Select
+										value={restMethod}
+										options={[
+											{ value: 'GET', label: 'GET' },
+											{ value: 'POST', label: 'POST' }
+										]}
+										onchange={(val: string) => (restMethod = val as 'GET' | 'POST')}
+									/>
+								</div>
+								{@render helpTrigger(api_help_method(), 'HTTP method')}
+								<div class="flex-1">
+									<Input bind:value={restEndpoint} placeholder={api_endpoint_placeholder()} />
+								</div>
+								{@render helpTrigger(api_help_endpoint(), 'Endpoint')}
 							</div>
-							<Textarea
-								id="rest-body-input"
-								value={restBody}
-								rows={6}
-								placeholder={'{\n  "field": "value"\n}'}
-								oninput={(e) => (restBody = (e.target as HTMLTextAreaElement).value)}
-							/>
-						</div>
-					{/if}
 
-					<div class="pt-2">
-						<Button
-							variant="primary"
-							disabled={restLoading || !restEndpoint.trim()}
-							onclick={executeRestQuery}
+							<!-- Presets for fast testing -->
+							<div class="flex flex-wrap items-center gap-1.5">
+								<span class="inline-flex items-center gap-1.5 text-xs text-surface-500">
+									{api_quick_presets()}
+									{@render helpTrigger(api_help_presets(), 'Quick presets')}
+								</span>
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									onclick={() => {
+										restMethod = 'GET';
+										restEndpoint = '/api/openapi.json';
+									}}
+								>
+									{api_openapi_spec()}
+								</Button>
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									onclick={() => {
+										restMethod = 'GET';
+										restEndpoint = '/api/system/version';
+									}}
+								>
+									{api_system_version()}
+								</Button>
+								{#each data.collections.slice(0, 3) as col (col.id)}
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										onclick={() => {
+											restMethod = 'GET';
+											restEndpoint = `/api/collections/${col.id}`;
+										}}
+									>
+										{col.name}
+									</Button>
+								{/each}
+							</div>
+
+							<!-- Request Body (for POST) -->
+							{#if restMethod === 'POST'}
+								<div class="space-y-1">
+									<div class="flex items-center gap-1.5">
+										<label for="rest-body-input" class="block text-xs font-medium text-surface-500">
+											{api_request_body()}
+										</label>
+										{@render helpTrigger(api_help_body(), api_request_body())}
+									</div>
+									<Textarea
+										id="rest-body-input"
+										value={restBody}
+										rows={6}
+										placeholder={'{\n  "field": "value"\n}'}
+										oninput={(e) => (restBody = (e.target as HTMLTextAreaElement).value)}
+									/>
+								</div>
+							{/if}
+						</div>
+					</AdminCard>
+
+					<!-- Response Viewer -->
+					<AdminCard class={cardClass}>
+						<div class="mb-4 flex items-center justify-between">
+							<h3
+								class="flex items-center gap-1.5 text-base font-semibold text-surface-900 dark:text-surface-50"
+							>
+								{api_response()}
+								{@render helpTrigger(api_help_response(), api_response())}
+							</h3>
+							<div class="flex items-center gap-2">
+								{#if restStatus !== null}
+									<Badge
+										variant={restStatus >= 200 && restStatus < 300 ? 'success' : 'error'}
+										size="sm"
+									>
+										{api_status_label()}
+										{restStatus}
+									</Badge>
+								{/if}
+								{#if restDuration !== null}
+									<Badge variant="surface" size="sm">
+										{restDuration}ms
+									</Badge>
+								{/if}
+								{#if restResponse}
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										leadingIcon="mdi:content-copy"
+										onclick={() => copyToClipboard(restResponse || '', 'Response')}
+										aria-label={api_copy_response_aria()}
+									/>
+								{/if}
+							</div>
+						</div>
+
+						<div
+							class="relative min-h-65 rounded-lg border border-surface-500/20 bg-surface-900 p-4 text-xs font-mono text-surface-100 overflow-x-auto max-h-125"
 						>
 							{#if restLoading}
-								<iconify-icon icon="mdi:loading" class="animate-spin me-1.5"></iconify-icon>
-								{api_executing()}
+								<div class="flex h-full min-h-55 items-center justify-center text-surface-400">
+									<iconify-icon icon="mdi:loading" width="28" class="animate-spin"></iconify-icon>
+								</div>
+							{:else if restResponse}
+								<pre>{restResponse}</pre>
 							{:else}
-								<iconify-icon icon="mdi:send" width="16" class="me-1.5"></iconify-icon>
-								{api_execute_request()}
+								<div
+									class="flex h-full min-h-55 items-center justify-center text-surface-500 italic"
+								>
+									{api_response_hint()}
+								</div>
 							{/if}
-						</Button>
-					</div>
-				</div>
-			</AdminCard>
-
-			<!-- Response Viewer -->
-			<AdminCard class={cardClass}>
-				<div class="mb-4 flex items-center justify-between">
-					<h3
-						class="flex items-center gap-1.5 text-base font-semibold text-surface-900 dark:text-surface-50"
-					>
-						{api_response()}
-						{@render helpTrigger(api_help_response(), api_response())}
-					</h3>
-					<div class="flex items-center gap-2">
-						{#if restStatus !== null}
-							<Badge
-								variant={restStatus >= 200 && restStatus < 300 ? 'success' : 'error'}
-								size="sm"
-							>
-								{api_status_label()}
-								{restStatus}
-							</Badge>
-						{/if}
-						{#if restDuration !== null}
-							<Badge variant="surface" size="sm">
-								{restDuration}ms
-							</Badge>
-						{/if}
-						{#if restResponse}
-							<Button
-								type="button"
-								variant="ghost"
-								size="sm"
-								leadingIcon="mdi:content-copy"
-								onclick={() => copyToClipboard(restResponse || '', 'Response')}
-								aria-label={api_copy_response_aria()}
-							/>
-						{/if}
-					</div>
-				</div>
-
-				<div
-					class="relative min-h-65 rounded-lg border border-surface-500/20 bg-surface-900 p-4 text-xs font-mono text-surface-100 overflow-x-auto max-h-125"
-				>
-					{#if restLoading}
-						<div class="flex h-full min-h-55 items-center justify-center text-surface-400">
-							<iconify-icon icon="mdi:loading" width="28" class="animate-spin"></iconify-icon>
 						</div>
-					{:else if restResponse}
-						<pre>{restResponse}</pre>
-					{:else}
-						<div class="flex h-full min-h-55 items-center justify-center text-surface-500 italic">
-							{api_response_hint()}
-						</div>
-					{/if}
+					</AdminCard>
 				</div>
-			</AdminCard>
-		</div>
-	{/if}
+			{/if}
 
-	<!-- TAB 2: GraphQL Console -->
-	{#if activeTab === 'graphql'}
-		<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-			<!-- Query Editor -->
-			<AdminCard class={cardClass}>
-				<div class="mb-4 flex flex-wrap items-center justify-between gap-2">
-					<h3 class="text-base font-semibold text-surface-900 dark:text-surface-50">
-						{api_gql_query()}
-					</h3>
-					<div class="flex flex-wrap items-center gap-2">
-						<code class="font-mono text-xs text-surface-500">{data.graphqlEndpoint}</code>
+			<!-- TAB 2: GraphQL Console -->
+			{#if activeTab === 'graphql'}
+				<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+					<!-- Query Editor -->
+					<AdminCard class={cardClass}>
+						<div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+							<h3 class="text-base font-semibold text-surface-900 dark:text-surface-50">
+								{api_gql_query()}
+							</h3>
+							<div class="flex flex-wrap items-center gap-2">
+								<code class="font-mono text-xs text-surface-500">{data.graphqlEndpoint}</code>
+								{#if data.graphqlPlaygroundEnabled}
+									<a
+										href={data.graphqlEndpoint}
+										target="_blank"
+										rel="noopener noreferrer"
+										class="inline-flex items-center gap-1.5 rounded-lg border border-surface-500/20 bg-surface-500/10 px-3 py-1.5 text-xs font-medium text-surface-900 transition-colors hover:bg-surface-500/20 dark:bg-surface-800 dark:text-surface-100"
+									>
+										<iconify-icon icon="mdi:open-in-new" width="14" aria-hidden="true"
+										></iconify-icon>
+										Open Yoga Explorer
+									</a>
+								{/if}
+							</div>
+						</div>
+
 						{#if data.graphqlPlaygroundEnabled}
-							<a
-								href={data.graphqlEndpoint}
-								target="_blank"
-								rel="noopener noreferrer"
-								class="inline-flex items-center gap-1.5 rounded-lg border border-surface-500/20 bg-surface-500/10 px-3 py-1.5 text-xs font-medium text-surface-900 transition-colors hover:bg-surface-500/20 dark:bg-surface-800 dark:text-surface-100"
-							>
-								<iconify-icon icon="mdi:open-in-new" width="14" aria-hidden="true"></iconify-icon>
-								Open Yoga Explorer
-							</a>
+							<p class="mb-4 text-xs text-surface-500">
+								The Yoga explorer opens the full GraphiQL IDE (schema docs, autocomplete, history)
+								in a new tab. Use the console below to run an operation without leaving the admin
+								UI.
+							</p>
+						{:else}
+							<p class="mb-4 text-xs text-surface-500">
+								The Yoga explorer is development-only: production blocks its CDN assets and schema
+								introspection. The console below still runs operations.
+							</p>
 						{/if}
-					</div>
-				</div>
 
-				{#if data.graphqlPlaygroundEnabled}
-					<p class="mb-4 text-xs text-surface-500">
-						The Yoga explorer opens the full GraphiQL IDE (schema docs, autocomplete, history) in a
-						new tab. Use the console below to run an operation without leaving the admin UI.
-					</p>
-				{:else}
-					<p class="mb-4 text-xs text-surface-500">
-						The Yoga explorer is development-only: production blocks its CDN assets and schema
-						introspection. The console below still runs operations.
-					</p>
-				{/if}
+						<div class="space-y-4">
+							<div class="space-y-1">
+								<div class="flex items-center gap-1.5">
+									<label for="gql-query-input" class="block text-xs font-medium text-surface-500">
+										{api_gql_operation()}
+									</label>
+									{@render helpTrigger(api_help_gql_query(), api_gql_operation())}
+								</div>
+								<Textarea
+									id="gql-query-input"
+									value={gqlQuery}
+									rows={10}
+									class="font-mono text-xs"
+									oninput={(e) => (gqlQuery = (e.target as HTMLTextAreaElement).value)}
+								/>
+							</div>
 
-				<div class="space-y-4">
-					<div class="space-y-1">
-						<div class="flex items-center gap-1.5">
-							<label for="gql-query-input" class="block text-xs font-medium text-surface-500">
-								{api_gql_operation()}
-							</label>
-							{@render helpTrigger(api_help_gql_query(), api_gql_operation())}
+							<div class="space-y-1">
+								<div class="flex items-center gap-1.5">
+									<label for="gql-vars-input" class="block text-xs font-medium text-surface-500">
+										{api_gql_variables()}
+									</label>
+									{@render helpTrigger(api_help_gql_variables(), api_gql_variables())}
+								</div>
+								<Textarea
+									id="gql-vars-input"
+									value={gqlVariables}
+									rows={3}
+									class="font-mono text-xs"
+									oninput={(e) => (gqlVariables = (e.target as HTMLTextAreaElement).value)}
+								/>
+							</div>
 						</div>
-						<Textarea
-							id="gql-query-input"
-							value={gqlQuery}
-							rows={10}
-							class="font-mono text-xs"
-							oninput={(e) => (gqlQuery = (e.target as HTMLTextAreaElement).value)}
-						/>
-					</div>
+					</AdminCard>
 
-					<div class="space-y-1">
-						<div class="flex items-center gap-1.5">
-							<label for="gql-vars-input" class="block text-xs font-medium text-surface-500">
-								{api_gql_variables()}
-							</label>
-							{@render helpTrigger(api_help_gql_variables(), api_gql_variables())}
+					<!-- Response Viewer -->
+					<AdminCard class={cardClass}>
+						<div class="mb-4 flex items-center justify-between">
+							<h3
+								class="flex items-center gap-1.5 text-base font-semibold text-surface-900 dark:text-surface-50"
+							>
+								{api_gql_result()}
+								{@render helpTrigger(api_help_gql_result(), api_gql_result())}
+							</h3>
+							<div class="flex items-center gap-2">
+								{#if gqlStatus !== null}
+									<Badge variant={gqlStatus === 200 ? 'success' : 'error'} size="sm">
+										{api_status_label()}
+										{gqlStatus}
+									</Badge>
+								{/if}
+								{#if gqlDuration !== null}
+									<Badge variant="surface" size="sm">
+										{gqlDuration}ms
+									</Badge>
+								{/if}
+								{#if gqlResponse}
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										leadingIcon="mdi:content-copy"
+										onclick={() => copyToClipboard(gqlResponse || '', 'GraphQL Result')}
+										aria-label={api_copy_gql_aria()}
+									/>
+								{/if}
+							</div>
 						</div>
-						<Textarea
-							id="gql-vars-input"
-							value={gqlVariables}
-							rows={3}
-							class="font-mono text-xs"
-							oninput={(e) => (gqlVariables = (e.target as HTMLTextAreaElement).value)}
-						/>
-					</div>
 
-					<div class="flex items-center gap-2 pt-2">
-						<Button
-							variant="primary"
-							disabled={gqlLoading || !gqlQuery.trim()}
-							onclick={executeGraphqlQuery}
+						<div
+							class="relative min-h- rounded-lg border border-surface-500/20 bg-surface-900 p-4 text-xs font-mono text-surface-100 overflow-x-auto max-h-125"
 						>
 							{#if gqlLoading}
-								<iconify-icon icon="mdi:loading" class="animate-spin me-1.5"></iconify-icon>
-								{api_gql_running()}
+								<div class="flex h-full min-h- items-center justify-center text-surface-400">
+									<iconify-icon icon="mdi:loading" width="28" class="animate-spin"></iconify-icon>
+								</div>
+							{:else if gqlResponse}
+								<pre>{gqlResponse}</pre>
 							{:else}
-								<iconify-icon icon="mdi:play" width="16" class="me-1.5"></iconify-icon>
-								{api_gql_run()}
+								<div class="flex h-full min-h- items-center justify-center text-surface-500 italic">
+									{api_gql_hint()}
+								</div>
 							{/if}
-						</Button>
-
-						<Button
-							variant="secondary"
-							onclick={() => {
-								gqlQuery = DEFAULT_GQL_QUERY;
-								gqlVariables = '{}';
-							}}
-						>
-							{api_gql_reset()}
-						</Button>
-					</div>
+						</div>
+					</AdminCard>
 				</div>
-			</AdminCard>
+			{/if}
 
-			<!-- Response Viewer -->
-			<AdminCard class={cardClass}>
-				<div class="mb-4 flex items-center justify-between">
-					<h3
-						class="flex items-center gap-1.5 text-base font-semibold text-surface-900 dark:text-surface-50"
+			<!-- TAB 3: Code Generator -->
+			{#if activeTab === 'codegen'}
+				<AdminCard class={cardClass}>
+					<div
+						class="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-surface-500/15 pb-4"
 					>
-						{api_gql_result()}
-						{@render helpTrigger(api_help_gql_result(), api_gql_result())}
-					</h3>
-					<div class="flex items-center gap-2">
-						{#if gqlStatus !== null}
-							<Badge variant={gqlStatus === 200 ? 'success' : 'error'} size="sm">
-								{api_status_label()}
-								{gqlStatus}
-							</Badge>
-						{/if}
-						{#if gqlDuration !== null}
-							<Badge variant="surface" size="sm">
-								{gqlDuration}ms
-							</Badge>
-						{/if}
-						{#if gqlResponse}
-							<Button
-								type="button"
-								variant="ghost"
-								size="sm"
-								leadingIcon="mdi:content-copy"
-								onclick={() => copyToClipboard(gqlResponse || '', 'GraphQL Result')}
-								aria-label={api_copy_gql_aria()}
-							/>
-						{/if}
-					</div>
-				</div>
+						<div>
+							<h3 class="text-base font-semibold text-surface-900 dark:text-surface-50">
+								{api_codegen_heading()}
+							</h3>
+							<p class="text-xs text-surface-500">
+								{api_codegen_intro()}
+							</p>
+						</div>
 
-				<div
-					class="relative min-h- rounded-lg border border-surface-500/20 bg-surface-900 p-4 text-xs font-mono text-surface-100 overflow-x-auto max-h-125"
+						<div class="flex flex-wrap items-center gap-3">
+							<!-- Target Collection -->
+							<div class="flex items-center gap-2">
+								<span class="inline-flex items-center gap-1.5 text-xs text-surface-500">
+									{api_collection_label()}
+									{@render helpTrigger(api_vqb_help_collection(), api_collection_label())}
+								</span>
+								<Select
+									value={selectedCollection}
+									options={data.collections.map((col) => ({ value: col.id, label: col.name }))}
+									onchange={(val: string) => (customCollection = val)}
+								/>
+							</div>
+
+							<!-- Language Selector -->
+							<div class="flex items-center gap-1.5 overflow-x-auto max-w-full">
+								<SegmentedControl
+									name="snippet-language"
+									bind:value={selectedSnippetType}
+									options={[
+										{ label: api_snippet_typescript(), value: 'typescript' },
+										{ label: api_snippet_localcms(), value: 'localcms' },
+										{ label: api_snippet_curl(), value: 'curl' },
+										{ label: api_snippet_python(), value: 'python' }
+									]}
+								/>
+								{@render helpTrigger(api_help_snippet_language(), 'Snippet language')}
+							</div>
+						</div>
+					</div>
+
+					<!-- Generated Snippet Display -->
+					<div
+						class="relative rounded-lg border border-surface-500/20 bg-surface-900 p-4 text-xs font-mono text-surface-100"
+					>
+						<pre class="overflow-x-auto">{generatedSnippet}</pre>
+					</div>
+				</AdminCard>
+			{/if}
+		</div>
+	</div>
+
+	<StickyActions>
+		<div class="flex w-full items-center justify-center gap-1.5 sm:justify-end sm:gap-2">
+			{#if activeTab === 'builder'}
+				<Button
+					variant="outline"
+					size="sm"
+					onclick={() => vqbRef?.copyRestUrl()}
+					class="h-9 shrink-0 whitespace-nowrap sm:h-10 sm:px-4"
+				>
+					<iconify-icon icon="mdi:content-copy" width="16" class="me-1"></iconify-icon>
+					<span class="sm:hidden">Copy URL</span>
+					<span class="hidden sm:inline">{api_vqb_copy_rest()}</span>
+				</Button>
+				<Button
+					variant="primary"
+					size="sm"
+					disabled={vqbExecuting}
+					onclick={() => vqbRef?.executeQuery()}
+					class="h-9 flex-1 whitespace-nowrap sm:h-10 sm:flex-none sm:px-4"
+				>
+					{#if vqbExecuting}
+						<iconify-icon icon="mdi:loading" class="animate-spin me-1.5"></iconify-icon>
+						{api_vqb_executing()}
+					{:else}
+						<iconify-icon icon="mdi:play" width="16" class="me-1"></iconify-icon>
+						<span class="sm:hidden">Run</span>
+						<span class="hidden sm:inline">{api_vqb_run_now()}</span>
+					{/if}
+				</Button>
+			{:else if activeTab === 'rest'}
+				<Button
+					variant="primary"
+					size="sm"
+					disabled={restLoading || !restEndpoint.trim()}
+					onclick={executeRestQuery}
+					class="h-9 flex-1 whitespace-nowrap sm:h-10 sm:flex-none sm:px-4"
+				>
+					{#if restLoading}
+						<iconify-icon icon="mdi:loading" class="animate-spin me-1.5"></iconify-icon>
+						{api_executing()}
+					{:else}
+						<iconify-icon icon="mdi:send" width="16" class="me-1.5"></iconify-icon>
+						{api_execute_request()}
+					{/if}
+				</Button>
+			{:else if activeTab === 'graphql'}
+				<Button
+					variant="secondary"
+					size="sm"
+					onclick={() => {
+						gqlQuery = DEFAULT_GQL_QUERY;
+						gqlVariables = '{}';
+					}}
+					class="h-9 shrink-0 whitespace-nowrap sm:h-10 sm:px-4"
+				>
+					{api_gql_reset()}
+				</Button>
+				<Button
+					variant="primary"
+					size="sm"
+					disabled={gqlLoading || !gqlQuery.trim()}
+					onclick={executeGraphqlQuery}
+					class="h-9 flex-1 whitespace-nowrap sm:h-10 sm:flex-none sm:px-4"
 				>
 					{#if gqlLoading}
-						<div class="flex h-full min-h- items-center justify-center text-surface-400">
-							<iconify-icon icon="mdi:loading" width="28" class="animate-spin"></iconify-icon>
-						</div>
-					{:else if gqlResponse}
-						<pre>{gqlResponse}</pre>
+						<iconify-icon icon="mdi:loading" class="animate-spin me-1.5"></iconify-icon>
+						{api_gql_running()}
 					{:else}
-						<div class="flex h-full min-h- items-center justify-center text-surface-500 italic">
-							{api_gql_hint()}
-						</div>
+						<iconify-icon icon="mdi:play" width="16" class="me-1.5"></iconify-icon>
+						{api_gql_run()}
 					{/if}
-				</div>
-			</AdminCard>
+				</Button>
+			{:else if activeTab === 'codegen'}
+				<Button
+					variant="primary"
+					size="sm"
+					onclick={() => copyToClipboard(generatedSnippet, 'Code snippet')}
+					class="h-9 flex-1 whitespace-nowrap sm:h-10 sm:flex-none sm:px-4"
+				>
+					<iconify-icon icon="mdi:content-copy" width="16" class="me-1.5"></iconify-icon>
+					{api_copy_code()}
+				</Button>
+			{/if}
+
+			<a
+				href="/api/docs"
+				target="_blank"
+				rel="noopener noreferrer"
+				title={api_full_swagger()}
+				aria-label={api_full_swagger()}
+				class="md:hidden inline-flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg border border-surface-500/20 bg-surface-500/10 px-2.5 text-xs font-medium text-surface-900 transition-colors hover:bg-surface-500/20 dark:bg-surface-800 dark:text-surface-100 whitespace-nowrap"
+			>
+				<iconify-icon icon="mdi:open-in-new" width="15"></iconify-icon>
+				<span>Swagger</span>
+			</a>
 		</div>
-	{/if}
-
-	<!-- TAB 3: Code Generator -->
-	{#if activeTab === 'codegen'}
-		<AdminCard class={cardClass}>
-			<div
-				class="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-surface-500/15 pb-4"
-			>
-				<div>
-					<h3 class="text-base font-semibold text-surface-900 dark:text-surface-50">
-						{api_codegen_heading()}
-					</h3>
-					<p class="text-xs text-surface-500">
-						{api_codegen_intro()}
-					</p>
-				</div>
-
-				<div class="flex flex-wrap items-center gap-3">
-					<!-- Target Collection -->
-					<div class="flex items-center gap-2">
-						<span class="inline-flex items-center gap-1.5 text-xs text-surface-500">
-							{api_collection_label()}
-							{@render helpTrigger(api_vqb_help_collection(), api_collection_label())}
-						</span>
-						<Select
-							value={selectedCollection}
-							options={data.collections.map((col) => ({ value: col.id, label: col.name }))}
-							onchange={(val: string) => (customCollection = val)}
-						/>
-					</div>
-
-					<!-- Language Selector -->
-					<div class="flex items-center gap-1.5">
-						<SegmentedControl
-							name="snippet-language"
-							bind:value={selectedSnippetType}
-							options={[
-								{ label: api_snippet_typescript(), value: 'typescript' },
-								{ label: api_snippet_localcms(), value: 'localcms' },
-								{ label: api_snippet_curl(), value: 'curl' },
-								{ label: api_snippet_python(), value: 'python' }
-							]}
-						/>
-						{@render helpTrigger(api_help_snippet_language(), 'Snippet language')}
-					</div>
-				</div>
-			</div>
-
-			<!-- Generated Snippet Display -->
-			<div
-				class="relative rounded-lg border border-surface-500/20 bg-surface-900 p-4 text-xs font-mono text-surface-100"
-			>
-				<div class="absolute top-3 inset-e-3 flex items-center gap-1.5">
-					{@render helpTrigger(api_help_copy_code(), api_copy_code())}
-					<Button
-						variant="secondary"
-						size="sm"
-						onclick={() => copyToClipboard(generatedSnippet, 'Code snippet')}
-					>
-						<iconify-icon icon="mdi:content-copy" width="14" class="me-1.5"></iconify-icon>
-						{api_copy_code()}
-					</Button>
-				</div>
-				<pre class="overflow-x-auto pt-8">{generatedSnippet}</pre>
-			</div>
-		</AdminCard>
-	{/if}
+	</StickyActions>
 </AdminPageShell>

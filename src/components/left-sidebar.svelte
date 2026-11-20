@@ -292,15 +292,14 @@ Route-driven sidebar content (no dual collapsible section headers):
 				in:adminFade={{ duration: 150 }}
 				out:adminFade={{ duration: 100 }}
 			>
-				<Button
-					variant="ghost"
+				<button
 					type="button"
 					onclick={() => ui.toggle('leftSidebar', 'hidden')}
 					aria-label={applayout_close_sidebar()}
-					class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full! border border-surface-500/30 p-0! min-w-0 hover:bg-surface-500/10 dark:border-surface-500/40 dark:hover:bg-surface-500/20"
+					class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-surface-500/30 bg-transparent transition-colors hover:bg-surface-500/10 dark:border-surface-500/40 dark:hover:bg-surface-500/20"
 				>
 					<iconify-icon icon="mingcute:menu-fill" width="20"></iconify-icon>
-				</Button>
+				</button>
 			</span>
 		{/if}
 

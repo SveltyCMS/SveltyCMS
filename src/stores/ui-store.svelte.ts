@@ -48,13 +48,43 @@ export interface EditorWizardState {
   headerActionButton: unknown;
 }
 
+const LEFT_SIDEBAR_STORAGE_KEY = "svelty:leftSidebar";
+
+function readPersistedDesktopSidebar(): UIVisibility | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const saved = window.localStorage.getItem(LEFT_SIDEBAR_STORAGE_KEY);
+    if (saved === "collapsed" || saved === "full") return saved;
+  } catch {
+    // ignore storage errors
+  }
+  return null;
+}
+
+function initialLeftSidebar(): { visibility: UIVisibility; touched: boolean } {
+  const size = screen.size;
+  if (size === ScreenSize.XS || size === ScreenSize.SM) {
+    return { visibility: "hidden", touched: false };
+  }
+  if (size === ScreenSize.MD) {
+    return { visibility: "collapsed", touched: false };
+  }
+  const saved = readPersistedDesktopSidebar();
+  if (saved) {
+    return { visibility: saved, touched: true };
+  }
+  return { visibility: "full", touched: false };
+}
+
+const INITIAL_LEFT_SIDEBAR = initialLeftSidebar();
+
 /**
  * UIStore - Manages UI element visibility based on screen size and mode
  */
 class UIStore {
   // Core reactive state
   state = $state<UIState>({
-    leftSidebar: "full",
+    leftSidebar: INITIAL_LEFT_SIDEBAR.visibility,
     rightSidebar: "hidden",
     pageheader: "full",
     pagefooter: "hidden",
@@ -85,7 +115,7 @@ class UIStore {
    * the route-derived SSR default (edit routes open the right sidebar, collapse
    * the left) from overriding a manual choice after hydration.
    */
-  leftSidebarTouched = $state(false);
+  leftSidebarTouched = $state(INITIAL_LEFT_SIDEBAR.touched);
   rightSidebarTouched = $state(false);
   headerShowMore = $state(false);
   /** Unified global search / command palette visibility */
@@ -219,10 +249,10 @@ class UIStore {
     }
 
     // Desktop
-    // The left sidebar stays full in every mode. Collapsing it on edit/create
-    // only bought the inspector ~120px and cost the navigation context; compact
-    // navigation is a tablet affordance (MD branch above), not a desktop one.
-    this.state.leftSidebar = "full";
+    // Respect user's manual collapse/expand choice on desktop across mode changes and reloads.
+    if (!this.leftSidebarTouched || this.state.leftSidebar === "hidden") {
+      this.state.leftSidebar = readPersistedDesktopSidebar() ?? "full";
+    }
     this.state.rightSidebar = isViewMode ? "hidden" : "full";
     this.state.pageheader = showPageHeader ? "full" : "hidden";
     // The desktop right sidebar carries save/status/authorship in edit mode;
@@ -241,7 +271,16 @@ class UIStore {
     // Only desktop toggles express a persistent layout preference. On mobile the
     // same state backs a temporary drawer, so marking it “touched” would hide
     // the sidebar on every later desktop edit session.
-    if (element === "leftSidebar" && screen.isDesktop) this.leftSidebarTouched = true;
+    if (element === "leftSidebar" && screen.isDesktop) {
+      this.leftSidebarTouched = true;
+      if (visibility === "collapsed" || visibility === "full") {
+        try {
+          window.localStorage.setItem(LEFT_SIDEBAR_STORAGE_KEY, visibility);
+        } catch {
+          // ignore storage errors
+        }
+      }
+    }
     if (element === "rightSidebar" && screen.isDesktop) this.rightSidebarTouched = true;
 
     // Prevent auto-updates for 600ms after manual toggle

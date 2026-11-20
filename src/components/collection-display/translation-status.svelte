@@ -453,19 +453,19 @@ FIXES:
 <div class="translation-status-container relative inline-flex items-center text-start">
 	<Dropdown position="bottom-start" class={showProgress && !isViewMode ? 'w-72' : 'w-56'}>
 		{#snippet trigger()}
-			<Button
-				variant="ghost"
+			<button
+				type="button"
 				aria-label="Toggle language menu"
-				class="flex h-10 w-full items-center justify-center gap-1 border border-surface-500/30 bg-surface-500/10 px-3 text-surface-600 transition-colors hover:bg-surface-200 dark:border-surface-500/40 dark:bg-surface-800/80 dark:text-surface-300 dark:hover:bg-surface-700"
+				class="flex h-10 items-center justify-center gap-1 rounded-(--admin-radius-input) border border-(--admin-border-default) bg-transparent px-2.5 text-sm text-surface-600 transition-colors hover:bg-surface-500/10 dark:text-surface-400"
 			>
-				<span class="font-medium md:hidden">{currentLanguage.toUpperCase()}</span>
-				<span class="font-medium hidden md:inline">{getLanguageName(currentLanguage)}</span>
+				<span class="font-medium lg:hidden">{currentLanguage.toUpperCase()}</span>
+				<span class="font-medium hidden lg:inline">{getLanguageName(currentLanguage)}</span>
 				<iconify-icon
 					icon="mdi:chevron-down"
-					class="h-5 w-5 transition-transform duration-200"
+					class="h-4 w-4 transition-transform duration-200"
 					aria-hidden="true"
 				></iconify-icon>
-			</Button>
+			</button>
 		{/snippet}
 
 		<div
@@ -521,7 +521,7 @@ FIXES:
 
 		{#if !isViewMode && showProgress}
 			<div class="border-t border-surface-500/30 dark:border-surface-50 my-1"></div>
-			<div class="px-4 py-2">
+			<div class="px-2 py-1.5">
 				<div class="mb-1 text-center text-xs font-medium text-tertiary-500 dark:text-primary-500">
 					{translationsstatus_completed()}
 				</div>
@@ -544,7 +544,7 @@ FIXES:
 
 		{#if !isViewMode}
 			<div class="border-t border-surface-500/30 dark:border-surface-50 my-1"></div>
-			<div class="p-2">
+			<div class="px-2 py-1.5">
 				<Button
 					variant="outline"
 					size="sm"

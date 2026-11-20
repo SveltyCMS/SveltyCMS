@@ -475,10 +475,11 @@ export function createSmartTable<T extends Record<string, unknown> = Record<stri
     multiSort = nextMulti;
 
     if (mode === "server" && shouldEmit) {
+      pagination = { ...pagination, currentPage: 1 };
       const sortParams = getSortQueryParams();
       emitQuery({
         ...sortParams,
-        page: pagination.currentPage,
+        page: 1,
         pageSize: pagination.pageSize,
       });
     }
@@ -494,10 +495,11 @@ export function createSmartTable<T extends Record<string, unknown> = Record<stri
     multiSort = [];
     const shouldEmit = options?.emit !== false;
     if (mode === "server" && shouldEmit) {
+      pagination = { ...pagination, currentPage: 1 };
       emitQuery({
         sort: null,
         order: null,
-        page: pagination.currentPage,
+        page: 1,
         pageSize: pagination.pageSize,
       });
     }

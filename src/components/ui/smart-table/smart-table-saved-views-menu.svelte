@@ -79,30 +79,28 @@
 </script>
 
 <div class="relative">
-	<Button
-		variant="ghost"
+	<button
 		type="button"
 		aria-expanded={open}
 		aria-haspopup="menu"
 		aria-label="Saved table views"
+		class="flex h-10 items-center gap-1.5 rounded-(--admin-radius-input) border border-(--admin-border-default) bg-transparent px-2 text-sm text-surface-600 transition-colors hover:bg-surface-500/10 dark:text-surface-400"
 		onclick={() => {
 			open = !open;
 			if (open) refresh();
 		}}
-		class="h-10 w-10 items-center justify-center gap-0 rounded-(--admin-radius-input) border border-(--admin-border-default) bg-(--admin-bg-card)/80 p-0 text-surface-600 transition-colors hover:bg-surface-200 sm:w-auto sm:gap-1.5 sm:px-3 dark:text-surface-300 dark:hover:bg-surface-700"
 	>
 		<iconify-icon icon="mdi:bookmark-outline" width={24} height={24} aria-hidden="true"
 		></iconify-icon>
 		<span class="hidden sm:inline">Views</span>
 		<!-- Reserve the count from sm up. On a phone the control is a square, like the other toolbar buttons. -->
-		<span
-			class="hidden min-w-4 rounded-full bg-tertiary-500/10 px-1.5 text-[10px] font-bold sm:inline-flex dark:bg-primary-500/20 {views.length ===
-			0
-				? 'sm:invisible'
-				: ''}"
-			aria-hidden={views.length === 0}>{views.length}</span
-		>
-	</Button>
+		{#if views.length > 0}
+			<span
+				class="hidden min-w-4 rounded-full bg-tertiary-500/10 px-1.5 text-[10px] font-bold sm:inline-flex dark:bg-primary-500/20"
+				>{views.length}</span
+			>
+		{/if}
+	</button>
 
 	{#if open}
 		<!-- svelte-ignore a11y_no_static_element_interactions -->

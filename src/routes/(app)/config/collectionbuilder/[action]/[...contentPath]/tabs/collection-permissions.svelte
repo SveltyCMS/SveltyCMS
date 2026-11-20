@@ -140,19 +140,20 @@
 		if (roleName === 'viewer' || roleName === 'public') return 'Viewer';
 		return getRoleName(role);
 	}
+	let publicFormOpen = $state(false);
 </script>
 
-<div class="space-y-6">
+<div class="space-y-2.5 sm:space-y-6">
 	<!-- Section Header -->
-	<div class="flex items-center gap-3">
+	<div class="flex items-center gap-2.5 sm:gap-3">
 		<div
-			class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-tertiary-500/10 text-tertiary-500 dark:bg-primary-900/20 dark:text-primary-500"
+			class="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-xl bg-tertiary-500/10 text-tertiary-500 dark:bg-primary-900/20 dark:text-primary-500"
 		>
-			<iconify-icon icon="mdi:shield-lock-outline" width="24"></iconify-icon>
+			<iconify-icon icon="mdi:shield-lock-outline" width="20" class="sm:text-[24px]"></iconify-icon>
 		</div>
 		<div>
 			<div class="flex items-center gap-2">
-				<h2 class="text-xl font-bold leading-none text-(--admin-text-body)">
+				<h2 class="text-base sm:text-xl font-bold leading-none text-(--admin-text-body)">
 					{collection_permissions_heading()}
 				</h2>
 				<SystemTooltip positioning={{ placement: 'bottom' }} triggerClass="flex items-center">
@@ -183,20 +184,50 @@
 					<HelpIcon ariaLabel={collection_permissions_help_aria()} />
 				</SystemTooltip>
 			</div>
-			<p class="text-sm text-(--admin-text-muted)">
+			<p class="hidden sm:block text-sm text-(--admin-text-muted)">
 				{collection_permissions_intro()}
 			</p>
 		</div>
 	</div>
 
-	<!-- Public Form Endpoint -->
-	<Card class="p-5">
-		<div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+	<!-- Public Form Endpoint (collapsible on mobile, always expanded on sm+) -->
+	<Card class="p-2.5 sm:p-5">
+		<button
+			type="button"
+			onclick={() => (publicFormOpen = !publicFormOpen)}
+			aria-expanded={publicFormOpen}
+			class="flex w-full items-center justify-between gap-2 text-start sm:hidden"
+		>
+			<div class="flex min-w-0 items-center gap-2">
+				<span class="truncate text-sm font-semibold text-(--admin-text-body)">
+					{collection_permissions_form_title()}
+				</span>
+				<span
+					class="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold {formEnabled
+						? 'bg-success-500/10 text-success-500'
+						: 'bg-surface-500/10 text-(--admin-text-muted)'}"
+				>
+					{formEnabled ? 'On' : 'Off'}
+				</span>
+			</div>
+			<iconify-icon
+				icon={publicFormOpen ? 'mdi:chevron-up' : 'mdi:chevron-down'}
+				width="20"
+				class="shrink-0 text-(--admin-text-muted)"
+				aria-hidden="true"
+			></iconify-icon>
+		</button>
+
+		<div
+			class="{publicFormOpen
+				? 'mt-2.5 pt-2.5 border-t border-(--admin-border-default) flex'
+				: 'hidden'} sm:flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4"
+		>
 			<div class="max-w-prose">
-				<h3 class="text-base font-semibold text-(--admin-text-body)">
+				<h3 class="hidden sm:block text-base font-semibold text-(--admin-text-body)">
 					{collection_permissions_form_title()}
 				</h3>
-				<p class="mt-1 text-sm text-(--admin-text-muted)">
+				<p class="mt-0 sm:mt-1 text-xs sm:text-sm text-(--admin-text-muted)">
 					{collection_permissions_form_intro_part1()}{' '}
 					<code class="rounded bg-surface-500/10 px-1 py-0.5" dir="ltr"
 						>POST /api/forms/&lt;collection&gt;</code
@@ -205,20 +236,129 @@
 					>{collection_permissions_form_intro_part3()}
 				</p>
 			</div>
+			<div class="sm:hidden flex items-center justify-between gap-3 pt-1">
+				<div class="min-w-0">
+					<p class="text-xs font-medium text-(--admin-text-body)">
+						{collection_permissions_form_toggle()}
+					</p>
+					<p class="text-[11px] text-(--admin-text-muted)">
+						{collection_permissions_form_toggle_desc()}
+					</p>
+				</div>
+				<Checkbox checked={formEnabled} onchange={setFormEnabled} />
+			</div>
 			<Checkbox
 				checked={formEnabled}
 				label={collection_permissions_form_toggle()}
 				description={collection_permissions_form_toggle_desc()}
 				variant="toggle-card"
 				onchange={setFormEnabled}
-				class="sm:max-w-xs"
+				class="hidden sm:flex sm:max-w-xs"
 			/>
 		</div>
 	</Card>
 
 	<!-- Permission Matrix -->
 	<Card class="overflow-hidden">
-		<div class="overflow-x-auto">
+		<!-- Mobile: stacked role cards (no horizontal scroll) -->
+		<div class="divide-y divide-(--admin-border-default) sm:hidden">
+			{#each roles as role (role._id || role.name)}
+				{@const roleName = getRoleName(role)}
+				{@const perm = permissions[roleName]}
+				<div class="space-y-2.5 p-3">
+					<div class="flex items-center justify-between gap-2">
+						<div class="flex min-w-0 items-center gap-2.5">
+							<div
+								class="flex size-8 shrink-0 items-center justify-center rounded-full bg-tertiary-500/10 dark:bg-primary-900/20 text-tertiary-600 dark:text-primary-500"
+							>
+								<span class="text-xs font-bold">{getRoleLabel(role).charAt(0)}</span>
+							</div>
+							<div class="min-w-0">
+								<p class="truncate text-sm font-semibold text-(--admin-text-body)">
+									{getRoleLabel(role)}
+								</p>
+								<p class="text-[11px] text-(--admin-text-muted)">
+									{perm ? getPermissionSummary(perm) : '—'}
+								</p>
+							</div>
+						</div>
+						{#if perm}
+							<div class="flex shrink-0 items-center gap-1">
+								<Button
+									variant="ghost"
+									size="sm"
+									onclick={() => setAllForRole(roleName, true)}
+									title={builder_tip_grant_all()}
+									aria-label={`${builder_tip_grant_all()} ${getRoleLabel(role)}`}
+									class="size-8 min-w-0! p-0!"
+								>
+									<iconify-icon icon="mdi:check-all" width="16" class="text-success-500"
+									></iconify-icon>
+								</Button>
+								<Button
+									variant="ghost"
+									size="sm"
+									onclick={() => setAllForRole(roleName, false)}
+									title={builder_tip_revoke_all()}
+									aria-label={`${builder_tip_revoke_all()} ${getRoleLabel(role)}`}
+									class="size-8 min-w-0! p-0!"
+								>
+									<iconify-icon icon="mdi:close-circle-outline" width="16" class="text-error-500"
+									></iconify-icon>
+								</Button>
+							</div>
+						{/if}
+					</div>
+
+					{#if perm}
+						<div class="grid grid-cols-3 gap-2">
+							<button
+								type="button"
+								onclick={() => togglePermission(roleName, 'view')}
+								role="checkbox"
+								aria-checked={perm.view}
+								class="flex h-9 items-center justify-center gap-1.5 rounded-lg border text-xs font-medium transition-colors {perm.view
+									? 'border-tertiary-500/40 bg-tertiary-500/10 text-tertiary-600 dark:border-primary-500/40 dark:bg-primary-900/20 dark:text-primary-400'
+									: 'border-(--admin-border-default) bg-surface-500/10 text-(--admin-text-muted)'}"
+							>
+								<iconify-icon icon={perm.view ? 'mdi:check-bold' : 'mdi:close'} width="14"
+								></iconify-icon>
+								<span>{collection_permissions_view()}</span>
+							</button>
+							<button
+								type="button"
+								onclick={() => togglePermission(roleName, 'edit')}
+								role="checkbox"
+								aria-checked={perm.edit}
+								class="flex h-9 items-center justify-center gap-1.5 rounded-lg border text-xs font-medium transition-colors {perm.edit
+									? 'border-warning-500/40 bg-warning-500/10 text-warning-600 dark:bg-warning-900/20 dark:text-warning-400'
+									: 'border-(--admin-border-default) bg-surface-500/10 text-(--admin-text-muted)'}"
+							>
+								<iconify-icon icon={perm.edit ? 'mdi:check-bold' : 'mdi:close'} width="14"
+								></iconify-icon>
+								<span>{collection_permissions_edit()}</span>
+							</button>
+							<button
+								type="button"
+								onclick={() => togglePermission(roleName, 'write')}
+								role="checkbox"
+								aria-checked={perm.write}
+								class="flex h-9 items-center justify-center gap-1.5 rounded-lg border text-xs font-medium transition-colors {perm.write
+									? 'border-success-500/40 bg-success-500/10 text-success-600 dark:bg-success-900/20 dark:text-success-400'
+									: 'border-(--admin-border-default) bg-surface-500/10 text-(--admin-text-muted)'}"
+							>
+								<iconify-icon icon={perm.write ? 'mdi:check-bold' : 'mdi:close'} width="14"
+								></iconify-icon>
+								<span>{collection_permissions_write()}</span>
+							</button>
+						</div>
+					{/if}
+				</div>
+			{/each}
+		</div>
+
+		<!-- Desktop/Tablet: table -->
+		<div class="hidden overflow-x-auto sm:block">
 			<table class="w-full text-sm">
 				<thead>
 					<tr

@@ -136,22 +136,31 @@ Features:
 	icon="mdi:account-circle"
 	showBackButton={true}
 	backUrl="/config"
+	fullHeight={true}
+	flushContent={true}
 >
-	<div class="flex w-full min-w-0 flex-col gap-2" data-testid="user-account-page">
+	<div class="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-2" data-testid="user-account-page">
 		<!-- Tabs directly under PageTitle -->
-		<Tabs
-			tabs={accountTabs}
-			bind:activeTab
-			disabled={!hydration.hydrated}
-			variant="underline"
-			ariaLabel={userpage_tabs_aria()}
-			testId="user-account-tabs"
-			onTabChange={(id) => {
-				activeTab = id as AccountTab;
-			}}
-		/>
+		<div class="shrink-0">
+			<Tabs
+				tabs={accountTabs}
+				bind:activeTab
+				disabled={!hydration.hydrated}
+				variant="underline"
+				ariaLabel={userpage_tabs_aria()}
+				testId="user-account-tabs"
+				onTabChange={(id) => {
+					activeTab = id as AccountTab;
+				}}
+			/>
+		</div>
 
-		<div id="tabpanel-{activeTab}" role="tabpanel" class="min-w-0" data-testid="user-tab-panel">
+		<div
+			id="tabpanel-{activeTab}"
+			role="tabpanel"
+			class="min-h-0 min-w-0 flex-1 overflow-y-auto pb-20 sm:pb-4"
+			data-testid="user-tab-panel"
+		>
 			{#if activeTab === 'identity'}
 				<!-- ═══ TAB 1: Identity — left: avatar + equal badges · right: fields ═══ -->
 				<TabIdentity

@@ -230,7 +230,7 @@ Features:
 				<!-- Shared height/width: white label text on filled chips -->
 				<span data-testid="user-role-badge" class="block w-full">
 					<span
-						class="flex h-9 w-full items-center gap-1.5 rounded bg-primary-500 px-3 text-xs font-bold uppercase tracking-wide text-white"
+						class="flex h-8 w-full items-center gap-1.5 rounded border border-primary-500/30 bg-primary-500/10 px-3 text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400"
 					>
 						<iconify-icon icon={roleDisplay.icon} width={16} class="shrink-0" aria-hidden="true"
 						></iconify-icon>
@@ -242,7 +242,7 @@ Features:
 				</span>
 				<span data-testid="user-id-badge" class="block w-full">
 					<span
-						class="flex h-9 w-full items-center gap-1.5 rounded bg-tertiary-600 px-3 font-mono text-[11px] font-bold tracking-wide text-white dark:bg-tertiary-500"
+						class="flex h-8 w-full items-center gap-1.5 rounded border border-(--admin-border-default) bg-surface-500/10 px-3 font-mono text-[11px] font-medium tracking-wide text-(--admin-text-muted)"
 						title={String(user._id)}
 					>
 						<span class="min-w-0 flex-1 truncate text-start"

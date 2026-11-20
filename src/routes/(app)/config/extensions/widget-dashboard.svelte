@@ -347,10 +347,10 @@ Features:
 		{/if}
 
 		<!-- Summary Cards with Colored Backgrounds and Tooltips -->
-		<div class="grid grid-cols-2 gap-4 md:grid-cols-4" data-testid="widget-stats">
+		<div class="grid grid-cols-2 gap-2 sm:gap-4 md:grid-cols-4" data-testid="widget-stats">
 			<!-- Total Widgets -->
 			<div
-				class="relative rounded bg-tertiary-500/10 p-4 shadow-sm transition-all hover:bg-tertiary-500/10 dark:bg-tertiary-900/20 dark:hover:bg-tertiary-900/20"
+				class="relative rounded bg-tertiary-500/10 p-2.5 sm:p-4 shadow-sm transition-all hover:bg-tertiary-500/10 dark:bg-tertiary-900/20 dark:hover:bg-tertiary-900/20"
 			>
 				<Button
 					variant="ghost"
@@ -377,7 +377,7 @@ Features:
 
 			<!-- Active Widgets -->
 			<div
-				class="relative rounded bg-success-500/10 p-4 shadow-sm transition-all hover:bg-success-500/10 dark:bg-success-900/20 dark:hover:bg-success-900/20"
+				class="relative rounded bg-success-500/10 p-2.5 sm:p-4 shadow-sm transition-all hover:bg-success-500/10 dark:bg-success-900/20 dark:hover:bg-success-900/20"
 			>
 				<Button
 					variant="ghost"
@@ -462,7 +462,9 @@ Features:
 		</div>
 
 		<!-- Filters and Search -->
-		<div class="card bg-surface-500/10 border border-surface-500/30 rounded-lg mt-6 space-y-4 p-4">
+		<div
+			class="card bg-surface-500/10 border border-surface-500/30 rounded-lg mt-3 sm:mt-6 space-y-2.5 sm:space-y-4 p-2.5 sm:p-4"
+		>
 			<!-- Search and Sync Button Row -->
 			<div class="flex flex-col gap-3 sm:flex-row sm:items-center">
 				<!-- Search -->
@@ -492,7 +494,7 @@ Features:
 			</div>
 
 			<!-- Filter Pills -->
-			<div class="flex flex-wrap gap-2">
+			<div class="flex flex-wrap gap-1.5 sm:gap-2">
 				{#each [{ value: 'all' as const, label: 'All', count: stats.total, icon: 'mdi:widgets' }, { value: 'active' as const, label: 'Active', count: stats.active, icon: 'mdi:check-circle' }, { value: 'inactive' as const, label: 'Inactive', count: stats.inactive, icon: 'mdi:pause-circle' }, { value: 'core' as const, label: 'Core', count: stats.core, icon: 'mdi:puzzle' }, { value: 'custom' as const, label: 'Custom', count: stats.custom, icon: 'mdi:puzzle-plus' }] as filter (filter.value)}
 					<Button
 						variant={activeFilter === filter.value ? 'primary' : 'surface'}

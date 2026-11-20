@@ -31,6 +31,7 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 	import Badge from '@components/ui/badge.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
+	import Tooltip from '@components/ui/tooltip.svelte';
 	import {
 		syssettings_action_required,
 		syssettings_check_structure,
@@ -54,9 +55,7 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 		syssettings_selected_group_missing_part1,
 		syssettings_selected_group_missing_part2,
 		syssettings_title,
-		syssettings_warnings,
-		settings_reset_defaults,
-		common_saving
+		syssettings_warnings
 	} from '@src/paraglide/messages';
 	import { onMount, untrack } from 'svelte';
 	import { goto } from '$app/navigation';
@@ -266,375 +265,375 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 	icon="mdi:cog-outline"
 	showBackButton={true}
 	backUrl="/config"
+	fullHeight={true}
+	titleCompact={true}
 	spaceY="4"
 >
-	{#snippet actions()}
-		{#if activeGroup && activeGroup.id !== 'gdpr'}
-			<Button
-				variant="primary"
-				size="sm"
-				type="button"
-				onclick={() => saveTrigger.fire?.()}
-				disabled={saving || !hasUnsavedChanges}
-				data-testid="settings-page-save"
-			>
-				{#if saving}
-					<iconify-icon icon="mdi:loading" width="16" class="animate-spin"></iconify-icon>
-					<span>{common_saving()}</span>
-				{:else}
-					<iconify-icon icon="mdi:content-save" width="16"></iconify-icon>
-					<span>{hasUnsavedChanges ? 'Save Changes' : 'Saved'}</span>
-				{/if}
-			</Button>
-
-			<Button
-				variant="error"
-				size="sm"
-				type="button"
-				onclick={() => saveTrigger.reset?.()}
-				disabled={saving}
-				data-testid="settings-page-reset"
-			>
-				<iconify-icon icon="mdi:restore" width="16"></iconify-icon>
-				<span class="hidden sm:inline">{settings_reset_defaults()}</span>
-			</Button>
-		{/if}
-	{/snippet}
-
-	<div data-testid="system-settings-page" class="flex flex-col gap-4">
-		<!-- Summary: group count + quick cross-group jump + unconfigured groups badge -->
-		<div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-			<p class="text-sm text-(--admin-text-muted)">
-				{syssettings_intro_part1()}{' '}<span
-					class="font-semibold text-tertiary-500 dark:text-primary-500"
-					data-testid="system-settings-group-count">{availableGroups.length}</span
-				>{' '}{syssettings_logical_groups()}
-			</p>
-			<div class="flex flex-wrap items-center gap-2">
-				<div class="w-full sm:w-64">
-					<Input
-						bind:value={settingQuery}
-						type="search"
-						inputClass="h-8 text-sm"
-						placeholder={settings_search_placeholder()}
-						aria-label={settings_search_placeholder()}
-						data-testid="settings-quick-search"
-					/>
-				</div>
-				{#if unconfiguredCount > 0}
-					<Badge variant="warning" size="sm">
-						{unconfiguredCount}
-						{unconfiguredCount === 1 ? syssettings_group_needs() : syssettings_groups_need()}
-					</Badge>
-				{/if}
-			</div>
-		</div>
-
-		{#if settingQuery.trim().length > 0}
-			<div
-				class="rounded-(--admin-radius) border border-(--admin-border-default) bg-(--admin-bg-card) p-3"
-				data-testid="settings-quick-search-results"
-			>
-				{#if quickSearchMatches.length === 0}
-					<p class="text-xs text-(--admin-text-muted)">{settings_no_results()}</p>
-				{:else}
-					<div class="flex flex-wrap gap-2">
-						{#each quickSearchMatches as match (match.group.id)}
-							<a
-								href={`/config/system-settings?group=${match.group.id}`}
-								data-preload="hover"
-								onclick={() => (settingQuery = '')}
-								class="inline-flex items-center gap-1.5 rounded border border-(--admin-border-default) bg-(--admin-bg-input) px-2.5 py-1 text-xs font-medium text-(--admin-text-base) transition-colors hover:border-tertiary-500 hover:text-tertiary-500 dark:hover:border-primary-500 dark:hover:text-primary-400"
-							>
-								<GroupIcon icon={match.group.icon} />
-								<span>{match.group.name}</span>
-								{#if match.matchedFieldLabel}
-									<span class="text-(--admin-text-muted)">· {match.matchedFieldLabel}</span>
-								{/if}
-							</a>
-						{/each}
+	<div data-testid="system-settings-page" class="flex min-h-0 flex-1 flex-col gap-2.5 sm:gap-4">
+		<!-- Sticky header controls: summary + search + mobile group picker -->
+		<div class="shrink-0 space-y-2">
+			<!-- Summary: group count + quick cross-group jump + unconfigured groups badge -->
+			<div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+				<p class="hidden sm:block text-sm text-(--admin-text-muted)">
+					{syssettings_intro_part1()}{' '}<span
+						class="font-semibold text-tertiary-500 dark:text-primary-500"
+						data-testid="system-settings-group-count">{availableGroups.length}</span
+					>{' '}{syssettings_logical_groups()}
+				</p>
+				<div class="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+					<div class="w-full sm:w-64">
+						<Input
+							bind:value={settingQuery}
+							type="search"
+							inputClass="h-8 text-sm"
+							placeholder={settings_search_placeholder()}
+							aria-label={settings_search_placeholder()}
+							data-testid="settings-quick-search"
+						/>
 					</div>
-				{/if}
-			</div>
-		{/if}
-
-		{#if repairResult}
-			<div role="status" aria-live="polite" data-testid="system-settings-repair-status">
-				<Alert variant={repairResult.success ? 'success' : 'error'}>
-					<div class="flex items-center gap-3">
-						<iconify-icon
-							icon={repairResult.success ? 'mdi:check-circle' : 'mdi:alert-circle'}
-							width="20"
-							aria-hidden="true"
-						></iconify-icon>
-						<p>{repairResult.success ? repairResult.message : repairResult.error}</p>
-					</div>
-				</Alert>
-			</div>
-		{/if}
-
-		{#if unconfiguredCount > 0}
-			<div role="status" data-testid="system-settings-needs-config">
-				<Alert variant="warning">
-					<div class="text-sm">
-						<strong
-							>{syssettings_action_required()}
+					{#if unconfiguredCount > 0}
+						<Badge variant="warning" size="sm">
 							{unconfiguredCount}
 							{unconfiguredCount === 1 ? syssettings_group_needs() : syssettings_groups_need()}
-							{syssettings_configure_before_prod()}</strong
-						>
-						<div class="mt-2 flex flex-wrap items-center gap-x-1 gap-y-1">
-							<span>{syssettings_configure_following()}</span>
-							{#each availableGroups.filter((g) => needsConfigIds.has(g.id)) as group, i (group.id)}
-								<a
-									href={`/config/system-settings?group=${group.id}`}
-									data-preload="hover"
-									class="inline-flex items-center gap-1 px-1 font-semibold underline decoration-dotted underline-offset-2 hover:opacity-90"
-									data-testid={`settings-needs-config-${group.id}`}
-								>
-									<GroupIcon icon={group.icon} class="inline" />
-									{group.name}
-								</a>{i < unconfiguredCount - 1 ? ',' : ''}
-							{/each}
-						</div>
-					</div>
-				</Alert>
+						</Badge>
+					{/if}
+				</div>
 			</div>
-		{/if}
 
-		<!-- Mobile picker: the rail is hidden below lg -->
-		<div class="lg:hidden">
-			<Select
-				value={activeGroupId}
-				options={groupOptions}
-				label={syssettings_select_group()}
-				onchange={(id) => selectGroup(id)}
-				data_testid="system-settings-group-select"
-			/>
+			<!-- Mobile picker: the rail is hidden below lg -->
+			<div class="flex items-center gap-2 lg:hidden">
+				<div class="min-w-0 flex-1">
+					<Select
+						id="system-settings-group-select"
+						value={activeGroupId}
+						options={groupOptions}
+						aria-label={syssettings_select_group()}
+						onchange={(id) => selectGroup(id)}
+						data_testid="system-settings-group-select"
+					/>
+				</div>
+				<Tooltip
+					title={`${syssettings_select_group()} — ${syssettings_intro_part1()} ${availableGroups.length} ${syssettings_logical_groups()}`}
+				>
+					<button
+						type="button"
+						aria-label={syssettings_select_group()}
+						class="flex size-9 shrink-0 items-center justify-center rounded-(--admin-radius-input) border border-(--admin-border-default) bg-(--admin-bg-input) text-(--admin-text-muted) transition-colors hover:text-(--admin-text-base)"
+					>
+						<iconify-icon icon="mdi:help-circle-outline" width="18" aria-hidden="true"
+						></iconify-icon>
+					</button>
+				</Tooltip>
+			</div>
 		</div>
 
-		<!-- Selected group panel — group navigation lives in the global left sidebar -->
-		<div class="min-w-0" data-testid="system-settings-group-panel">
-			{#if activeGroup}
-				{#key activeGroup.id}
-					{#if activeGroup.id === 'gdpr'}
-						<div data-testid={`settings-panel-${activeGroup.id}`}>
-							<GDPRSettings group={activeGroup} />
-						</div>
+		<!-- Scrollable content area only (keeps header & group picker pinned) -->
+		<div class="min-h-0 flex-1 overflow-y-auto space-y-3 pe-0.5 pb-4">
+			{#if settingQuery.trim().length > 0}
+				<div
+					class="rounded-(--admin-radius) border border-(--admin-border-default) bg-(--admin-bg-card) p-3"
+					data-testid="settings-quick-search-results"
+				>
+					{#if quickSearchMatches.length === 0}
+						<p class="text-xs text-(--admin-text-muted)">{settings_no_results()}</p>
 					{:else}
-						<AdminCard class="p-4 md:p-6" data-testid={`settings-panel-${activeGroup.id}`}>
-							<GenericSettingsGroup
-								group={activeGroup}
-								initialValues={data.activeGroupValues}
-								{groupsNeedingConfig}
-								bind:saveTrigger
-								bind:saving
-								onUnsavedChanges={(val) => (hasUnsavedChanges = val)}
+						<div class="flex flex-wrap gap-2">
+							{#each quickSearchMatches as match (match.group.id)}
+								<a
+									href={`/config/system-settings?group=${match.group.id}`}
+									data-preload="hover"
+									onclick={() => (settingQuery = '')}
+									class="inline-flex items-center gap-1.5 rounded border border-(--admin-border-default) bg-(--admin-bg-input) px-2.5 py-1 text-xs font-medium text-(--admin-text-base) transition-colors hover:border-tertiary-500 hover:text-tertiary-500 dark:hover:border-primary-500 dark:hover:text-primary-400"
+								>
+									<GroupIcon icon={match.group.icon} />
+									<span>{match.group.name}</span>
+									{#if match.matchedFieldLabel}
+										<span class="text-(--admin-text-muted)">· {match.matchedFieldLabel}</span>
+									{/if}
+								</a>
+							{/each}
+						</div>
+					{/if}
+				</div>
+			{/if}
+
+			{#if repairResult}
+				<div role="status" aria-live="polite" data-testid="system-settings-repair-status">
+					<Alert variant={repairResult.success ? 'success' : 'error'}>
+						<div class="flex items-center gap-3">
+							<iconify-icon
+								icon={repairResult.success ? 'mdi:check-circle' : 'mdi:alert-circle'}
+								width="20"
+								aria-hidden="true"
+							></iconify-icon>
+							<p>{repairResult.success ? repairResult.message : repairResult.error}</p>
+						</div>
+					</Alert>
+				</div>
+			{/if}
+
+			{#if unconfiguredCount > 0}
+				<div role="status" data-testid="system-settings-needs-config">
+					<Alert variant="warning">
+						<div class="text-sm">
+							<strong
+								>{syssettings_action_required()}
+								{unconfiguredCount}
+								{unconfiguredCount === 1 ? syssettings_group_needs() : syssettings_groups_need()}
+								{syssettings_configure_before_prod()}</strong
 							>
-								{#if activeGroup.id === 'cache'}
-									<div class="mt-6 pt-6 border-t border-(--admin-border-default) space-y-3">
-										<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-											<div>
-												<h3 class="text-sm font-semibold flex items-center gap-1.5">
-													<iconify-icon icon="mdi:tools" width="16" class="text-warning-500"
-													></iconify-icon>
-													<span>Cache Rebuild & Schema Sync</span>
-												</h3>
-												<p class="text-xs text-(--admin-text-muted) max-w-xl mt-0.5">
-													Flushes memory and Redis schema caches, re-scans collection definitions,
-													and synchronizes database models without restarting the server.
-												</p>
-											</div>
-											<Button
-												variant="warning"
-												type="button"
-												disabled={isRepairing}
-												data-testid="system-settings-repair-cache"
-												onclick={async () => {
-													isRepairing = true;
-													repairResult = null;
-													try {
-														const { repairContentCache } = await import('./admin.remote');
-														const result = await repairContentCache();
-														if (result.success) {
-															repairResult = { success: true, message: result.message };
-															setTimeout(() => {
-																repairResult = null;
-															}, 5000);
-														} else {
-															repairResult = {
-																success: false,
-																error: result.error || 'Repair failed'
-															};
-														}
-													} catch (e: unknown) {
+							<div class="mt-2 flex flex-wrap items-center gap-x-1 gap-y-1">
+								<span>{syssettings_configure_following()}</span>
+								{#each availableGroups.filter( (g) => needsConfigIds.has(g.id) ) as group, i (group.id)}
+									<a
+										href={`/config/system-settings?group=${group.id}`}
+										data-preload="hover"
+										class="inline-flex items-center gap-1 px-1 font-semibold underline decoration-dotted underline-offset-2 hover:opacity-90"
+										data-testid={`settings-needs-config-${group.id}`}
+									>
+										<GroupIcon icon={group.icon} class="inline" />
+										{group.name}
+									</a>{i < unconfiguredCount - 1 ? ',' : ''}
+								{/each}
+							</div>
+						</div>
+					</Alert>
+				</div>
+			{/if}
+
+			<!-- Selected group panel — group navigation lives in the global left sidebar -->
+			<div class="min-w-0" data-testid="system-settings-group-panel">
+				{#if activeGroup}
+					{#key activeGroup.id}
+						{#if activeGroup.id === 'gdpr'}
+							<div data-testid={`settings-panel-${activeGroup.id}`}>
+								<GDPRSettings group={activeGroup} />
+							</div>
+						{:else}
+							{#snippet cacheRepairSnippet()}
+								<div class="w-full space-y-3">
+									<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+										<div>
+											<h3 class="text-sm font-semibold flex items-center gap-1.5">
+												<iconify-icon icon="mdi:tools" width="16" class="text-warning-500"
+												></iconify-icon>
+												<span>Cache Rebuild & Schema Sync</span>
+											</h3>
+											<p class="text-xs text-(--admin-text-muted) max-w-xl mt-0.5">
+												Flushes memory and Redis schema caches, re-scans collection definitions, and
+												synchronizes database models without restarting the server.
+											</p>
+										</div>
+										<Button
+											variant="warning"
+											type="button"
+											disabled={isRepairing}
+											data-testid="system-settings-repair-cache"
+											onclick={async () => {
+												isRepairing = true;
+												repairResult = null;
+												try {
+													const { repairContentCache } = await import('./admin.remote');
+													const result = await repairContentCache();
+													if (result.success) {
+														repairResult = { success: true, message: result.message };
+														setTimeout(() => {
+															repairResult = null;
+														}, 5000);
+													} else {
 														repairResult = {
 															success: false,
-															error: e instanceof Error ? e.message || String(e) : 'Repair failed'
+															error: result.error || 'Repair failed'
 														};
-													} finally {
-														isRepairing = false;
 													}
-												}}
-												aria-label={syssettings_repair_aria()}
-												class="w-full shrink-0 items-center justify-center gap-1.5 sm:w-auto"
-											>
-												<iconify-icon
-													icon="mdi:wrench"
-													width="16"
-													class={isRepairing ? 'animate-spin' : ''}
-												></iconify-icon>
-												<span>{isRepairing ? 'Syncing...' : 'Purge & Rebuild Cache'}</span>
-											</Button>
-										</div>
+												} catch (e: unknown) {
+													repairResult = {
+														success: false,
+														error: e instanceof Error ? e.message || String(e) : 'Repair failed'
+													};
+												} finally {
+													isRepairing = false;
+												}
+											}}
+											aria-label={syssettings_repair_aria()}
+											class="w-full shrink-0 items-center justify-center gap-1.5 sm:w-auto"
+										>
+											<iconify-icon
+												icon="mdi:wrench"
+												width="16"
+												class={isRepairing ? 'animate-spin' : ''}
+											></iconify-icon>
+											<span>{isRepairing ? 'Syncing...' : 'Purge & Rebuild Cache'}</span>
+										</Button>
 									</div>
+								</div>
+							{/snippet}
+							<AdminCard class="p-4 md:p-6" data-testid={`settings-panel-${activeGroup.id}`}>
+								<GenericSettingsGroup
+									group={activeGroup}
+									initialValues={data.activeGroupValues}
+									{groupsNeedingConfig}
+									bind:saveTrigger
+									bind:saving
+									onUnsavedChanges={(val) => (hasUnsavedChanges = val)}
+									children={activeGroup.id === 'cache' ? cacheRepairSnippet : undefined}
+								/>
+							</AdminCard>
+						{/if}
+					{/key}
+				{:else if selectedGroupId}
+					<AdminCard class="p-6" data-testid="system-settings-group-missing">
+						<div class="flex flex-col items-center justify-center gap-3 text-center">
+							<iconify-icon
+								icon="mdi:folder-question-outline"
+								width="32"
+								class="text-(--admin-text-muted)"
+								aria-hidden="true"
+							></iconify-icon>
+							<p class="text-(--admin-text-muted)">
+								{syssettings_selected_group_missing_part1()} &quot;{selectedGroupId}&quot;
+								{syssettings_selected_group_missing_part2()}
+							</p>
+							{#if availableGroups[0]}
+								<Button
+									variant="tertiary"
+									type="button"
+									onclick={() => selectGroup(availableGroups[0].id)}
+								>
+									{syssettings_open()}
+									{availableGroups[0].name}
+								</Button>
+							{/if}
+						</div>
+					</AdminCard>
+				{:else}
+					<AdminCard class="p-6" data-testid="system-settings-group-unselected">
+						<p class="text-center text-(--admin-text-muted)">{syssettings_select_group()}</p>
+					</AdminCard>
+				{/if}
+			</div>
+
+			<!-- Multi-Tenancy migration — only on Enterprise Scaling & CDN panel -->
+			{#if activeGroup?.id === 'scaling'}
+				<AdminCard class="p-4 md:p-6" data-testid="system-settings-mt-migration">
+					<div
+						class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4"
+					>
+						<div class="flex min-w-0 items-start gap-3">
+							<iconify-icon
+								icon="mdi:server-network"
+								width="22"
+								class="mt-0.5 shrink-0 text-tertiary-500 dark:text-primary-500"
+								aria-hidden="true"
+							></iconify-icon>
+							<div class="min-w-0">
+								<h2 class="text-lg font-semibold">{syssettings_mt_heading()}</h2>
+								<p class="text-sm text-(--admin-text-muted)">{syssettings_mt_intro()}</p>
+							</div>
+						</div>
+
+						<div class="flex items-center gap-2 shrink-0">
+							<Toggle
+								value={structureInfo?.isMultiTenant ?? (page.data.isMultiTenant as boolean)}
+								disabled={isTogglingMt || isMigrating || !hydration.hydrated}
+								label="Multi-Tenant Mode"
+								onToggle={(val) => handleToggleMultiTenant(val)}
+								data-testid="system-settings-mt-toggle"
+							/>
+						</div>
+					</div>
+
+					{#if migrationResult}
+						<div
+							class="mb-4"
+							role="status"
+							aria-live="polite"
+							data-testid="system-settings-migration-status"
+						>
+							<Alert variant={migrationResult.success ? 'success' : 'error'}>
+								<p class="font-semibold">
+									{migrationResult.success ? '\u2705' : '\u274c'}
+									{migrationResult.message || migrationResult.error}
+								</p>
+								{#if migrationResult.details}
+									<ul class="mt-2 list-inside list-disc text-sm opacity-90">
+										<li>
+											{syssettings_collections_moved()}
+											{migrationResult.details.collectionsMoved}
+										</li>
+										<li>{syssettings_media_moved()} {migrationResult.details.mediaFilesMoved}</li>
+										<li>
+											{syssettings_db_updated()}
+											{migrationResult.details.mediaRecordsUpdated}
+										</li>
+										{#if migrationResult.details.warnings.length > 0}
+											<li>
+												{syssettings_warnings()}
+												{migrationResult.details.warnings.join(', ')}
+											</li>
+										{/if}
+									</ul>
 								{/if}
-							</GenericSettingsGroup>
-						</AdminCard>
+							</Alert>
+						</div>
 					{/if}
-				{/key}
-			{:else if selectedGroupId}
-				<AdminCard class="p-6" data-testid="system-settings-group-missing">
-					<div class="flex flex-col items-center justify-center gap-3 text-center">
-						<iconify-icon
-							icon="mdi:folder-question-outline"
-							width="32"
-							class="text-(--admin-text-muted)"
-							aria-hidden="true"
-						></iconify-icon>
-						<p class="text-(--admin-text-muted)">
-							{syssettings_selected_group_missing_part1()} &quot;{selectedGroupId}&quot;
-							{syssettings_selected_group_missing_part2()}
-						</p>
-						{#if availableGroups[0]}
+
+					{#if structureInfo}
+						<div
+							class="mb-4 text-sm"
+							data-testid="system-settings-structure-info"
+							role="status"
+							aria-live="polite"
+						>
+							<p>
+								{syssettings_mode()}
+								<strong>{structureInfo.isMultiTenant ? 'Multi-Tenant' : 'Single-Tenant'}</strong>
+							</p>
+							{#if structureInfo.warnings && structureInfo.warnings.length > 0}
+								<div class="mt-2 rounded-lg bg-warning-500/10 p-3 text-warning-500">
+									{#each structureInfo.warnings as w, i (i)}
+										<p class="text-xs">{'\u26a0\ufe0f'} {w}</p>
+									{/each}
+								</div>
+							{/if}
+						</div>
+					{/if}
+
+					<div class="flex flex-col sm:flex-row sm:flex-wrap gap-3">
+						<!-- Disabled in the server HTML: `onclick` only exists after hydration. -->
+						<Button
+							variant="tertiary"
+							type="button"
+							disabled={isMigrating || !hydration.hydrated}
+							onclick={checkStructure}
+							data-testid="system-settings-check-structure"
+							class="w-full sm:w-auto"
+						>
+							<iconify-icon icon="mdi:refresh" width="16" class={isMigrating ? 'animate-spin' : ''}
+							></iconify-icon>
+							<span>{syssettings_check_structure()}</span>
+						</Button>
+
+						{#if structureInfo?.needsMigration}
 							<Button
-								variant="tertiary"
+								variant="warning"
 								type="button"
-								onclick={() => selectGroup(availableGroups[0].id)}
+								disabled={isMigrating}
+								onclick={runMigration}
+								data-testid="system-settings-run-migration"
+								class="w-full sm:w-auto"
 							>
-								{syssettings_open()}
-								{availableGroups[0].name}
+								<iconify-icon
+									icon="mdi:swap-horizontal-bold"
+									width="16"
+									class={isMigrating ? 'animate-spin' : ''}
+								></iconify-icon>
+								<span>{isMigrating ? 'Migrating...' : 'Migrate Now'}</span>
 							</Button>
 						{/if}
 					</div>
 				</AdminCard>
-			{:else}
-				<AdminCard class="p-6" data-testid="system-settings-group-unselected">
-					<p class="text-center text-(--admin-text-muted)">{syssettings_select_group()}</p>
-				</AdminCard>
 			{/if}
 		</div>
-
-		<!-- Multi-Tenancy migration — only on cache/scaling maintenance panels -->
-		{#if activeGroup?.id === 'cache' || activeGroup?.id === 'scaling'}
-			<AdminCard class="p-4 md:p-6" data-testid="system-settings-mt-migration">
-				<div class="mb-4 flex items-start justify-between gap-4">
-					<div class="flex items-start gap-3">
-						<iconify-icon
-							icon="mdi:server-network"
-							width="22"
-							class="mt-0.5 shrink-0 text-tertiary-500 dark:text-primary-500"
-							aria-hidden="true"
-						></iconify-icon>
-						<div>
-							<h2 class="text-lg font-semibold">{syssettings_mt_heading()}</h2>
-							<p class="text-sm text-(--admin-text-muted)">{syssettings_mt_intro()}</p>
-						</div>
-					</div>
-
-					<div class="flex items-center gap-2 shrink-0">
-						<Toggle
-							value={structureInfo?.isMultiTenant ?? (page.data.isMultiTenant as boolean)}
-							disabled={isTogglingMt || isMigrating || !hydration.hydrated}
-							label="Multi-Tenant Mode"
-							onToggle={(val) => handleToggleMultiTenant(val)}
-							data-testid="system-settings-mt-toggle"
-						/>
-					</div>
-				</div>
-
-				{#if migrationResult}
-					<div
-						class="mb-4"
-						role="status"
-						aria-live="polite"
-						data-testid="system-settings-migration-status"
-					>
-						<Alert variant={migrationResult.success ? 'success' : 'error'}>
-							<p class="font-semibold">
-								{migrationResult.success ? '\u2705' : '\u274c'}
-								{migrationResult.message || migrationResult.error}
-							</p>
-							{#if migrationResult.details}
-								<ul class="mt-2 list-inside list-disc text-sm opacity-90">
-									<li>
-										{syssettings_collections_moved()}
-										{migrationResult.details.collectionsMoved}
-									</li>
-									<li>{syssettings_media_moved()} {migrationResult.details.mediaFilesMoved}</li>
-									<li>{syssettings_db_updated()} {migrationResult.details.mediaRecordsUpdated}</li>
-									{#if migrationResult.details.warnings.length > 0}
-										<li>{syssettings_warnings()} {migrationResult.details.warnings.join(', ')}</li>
-									{/if}
-								</ul>
-							{/if}
-						</Alert>
-					</div>
-				{/if}
-
-				{#if structureInfo}
-					<div
-						class="mb-4 text-sm"
-						data-testid="system-settings-structure-info"
-						role="status"
-						aria-live="polite"
-					>
-						<p>
-							{syssettings_mode()}
-							<strong>{structureInfo.isMultiTenant ? 'Multi-Tenant' : 'Single-Tenant'}</strong>
-						</p>
-						{#if structureInfo.warnings && structureInfo.warnings.length > 0}
-							<div class="mt-2 rounded-lg bg-warning-500/10 p-3 text-warning-500">
-								{#each structureInfo.warnings as w, i (i)}
-									<p class="text-xs">{'\u26a0\ufe0f'} {w}</p>
-								{/each}
-							</div>
-						{/if}
-					</div>
-				{/if}
-
-				<div class="flex flex-wrap gap-3">
-					<!-- Disabled in the server HTML: `onclick` only exists after hydration. -->
-					<Button
-						variant="tertiary"
-						type="button"
-						disabled={isMigrating || !hydration.hydrated}
-						onclick={checkStructure}
-						data-testid="system-settings-check-structure"
-					>
-						<iconify-icon icon="mdi:refresh" width="16" class={isMigrating ? 'animate-spin' : ''}
-						></iconify-icon>
-						<span>{syssettings_check_structure()}</span>
-					</Button>
-
-					{#if structureInfo?.needsMigration}
-						<Button
-							variant="warning"
-							type="button"
-							disabled={isMigrating}
-							onclick={runMigration}
-							data-testid="system-settings-run-migration"
-						>
-							<iconify-icon
-								icon="mdi:swap-horizontal-bold"
-								width="16"
-								class={isMigrating ? 'animate-spin' : ''}
-							></iconify-icon>
-							<span>{isMigrating ? 'Migrating...' : 'Migrate Now'}</span>
-						</Button>
-					{/if}
-				</div>
-			</AdminCard>
-		{/if}
 	</div>
 </AdminPageShell>

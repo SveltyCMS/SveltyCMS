@@ -133,7 +133,7 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 				? 'open:flex m-0 h-dvh max-h-dvh w-full max-w-none overflow-hidden p-0'
 				: isEditorShell
 					? 'open:flex m-auto max-md:m-0 max-md:h-dvh max-md:max-h-dvh max-md:w-full max-md:max-w-none max-md:items-stretch max-md:justify-stretch items-center justify-center overflow-visible p-0 max-md:p-0'
-					: 'open:flex m-auto items-center justify-center overflow-visible p-4 sm:p-6 lg:p-8',
+					: 'open:flex m-0 h-dvh max-h-dvh w-full max-w-none p-0 md:m-auto md:h-auto md:max-h-none md:w-auto md:items-center md:justify-center md:overflow-visible md:p-6 lg:p-8',
 			dialogClass
 		)}
 		{...dialog.dialogAria}
@@ -152,7 +152,9 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 				// (UA max-height only), so the percentage never resolves, the card grows past
 				// the viewport and the footer (Cancel/Save) can never be scrolled into view.
 				// An explicit viewport cap makes the body (`overflow-y-auto`) the scroller.
-				isExpandedBody ? 'h-full min-h-0' : 'm-auto max-h-[calc(100dvh-4rem)]',
+				isExpandedBody
+					? 'h-full min-h-0'
+					: 'h-full max-h-dvh rounded-none border-0 md:m-auto md:h-auto md:max-h-[calc(100dvh-4rem)] md:rounded md:border',
 				sizeClasses[size],
 				isEditorShell ? 'text-white border-0 ring-0 outline-none' : colorClasses[color],
 				className
@@ -181,7 +183,7 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 					<button
 						type="button"
 						onclick={() => (open = false)}
-						class="p-2 rounded-full hover:bg-surface-200 dark:hover:bg-surface-800 transition-colors"
+						class="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-surface-500/30 bg-surface-800/40 text-(--admin-text-muted) transition-colors hover:bg-surface-500/10 hover:text-(--admin-text-body)"
 						aria-label="Close modal"
 					>
 						<iconify-icon icon="mingcute:close-line" class="text-xl"></iconify-icon>

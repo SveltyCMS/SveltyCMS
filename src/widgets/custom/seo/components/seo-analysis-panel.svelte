@@ -99,15 +99,15 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 </script>
 
 <div
-	class="card pt-1 bg-white/50 dark:bg-surface-900/50 backdrop-blur-sm border border-(--admin-border-default) rounded-(--admin-radius-card) flex flex-col overflow-hidden {className} transition-all duration-300 {onOpenModal
-		? 'h-auto'
+	class="card bg-white/50 dark:bg-surface-900/50 backdrop-blur-sm border border-(--admin-border-default) rounded flex flex-col overflow-hidden {className} transition-all duration-300 {onOpenModal
+		? 'h-full justify-center'
 		: expanded
 			? 'h-125'
 			: 'h-16'}"
 >
 	<button
 		type="button"
-		class="flex items-center gap-4 w-full p-3 bg-white dark:bg-surface-900 hover:bg-surface-200 dark:hover:bg-surface-800 transition-colors text-start rounded-t-(--admin-radius-card)"
+		class="flex flex-col items-center justify-center gap-2 w-full h-full p-3 bg-white dark:bg-surface-900 hover:bg-surface-200 dark:hover:bg-surface-800 transition-colors text-center rounded"
 		onclick={() => {
 			if (onOpenModal) {
 				onOpenModal();
@@ -118,27 +118,27 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 		aria-label={onOpenModal ? 'Open detailed SEO analysis report' : seo_analysis_toggle_aria()}
 		aria-expanded={onOpenModal ? undefined : expanded}
 	>
-		<div class="flex items-center gap-2 flex-1">
+		<div class="flex items-center justify-center gap-2 min-w-0">
 			<iconify-icon
 				icon="mdi:google-analytics"
-				width="24"
-				class="text-tertiary-500 dark:text-primary-500 text-xl"
+				width="22"
+				class="text-tertiary-500 dark:text-primary-500 shrink-0"
 			></iconify-icon>
-			<h3 class="h3 text-lg!">{common_analysis()}</h3>
+			<h3 class="h3 text-base! font-semibold truncate">{common_analysis()}</h3>
 		</div>
 
 		{#if analysisResult}
-			<div class="flex items-center gap-3">
-				<div
-					class="font-bold {analysisResult.score.overall >= 80
+			<div class="flex items-center justify-center gap-2 shrink-0">
+				<span
+					class="font-bold text-sm whitespace-nowrap {analysisResult.score.overall >= 80
 						? 'text-success-500'
 						: analysisResult.score.overall >= 50
 							? 'text-warning-500'
 							: 'text-error-500'}"
 				>
 					{Number.isNaN(analysisResult.score.overall) ? '0' : analysisResult.score.overall}%
-				</div>
-				<div class="text-xs opacity-70 hidden sm:block">
+				</span>
+				<span class="text-xs opacity-70 whitespace-nowrap">
 					{#if analysisResult.score.overall >= 80}
 						{seo_analysis_excellent()}
 					{:else if analysisResult.score.overall >= 50}
@@ -146,13 +146,13 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 					{:else}
 						{seo_analysis_needs_work()}
 					{/if}
-				</div>
+				</span>
 				{#if onOpenModal}
-					<iconify-icon icon="mdi:open-in-new" class="text-surface-400"></iconify-icon>
+					<iconify-icon icon="mdi:open-in-new" class="text-surface-400 shrink-0"></iconify-icon>
 				{:else if expanded}
-					<iconify-icon icon="mdi:chevron-up" class="text-surface-400"></iconify-icon>
+					<iconify-icon icon="mdi:chevron-up" class="text-surface-400 shrink-0"></iconify-icon>
 				{:else}
-					<iconify-icon icon="mdi:chevron-down" class="text-surface-400"></iconify-icon>
+					<iconify-icon icon="mdi:chevron-down" class="text-surface-400 shrink-0"></iconify-icon>
 				{/if}
 			</div>
 		{:else}

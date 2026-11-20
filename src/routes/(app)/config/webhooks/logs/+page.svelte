@@ -20,6 +20,7 @@
 	import AdminCard from '@components/admin-card.svelte';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import Select from '@components/ui/select.svelte';
+	import StickyActions from '@components/ui/sticky-actions.svelte';
 	import SmartTableShell from '@components/ui/smart-table/smart-table-shell.svelte';
 	import {
 		SMART_TABLE,
@@ -155,188 +156,196 @@
 <AdminPageShell
 	title={webhooks_logs_title()}
 	icon="mdi:webhook"
-	description="Monitor delivery status and manage the Dead-Letter Queue."
 	showBackButton={true}
 	backUrl="/config/webhooks"
+	fullHeight={true}
+	flushContent={true}
+	titleCompact={true}
 >
-	{#snippet actions()}
-		<div class="flex items-center gap-3">
-			<div data-testid="webhook-logs-filter">
+	<div data-testid="webhook-logs-page" class="flex min-h-0 flex-1 flex-col -mt-1 sm:mt-0">
+		<div class="min-h-0 flex-1 overflow-y-auto pb-4 pe-0.5">
+			{#if isLoading}
+				<div data-testid="webhook-logs-loading" class="contents">
+					<AdminCard class="my-2 flex h-64 min-h-0 w-full flex-col sm:my-3">
+						<SmartTableShell loading={true} />
+					</AdminCard>
+				</div>
+			{:else if loadError}
+				<AdminCard
+					class="border border-error-500/30 bg-error-500/10 p-6 text-center dark:border-error-500/40 dark:bg-error-900/20"
+					data-testid="webhook-logs-error"
+				>
+					<h3 class="text-lg font-semibold text-error-500">{common_error()}</h3>
+					<p class="mt-1 text-sm text-error-500">{loadError}</p>
+				</AdminCard>
+			{:else}
+				<div in:adminFade class="flex min-h-0 flex-1 flex-col">
+					<AdminCard
+						class="my-2 flex h-full min-h-0 w-full flex-col sm:my-3"
+						data-testid="webhook-logs-table"
+					>
+						<SmartTableShell
+							empty={sortedLogs.length === 0}
+							emptyTitle={webhooks_logs_no_logs()}
+							emptyDescription={webhooks_logs_no_logs_hint()}
+							emptyIcon="mdi:webhook"
+							showPagination={sortedLogs.length > 0}
+							bind:currentPage
+							bind:rowsPerPage
+							{pagesCount}
+							totalItems={sortedLogs.length}
+							rowsPerPageOptions={[10, 25, 50, 100]}
+						>
+							{#snippet emptyAction()}
+								<div data-testid="webhook-logs-empty" class="contents"></div>
+							{/snippet}
+
+							<table class={SMART_TABLE}>
+								<thead class={SMART_TABLE_THEAD}>
+									<tr
+										class="border-b border-surface-500/30 text-xs uppercase tracking-wide dark:border-surface-600"
+									>
+										<th class="{SMART_TABLE_TH} text-center">
+											<button
+												type="button"
+												class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
+												onclick={() => toggleSort('webhook')}
+											>
+												{webhooks_logs_webhook_event()}
+												{#if sortField === 'webhook'}
+													<iconify-icon
+														icon={sortOrder === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'}
+														class="text-primary-500"
+													></iconify-icon>
+												{/if}
+											</button>
+										</th>
+										<th class="{SMART_TABLE_TH} text-center">
+											<button
+												type="button"
+												class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
+												onclick={() => toggleSort('status')}
+											>
+												{collection_status()}
+												{#if sortField === 'status'}
+													<iconify-icon
+														icon={sortOrder === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'}
+														class="text-primary-500"
+													></iconify-icon>
+												{/if}
+											</button>
+										</th>
+										<th class="{SMART_TABLE_TH} text-center">
+											<button
+												type="button"
+												class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
+												onclick={() => toggleSort('attempts')}
+											>
+												{webhooks_logs_attempts()}
+												{#if sortField === 'attempts'}
+													<iconify-icon
+														icon={sortOrder === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'}
+														class="text-primary-500"
+													></iconify-icon>
+												{/if}
+											</button>
+										</th>
+										<th class="{SMART_TABLE_TH} text-center">
+											<button
+												type="button"
+												class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
+												onclick={() => toggleSort('updatedAt')}
+											>
+												{webhooks_logs_last_attempt()}
+												{#if sortField === 'updatedAt'}
+													<iconify-icon
+														icon={sortOrder === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'}
+														class="text-primary-500"
+													></iconify-icon>
+												{/if}
+											</button>
+										</th>
+										<th class="{SMART_TABLE_TH} text-center">
+											<button
+												type="button"
+												class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
+												onclick={() => toggleSort('lastError')}
+											>
+												{common_error()}
+												{#if sortField === 'lastError'}
+													<iconify-icon
+														icon={sortOrder === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'}
+														class="text-primary-500"
+													></iconify-icon>
+												{/if}
+											</button>
+										</th>
+										<th class="{SMART_TABLE_TH} text-center">{trash_th_actions()}</th>
+									</tr>
+								</thead>
+								<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
+									{#each paginatedLogs as log (log._id)}
+										<tr class={SMART_TABLE_ROW_HOVER} data-testid={`webhook-log-row-${log._id}`}>
+											<td class={SMART_TABLE_TD}>
+												<div class="font-medium">{log.webhookName}</div>
+												<Badge preset="tonal" color="surface" size="sm">{log.event}</Badge>
+											</td>
+											<td class={SMART_TABLE_TD}>
+												{#if log.status === 'completed'}
+													<Badge variant="success">{webhooks_logs_success()}</Badge>
+												{:else if log.status === 'failed'}
+													<Badge variant="error">{webhooks_logs_failed_dlq()}</Badge>
+												{:else}
+													<Badge variant="warning">{webhooks_logs_retrying()}</Badge>
+												{/if}
+											</td>
+											<td class={SMART_TABLE_TD}>{log.attempts} / {log.maxAttempts || 5}</td>
+											<td class={SMART_TABLE_TD}>{formatDisplayDate(log.updatedAt)}</td>
+											<td
+												class="{SMART_TABLE_TD} max-w-xs truncate font-mono text-xs text-error-500"
+											>
+												{log.lastError || '-'}
+											</td>
+											<td class={SMART_TABLE_TD}>
+												{#if log.status === 'failed'}
+													<Button variant="primary" onclick={() => retryWebhook(log._id)} size="sm">
+														{webhooks_logs_retry_now()}
+													</Button>
+												{/if}
+											</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						</SmartTableShell>
+					</AdminCard>
+				</div>
+			{/if}
+		</div>
+	</div>
+
+	<StickyActions>
+		<div class="flex w-full items-center justify-center gap-2 sm:justify-end">
+			<div data-testid="webhook-logs-filter" class="flex-1 sm:flex-none">
 				<Select
 					bind:value={filterStatus}
 					options={statusOptions}
 					size="sm"
-					class="min-w-44"
+					class="w-full sm:min-w-44"
 					onchange={() => loadLogs()}
 				/>
 			</div>
 			<Button
 				variant="ghost"
+				size="sm"
 				onclick={loadLogs}
 				disabled={isLoading}
 				leadingIcon="mdi:refresh"
 				data-testid="webhook-logs-refresh"
+				class="h-9 shrink-0 whitespace-nowrap sm:h-10 sm:px-4"
 			>
 				{button_refresh()}
 			</Button>
 		</div>
-	{/snippet}
-
-	<div data-testid="webhook-logs-page" class="contents">
-		{#if isLoading}
-			<div data-testid="webhook-logs-loading" class="contents">
-				<AdminCard class="my-2 flex h-64 min-h-0 w-full flex-col sm:my-3">
-					<SmartTableShell loading={true} />
-				</AdminCard>
-			</div>
-		{:else if loadError}
-			<AdminCard
-				class="border border-error-500/30 bg-error-500/10 p-6 text-center dark:border-error-500/40 dark:bg-error-900/20"
-				data-testid="webhook-logs-error"
-			>
-				<h3 class="text-lg font-semibold text-error-500">{common_error()}</h3>
-				<p class="mt-1 text-sm text-error-500">{loadError}</p>
-			</AdminCard>
-		{:else}
-			<div in:adminFade class="flex min-h-0 flex-1 flex-col">
-				<AdminCard
-					class="my-2 flex h-full min-h-0 w-full flex-col sm:my-3"
-					data-testid="webhook-logs-table"
-				>
-					<SmartTableShell
-						empty={sortedLogs.length === 0}
-						emptyTitle={webhooks_logs_no_logs()}
-						emptyDescription={webhooks_logs_no_logs_hint()}
-						emptyIcon="mdi:webhook"
-						showPagination={sortedLogs.length > 0}
-						bind:currentPage
-						bind:rowsPerPage
-						{pagesCount}
-						totalItems={sortedLogs.length}
-						rowsPerPageOptions={[10, 25, 50, 100]}
-					>
-						{#snippet emptyAction()}
-							<div data-testid="webhook-logs-empty" class="contents"></div>
-						{/snippet}
-
-						<table class={SMART_TABLE}>
-							<thead class={SMART_TABLE_THEAD}>
-								<tr
-									class="border-b border-surface-500/30 text-xs uppercase tracking-wide dark:border-surface-600"
-								>
-									<th class="{SMART_TABLE_TH} text-center">
-										<button
-											type="button"
-											class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
-											onclick={() => toggleSort('webhook')}
-										>
-											{webhooks_logs_webhook_event()}
-											{#if sortField === 'webhook'}
-												<iconify-icon
-													icon={sortOrder === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'}
-													class="text-primary-500"
-												></iconify-icon>
-											{/if}
-										</button>
-									</th>
-									<th class="{SMART_TABLE_TH} text-center">
-										<button
-											type="button"
-											class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
-											onclick={() => toggleSort('status')}
-										>
-											{collection_status()}
-											{#if sortField === 'status'}
-												<iconify-icon
-													icon={sortOrder === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'}
-													class="text-primary-500"
-												></iconify-icon>
-											{/if}
-										</button>
-									</th>
-									<th class="{SMART_TABLE_TH} text-center">
-										<button
-											type="button"
-											class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
-											onclick={() => toggleSort('attempts')}
-										>
-											{webhooks_logs_attempts()}
-											{#if sortField === 'attempts'}
-												<iconify-icon
-													icon={sortOrder === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'}
-													class="text-primary-500"
-												></iconify-icon>
-											{/if}
-										</button>
-									</th>
-									<th class="{SMART_TABLE_TH} text-center">
-										<button
-											type="button"
-											class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
-											onclick={() => toggleSort('updatedAt')}
-										>
-											{webhooks_logs_last_attempt()}
-											{#if sortField === 'updatedAt'}
-												<iconify-icon
-													icon={sortOrder === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'}
-													class="text-primary-500"
-												></iconify-icon>
-											{/if}
-										</button>
-									</th>
-									<th class="{SMART_TABLE_TH} text-center">
-										<button
-											type="button"
-											class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
-											onclick={() => toggleSort('lastError')}
-										>
-											{common_error()}
-											{#if sortField === 'lastError'}
-												<iconify-icon
-													icon={sortOrder === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'}
-													class="text-primary-500"
-												></iconify-icon>
-											{/if}
-										</button>
-									</th>
-									<th class="{SMART_TABLE_TH} text-center">{trash_th_actions()}</th>
-								</tr>
-							</thead>
-							<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
-								{#each paginatedLogs as log (log._id)}
-									<tr class={SMART_TABLE_ROW_HOVER} data-testid={`webhook-log-row-${log._id}`}>
-										<td class={SMART_TABLE_TD}>
-											<div class="font-medium">{log.webhookName}</div>
-											<Badge preset="tonal" color="surface" size="sm">{log.event}</Badge>
-										</td>
-										<td class={SMART_TABLE_TD}>
-											{#if log.status === 'completed'}
-												<Badge variant="success">{webhooks_logs_success()}</Badge>
-											{:else if log.status === 'failed'}
-												<Badge variant="error">{webhooks_logs_failed_dlq()}</Badge>
-											{:else}
-												<Badge variant="warning">{webhooks_logs_retrying()}</Badge>
-											{/if}
-										</td>
-										<td class={SMART_TABLE_TD}>{log.attempts} / {log.maxAttempts || 5}</td>
-										<td class={SMART_TABLE_TD}>{formatDisplayDate(log.updatedAt)}</td>
-										<td class="{SMART_TABLE_TD} max-w-xs truncate font-mono text-xs text-error-500">
-											{log.lastError || '-'}
-										</td>
-										<td class={SMART_TABLE_TD}>
-											{#if log.status === 'failed'}
-												<Button variant="primary" onclick={() => retryWebhook(log._id)} size="sm">
-													{webhooks_logs_retry_now()}
-												</Button>
-											{/if}
-										</td>
-									</tr>
-								{/each}
-							</tbody>
-						</table>
-					</SmartTableShell>
-				</AdminCard>
-			</div>
-		{/if}
-	</div>
+	</StickyActions>
 </AdminPageShell>

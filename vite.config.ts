@@ -1,24 +1,54 @@
 /**
  * @file vite.config.ts
- * @description SveltyCMS Vite config — security/SSR/CMS plugins always on;
- *              optional DX plugins (inspector, quiet build, LiteRT WASM) gated.
+ * @description SveltyCMS Vite 8 + SvelteKit 3 build and dev configuration.
+ *
+ * Features:
+ * - Dual Node/Bun adapter wrappers and post-build worker/fast-lane bundling
+ * - CMS HMR for collections, widgets, themes, and fresh-install setup launch
+ * - Build-time virtual stubs for test backdoors, unused DB adapters, SSR/client boundaries
+ * - Vite 8 Svelte Inspector client/component patch, CSP nonce, Paraglide i18n, Tailwind v4
  */
 import { exec } from "node:child_process";
-import {
-  existsSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  statSync,
-  promises as fsPromises,
-} from "node:fs";
+import { existsSync, readFileSync, rmSync, statSync, promises as fsPromises } from "node:fs";
 import { builtinModules } from "node:module";
 import { platform } from "node:os";
 import path from "node:path";
 import nodeAdapter from "@sveltejs/adapter-node";
 import bunAdapter from "svelte-adapter-bun";
+import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
+import { sveltekit } from "@sveltejs/kit/vite";
+import tailwindcss from "@tailwindcss/vite";
+import { paraglideVitePlugin } from "@inlang/paraglide-js";
+import type { Plugin, ViteDevServer } from "vite";
+import { defineConfig } from "vitest/config";
+import { isSetupComplete } from "./src/utils/setup-check-fast.ts";
+import { securityCheckPlugin } from "./src/utils/vite-plugin-security-check.ts";
+import { pathAliases } from "./path-aliases.ts";
 
-// Dual-Adapter: process.env.ADAPTER selects build adapter (node default, bun optional)
+process.env.ESBUILD_WORKER_THREADS = "0";
+
+const CWD = process.cwd();
+const isBuildCmd =
+  process.env.NODE_ENV === "production" ||
+  process.argv.includes("build") ||
+  process.argv.includes("vite-build");
+const isHarnessBuildOrDev =
+  process.env.TEST_MODE === "true" ||
+  process.env.PLAYWRIGHT_TEST === "true" ||
+  process.env.PLAYWRIGHT_TEST === "1" ||
+  process.env.VITEST === "true" ||
+  process.env.BUN_TEST === "true" ||
+  process.env.BENCHMARK === "true" ||
+  process.env.COMPILE_ALL_ADAPTERS === "true";
+const isTestHarness =
+  process.env.TEST_MODE === "true" ||
+  process.env.VITEST === "true" ||
+  process.env.PLAYWRIGHT_TEST === "true" ||
+  process.env.BENCHMARK === "true" ||
+  process.env.SVELTY_PRECHECK === "true" ||
+  process.env.CI === "true";
+
+// ── Adapters ────────────────────────────────────────────────────────────────
 function safeBunAdapter(opts?: Parameters<typeof bunAdapter>[0]) {
   const orig = bunAdapter(opts);
   return {
@@ -29,10 +59,8 @@ function safeBunAdapter(opts?: Parameters<typeof bunAdapter>[0]) {
           if (prop === "config") {
             const config = Reflect.get(target, prop, receiver);
             return new Proxy(config, {
-              get(cTarget, cProp, cReceiver) {
-                if (cProp === "kit") return cTarget;
-                return Reflect.get(cTarget, cProp, cReceiver);
-              },
+              get: (cTarget, cProp, cReceiver) =>
+                cProp === "kit" ? cTarget : Reflect.get(cTarget, cProp, cReceiver),
             });
           }
           if (prop === "generateManifest") {
@@ -56,12 +84,6 @@ function safeBunAdapter(opts?: Parameters<typeof bunAdapter>[0]) {
   };
 }
 
-/**
- * Windows: adapter-node removes `build/` with a non-retrying rmSync. Pre-clean
- * with retries so antivirus/file-handle latency cannot abort the build
- * (ENOTEMPTY). Never monkey-patch the `node:fs` namespace: Rolldown rejects
- * configs that assign to import bindings (`ASSIGN_TO_IMPORT`).
- */
 function safeNodeAdapter(opts?: Parameters<typeof nodeAdapter>[0]) {
   const orig = nodeAdapter(opts);
   const outDir = opts?.out ?? "build";
@@ -75,27 +97,14 @@ function safeNodeAdapter(opts?: Parameters<typeof nodeAdapter>[0]) {
           // ignore; adapter-node will attempt rmSync as well
         }
       }
-      return await orig.adapt(builder);
+      return orig.adapt(builder);
     },
   };
 }
 
 const adapter = process.env.ADAPTER === "bun" ? safeBunAdapter : safeNodeAdapter;
 
-import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
-import { sveltekit } from "@sveltejs/kit/vite";
-import tailwindcss from "@tailwindcss/vite";
-
-import { paraglideVitePlugin } from "@inlang/paraglide-js";
-import type { Plugin, ViteDevServer } from "vite";
-import { defineConfig } from "vitest/config";
-import { isSetupComplete } from "./src/utils/setup-check-fast.ts";
-import { securityCheckPlugin } from "./src/utils/vite-plugin-security-check.ts";
-import { pathAliases } from "./path-aliases.ts";
-
-process.env.ESBUILD_WORKER_THREADS = "0";
-
-// ── Shared: externally maintained lists ────────────────────────────────────
+// ── Shared lists & paths ────────────────────────────────────────────────────
 const SERVER_EXTERNALS = [
   ...builtinModules,
   ...builtinModules.map((m) => `node:${m}`),
@@ -114,25 +123,17 @@ const SERVER_EXTERNALS = [
   "typescript",
   "ts-node",
   "@tailwindcss/node",
-  "jiti", // Build-time JIT — never imported at runtime; pulls zod v4
-  "jiti/*", // Subpath imports from jiti internals
-  "shiki", // Optional peer of @better-svelte-email/preview — not on the CMS hot path
+  "jiti",
+  "jiti/*",
+  "shiki",
 ];
 
-// Packages that MUST be inlined through Vite's SSR pipeline in a production
-// build (bundled into the adapter output). `drizzle-orm` is server-only but is
-// bundled in prod so no node_modules are required at runtime.
 const SSR_NO_EXTERNAL = [
   "@thisux/sveltednd",
   "svelte-canvas",
   "svelte-awesome-color-picker",
   "drizzle-orm",
 ];
-
-// Dev-only variant: Svelte packages still need Vite's transform, but
-// `drizzle-orm` (448 files / ~16 MB) is pure ESM the Node loader handles
-// natively. Externalizing it in dev avoids transforming/bundling its whole tree
-// on the first request — a major cold-start cost on a fresh install.
 const SSR_NO_EXTERNAL_DEV = SSR_NO_EXTERNAL.filter((p) => p !== "drizzle-orm");
 
 const OPTIMIZE_DEPS_INCLUDE = [
@@ -145,7 +146,6 @@ const OPTIMIZE_DEPS_INCLUDE = [
   "svelte-awesome-color-picker",
   "valibot",
 ];
-
 const OPTIMIZE_DEPS_EXCLUDE = [...SERVER_EXTERNALS, "@src/databases/cache/cache-service"];
 
 const SERVER_STUB_PACKAGES = new Set([
@@ -157,7 +157,6 @@ const SERVER_STUB_PACKAGES = new Set([
   "mysql2",
   "bun:sqlite",
 ]);
-
 const SERVER_STUB_FILES = [
   "/src/databases/db.ts",
   "/src/databases/database-resilience.ts",
@@ -179,41 +178,17 @@ const SERVER_STUB_FILES = [
   "/src/services/security/audit-service.ts",
   "/src/databases/sqlite/adapter-core.ts",
 ];
-
 const SERVER_STUB_REGEX =
   /\.(mongodb|mariadb|postgresql|sqlite|redis|argon2|mongoose|mysql2|pg|aws-sdk|googleapis)/i;
-
-// ── Helpers ─────────────────────────────────────────────────────────────────
-function openUrl(url: string) {
-  const plat = platform();
-  let cmd: string;
-  if (plat === "win32") cmd = `start "" "${url}"`;
-  else if (plat === "darwin") cmd = `open "${url}"`;
-  else cmd = `xdg-open "${url}"`;
-  exec(cmd);
-}
-
-const CWD = process.cwd();
 
 const RESOLVED_ALIASES: Record<string, string> = Object.fromEntries(
   Object.entries(pathAliases).map(([key, target]) => [key, path.resolve(CWD, target)]),
 );
 
-const TRUSTED_ORIGINS: string[] = [
-  "http://127.0.0.1:4173",
-  "http://localhost:4173",
+const TRUSTED_ORIGINS = [
   ...Array.from({ length: 600 }, (_, i) => `http://127.0.0.1:${4173 + i}`),
   ...Array.from({ length: 600 }, (_, i) => `http://localhost:${4173 + i}`),
 ];
-
-const isHarnessBuildOrDev =
-  process.env.TEST_MODE === "true" ||
-  process.env.PLAYWRIGHT_TEST === "true" ||
-  process.env.PLAYWRIGHT_TEST === "1" ||
-  process.env.VITEST === "true" ||
-  process.env.BUN_TEST === "true" ||
-  process.env.BENCHMARK === "true" ||
-  process.env.COMPILE_ALL_ADAPTERS === "true";
 
 const paths = {
   configDir: path.resolve(CWD, "config"),
@@ -247,9 +222,19 @@ const log = {
     console.error(useColor ? `${TAG} \x1b[31m❌\x1b[0m ${m}` : `[ERROR] ${m}`, ...a),
 };
 
+function openUrl(url: string) {
+  const plat = platform();
+  const cmd =
+    plat === "win32"
+      ? `start "" "${url}"`
+      : plat === "darwin"
+        ? `open "${url}"`
+        : `xdg-open "${url}"`;
+  exec(cmd);
+}
+
 async function initializeCollectionsStructure() {
-  const dir = paths.compiledCollections;
-  await fsPromises.mkdir(dir, { recursive: true });
+  await fsPromises.mkdir(paths.compiledCollections, { recursive: true });
   const { compile } = await import("./src/utils/compilation/compile.ts");
   await compile({
     userCollections: paths.userCollections,
@@ -257,9 +242,17 @@ async function initializeCollectionsStructure() {
   });
 }
 
-// ── Vite Plugins ───────────────────────────────────────────────────────────
+function shouldEnableInspector(): boolean {
+  if (process.env.SVELTE_INSPECTOR_OPTIONS === "false") return false;
+  if (process.env.SVELTY_INSPECTOR === "0" || process.env.SVELTY_INSPECTOR === "false")
+    return false;
+  if (process.env.SVELTY_INSPECTOR === "1" || process.env.SVELTY_INSPECTOR === "true") return true;
+  return !isBuildCmd && !isTestHarness;
+}
 
-/** Strips test backdoors and stubs TipTap/ProseMirror in SSR */
+// ── Vite Plugins ────────────────────────────────────────────────────────────
+
+/** Strips test backdoors in production and stubs TipTap/ProseMirror in SSR. */
 function testBackdoorStripperPlugin(): Plugin {
   return {
     name: "test-backdoor-stripper",
@@ -267,153 +260,45 @@ function testBackdoorStripperPlugin(): Plugin {
     resolveId(id, _importer, options) {
       if (!id.includes("/") && !id.includes("\\")) return null;
       const norm = id.replace(/\\/g, "/");
-      if (options?.ssr && (norm.includes("tiptap") || norm.includes("prosemirror")))
+      if (options?.ssr && (norm.includes("tiptap") || norm.includes("prosemirror"))) {
         return `\0virtual:ssr-stub:${id}`;
+      }
       if (
         process.env.NODE_ENV === "production" &&
         !process.env.TEST_MODE &&
-        process.env.COMPILE_ALL_ADAPTERS !== "true"
+        process.env.COMPILE_ALL_ADAPTERS !== "true" &&
+        (norm.includes("handlers/testing") || norm.includes("src/hooks/handle-test-isolation"))
       ) {
-        if (norm.includes("handlers/testing") || norm.includes("src/hooks/handle-test-isolation"))
-          return "\0virtual:test-noop";
+        return "\0virtual:test-noop";
       }
       return null;
     },
     load(id) {
-      if (id === "\0virtual:test-noop")
+      if (id === "\0virtual:test-noop") {
         return {
           code: 'export const POST=()=>new Response("Not Found",{status:404});export const handleTestIsolation=({event,resolve})=>resolve(event);export const SVELTY_TEST_BACKDOOR_STRIPPED=true;export default{};',
           map: null,
         };
-      if (id.startsWith("\0virtual:ssr-stub:"))
+      }
+      if (id.startsWith("\0virtual:ssr-stub:")) {
         return {
           code: "export const createEditor=()=>({});const noop=()=>({});export default new Proxy({},{get:()=>noop});",
           map: null,
         };
+      }
       return null;
     },
   };
 }
 
-/**
- * Compile-time import rewriter for `@components/ui`.
- * Automatically transforms barrel imports:
- *   `import { Button, Modal, DatePicker } from "@components/ui";`
- * into direct concrete component imports:
- *   `import Button from "@components/ui/button.svelte";`
- *   `import Modal from "@components/ui/modal.svelte";`
- *   `import DatePicker from "@components/ui/date-picker.svelte";`
- * Eliminating the 44-component module graph cascade on dev cold starts and Vitest.
- */
-function uiComponentImportRewriterPlugin(): Plugin {
-  const UI_COMPONENTS = new Set([
-    "Accordion",
-    "AccordionItem",
-    "Alert",
-    "Avatar",
-    "BackToTop",
-    "Badge",
-    "Breadcrumb",
-    "Button",
-    "Card",
-    "Checkbox",
-    "Collapsible",
-    "Combobox",
-    "DatePicker",
-    "Drawer",
-    "Dropdown",
-    "FileUpload",
-    "FloatingInput",
-    "Image",
-    "Input",
-    "Loader",
-    "Marquee",
-    "Modal",
-    "Popover",
-    "Portal",
-    "Progress",
-    "QrCode",
-    "RadioGroup",
-    "RadioItem",
-    "Rating",
-    "SegmentedControl",
-    "Select",
-    "Slider",
-    "StatusBadge",
-    "Stepper",
-    "StickyActions",
-    "Table",
-    "Tabs",
-    "Tags",
-    "Textarea",
-    "Toast",
-    "Toggle",
-    "Tooltip",
-    "TreeView",
-    "UpgradePrompt",
-  ]);
-
-  const toKebab = (s: string) => s.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
-
-  return {
-    name: "ui-component-import-rewriter",
-    enforce: "pre",
-    transform(code, id) {
-      if (!code.includes("@components/ui") && !code.includes("./src/components/ui")) return null;
-      if (!id.endsWith(".svelte") && !id.endsWith(".ts") && !id.endsWith(".js")) return null;
-      if (
-        id.includes("/src/components/ui/index.ts") ||
-        id.includes("\\src\\components\\ui\\index.ts")
-      ) {
-        return null;
-      }
-
-      const importRegex =
-        /import\s*\{([^}]+)\}\s*from\s*["'](@components\/ui|\.\/src\/components\/ui)["'];?/g;
-      if (!importRegex.test(code)) return null;
-
-      const transformed = code.replace(importRegex, (_match, specifiersStr: string) => {
-        const specifiers = specifiersStr
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean);
-        const rewritten: string[] = [];
-        const unhandled: string[] = [];
-
-        for (const spec of specifiers) {
-          const parts = spec.split(/\s+as\s+/);
-          const importedName = parts[0]!.trim();
-          const localName = (parts[1] || parts[0])!.trim();
-
-          if (UI_COMPONENTS.has(importedName)) {
-            const fileName = `${toKebab(importedName)}.svelte`;
-            rewritten.push(`import ${localName} from "@components/ui/${fileName}";`);
-          } else {
-            unhandled.push(spec);
-          }
-        }
-
-        if (unhandled.length > 0) {
-          rewritten.push(`import { ${unhandled.join(", ")} } from "@components/ui";`);
-        }
-
-        return rewritten.join("\n");
-      });
-
-      return { code: transformed, map: null };
-    },
-  };
-}
-
-/** Virtual fallback when config/private.ts is missing (CI, fresh clones) */
+/** Redirects private config in test harnesses and provides virtual fallback when missing. */
 function privateConfigFallbackPlugin(): Plugin {
-  const VID = "@config/private",
-    VIDT = "@config/private.test";
-  const RVID = `\0${VID}`,
-    RVIDT = `\0${VIDT}`;
+  const VID = "@config/private";
+  const VIDT = "@config/private.test";
+  const RVID = `\0${VID}`;
+  const RVIDT = `\0${VIDT}`;
   const cache = new Map<string, string | null>();
-  // Precheck / integration / E2E / COMPILE_ALL_ADAPTERS: never bind to live private.ts
-  const isTestHarness =
+  const harness =
     process.env.TEST_MODE === "true" ||
     process.env.COMPILE_ALL_ADAPTERS === "true" ||
     process.env.SVELTY_PRECHECK === "true" ||
@@ -430,21 +315,13 @@ function privateConfigFallbackPlugin(): Plugin {
       if (id === VIDT) return RVIDT;
       const nid = id.replace(/\\/g, "/");
       let result: string | null = null;
-      // Automated builds: always resolve private.ts imports → private.test.ts
-      // so live developer DB credentials never enter the test artifact.
       if (
-        isTestHarness &&
+        harness &&
         (id === VID || nid.endsWith("config/private.ts") || nid.endsWith("config/private"))
       ) {
         const tp = path.resolve(CWD, "config/private.test.ts");
-        if (existsSync(tp)) {
-          result = tp;
-        } else {
-          // Fall back to virtual module when private.test.ts is missing (CI)
-          result = RVID;
-        }
+        result = existsSync(tp) ? tp : RVID;
       } else if (nid.endsWith("config/private") || nid.endsWith("config/private.ts")) {
-        // Live app only — real private.ts or virtual empty
         result = existsSync(path.resolve(CWD, "config/private.ts")) ? null : RVID;
       } else if (nid.endsWith("config/private.test") || nid.endsWith("config/private.test.ts")) {
         result = existsSync(path.resolve(CWD, "config/private.test.ts")) ? null : RVIDT;
@@ -453,26 +330,25 @@ function privateConfigFallbackPlugin(): Plugin {
       return result;
     },
     load(id) {
-      if (id === RVID || id === RVIDT)
+      if (id === RVID || id === RVIDT) {
         return {
           code: `export const privateEnv={DB_TYPE:process.env.DB_TYPE||"",DB_HOST:process.env.DB_HOST||"127.0.0.1",DB_PORT:parseInt(process.env.DB_PORT||"27017"),DB_NAME:process.env.DB_NAME||"sveltycms",DB_USER:process.env.DB_USER||"",DB_PASSWORD:process.env.DB_PASSWORD||"",JWT_SECRET_KEY:process.env.JWT_SECRET_KEY||"",ENCRYPTION_KEY:process.env.ENCRYPTION_KEY||"",GOOGLE_CLIENT_ID:process.env.GOOGLE_CLIENT_ID||"",GOOGLE_CLIENT_SECRET:process.env.GOOGLE_CLIENT_SECRET||"",MULTI_TENANT:process.env.MULTI_TENANT==="true"};export const __VIRTUAL__=true;`,
           map: null,
         };
+      }
       return null;
     },
   };
 }
 
-/** Prevents server-only modules from leaking into client bundle */
+/** Prevents server-only modules from entering the client bundle. */
 function stubServerModulesPlugin(): Plugin {
   return {
     name: "stub-server-modules",
     enforce: "pre",
     resolveId(id, _importer, options) {
-      // SSR / test harness always need real modules
       if (options?.ssr || process.env.TEST_MODE === "true") return null;
       const nid = id.replace(/\\/g, "/");
-      // Never stub Kit routes or generated type proxies (layout/page loaders)
       if (
         nid.includes("/src/routes/") ||
         nid.includes("/.svelte-kit/") ||
@@ -481,130 +357,100 @@ function stubServerModulesPlugin(): Plugin {
       ) {
         return null;
       }
-      // Only stub explicit *.server.ts modules outside routes (content/services helpers).
-      // Scoped to /src/ so node_modules packages that ship `.server.js` helpers are never
-      // silently stubbed in client builds.
-      const isAppServerModule =
-        /\.server\.(ts|js|svelte)(?=\?|$)/.test(nid) && nid.includes("/src/");
-      if (SERVER_STUB_PACKAGES.has(id) || SERVER_STUB_REGEX.test(nid))
+      if (SERVER_STUB_PACKAGES.has(id) || SERVER_STUB_REGEX.test(nid)) {
         return "\0virtual:server-stub";
-      if (isAppServerModule && !nid.includes("/routes/")) return "\0virtual:server-stub";
-      for (let i = 0; i < SERVER_STUB_FILES.length; i++) {
-        if (nid.includes(SERVER_STUB_FILES[i])) return "\0virtual:server-stub";
+      }
+      if (
+        /\.server\.(ts|js|svelte)(?=\?|$)/.test(nid) &&
+        nid.includes("/src/") &&
+        !nid.includes("/routes/")
+      ) {
+        return "\0virtual:server-stub";
+      }
+      if (SERVER_STUB_FILES.some((f) => nid.includes(f))) {
+        return "\0virtual:server-stub";
       }
       return null;
     },
     load(id) {
-      if (id === "\0virtual:server-stub")
+      if (id === "\0virtual:server-stub") {
         return {
           code: "export default{};export const logger={info(){},error(){},warn(){},debug(){}};",
           map: null,
         };
+      }
       return null;
     },
   };
 }
 
-/**
- * API-only production build (`SVELTY_API_ONLY=1`).
- * Admin route modules under `(app)` resolve to one 404 stub so
- * the admin pages and the components only they import stay out of the bundle.
- * API, login, setup, and the public site stay. Off unless the env var is set.
- */
+/** Stubs `(app)` admin routes when `SVELTY_API_ONLY=1` is set. */
 function apiOnlyRouteStubPlugin(): Plugin {
   return {
     name: "api-only-route-stub",
     enforce: "pre",
     load(id) {
       const nid = id.replace(/\\/g, "/");
-      if (!nid.includes("/routes/(app)/")) {
-        return null;
-      }
+      if (!nid.includes("/routes/(app)/")) return null;
       const match = nid.match(/\/\+(page|layout|error)(?:\.server)?\.(svelte|ts|js)$/);
       if (!match) return null;
-
       const [, type, ext] = match;
       if (ext === "svelte") {
-        if (type === "layout") {
-          return {
-            code: `<script>\nlet { children } = $props();\n</script>\n{@render children?.()}`,
-            map: null,
-          };
-        }
+        const code =
+          type === "layout"
+            ? "<script>\nlet { children } = $props();\n</script>\n{@render children?.()}"
+            : "<script>\n</script>\n";
+        return { code, map: null };
+      }
+      if (nid.endsWith("+server.ts") || nid.endsWith("+server.js")) {
         return {
-          code: `<script>\n</script>\n`,
+          code: "function gone() { return new Response('API-only build', { status: 404 }); }\nexport { gone as GET, gone as POST, gone as PUT, gone as PATCH, gone as DELETE };",
           map: null,
         };
       }
-      if (ext === "ts" || ext === "js") {
-        if (nid.endsWith("+server.ts") || nid.endsWith("+server.js")) {
-          return {
-            code: [
-              "function gone() { return new Response('API-only build', { status: 404 }); }",
-              "export { gone as GET, gone as POST, gone as PUT, gone as PATCH, gone as DELETE };",
-            ].join("\n"),
-            map: null,
-          };
-        }
-        if (nid.endsWith("+page.server.ts") || nid.endsWith("+page.server.js")) {
-          return {
-            code: [
-              "export function load() { return { status: 404 }; }",
-              "export const actions = {};",
-            ].join("\n"),
-            map: null,
-          };
-        }
-        if (type === "page") {
-          return {
-            code: "export function load() { return { status: 404 }; }",
-            map: null,
-          };
-        }
+      if (nid.endsWith("+page.server.ts") || nid.endsWith("+page.server.js")) {
         return {
-          code: "export function load() { return {}; }",
+          code: "export function load() { return { status: 404 }; }\nexport const actions = {};",
           map: null,
         };
       }
-      return null;
+      return {
+        code:
+          type === "page"
+            ? "export function load() { return { status: 404 }; }"
+            : "export function load() { return {}; }",
+        map: null,
+      };
     },
   };
 }
 
-/** Strips unused DB adapters from production builds */
+/** Strips unused DB adapters from single-engine production builds. */
 function databaseAdapterStripperPlugin(): Plugin {
-  const _isBuild = process.env.NODE_ENV === "production" || process.argv.includes("build");
   const isTest = process.env.TEST_MODE === "true" || process.env.VITEST === "true";
-  const setupComplete = isSetupComplete();
-  const compileAll = process.env.COMPILE_ALL_ADAPTERS === "true";
-  if (!_isBuild || isTest || !setupComplete || compileAll)
+  if (!isBuildCmd || isTest || !isSetupComplete() || process.env.COMPILE_ALL_ADAPTERS === "true") {
     return { name: "database-adapter-stripper" };
+  }
 
   let activeDbType = process.env.DATABASE_ENGINE || process.env.DB_TYPE;
   if (!activeDbType) {
     try {
       const c = readFileSync(path.resolve(CWD, "config/private.ts"), "utf8");
-      const m = c.match(/DB_TYPE\s*[:=]\s*["'](\w+)["']/);
-      if (m) activeDbType = m[1];
+      activeDbType = c.match(/DB_TYPE\s*[:=]\s*["'](\w+)["']/)?.[1] ?? "sqlite";
     } catch {
       activeDbType = "sqlite";
     }
   }
-  activeDbType = (activeDbType || "sqlite").toLowerCase();
-  const map: Record<string, string[]> = {
-    mongodb: ["mariadb", "postgresql", "sqlite"],
-    mariadb: ["mongodb", "postgresql", "sqlite"],
-    postgresql: ["mongodb", "mariadb", "sqlite"],
-    sqlite: ["mongodb", "mariadb", "postgresql"],
-  };
-  const toStrip = map[activeDbType] || [];
-  const adapterEntryFiles: Record<string, string> = {
+  const engines = ["sqlite", "postgresql", "mariadb", "mongodb"];
+  const active = (activeDbType || "sqlite").toLowerCase();
+  const toStrip = engines.includes(active) ? engines.filter((db) => db !== active) : [];
+  const entryFiles: Record<string, string> = {
     sqlite: "sqlite/sqlite-adapter",
     postgresql: "postgresql/postgres-adapter",
     mariadb: "mariadb/mariadb-adapter",
     mongodb: "mongodb/mongo-db-adapter",
   };
-  const adapterClassNames: Record<string, string> = {
+  const classNames: Record<string, string> = {
     sqlite: "SQLiteAdapter",
     postgresql: "PostgreSQLAdapter",
     mariadb: "MariaDBAdapter",
@@ -617,11 +463,9 @@ function databaseAdapterStripperPlugin(): Plugin {
     async resolveId(id, _importer, options) {
       const resolved = await this.resolve(id, undefined, { ...options, skipSelf: true });
       const nid = (resolved?.id || id).replace(/\\/g, "/");
-      for (let i = 0; i < toStrip.length; i++) {
-        const dbName = toStrip[i];
-        const entryPattern = adapterEntryFiles[dbName];
+      for (const dbName of toStrip) {
         if (
-          (options?.ssr && entryPattern && nid.includes(entryPattern)) ||
+          (options?.ssr && nid.includes(entryFiles[dbName]!)) ||
           (!options?.ssr && nid.includes(`/databases/${dbName}/`))
         ) {
           return `\0virtual:db-stub:${dbName}`;
@@ -630,11 +474,45 @@ function databaseAdapterStripperPlugin(): Plugin {
       return null;
     },
     load(id) {
-      if (id.startsWith("\0virtual:db-stub")) {
-        const dbName = id.split(":")[2] || "unknown";
-        const className = adapterClassNames[dbName] || "DatabaseAdapter";
+      if (!id.startsWith("\0virtual:db-stub")) return null;
+      const dbName = id.split(":")[2] || "unknown";
+      const className = classNames[dbName] || "DatabaseAdapter";
+      return {
+        code: `export class ${className} { constructor() { throw new Error("Adapter '${dbName}' was stripped in this single-DB production build. Set COMPILE_ALL_ADAPTERS=true or configure DB_TYPE to build with this engine."); } } export default {};`,
+        map: null,
+      };
+    },
+  };
+}
+
+/** Shims Node builtins and jsdom out of browser bundles. */
+function browserShimsPlugin(): Plugin {
+  return {
+    name: "browser-shims",
+    enforce: "pre",
+    resolveId(id, _importer, options) {
+      if (options?.ssr) return null;
+      if (id === "node:path" || id === "path") return "\0virtual:browser-shim:path";
+      if (id === "node:os" || id === "os") return "\0virtual:browser-shim:os";
+      if (id === "jsdom") return "\0virtual:browser-shim:jsdom";
+      return null;
+    },
+    load(id) {
+      if (id === "\0virtual:browser-shim:path") {
         return {
-          code: `export class ${className} { constructor() { throw new Error("Adapter '${dbName}' was stripped in this single-DB production build. Set COMPILE_ALL_ADAPTERS=true or configure DB_TYPE to build with this engine."); } } export default {};`,
+          code: `const join=(...a)=>a.join("/");const resolve=(...a)=>a.join("/");const dirname=(p)=>p.split("/").slice(0,-1).join("/")||".";const basename=(p)=>p.split("/").pop()||"";export{join,resolve,dirname,basename};export default{join,resolve,dirname,basename};`,
+          map: null,
+        };
+      }
+      if (id === "\0virtual:browser-shim:os") {
+        return {
+          code: `const platform=()=>"browser";const cpus=()=>[];const totalmem=()=>0;const freemem=()=>0;export{platform,cpus,totalmem,freemem};export default{platform,cpus,totalmem,freemem};`,
+          map: null,
+        };
+      }
+      if (id === "\0virtual:browser-shim:jsdom") {
+        return {
+          code: `// @ts-nocheck\nexport class JSDOM { constructor() { this.window = {}; } }\nexport { JSDOM as default };`,
           map: null,
         };
       }
@@ -643,67 +521,149 @@ function databaseAdapterStripperPlugin(): Plugin {
   };
 }
 
-/** Shims Node.js APIs for browser */
-function browserShimsPlugin(): Plugin {
+/**
+ * Patches Inspector.svelte pre-compile (fixes toggle-button bubble race with
+ * `svelte:window onclick={disable}`, z-index, and capture-phase keydown).
+ */
+function svelteInspectorInjectPlugin(): Plugin {
+  const WINDOW_CLICK_FIX =
+    "onclick={(e) => { const t = e.target; if (t && typeof t.closest === 'function' && t.closest('#svelte-inspector-toggle, #svelte-inspector-overlay, #svelte-inspector-host')) return; disable(); }}";
+
   return {
-    name: "browser-shims",
+    name: "svelty-svelte-inspector-inject",
+    apply: "serve",
     enforce: "pre",
-    resolveId(id, _importer, options) {
-      // SSR must use real Node builtins — never shim server chunks.
-      if (options?.ssr) return null;
-      if (id === "node:path" || id === "path") return "\0virtual:browser-shim:path";
-      if (id === "node:os" || id === "os") return "\0virtual:browser-shim:os";
-      // jsdom is only used server-side in sanitize.svelte (!browser branch).
-      // Shimming it prevents the 5.5 MB chunk from appearing in client builds.
-      if (id === "jsdom") return "\0virtual:browser-shim:jsdom";
-      return null;
-    },
-    load(id) {
-      if (id === "\0virtual:browser-shim:path")
-        return {
-          code: `const join=(...a)=>a.join("/");const resolve=(...a)=>a.join("/");const dirname=(p)=>p.split("/").slice(0,-1).join("/")||".";const basename=(p)=>p.split("/").pop()||"";export{join,resolve,dirname,basename};export default{join,resolve,dirname,basename};`,
-          map: null,
-        };
-      if (id === "\0virtual:browser-shim:os")
-        return {
-          code: `const platform=()=>"browser";const cpus=()=>[];const totalmem=()=>0;const freemem=()=>0;export{platform,cpus,totalmem,freemem};export default{platform,cpus,totalmem,freemem};`,
-          map: null,
-        };
-      if (id === "\0virtual:browser-shim:jsdom")
-        return {
-          // Client-side stub — real jsdom is never used on client.
-          // The only consumer (sanitize.svelte) guards this behind `!browser`.
-          code: `// @ts-nocheck\nexport class JSDOM { constructor() { this.window = {}; } }\nexport { JSDOM as default };`,
-          map: null,
-        };
-      return null;
+    transform: {
+      order: "pre",
+      handler(code, id) {
+        const norm = id.replace(/\\/g, "/");
+        if (
+          !(
+            norm.includes("vite-plugin-svelte") &&
+            norm.includes("inspector") &&
+            norm.includes("Inspector.svelte")
+          )
+        ) {
+          return null;
+        }
+
+        let next = code;
+        if (next.includes("onclick={disable}") && !next.includes("svelty-inspector-click-patch")) {
+          next = next.replace(
+            "onclick={disable}",
+            `/* svelty-inspector-click-patch */ ${WINDOW_CLICK_FIX}`,
+          );
+        }
+        if (
+          next.includes("onclick={() => toggle()}") &&
+          !next.includes("svelty-inspector-toggle-patch")
+        ) {
+          next = next.replace(
+            "onclick={() => toggle()}",
+            "/* svelty-inspector-toggle-patch */ onclick={(e) => { e.stopPropagation(); e.preventDefault(); toggle(); }}",
+          );
+        }
+        if (
+          next.includes(":global(#svelte-inspector-host)") &&
+          !next.includes("z-index: 2147483646")
+        ) {
+          next = next.replace(
+            /:global\(#svelte-inspector-host\)\s*\{\s*direction:\s*ltr;\s*\}/,
+            [
+              ":global(#svelte-inspector-host) {",
+              "\tdirection: ltr;",
+              "\tposition: relative;",
+              "\tz-index: 2147483646;",
+              "\tpointer-events: none;",
+              "}",
+              ":global(#svelte-inspector-host #svelte-inspector-toggle),",
+              ":global(#svelte-inspector-host #svelte-inspector-overlay) {",
+              "\tpointer-events: auto;",
+              "\tz-index: 2147483647;",
+              "}",
+            ].join("\n"),
+          );
+        }
+        if (
+          next.includes("document.body.addEventListener('keydown', keydown)") &&
+          !next.includes("svelty-inspector-key-patch")
+        ) {
+          next = next.replace(
+            /document\.body\.addEventListener\('keydown',\s*keydown\);\s*if\s*\(options\.holdMode\)\s*\{\s*document\.body\.addEventListener\('keyup',\s*keyup\);\s*\}/,
+            "// svelty-inspector-key-patch\nwindow.addEventListener('keydown', keydown, true);\nif (options.holdMode) {\n\twindow.addEventListener('keyup', keyup, true);\n}",
+          );
+          next = next.replace(
+            /document\.body\.removeEventListener\('keydown',\s*keydown\);\s*if\s*\(options\.holdMode\)\s*\{\s*document\.body\.removeEventListener\('keyup',\s*keyup\);\s*\}/,
+            "window.removeEventListener('keydown', keydown, true);\nif (options.holdMode) {\n\twindow.removeEventListener('keyup', keyup, true);\n}",
+          );
+        }
+        if (
+          next.includes("#svelte-inspector-toggle {") &&
+          !next.includes("/* svelty-toggle-z */")
+        ) {
+          next = next.replace(
+            /#svelte-inspector-toggle\s*\{/,
+            "#svelte-inspector-toggle {\n\t/* svelty-toggle-z */\n\tz-index: 2147483647;",
+          );
+        }
+
+        return next !== code ? { code: next, map: null } : null;
+      },
     },
   };
 }
 
-/** Core CMS HMR: collections (via syncContentState), widgets, themes, setup wizard auto-open */
+/** Vite 8 serves `/@vite/client` via `bundledDevClient.mjs`, which upstream inspector misses. */
+function svelteInspectorClientInjectPlugin(): Plugin {
+  const INJECT = "\nimport('virtual:svelte-inspector-path:load-inspector.js')";
+  return {
+    name: "svelty-svelte-inspector-client-inject",
+    apply: "serve",
+    enforce: "post",
+    transform(code, id) {
+      const norm = id.replace(/\\/g, "/");
+      const isViteClient =
+        norm.includes("/vite/dist/client/client.mjs") ||
+        norm.includes("/vite/dist/client/bundledDevClient.mjs") ||
+        /\/@vite\/client(?:\?|$)/.test(norm) ||
+        norm.endsWith("vite/dist/client/client.mjs") ||
+        norm.endsWith("vite/dist/client/bundledDevClient.mjs");
+      if (!isViteClient || code.includes("virtual:svelte-inspector-path:load-inspector")) return;
+      return { code: `${code}${INJECT}`, map: null };
+    },
+  };
+}
+
+/** Core CMS HMR for collections, widgets, themes, and fresh-install setup auto-open. */
 function sveltyCmsPlugin(): Plugin {
   let wasPrivateConfigMissing = false;
   let compileTimeout: NodeJS.Timeout;
   let widgetTimeout: NodeJS.Timeout;
-  /** Debounced batch of collection source paths + whether any was a delete/unlink */
   const pendingCollectionFiles = new Set<string>();
   let pendingCollectionDelete = false;
 
   const handleHmr = async (server: ViteDevServer, event: string, file: string) => {
     const absoluteFile = path.resolve(file);
+    if (absoluteFile === paths.privateConfig) {
+      log.info("config/private.ts detected! Triggering restart...");
+      server.ws.send("svelty:setup-complete", {
+        timestamp: Date.now(),
+        message: "System initialized. Restarting...",
+      });
+      setTimeout(() => server.ws.send({ type: "full-reload", path: "*" }), 500);
+      return;
+    }
+
     const underCollections =
       absoluteFile === paths.userCollections ||
       absoluteFile.startsWith(paths.userCollections + path.sep);
     const isCollectionFile = underCollections && /\.(ts|js)$/.test(absoluteFile);
-    // Creating or removing a folder under config/collections must compile even
-    // when the folder has no .ts file. Compilation records it as a category.
     let isCollectionDir = false;
     if (
       underCollections &&
       absoluteFile !== paths.userCollections &&
-      (event === "addDir" || event === "unlinkDir" || event === "add" || event === "unlink") &&
-      !isCollectionFile
+      !isCollectionFile &&
+      (event === "addDir" || event === "unlinkDir" || event === "add" || event === "unlink")
     ) {
       if (event === "addDir" || event === "unlinkDir" || event === "unlink") {
         isCollectionDir = true;
@@ -714,23 +674,6 @@ function sveltyCmsPlugin(): Plugin {
           isCollectionDir = false;
         }
       }
-    }
-    const isWidgetFile =
-      absoluteFile.startsWith(paths.widgets) &&
-      (file.endsWith("index.ts") || file.endsWith(".svelte"));
-    const isDashboardWidgetFile =
-      absoluteFile.startsWith(paths.dashboardWidgets) &&
-      (file.endsWith(".svelte") || file.endsWith("widget.json") || file.endsWith(".mdx"));
-    const isPrivateConfig = absoluteFile === paths.privateConfig;
-
-    if (isPrivateConfig) {
-      log.info("config/private.ts detected! Triggering restart...");
-      server.ws.send("svelty:setup-complete", {
-        timestamp: Date.now(),
-        message: "System initialized. Restarting...",
-      });
-      setTimeout(() => server.ws.send({ type: "full-reload", path: "*" }), 500);
-      return;
     }
 
     if (isCollectionFile || isCollectionDir) {
@@ -746,16 +689,12 @@ function sveltyCmsPlugin(): Plugin {
         pendingCollectionDelete = false;
 
         try {
-          // Single coordinator: compile → refresh → models → metrics (no ad-hoc createModel loops).
-          // Use server.ssrLoadModule (NOT a plain dynamic import): the config file is bundled by
-          // Vite's config loader with esbuild, which cannot resolve `@utils`/`@stores` aliases —
-          // a bare import here breaks `svelte-kit sync` / svelte-check for the whole project.
+          // Use ssrLoadModule so Vite resolves path aliases inside server modules.
           const mod = await server.ssrLoadModule(
             path.join(CWD, "src/content/sync-content-state.server.ts"),
           );
           const syncContentState =
             mod.syncContentState as (typeof import("./src/content/sync-content-state.server.ts"))["syncContentState"];
-
           const relativeTarget =
             !fullBuild && files[0]
               ? path.relative(paths.userCollections, files[0]).replace(/\\/g, "/")
@@ -767,12 +706,10 @@ function sveltyCmsPlugin(): Plugin {
             targetFile: relativeTarget ?? null,
             fullBuild,
           });
-
           if (result.skippedByDedupe) {
             log.info("Collection watcher skipped (GUI compile session active)");
             return;
           }
-
           if (result.noOp) {
             log.info(
               `Collection compile no-op (${result.metrics.totalMs}ms, ${result.metrics.skipped} skipped)`,
@@ -780,7 +717,6 @@ function sveltyCmsPlugin(): Plugin {
             return;
           }
 
-          // Content types — optional; missing script must not break HMR
           if ((result.compiled?.processed ?? 0) > 0) {
             try {
               const typesMod = await server.ssrLoadModule(
@@ -796,7 +732,6 @@ function sveltyCmsPlugin(): Plugin {
             }
           }
 
-          // Structured HMR — include changedNodes for surgical client patch (skip full layout refetch)
           server.ws.send("svelty:content-update", {
             timestamp: Date.now(),
             reason: "watcher",
@@ -811,7 +746,6 @@ function sveltyCmsPlugin(): Plugin {
             metrics: result.metrics,
             noOp: false,
           });
-
           log.success(
             `Content sync ${result.metrics.totalMs}ms (compile=${result.metrics.compileMs}, models=${result.metrics.modelMs}, ${result.metrics.processed} processed, surgical=${!result.requiresLayoutInvalidate})`,
           );
@@ -821,7 +755,10 @@ function sveltyCmsPlugin(): Plugin {
       }, 150);
     }
 
-    if (isWidgetFile) {
+    if (
+      absoluteFile.startsWith(paths.widgets) &&
+      (file.endsWith("index.ts") || file.endsWith(".svelte"))
+    ) {
       clearTimeout(widgetTimeout);
       widgetTimeout = setTimeout(async () => {
         try {
@@ -837,12 +774,10 @@ function sveltyCmsPlugin(): Plugin {
       }, 150);
     }
 
-    if (isDashboardWidgetFile) {
-      // Dashboard widget packages are discovered via import.meta.glob at
-      // page-load — a full reload re-evaluates the glob, picking up new
-      // folders (added/removed packages) the same way the custom-widget
-      // watcher handles src/widgets. Changed components get Vite HMR plus
-      // this reload for a consistent registry.
+    if (
+      absoluteFile.startsWith(paths.dashboardWidgets) &&
+      (file.endsWith(".svelte") || file.endsWith("widget.json") || file.endsWith(".mdx"))
+    ) {
       clearTimeout(widgetTimeout);
       widgetTimeout = setTimeout(() => {
         server.ws.send({ type: "full-reload", path: "*" });
@@ -850,16 +785,16 @@ function sveltyCmsPlugin(): Plugin {
       }, 150);
     }
 
-    const isThemeFile = absoluteFile.startsWith(paths.themes) && file.endsWith(".json");
-    if (isThemeFile) {
+    if (absoluteFile.startsWith(paths.themes) && file.endsWith(".json")) {
       setTimeout(async () => {
         try {
           const { syncThemeFile } = await server.ssrLoadModule(
             path.join(CWD, "src/services/core/theme-file-sync.ts"),
           );
           const result = await syncThemeFile(file);
-          if (result.action === "created" || result.action === "updated")
+          if (result.action === "created" || result.action === "updated") {
             log.success(`Theme "${result.name}" ${result.action}.`);
+          }
           server.ws.send("svelty:theme-update", { name: result.name, timestamp: Date.now() });
         } catch (e) {
           log.error("Theme sync failed:", e);
@@ -901,231 +836,52 @@ function sveltyCmsPlugin(): Plugin {
   };
 }
 
-/**
- * Build warning manager — filters non-actionable noise, deduplicates remaining
- * SOURCEMAP_BROKEN warnings from third-party plugins.
- *
- * Our custom plugins (test-backdoor-stripper, private-config-fallback,
- * stub-server-modules, database-adapter-stripper, browser-shims) return
- * `{ code, map: null }` from their load() hooks, so they no longer trigger
- * this warning. Only third-party plugins (@tailwindcss/vite, SvelteKit
- * remote functions) may still emit it.
- */
-function buildWarningManagerPlugin(): Plugin {
-  const sourcemapCounts = new Map<string, number>();
-  let originalWarn: typeof console.warn;
-  let installed = false;
-
-  const noisePatterns = [
-    /Circular dependency:.*node_modules/i,
-    /could not be resolved.*treating it as an external/i,
-    /".*" is imported from external module ".*" but never used/i,
-    /\[PLUGIN_TIMINGS\]/i,
-    /Your build spent significant time in plugins/i,
-    /Reading `config\.kit` inside adapters is deprecated/i,
-    /\[UNRESOLVED_IMPORT\].*bun:sqlite/i,
-    /manualChunks option is ignored because the codeSplitting option is specified/i,
-  ];
-
-  const sourcemapPattern = /\[SOURCEMAP_BROKEN\]|Sourcemap is likely to be incorrect/i;
-
-  function install() {
-    if (installed) return;
-    installed = true;
-    originalWarn = console.warn;
-
-    const filter = (message: string): boolean => {
-      const clean = message.replace(
-        new RegExp(String.fromCharCode(27) + "\\[[0-9;]*[a-zA-Z]", "g"),
-        "",
-      );
-      if (noisePatterns.some((p) => p.test(clean))) return true;
-      if (sourcemapPattern.test(clean)) {
-        const match = clean.match(/\[([^\]]+)\]/);
-        const plugin = match?.[1] ?? "unknown";
-        sourcemapCounts.set(plugin, (sourcemapCounts.get(plugin) ?? 0) + 1);
-        return true;
+/** Copies worker threads, bundles Yjs/background services, and patches adapter output. */
+function postBuildPlugin(): Plugin {
+  async function patchFile(
+    relPath: string,
+    replacements: Array<{ pattern: RegExp; replacement: string; warnIfMissing?: string }>,
+  ) {
+    const filePath = path.resolve(CWD, relPath);
+    if (!existsSync(filePath)) return;
+    let code = readFileSync(filePath, "utf8");
+    let changed = false;
+    for (const { pattern, replacement, warnIfMissing } of replacements) {
+      if (pattern.test(code)) {
+        code = code.replace(pattern, replacement);
+        changed = true;
+      } else if (warnIfMissing) {
+        log.warn(`${warnIfMissing} in ${relPath}`);
       }
-      return false;
-    };
-
-    console.warn = (...args: unknown[]) => {
-      const message = args.map((a) => (typeof a === "string" ? a : String(a ?? ""))).join(" ");
-      if (filter(message)) return;
-      originalWarn.apply(console, args);
-    };
-
-    const originalStderrWrite = process.stderr.write.bind(process.stderr);
-    process.stderr.write = (chunk: any, ...rest: any[]): boolean => {
-      const message = typeof chunk === "string" ? chunk : (chunk?.toString?.() ?? "");
-      if (filter(message)) return true;
-      return originalStderrWrite(chunk, ...rest);
-    };
-
-    const originalStdoutWrite = process.stdout.write.bind(process.stdout);
-    process.stdout.write = (chunk: any, ...rest: any[]): boolean => {
-      const message = typeof chunk === "string" ? chunk : (chunk?.toString?.() ?? "");
-      if (filter(message)) return true;
-      return originalStdoutWrite(chunk, ...rest);
-    };
+    }
+    if (changed) {
+      await fsPromises.writeFile(filePath, code);
+      log.info(`patched ${relPath}`);
+    }
   }
 
   return {
-    name: "build-warning-manager",
+    name: "svelty-post-build",
     apply: "build",
-    enforce: "pre",
-    config(_config: any, _env: any) {
-      install();
-    },
-    buildEnd() {
-      if (originalWarn) console.warn = originalWarn;
-      if (sourcemapCounts.size === 0) return;
-      const lines = [...sourcemapCounts].map(([p, c]) => `  ${p}: ${c} file(s)`);
-      originalWarn(
-        `\n[SOURCEMAP_BROKEN] Third-party plugins (not actionable):\n${lines.join("\n")}\n`,
-      );
-    },
-  };
-}
-
-/**
- * Fails the build when a node builtin import reaches the CLIENT graph.
- *
- * A static `import "node:fs"` in a module the browser loads is the exact shape
- * of the 2026-09-21 outage: the browser fetched the `node:path` URL
- * (CORS-blocked scheme), the route chunk rejected, /mediagallery and the
- * marketplace fell back to the error page — with nothing in the server log,
- * because a failed client chunk never reaches `handleError`.
- *
- * The previous version only warned; every leak it reported has since been moved
- * behind a `.server.ts` boundary, so this is an error now: a stub silently
- * degrades behaviour at runtime, which is worse than a red build. Only STATIC
- * imports are rejected — `await import("node:fs")` inside a `typeof window`
- * guard stays legal (it is never fetched in the browser).
- *
- * Fix: keep fs/path work in a `.server.ts` module or use pure string helpers
- * (see `buildOriginalRelPath` in @utils/media/media-utils and
- * `marketplace-install.server.ts`).
- */
-function clientNodeBuiltinGuardPlugin(): Plugin {
-  // `import "x"` / `import a from "x"` / `import { a } from "x"` / `export … from "x"`
-  const STATIC_IMPORT_RE =
-    /(?:^|[\n;])\s*(?:import|export)\s+(?:[^;'"]*?\bfrom\s*)?["']([^"']+)["']/g;
-  // Vite hands out posix-style ids (`D:/repo/src/…`) while process.cwd() is
-  // native (`D:\repo`) — compare in one normalised form or the guard never runs
-  // on Windows (measured: the first version silently matched nothing).
-  const CWD_POSIX = CWD.replace(/\\/g, "/");
-
-  const isBuiltin = (spec: string): boolean =>
-    spec.startsWith("node:") || builtinModules.includes(spec.split("/")[0]!);
-
-  return {
-    name: "svelty-client-node-builtin-guard",
-    transform(code, id) {
-      const environment = (
-        this as { environment?: { name?: string; config?: { consumer?: string } } }
-      ).environment;
-      const envName = environment?.name ?? environment?.config?.consumer ?? "";
-      const consumer = environment?.config?.consumer ?? envName;
-      if (envName !== "client" && consumer !== "client") return null;
-      const normalizedId = id.replace(/\\/g, "/");
-      if (normalizedId.includes("node_modules") || normalizedId.includes("src/paraglide")) {
-        return null;
-      }
-      if (!normalizedId.startsWith(CWD_POSIX)) return null;
-      if (!code.includes("import") && !code.includes("export")) return null;
-
-      STATIC_IMPORT_RE.lastIndex = 0;
-      for (let match = STATIC_IMPORT_RE.exec(code); match; match = STATIC_IMPORT_RE.exec(code)) {
-        const spec = match[1]!;
-        if (!isBuiltin(spec)) continue;
-        this.error({
-          message:
-            `[client-node-builtin] ${path.relative(CWD, id)} imports "${spec}" in the browser graph. ` +
-            `Move the Node work into a .server.ts module or use pure string helpers.`,
-          loc: { file: id, line: code.slice(0, match.index).split("\n").length, column: 0 },
-        });
-      }
-      return null;
-    },
-  };
-}
-
-/** Serves LiteRT.js WASM binaries with correct MIME type from static/ai/wasm/. */
-function liteRtWasmPlugin(): Plugin {
-  const WASM_RE = /^\/ai\/wasm\//;
-  return {
-    name: "litert-wasm",
-    configureServer(server) {
-      server.middlewares.use((req, res, next) => {
-        if (!req.url || !WASM_RE.test(req.url)) return next();
-        const filePath = path.join(CWD, "static", req.url);
-        if (!existsSync(filePath)) {
-          res.statusCode = 404;
-          res.end("WASM file not found. Place LiteRT.js WASM binaries in static/ai/wasm/");
-          return;
-        }
-        const ext = path.extname(req.url);
-        const mime =
-          ext === ".wasm"
-            ? "application/wasm"
-            : ext === ".js"
-              ? "application/javascript"
-              : "application/octet-stream";
-        res.writeHead(200, {
-          "Content-Type": mime,
-          "Cross-Origin-Resource-Policy": "cross-origin",
-          "Cache-Control": "public, max-age=86400",
-        });
-        const content = readFileSync(filePath);
-        res.end(content);
-      });
-    },
-  };
-}
-
-function copyWorkerFilePlugin(): Plugin {
-  return {
-    name: "copy-module-worker",
-    apply: "build",
-    // The kit adapter finalises `build/` in its own `buildApp`; a `writeBundle`
-    // copy is wiped by that pass. Post-buildApp runs after the adapter, so the
-    // file survives (same pattern as adapterNodeBuildPatchPlugin).
     buildApp: {
       order: "post",
       async handler() {
-        const src = path.resolve(CWD, "src/content/module-worker.server.ts");
-        const dest = path.resolve(CWD, "build/server/chunks/module-worker.server.ts");
+        const workerDest = path.resolve(CWD, "build/server/chunks/module-worker.server.ts");
         try {
-          await fsPromises.mkdir(path.dirname(dest), { recursive: true });
-          await fsPromises.copyFile(src, dest);
+          await fsPromises.mkdir(path.dirname(workerDest), { recursive: true });
+          await fsPromises.copyFile(
+            path.resolve(CWD, "src/content/module-worker.server.ts"),
+            workerDest,
+          );
           log.info("Copied module-worker.server.ts to build output");
         } catch (e: unknown) {
           log.warn(`Failed to copy worker file: ${(e as Error).message}`);
         }
-      },
-    },
-  };
-}
 
-/**
- * Bundles the optional Yjs WebSocket collaboration server into `build/` after
- * the main build. Plain `vite build` must emit it — previously this lived
- * in a separate build orchestrator script; it now runs as a standard post-build plugin.
- *
- * esbuild is imported dynamically so `ESBUILD_WORKER_THREADS=0` (set above for
- * Vite's own esbuild) is in effect before the API loads.
- */
-function bundleYjsSyncServerPlugin(): Plugin {
-  return {
-    name: "bundle-yjs-sync-server",
-    apply: "build",
-    // Post-buildApp: emit after the kit adapter has finalised `build/`, so the
-    // bundle survives the adapter's write pass (a `writeBundle` emit is wiped).
-    buildApp: {
-      order: "post",
-      async handler() {
-        const { build: esbuild } = await import("esbuild");
+        const { build: esbuild, transform } = await import("esbuild");
+        const { compileModule } = await import("svelte/compiler");
+        const logLevel = process.argv.includes("--debug") ? "info" : "warning";
+
         await esbuild({
           entryPoints: [path.resolve(CWD, "src/services/collaboration/yjs-sync-server.ts")],
           bundle: true,
@@ -1136,30 +892,11 @@ function bundleYjsSyncServerPlugin(): Plugin {
           target: "node24",
           outfile: path.resolve(CWD, "build/yjs-sync-server.js"),
           external: ["ws", "yjs", "y-protocols", "lib0"],
-          alias: {
-            "@utils": path.resolve(CWD, "src/utils"),
-          },
-          logLevel: process.argv.includes("--debug") ? "info" : "warning",
+          alias: { "@utils": path.resolve(CWD, "src/utils") },
+          logLevel,
         });
         log.info("Bundled collaboration server: build/yjs-sync-server.js");
-      },
-    },
-  };
-}
 
-/**
- * Bundles the background worker process entrypoint and supervisor into `build/`
- * after the main build.
- */
-function bundleBackgroundWorkerPlugin(): Plugin {
-  return {
-    name: "bundle-background-worker",
-    apply: "build",
-    buildApp: {
-      order: "post",
-      async handler() {
-        const { build: esbuild, transform } = await import("esbuild");
-        const { compileModule } = await import("svelte/compiler");
         await esbuild({
           entryPoints: {
             "background-worker": path.resolve(CWD, "src/services/background/background-entry.ts"),
@@ -1181,10 +918,6 @@ function bundleBackgroundWorkerPlugin(): Plugin {
               name: "compile-svelte-runes-modules",
               setup(build) {
                 build.onLoad({ filter: /\.svelte\.[cm]?[jt]s$/ }, async (args) => {
-                  // The SvelteKit build transforms rune modules automatically;
-                  // this standalone esbuild bundle does not. Strip TypeScript
-                  // first, then compile runes so `$state`/`$derived` never leak
-                  // into the Node child as undefined globals.
                   const stripped = await transform(readFileSync(args.path, "utf8"), {
                     loader: args.path.endsWith(".ts") ? "ts" : "js",
                     format: "esm",
@@ -1201,454 +934,59 @@ function bundleBackgroundWorkerPlugin(): Plugin {
             },
           ],
           alias: {
-            // The worker runs directly under Node, outside SvelteKit's module
-            // loader. Transitive services import `$app/env`, so leaving that
-            // virtual specifier external makes the child crash and restart
-            // forever in production.
             "$app/env": path.resolve(CWD, "src/services/background/background-runtime-env.ts"),
             "@src": path.resolve(CWD, "src"),
             "@utils": path.resolve(CWD, "src/utils"),
             "@widgets": path.resolve(CWD, "src/widgets"),
           },
-          logLevel: process.argv.includes("--debug") ? "info" : "warning",
+          logLevel,
         });
-        log.info(
-          "Bundled background worker & supervisor: build/background-worker.js, build/background-supervisor.js",
-        );
-      },
-    },
-  };
-}
+        log.info("Bundled background worker & supervisor");
 
-/**
- * adapter-node v6 (SvelteKit 3) post-build patches for the emitted server
- * handler chunk:
- *
- * 1. `origin` is emitted as an adapt-time module value (`export const origin
- *    = undefined;` in `build/adapter-node.js`) — adapter-node 6.0.0 removed the
- *    `ORIGIN` environment variable. The handler never reads `process.env.ORIGIN`
- *    at runtime and falls back to deriving the origin from request headers with
- *    a hardcoded `https` protocol default. On plain-HTTP previews (CI e2e-prep,
- *    local `node build/index.js`, the `index.cjs` Plesk entry) SvelteKit's
- *    remote same-origin gate then computes a self-origin of
- *    `https://127.0.0.1:4173` while the browser sends
- *    `Origin: http://127.0.0.1:4173`, so every non-GET remote function (e.g.
- *    `completeSetup` in the setup wizard) is rejected with 403 "Cross-site
- *    remote requests are forbidden". Fix: restore the v5 runtime contract —
- *    read `ORIGIN` from the environment at server start. When unset, behaviour
- *    is unchanged.
- *
- * 3. `build/server/adapter-index.js` (adapter-node entry; `build/index.js` is
- *    now a re-export shim) gets fast-lane dispatch: GET/HEAD requests consult
- *    `globalThis.__SVELTY_FAST_LANES__` (published by `installFastLanes()` at
- *    boot) before the full SvelteKit pipeline. It calls the lane functions so
- *    auth, tenancy, publication clamping and security headers stay in one
- *    place, and `BENCH_VERIFY_RAW=1` proves both transports byte-identical
- *    inside a single server run. Also adds the per-socket `noDelay` so small
- *    JSON responses are not held by Nagle. Both edits are pattern-guarded: a
- *    changed adapter-node template leaves the entry untouched (with a warning)
- *    instead of corrupting it.
- *
- * 4. The minified handler (`build/server/adapter-node-handler.js`) has a
- *    kit-level `BODY_SIZE_LIMIT` default (512K) that is raised to 100M (the kit
- *    parser accepts K/M/G suffixes only, so "100MB" would throw at boot). The
- *    app's own 15MB `API_MAX_BODY_SIZE_BYTES` guard (`@utils/api-body-limits`)
- *    is the real ceiling for API bodies, so the kit default must never reject
- *    a body the app would accept (a 500-doc bulk seed chunk is ~530KB — at
- *    512K it failed with a kit-level 413 and the seeder fell back to per-item
- *    creates). Pattern-guarded like the other patches.
- */
-function adapterNodeBuildPatchPlugin(): Plugin {
-  return {
-    name: "adapter-node-build-patch",
-    apply: "build",
-    // The kit adapter finalises `build/` in its own `buildApp` (order: 'post').
-    // Running as a post buildApp hook in array order means we patch AFTER the
-    // adapter has written the handler chunk.
-    buildApp: {
-      order: "post",
-      async handler() {
-        // ── 1. origin ────────────────────────────────────────────────────────────
-        // adapter-node 6.0.0 removed the `ORIGIN` env var and hands adapt-time
-        // values to the server as `build/adapter-node.js`. Restore the v5 runtime
-        // contract: read `ORIGIN` from the environment at server start. When
-        // unset, the handler falls back to header-derived origin (unchanged).
-        const adapterModulePath = path.resolve(CWD, "build/adapter-node.js");
-        if (existsSync(adapterModulePath)) {
-          let code = readFileSync(adapterModulePath, "utf8");
-          const originPattern = /export const origin = undefined;/;
-          if (originPattern.test(code)) {
-            code = code.replace(originPattern, "export const origin = process.env.ORIGIN;");
-            await fsPromises.writeFile(adapterModulePath, code);
-            log.info(`patched adapter-node origin (${path.relative(CWD, adapterModulePath)})`);
-          }
-        }
-
-        // ── 2. kit-level body ceiling ────────────────────────────────────────────
-        // The handler is now minified at `build/server/adapter-node-handler.js` and
-        // the default is `u("BODY_SIZE_LIMIT","512K")` (`u` = env, `U` =
-        // parse_as_bytes). Raise to 100M; the app's own 15MB
-        // API_MAX_BODY_SIZE_BYTES guard is the real ceiling (see plugin doc).
-        const handlerPath = path.resolve(CWD, "build/server/adapter-node-handler.js");
-        if (existsSync(handlerPath)) {
-          let code = readFileSync(handlerPath, "utf8");
-          const bodyLimitPattern = /u\("BODY_SIZE_LIMIT","512K"\)/;
-          if (bodyLimitPattern.test(code)) {
-            code = code.replace(bodyLimitPattern, 'u("BODY_SIZE_LIMIT","100M")');
-            await fsPromises.writeFile(handlerPath, code);
-            log.info(`patched adapter-node body limit (${path.relative(CWD, handlerPath)})`);
-          }
-        }
-
-        // Patch svelte-adapter-bun handler if present (WS handler made optional)
-        const bunHandlerPath = path.resolve(CWD, "build/handler.js");
-        if (existsSync(bunHandlerPath)) {
-          let code = readFileSync(bunHandlerPath, "utf8");
-          const wsPattern = /(?:const|var)\s+websocket\s*=\s*server\.websocket\(\);/;
-          if (wsPattern.test(code)) {
-            code = code.replace(
-              wsPattern,
+        await patchFile("build/adapter-node.js", [
+          {
+            pattern: /export const origin = undefined;/,
+            replacement: "export const origin = process.env.ORIGIN;",
+          },
+        ]);
+        await patchFile("build/server/adapter-node-handler.js", [
+          {
+            pattern: /u\("BODY_SIZE_LIMIT","512K"\)/,
+            replacement: 'u("BODY_SIZE_LIMIT","100M")',
+          },
+        ]);
+        await patchFile("build/handler.js", [
+          {
+            pattern: /(?:const|var)\s+websocket\s*=\s*server\.websocket\(\);/,
+            replacement:
               "const websocket = typeof server.websocket === 'function' ? server.websocket() : null;",
-            );
-            await fsPromises.writeFile(bunHandlerPath, code);
-            log.info(`patched svelte-adapter-bun handler (${path.relative(CWD, bunHandlerPath)})`);
-          }
-        }
-
-        // ── 3. fast-lane dispatch + per-socket noDelay on the minified entry ────
-        // `build/index.js` is now a re-export shim; the listener lives in
-        // `build/server/adapter-index.js` (minified: `e` = httpServer, `h` =
-        // handler, `a` = req, `s` = res). Pattern-guarded like the other patches.
-        const nodeEntryPath = path.resolve(CWD, "build/server/adapter-index.js");
-        if (existsSync(nodeEntryPath)) {
-          let code = readFileSync(nodeEntryPath, "utf8");
-          let changed = false;
-
-          const serverPattern = /e\.on\("request"/;
-          if (serverPattern.test(code)) {
-            code = code.replace(
-              serverPattern,
+          },
+        ]);
+        await patchFile("build/server/adapter-index.js", [
+          {
+            pattern: /e\.on\("request"/,
+            replacement:
               'e.on("connection",__svelty_socket=>__svelty_socket.setNoDelay(!0));e.on("request"',
-            );
-            changed = true;
-          } else {
-            log.warn(
-              `adapter-node entry patch: http.createServer pattern not found in ${path.relative(CWD, nodeEntryPath)}`,
-            );
-          }
-
-          const listenerPattern = /h\(a,s,\(\)=>\{s\.statusCode=404,s\.end\(\)\}\)/;
-          if (listenerPattern.test(code)) {
-            code = code.replace(
-              listenerPattern,
+            warnIfMissing: "adapter-node entry patch: http.createServer pattern not found",
+          },
+          {
+            pattern: /h\(a,s,\(\)=>\{s\.statusCode=404,s\.end\(\)\}\)/,
+            replacement:
               '(()=>{const __svelty_next=()=>{s.statusCode=404;s.end()};const __svelty_lanes=globalThis["__SVELTY_FAST_LANES__"];const m=a.method;if(__svelty_lanes&&(m==="GET"||m==="HEAD"||m==="POST"||m==="PATCH"||m==="PUT")&&a.headers["x-fast-lane"]!=="off"){let __svelty_rb;if(m==="POST"||m==="PATCH"||m==="PUT"){__svelty_rb=()=>new Promise((resolve,reject)=>{const chunks=[];let size=0;a.on("data",c=>{size+=c.length;if(size>15728640){reject(new Error("Payload too large"));return}chunks.push(c)});a.on("end",()=>resolve(Buffer.concat(chunks)));a.on("error",reject)})};__svelty_lanes({method:m,url:a.url||"/",origin:process.env.ORIGIN||("http://"+(a.headers.host||"localhost")),headers:a.headers,clientAddress:a.socket?.remoteAddress||"127.0.0.1",readBody:__svelty_rb}).then(__svelty_out=>{if(!__svelty_out){h(a,s,__svelty_next);return}s.writeHead(__svelty_out.status,__svelty_out.headers);s.end(__svelty_out.body)}).catch(()=>h(a,s,__svelty_next));return}h(a,s,__svelty_next)})()',
-            );
-            changed = true;
-          } else {
-            log.warn(
-              `adapter-node entry patch: request-listener pattern not found in ${path.relative(CWD, nodeEntryPath)}`,
-            );
-          }
-
-          if (changed) {
-            await fsPromises.writeFile(nodeEntryPath, code);
-            log.info(
-              `patched adapter-node entry with fast lanes (${path.relative(CWD, nodeEntryPath)})`,
-            );
-          }
-        }
+            warnIfMissing: "adapter-node entry patch: request-listener pattern not found",
+          },
+        ]);
       },
     },
   };
 }
 
-/**
- * Vite 8 serves `/@vite/client` from `bundledDevClient.mjs` (and may use Windows
- * backslash ids). Built-in `@sveltejs/vite-plugin-svelte` inspector only transforms
- * `vite/dist/client/client.mjs`, so Alt+X never mounts.
- *
- * Restores the inject that used to live as `vitePlusInspectorPatchPlugin` /
- * top-level `svelteInspector()` before the Jul 2026 vite.config slim-down
- * (f5bad175 / e4ae0df25). Virtual modules still come from vitePlugin.inspector.
- *
- * Also patches Inspector.svelte (must run pre-compile):
- * - `svelte:window onclick={disable}` races with the toggle button click
- *   (enable → bubble → disable in the same gesture), so the S button appeared dead.
- * - key listeners moved to window capture so Alt+X works with focused controls.
- */
-function svelteInspectorInjectPlugin(): Plugin {
-  const WINDOW_CLICK_FIX =
-    "onclick={(e) => { const t = e.target; if (t && typeof t.closest === 'function' && t.closest('#svelte-inspector-toggle, #svelte-inspector-overlay, #svelte-inspector-host')) return; disable(); }}";
-
-  return {
-    name: "svelty-svelte-inspector-inject",
-    apply: "serve",
-    enforce: "pre",
-    transform: {
-      order: "pre",
-      handler(code, id) {
-        const norm = id.replace(/\\/g, "/");
-        if (
-          !(
-            norm.includes("vite-plugin-svelte") &&
-            norm.includes("inspector") &&
-            norm.includes("Inspector.svelte")
-          )
-        ) {
-          return null;
-        }
-
-        let next = code;
-
-        // 1) Window click must not undo the toggle button in the same gesture.
-        // Guard on our marker — the source already contains #svelte-inspector-toggle as the button id.
-        if (next.includes("onclick={disable}") && !next.includes("svelty-inspector-click-patch")) {
-          next = next.replace(
-            "onclick={disable}",
-            "/* svelty-inspector-click-patch */ " + WINDOW_CLICK_FIX,
-          );
-        }
-
-        // 2) Toggle click stops bubbling to window (stop() already uses stopPropagation elsewhere)
-        if (
-          next.includes("onclick={() => toggle()}") &&
-          !next.includes("svelty-inspector-toggle-patch")
-        ) {
-          next = next.replace(
-            "onclick={() => toggle()}",
-            "/* svelty-inspector-toggle-patch */ onclick={(e) => { e.stopPropagation(); e.preventDefault(); toggle(); }}",
-          );
-        }
-
-        // 3) Host stacking above setup chrome (absolute footer, etc.)
-        if (
-          next.includes(":global(#svelte-inspector-host)") &&
-          !next.includes("z-index: 2147483646")
-        ) {
-          next = next.replace(
-            /:global\(#svelte-inspector-host\)\s*\{\s*direction:\s*ltr;\s*\}/,
-            [
-              ":global(#svelte-inspector-host) {",
-              "\tdirection: ltr;",
-              "\tposition: relative;",
-              "\tz-index: 2147483646;",
-              "\tpointer-events: none;",
-              "}",
-              ":global(#svelte-inspector-host #svelte-inspector-toggle),",
-              ":global(#svelte-inspector-host #svelte-inspector-overlay) {",
-              "\tpointer-events: auto;",
-              "\tz-index: 2147483647;",
-              "}",
-            ].join("\n"),
-          );
-        }
-
-        // 4) Key handlers on window (capture) — body listeners miss focused inputs / shadow targets
-        if (
-          next.includes("document.body.addEventListener('keydown', keydown)") &&
-          !next.includes("svelty-inspector-key-patch")
-        ) {
-          next = next.replace(
-            /document\.body\.addEventListener\('keydown',\s*keydown\);\s*if\s*\(options\.holdMode\)\s*\{\s*document\.body\.addEventListener\('keyup',\s*keyup\);\s*\}/,
-            [
-              "// svelty-inspector-key-patch",
-              "window.addEventListener('keydown', keydown, true);",
-              "if (options.holdMode) {",
-              "\twindow.addEventListener('keyup', keyup, true);",
-              "}",
-            ].join("\n\t\t\t"),
-          );
-          next = next.replace(
-            /document\.body\.removeEventListener\('keydown',\s*keydown\);\s*if\s*\(options\.holdMode\)\s*\{\s*document\.body\.removeEventListener\('keyup',\s*keyup\);\s*\}/,
-            [
-              "window.removeEventListener('keydown', keydown, true);",
-              "if (options.holdMode) {",
-              "\twindow.removeEventListener('keyup', keyup, true);",
-              "}",
-            ].join("\n\t\t\t"),
-          );
-        }
-
-        // 5) Toggle button z-index explicit (position already fixed in upstream CSS)
-        if (
-          next.includes("#svelte-inspector-toggle {") &&
-          !next.includes("/* svelty-toggle-z */")
-        ) {
-          next = next.replace(
-            /#svelte-inspector-toggle\s*\{/,
-            "#svelte-inspector-toggle {\n\t/* svelty-toggle-z */\n\tz-index: 2147483647;",
-          );
-        }
-
-        return next !== code ? { code: next, map: null } : null;
-      },
-    },
-  };
-}
-
-/** Post-enforce inject of inspector bootstrap into Vite 8 client modules. */
-function svelteInspectorClientInjectPlugin(): Plugin {
-  const INJECT = "\nimport('virtual:svelte-inspector-path:load-inspector.js')";
-  return {
-    name: "svelty-svelte-inspector-client-inject",
-    apply: "serve",
-    enforce: "post",
-    transform(code, id) {
-      const norm = id.replace(/\\/g, "/");
-      const isViteClient =
-        norm.includes("/vite/dist/client/client.mjs") ||
-        norm.includes("/vite/dist/client/bundledDevClient.mjs") ||
-        /\/@vite\/client(?:\?|$)/.test(norm) ||
-        norm.endsWith("vite/dist/client/client.mjs") ||
-        norm.endsWith("vite/dist/client/bundledDevClient.mjs");
-      if (!isViteClient) return;
-      if (code.includes("virtual:svelte-inspector-path:load-inspector")) return;
-      return { code: `${code}${INJECT}`, map: null };
-    },
-  };
-}
-
-// ── Smart feature gates (optional plugins only when useful) ────────────────
-//
-// Core security / SSR / CMS plugins always run.
-// DX-only plugins (inspector, build log filter, LiteRT WASM middleware) register
-// only when the environment actually needs them.
-
-const isBuildCmd =
-  process.env.NODE_ENV === "production" ||
-  process.argv.includes("build") ||
-  process.argv.includes("vite-build");
-const isTestHarness =
-  process.env.TEST_MODE === "true" ||
-  process.env.VITEST === "true" ||
-  process.env.PLAYWRIGHT_TEST === "true" ||
-  process.env.BENCHMARK === "true" ||
-  process.env.SVELTY_PRECHECK === "true" ||
-  process.env.CI === "true";
-
-/** Dev inspector: serve only, never CI/test, overridable via env. */
-function shouldEnableInspector(): boolean {
-  // Explicit kill-switch (also respects upstream SVELTE_INSPECTOR_OPTIONS=false)
-  if (process.env.SVELTE_INSPECTOR_OPTIONS === "false") return false;
-  if (process.env.SVELTY_INSPECTOR === "0" || process.env.SVELTY_INSPECTOR === "false")
-    return false;
-  if (process.env.SVELTY_INSPECTOR === "1" || process.env.SVELTY_INSPECTOR === "true") return true;
-  // Default: local interactive dev only
-  if (isBuildCmd || isTestHarness) return false;
-  return true;
-}
-
-/**
- * Build log noise filter: useful in CI/local builds, skip when you want raw output.
- * Override: SVELTY_VERBOSE_BUILD=1 → off; SVELTY_QUIET_BUILD=0 → off.
- */
-function shouldEnableBuildWarningManager(): boolean {
-  if (process.env.SVELTY_VERBOSE_BUILD === "1" || process.env.SVELTY_VERBOSE_BUILD === "true") {
-    return false;
-  }
-  if (process.env.SVELTY_QUIET_BUILD === "0" || process.env.SVELTY_QUIET_BUILD === "false") {
-    return false;
-  }
-  // apply:"build" already no-ops on serve; still skip registering when not building
-  return isBuildCmd || process.env.CI === "true";
-}
-
-/**
- * LiteRT client WASM middleware — only when assets exist or AI client is forced on.
- * `static/ai/wasm` often only has `.gitkeep` until binaries are installed.
- * Prod/static hosting serves files via the adapter; this plugin is dev middleware only.
- */
-function shouldEnableLiteRtWasm(): boolean {
-  if (process.env.SVELTY_AI_CLIENT === "0" || process.env.SVELTY_AI_CLIENT === "false")
-    return false;
-  if (process.env.SVELTY_AI_CLIENT === "1" || process.env.SVELTY_AI_CLIENT === "true") return true;
-  if (isBuildCmd || isTestHarness) return false;
-
-  const wasmDir = path.resolve(CWD, "static/ai/wasm");
-  if (!existsSync(wasmDir)) return false;
-  try {
-    return readdirSync(wasmDir).some((name) => !name.startsWith(".") && name !== ".gitkeep");
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Dev-only heads-up for the one-time Paraglide compile.
- *
- * The Paraglide Vite plugin compiles every configured locale on the first dev
- * start (and again after any catalog/settings edit), then caches the result in
- * `project.inlang/cache/paraglide-js/`; warm starts skip it. A cold compile of
- * the full admin catalog blocks the dev server for several seconds with no
- * explanation, so we print one line first. Detection mirrors the plugin's own
- * cache: inputs are cold when no cache exists or a catalog/settings file is
- * newer than it. Serve-only (never affects `vite build`); all reads are
- * best-effort so a notice can never break startup.
- */
-function paraglideColdStartNoticePlugin(): Plugin {
-  return {
-    name: "paraglide-cold-start-notice",
-    apply: "serve",
-    configResolved() {
-      if (isTestHarness) return;
-      try {
-        const projectDir = path.resolve(CWD, "project.inlang");
-        const settingsPath = path.join(projectDir, "settings.json");
-        const cacheDir = path.join(projectDir, "cache", "paraglide-js");
-        const cacheFiles = existsSync(cacheDir)
-          ? readdirSync(cacheDir).filter((name) => name.endsWith(".json"))
-          : [];
-        // No cache yet → the plugin cannot skip, so this start compiles.
-        const cacheMtime = cacheFiles.reduce(
-          (newest, name) => Math.max(newest, statSync(path.join(cacheDir, name)).mtimeMs),
-          0,
-        );
-
-        const settings = JSON.parse(readFileSync(settingsPath, "utf8")) as { locales?: string[] };
-        const locales = settings.locales ?? [];
-        const messagesDir = path.resolve(CWD, "src/messages");
-        let newestInput = statSync(settingsPath).mtimeMs;
-        let messageCount = 0;
-        for (const locale of locales) {
-          const file = path.join(messagesDir, `${locale}.json`);
-          if (!existsSync(file)) continue;
-          newestInput = Math.max(newestInput, statSync(file).mtimeMs);
-          messageCount += Object.keys(
-            JSON.parse(readFileSync(file, "utf8")) as Record<string, string>,
-          ).length;
-        }
-
-        // Warm: the plugin logs "Compilation skipped — inputs unchanged".
-        if (cacheMtime !== 0 && newestInput <= cacheMtime) return;
-        if (locales.length === 0 || messageCount === 0) return;
-
-        log.info(
-          `Paraglide is compiling ${locales.length} admin locales (${messageCount.toLocaleString()} messages) — first run only; later starts skip it.`,
-        );
-      } catch {
-        // A notice is never worth failing (or slowing) dev startup.
-      }
-    },
-  };
-}
-
-// ── Config ─────────────────────────────────────────────────────────────────
-
+// ── Config ──────────────────────────────────────────────────────────────────
 export default defineConfig(() => {
   const enableInspector = shouldEnableInspector();
-  const enableQuietBuild = shouldEnableBuildWarningManager();
-  const enableLiteRt = shouldEnableLiteRtWasm();
-
-  if (process.env.SVELTY_VITE_DEBUG === "1") {
-    log.info(
-      `feature gates → inspector=${enableInspector} quietBuild=${enableQuietBuild} liteRtWasm=${enableLiteRt}`,
-    );
-  }
 
   return {
     plugins: [
-      // ── Always: production correctness / security / CMS ─────────────────
-      ...(enableQuietBuild ? [buildWarningManagerPlugin()] : []),
       tailwindcss() as any,
       ...(process.env.SVELTY_API_ONLY === "1" ? [apiOnlyRouteStubPlugin()] : []),
       databaseAdapterStripperPlugin(),
@@ -1656,35 +994,20 @@ export default defineConfig(() => {
       privateConfigFallbackPlugin(),
       stubServerModulesPlugin(),
       browserShimsPlugin(),
-      uiComponentImportRewriterPlugin(),
       sveltekit({
         preprocess: [vitePreprocess()],
         compilerOptions: { runes: true },
-        // 🚀 SK3: vite-plugin-svelte options pass through directly (vitePlugin removed)
         inspector: enableInspector
           ? {
-              // Sticky toggle: Alt+X once on, again/Esc off (holdMode flaky on Windows)
               toggleKeyCombo: "alt-x",
               holdMode: false,
               showToggleButton: "always",
-              toggleButtonPos: "top-right",
+              toggleButtonPos: "bottom-right",
             }
           : false,
         adapter: adapter({ out: "build", precompress: platform() !== "win32" }),
         experimental: { remoteFunctions: true },
-        // Bench/integration matrices bind 4173 + random offset; trust loopback port range.
-        csrf: {
-          trustedOrigins: TRUSTED_ORIGINS,
-        },
-        // ── Zero-overhead XSS mitigation ───────────────────────────────────
-        // A fresh 128-bit nonce per SSR request (SvelteKit appends it to every
-        // inline <script> it renders) plus `strict-dynamic`: a script can only
-        // run if SvelteKit minted it or a trusted script created it. Injected
-        // inline handlers and `eval()` are blocked without a domain allowlist.
-        // `style-src` keeps `'unsafe-inline'` because the admin kit styles
-        // (`--admin-*` custom properties) and the HTML shell use style
-        // attributes; `script-src` never does. `wasm-unsafe-eval` is required by
-        // the optional LiteRT/WASM pipeline and does not enable JS `eval`.
+        csrf: { trustedOrigins: TRUSTED_ORIGINS },
         csp: {
           mode: "nonce",
           directives: {
@@ -1704,49 +1027,25 @@ export default defineConfig(() => {
           },
         },
       }),
-      // ── Optional: dev-only inspector inject/patch (Vite 8 client path) ──
       ...(enableInspector
         ? [svelteInspectorInjectPlugin(), svelteInspectorClientInjectPlugin()]
         : []),
-      // ── Optional: client AI WASM only when assets / flag present ────────
-      ...(enableLiteRt ? [liteRtWasmPlugin()] : []),
       sveltyCmsPlugin(),
       securityCheckPlugin(),
-      clientNodeBuiltinGuardPlugin(),
-      copyWorkerFilePlugin(),
-      bundleYjsSyncServerPlugin(),
-      bundleBackgroundWorkerPlugin(),
-      adapterNodeBuildPatchPlugin(),
-      paraglideColdStartNoticePlugin(),
-      // One structure for every writer (dev, prod build, `bun run paraglide`).
-      // The plugin defaults to locale-modules in dev and message-modules in prod,
-      // while the CLI defaults to message-modules — running the CLI (or a build)
-      // against a live dev server then deleted the `de.js` the dev graph still
-      // imported (`Failed to load url ./de.js` → 500 on every admin page).
+      postBuildPlugin(),
       paraglideVitePlugin({
         project: "./project.inlang",
         outdir: "./src/paraglide",
         outputStructure: "locale-modules",
-        // Emit stable `.d.ts` declarations alongside the generated JS. Without
-        // them, editor TS servers infer exports from the 4.6 MB `_index.js` and
-        // can serve stale module surfaces after a message regeneration.
         emitTsDeclarations: true,
         isServer: "import.meta.env.SSR",
       }),
     ],
-    // 🚀 SK3: aliases moved from the deprecated `config.alias` to plain Vite
-    // resolve.alias (types are wired via `paths` in tsconfig.json). Vite needs
-    // ABSOLUTE targets — relative entries would duplicate modules.
     resolve: {
       alias: RESOLVED_ALIASES,
       extensions: [".ts", ".js", ".json"],
     },
     server: {
-      // The dev origin is pinned in several places (ORIGIN, CORS allowlist, E2E
-      // auth setup). Letting Vite silently move to 5174 starts a server the app
-      // does not trust — and a second instance doubles the watcher/optimizer work
-      // (measured: 2 s ready with one server, 19 s with two). Fail loudly instead;
-      // an intentional second port still works via `vite dev --port 5175`.
       port: 5173,
       strictPort: true,
       fs: { allow: ["static", "."], deny: ["**/tests/**"] },
@@ -1765,14 +1064,6 @@ export default defineConfig(() => {
           "**/logs/**",
           "**/mediaFolder/**",
           "**/src/content/types.ts",
-          // NOTE: `src/paraglide/**` (generated output) must NOT be ignored.
-          // paraglideVitePlugin recompiles it when a catalog changes but never
-          // invalidates the bundler's module graph itself, so Vite must watch the
-          // output — otherwise SSR/client keep a stale messages module and any file
-          // importing a newly added key crashes on edit with
-          // `(0, __vite_ssr_import__.some_key) is not a function`. This cannot loop:
-          // the plugin treats its own outdir as an ignored watch path, so writes to
-          // the output never trigger a recompile. Only the plugin cache stays ignored.
           "**/project.inlang/cache/**",
         ],
       },
@@ -1784,33 +1075,14 @@ export default defineConfig(() => {
     define: {
       __SVELTY_SETUP_COMPLETE__: isSetupComplete(),
       global: "globalThis",
-      // NEVER replace `"process.env": "{}"` — Rolldown/Vite then rewrites every
-      // `process.env.FOO` access to `{}.FOO` (always undefined) in SSR chunks.
-      // That breaks TEST_MODE, setup-check, integration preview, and any runtime
-      // flag. Client bundles must not import server secrets; use $env modules.
     },
     build: {
       target: "esnext",
       minify: "esbuild" as const,
-      // Source maps are the dominant local build OUTPUT cost: ~72 MB across
-      // ~1.1k `.map` files, with a single 1.6 MB chunk producing a 16 MB map
-      // (wall time measured within noise: ~29 s either way on the dev host).
-      // CI already builds without them (`CI` is set by the runner);
-      // `bun run build:fast` opts a local build out explicitly. The default
-      // `bun run build` keeps emitting maps for local debugging.
       sourcemap: process.env.BUILD_SOURCEMAP === "false" ? false : !process.env.CI,
       chunkSizeWarningLimit: 1700,
-      // Rolldown (Vite 8): disable plugin-timing spam; still measurable via --debug if needed.
       checks: { pluginTimings: false },
       rollupOptions: {
-        // ⚠️ Do NOT add a global `external` list here: it applies to the CLIENT
-        // environment too. Externalizing `node:*` in the client ships a bare
-        // specifier the browser then fetches as a URL (`node:path` → CORS-blocked
-        // scheme) and the ENTIRE route chunk fails to load — /mediagallery and
-        // the marketplace died exactly that way (2026-09-21, no server log to
-        // explain it). Server externals live in `ssr.external` below; client-side
-        // builtins now fall back to Vite's browser stub, so a stray import
-        // degrades one call site instead of the whole route.
         treeshake: {
           moduleSideEffects: "no-external" as const,
           propertyReadSideEffects: false as const,
@@ -1818,12 +1090,6 @@ export default defineConfig(() => {
           unknownGlobalSideEffects: false,
         },
         output: {
-          // Force the plugin catalog (registration loop) into a shared shell chunk
-          // for the SSR build. NOTE: SvelteKit's CLIENT environment sets its own
-          // `output.codeSplitting`, which makes Rolldown IGNORE `manualChunks` —
-          // the client-side guarantee instead comes from `registerPluginSlots()`
-          // being called by the root layout (src/routes/+layout.svelte), which
-          // binds the catalog into the entry shell as a runtime dependency.
           manualChunks(id: string) {
             if (id.includes("/src/plugins/index.ts") || id.includes("\\src\\plugins\\index.ts")) {
               return "plugin-shell";

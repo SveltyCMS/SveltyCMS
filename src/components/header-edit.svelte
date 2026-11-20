@@ -491,25 +491,22 @@
 </script>
 
 <header
-	class="border-(--admin-border-default) sticky top-0 z-20 flex w-full items-center justify-between border-b bg-white px-2 py-1 shadow-sm dark:bg-surface-700 h-14 {ui
-		.state.leftSidebar !== 'hidden'
-		? 'md:ps-7'
-		: ''}"
+	class="sticky top-0 z-20 flex w-full items-center justify-between bg-(--admin-bg-page) px-2 py-1 h-14"
 	class:border-b-0={showMore}
 >
-	<div class="flex items-center gap-2 flex-1 min-w-0">
+	<div class="flex items-center gap-1.5 flex-1 min-w-0">
 		{#if ui.state.leftSidebar === 'hidden'}
-			<Button
-				variant="outline"
+			<button
+				type="button"
 				onclick={() => ui.toggle('leftSidebar', isDesktop ? 'full' : 'collapsed')}
 				aria-label="Toggle sidebar"
-				class="p-0! min-w-0 shrink-0"
+				class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-surface-500/30 bg-surface-800/40 transition-colors hover:bg-surface-700/60"
 			>
-				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
-			</Button>
+				<iconify-icon icon="mingcute:menu-fill" width="20"></iconify-icon>
+			</button>
 		{/if}
 
-		<div class="shrink-0 flex items-center ms-2">
+		<div class="shrink-0 flex items-center">
 			<iconify-icon
 				icon={currentCollection?.icon ?? 'mdi:file-document'}
 				width="24"
@@ -518,7 +515,7 @@
 		</div>
 
 		{#if currentCollection?.name && currentMode !== 'view'}
-			<div class="ms-2 flex-1 min-w-0">
+			<div class="flex-1 min-w-0">
 				<div class="text-xs uppercase opacity-70 dark:opacity-100 dark:text-white leading-none">
 					{currentMode}
 				</div>
@@ -530,14 +527,14 @@
 	</div>
 
 	{#if ['edit', 'create'].includes(currentMode)}
-		<div class="pointer-events-none absolute inset-x-0 flex items-center justify-center">
+		<div class="pointer-events-none absolute inset-x-0 hidden items-center justify-center sm:flex">
 			<span class="whitespace-nowrap text-xs text-error-500 font-medium">
 				{form_required()}
 			</span>
 		</div>
 	{/if}
 
-	<div class="flex items-center gap-2 shrink-0">
+	<div class="flex items-center gap-1.5 shrink-0">
 		{#if !isDesktop}
 			{#if showMore}
 				<TranslationStatus />
@@ -569,26 +566,26 @@
 							<iconify-icon icon="carbon:next-filled" width="24"></iconify-icon>
 						</Button>
 					{:else}
-						<Button
-							variant="tertiary"
+						<button
+							type="button"
 							onclick={save}
 							disabled={!isFormValid || !canWrite}
 							aria-label="Save"
-							class="p-0! min-w-0"
+							class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-surface-500/30 bg-surface-800/40 text-tertiary-500 transition-colors hover:bg-surface-700/60 disabled:opacity-40 dark:text-primary-500"
 						>
-							<iconify-icon icon="material-symbols:save" width="24"></iconify-icon>
-						</Button>
+							<iconify-icon icon="material-symbols:save" width="20"></iconify-icon>
+						</button>
 					{/if}
 				{/if}
 
-				<Button
-					variant="outline"
+				<button
+					type="button"
 					onclick={() => (showMore = true)}
 					aria-label="Show more"
-					class="p-0! min-w-0"
+					class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-surface-500/30 bg-surface-800/40 transition-colors hover:bg-surface-700/60"
 				>
-					<iconify-icon icon="material-symbols:filter-list-rounded" width="30"></iconify-icon>
-				</Button>
+					<iconify-icon icon="material-symbols:filter-list-rounded" width="22"></iconify-icon>
+				</button>
 			{/if}
 		{:else}
 			<!-- Desktop: Translation status visible by default -->
@@ -596,9 +593,14 @@
 		{/if}
 
 		{#if !ui.wizard.headerActionButton}
-			<Button variant="outline" onclick={cancel} aria-label="Cancel" class="p-0! min-w-0">
-				<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
-			</Button>
+			<button
+				type="button"
+				onclick={cancel}
+				aria-label="Cancel"
+				class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-surface-500/30 bg-surface-800/40 transition-colors hover:bg-surface-700/60"
+			>
+				<iconify-icon icon="material-symbols:close" width="20"></iconify-icon>
+			</button>
 		{/if}
 	</div>
 </header>

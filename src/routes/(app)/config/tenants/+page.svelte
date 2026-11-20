@@ -25,6 +25,7 @@
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
+	import StickyActions from '@components/ui/sticky-actions.svelte';
 	import Modal from '@components/ui/modal.svelte';
 	import Tooltip from '@components/ui/tooltip.svelte';
 	import HelpIcon from '@components/ui/help-icon.svelte';
@@ -226,129 +227,228 @@
 <AdminPageShell
 	title="Tenants"
 	icon="mdi:office-building"
-	description="Manage organizations and resource quotas."
 	showBackButton={true}
 	backUrl="/config"
+	fullHeight={true}
+	flushContent={true}
+	titleCompact={true}
 >
-	{#snippet actions()}
-		<Button variant="primary" leadingIcon="mdi:plus" onclick={openCreateModal}>
-			Create Tenant
-		</Button>
-	{/snippet}
-
-	<AdminCard class="overflow-hidden p-0">
-		<div class="{SMART_TABLE_SCROLL} w-full">
-			<table class={SMART_TABLE}>
-				<thead class={SMART_TABLE_THEAD}>
-					<tr class="text-xs uppercase tracking-wider">
-						<th class="{SMART_TABLE_TH} text-start! px-4!">Name</th>
-						<th class="{SMART_TABLE_TH} text-start! px-4!">Status</th>
-						<th class="{SMART_TABLE_TH} text-start! px-4!">Users</th>
-						<th class="{SMART_TABLE_TH} text-start! px-4!">Storage</th>
-						<th class="{SMART_TABLE_TH} text-start! px-4!">Collections</th>
-						<th class="{SMART_TABLE_TH} text-start! px-4!">Plan</th>
-						<th class="{SMART_TABLE_TH} text-start! px-4!">Created</th>
-						<th class="{SMART_TABLE_TH} text-end! px-4!">Actions</th>
-					</tr>
-				</thead>
-				<tbody>
+	<div class="flex min-h-0 flex-1 flex-col -mt-1 sm:mt-0">
+		<div class="min-h-0 flex-1 overflow-y-auto pb-4 pe-0.5">
+			<AdminCard class="overflow-hidden p-0">
+				<!-- Mobile card list -->
+				<div class="md:hidden divide-y divide-surface-200 dark:divide-surface-700/60">
 					{#each tenants as tenant (tenant._id)}
 						{@const id = String(tenant._id)}
-						<tr
-							class="border-t border-surface-100 text-surface-600 dark:border-surface-500/40 dark:text-surface-400 {SMART_TABLE_ROW_HOVER}"
-						>
-							<td class="{SMART_TABLE_TD} text-start! px-4! font-medium">{tenant.name}</td>
-							<td class="{SMART_TABLE_TD} text-start! px-4!">
+						<div class="p-3.5 space-y-2.5">
+							<div class="flex items-start justify-between gap-2">
+								<div class="min-w-0">
+									<div class="font-semibold text-sm truncate">{tenant.name}</div>
+									<div class="mt-0.5 flex items-center gap-2 text-xs text-(--admin-text-muted)">
+										<span class="font-bold uppercase">{tenant.plan}</span>
+										<span>•</span>
+										<span>{formatDate(tenant.createdAt, page.data.systemLanguage)}</span>
+									</div>
+								</div>
 								{#if tenant.status === 'active'}
-									<Badge variant="primary">Active</Badge>
+									<Badge variant="primary" size="sm">Active</Badge>
 								{:else if tenant.status === 'suspended'}
-									<Badge variant="error">Suspended</Badge>
+									<Badge variant="error" size="sm">Suspended</Badge>
 								{:else}
-									<Badge variant="surface">{tenant.status}</Badge>
+									<Badge variant="surface" size="sm">{tenant.status}</Badge>
 								{/if}
-							</td>
-							<td class="{SMART_TABLE_TD} text-start! px-4!">
-								<div class="flex flex-col text-xs">
-									<span>{tenant.usage.usersCount} / {tenant.quota.maxUsers}</span>
-									<progress
-										class="progress mt-1 h-1 w-16"
-										value={tenant.usage.usersCount}
-										max={tenant.quota.maxUsers}
-									></progress>
+							</div>
+
+							<div class="grid grid-cols-3 gap-2 text-xs">
+								<div class="rounded bg-surface-500/10 p-2">
+									<div class="text-[11px] text-(--admin-text-muted)">Users</div>
+									<div class="font-medium">
+										{tenant.usage.usersCount} / {tenant.quota.maxUsers}
+									</div>
 								</div>
-							</td>
-							<td class="{SMART_TABLE_TD} text-start! px-4!">
-								<div class="flex flex-col text-xs">
-									<span
-										>{formatBytes(tenant.usage.storageBytes)} / {formatBytes(
-											tenant.quota.maxStorageBytes
-										)}</span
-									>
-									<progress
-										class="progress mt-1 h-1 w-16"
-										value={tenant.usage.storageBytes}
-										max={tenant.quota.maxStorageBytes}
-									></progress>
+								<div class="rounded bg-surface-500/10 p-2">
+									<div class="text-[11px] text-(--admin-text-muted)">Storage</div>
+									<div class="font-medium truncate">
+										{formatBytes(tenant.usage.storageBytes)}
+									</div>
 								</div>
-							</td>
-							<td class="{SMART_TABLE_TD} text-start! px-4!"
-								>{tenant.usage.collectionsCount} / {tenant.quota.maxCollections}</td
-							>
-							<td class="{SMART_TABLE_TD} text-start! px-4! text-xs font-bold uppercase opacity-70"
-								>{tenant.plan}</td
-							>
-							<td class="{SMART_TABLE_TD} text-start! px-4!">
-								{formatDate(tenant.createdAt, page.data.systemLanguage)}
-							</td>
-							<td class="{SMART_TABLE_TD} text-end! px-4!">
-								<div class="flex items-center justify-end gap-2">
-									<Button
-										variant="ghost"
-										size="sm"
-										leadingIcon="mdi:pencil"
-										title="Edit Tenant & Quotas"
-										onclick={() => openEditModal(tenant)}
-									>
-										Edit
-									</Button>
-									<Button
-										variant={tenant.status === 'active' ? 'outline' : 'primary'}
-										size="sm"
-										loading={actionLoading[id]}
-										onclick={() => handleToggleStatus(tenant)}
-									>
-										{tenant.status === 'active' ? 'Suspend' : 'Activate'}
-									</Button>
-									<Button
-										variant="ghost"
-										size="sm"
-										leadingIcon="mdi:delete-outline"
-										title={page.data.tenantId && String(page.data.tenantId) === id
-											? 'Cannot delete the active tenant workspace'
-											: `Delete tenant ${tenant.name}`}
-										aria-label={`Delete tenant ${tenant.name}`}
-										data-testid={`delete-tenant-${id}`}
-										class="text-error-500 hover:bg-error-500/10"
-										disabled={Boolean(page.data.tenantId && String(page.data.tenantId) === id) ||
-											actionLoading[id]}
-										onclick={() => openDeleteModal(tenant)}
-									>
-										{button_delete()}
-									</Button>
+								<div class="rounded bg-surface-500/10 p-2">
+									<div class="text-[11px] text-(--admin-text-muted)">Collections</div>
+									<div class="font-medium">
+										{tenant.usage.collectionsCount} / {tenant.quota.maxCollections}
+									</div>
 								</div>
-							</td>
-						</tr>
+							</div>
+
+							<div class="flex items-center justify-end gap-1.5 pt-1">
+								<Button
+									variant="ghost"
+									size="sm"
+									leadingIcon="mdi:pencil"
+									onclick={() => openEditModal(tenant)}
+								>
+									Edit
+								</Button>
+								<Button
+									variant={tenant.status === 'active' ? 'outline' : 'primary'}
+									size="sm"
+									loading={actionLoading[id]}
+									onclick={() => handleToggleStatus(tenant)}
+								>
+									{tenant.status === 'active' ? 'Suspend' : 'Activate'}
+								</Button>
+								<Button
+									variant="ghost"
+									size="sm"
+									leadingIcon="mdi:delete-outline"
+									aria-label={`Delete tenant ${tenant.name}`}
+									data-testid={`delete-tenant-mobile-${id}`}
+									class="text-error-500 hover:bg-error-500/10"
+									disabled={Boolean(page.data.tenantId && String(page.data.tenantId) === id) ||
+										actionLoading[id]}
+									onclick={() => openDeleteModal(tenant)}
+								>
+									{button_delete()}
+								</Button>
+							</div>
+						</div>
 					{/each}
 					{#if tenants.length === 0}
-						<tr>
-							<td colspan="8" class="{SMART_TABLE_TD} py-10! text-surface-500">No tenants found.</td
-							>
-						</tr>
+						<div class="py-10 text-center text-sm text-surface-500">No tenants found.</div>
 					{/if}
-				</tbody>
-			</table>
+				</div>
+
+				<!-- Desktop table -->
+				<div class="{SMART_TABLE_SCROLL} hidden md:block w-full">
+					<table class={SMART_TABLE}>
+						<thead class={SMART_TABLE_THEAD}>
+							<tr class="text-xs uppercase tracking-wider">
+								<th class="{SMART_TABLE_TH} text-start! px-4!">Name</th>
+								<th class="{SMART_TABLE_TH} text-start! px-4!">Status</th>
+								<th class="{SMART_TABLE_TH} text-start! px-4!">Users</th>
+								<th class="{SMART_TABLE_TH} text-start! px-4!">Storage</th>
+								<th class="{SMART_TABLE_TH} text-start! px-4!">Collections</th>
+								<th class="{SMART_TABLE_TH} text-start! px-4!">Plan</th>
+								<th class="{SMART_TABLE_TH} text-start! px-4!">Created</th>
+								<th class="{SMART_TABLE_TH} text-end! px-4!">Actions</th>
+							</tr>
+						</thead>
+						<tbody>
+							{#each tenants as tenant (tenant._id)}
+								{@const id = String(tenant._id)}
+								<tr
+									class="border-t border-surface-100 text-surface-600 dark:border-surface-500/40 dark:text-surface-400 {SMART_TABLE_ROW_HOVER}"
+								>
+									<td class="{SMART_TABLE_TD} text-start! px-4! font-medium">{tenant.name}</td>
+									<td class="{SMART_TABLE_TD} text-start! px-4!">
+										{#if tenant.status === 'active'}
+											<Badge variant="primary">Active</Badge>
+										{:else if tenant.status === 'suspended'}
+											<Badge variant="error">Suspended</Badge>
+										{:else}
+											<Badge variant="surface">{tenant.status}</Badge>
+										{/if}
+									</td>
+									<td class="{SMART_TABLE_TD} text-start! px-4!">
+										<div class="flex flex-col text-xs">
+											<span>{tenant.usage.usersCount} / {tenant.quota.maxUsers}</span>
+											<progress
+												class="progress mt-1 h-1 w-16"
+												value={tenant.usage.usersCount}
+												max={tenant.quota.maxUsers}
+											></progress>
+										</div>
+									</td>
+									<td class="{SMART_TABLE_TD} text-start! px-4!">
+										<div class="flex flex-col text-xs">
+											<span
+												>{formatBytes(tenant.usage.storageBytes)} / {formatBytes(
+													tenant.quota.maxStorageBytes
+												)}</span
+											>
+											<progress
+												class="progress mt-1 h-1 w-16"
+												value={tenant.usage.storageBytes}
+												max={tenant.quota.maxStorageBytes}
+											></progress>
+										</div>
+									</td>
+									<td class="{SMART_TABLE_TD} text-start! px-4!"
+										>{tenant.usage.collectionsCount} / {tenant.quota.maxCollections}</td
+									>
+									<td
+										class="{SMART_TABLE_TD} text-start! px-4! text-xs font-bold uppercase opacity-70"
+										>{tenant.plan}</td
+									>
+									<td class="{SMART_TABLE_TD} text-start! px-4!">
+										{formatDate(tenant.createdAt, page.data.systemLanguage)}
+									</td>
+									<td class="{SMART_TABLE_TD} text-end! px-4!">
+										<div class="flex items-center justify-end gap-2">
+											<Button
+												variant="ghost"
+												size="sm"
+												leadingIcon="mdi:pencil"
+												title="Edit Tenant & Quotas"
+												onclick={() => openEditModal(tenant)}
+											>
+												Edit
+											</Button>
+											<Button
+												variant={tenant.status === 'active' ? 'outline' : 'primary'}
+												size="sm"
+												loading={actionLoading[id]}
+												onclick={() => handleToggleStatus(tenant)}
+											>
+												{tenant.status === 'active' ? 'Suspend' : 'Activate'}
+											</Button>
+											<Button
+												variant="ghost"
+												size="sm"
+												leadingIcon="mdi:delete-outline"
+												title={page.data.tenantId && String(page.data.tenantId) === id
+													? 'Cannot delete the active tenant workspace'
+													: `Delete tenant ${tenant.name}`}
+												aria-label={`Delete tenant ${tenant.name}`}
+												data-testid={`delete-tenant-${id}`}
+												class="text-error-500 hover:bg-error-500/10"
+												disabled={Boolean(
+													page.data.tenantId && String(page.data.tenantId) === id
+												) || actionLoading[id]}
+												onclick={() => openDeleteModal(tenant)}
+											>
+												{button_delete()}
+											</Button>
+										</div>
+									</td>
+								</tr>
+							{/each}
+							{#if tenants.length === 0}
+								<tr>
+									<td colspan="8" class="{SMART_TABLE_TD} py-10! text-surface-500"
+										>No tenants found.</td
+									>
+								</tr>
+							{/if}
+						</tbody>
+					</table>
+				</div>
+			</AdminCard>
 		</div>
-	</AdminCard>
+	</div>
+
+	<StickyActions>
+		<div class="flex w-full items-center justify-center sm:justify-end">
+			<Button
+				variant="primary"
+				leadingIcon="mdi:plus"
+				onclick={openCreateModal}
+				class="h-9 w-full sm:h-10 sm:w-auto sm:px-4"
+			>
+				Create Tenant
+			</Button>
+		</div>
+	</StickyActions>
 </AdminPageShell>
 
 <!-- Create / Edit Tenant Modal -->

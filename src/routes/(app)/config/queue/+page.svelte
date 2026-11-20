@@ -24,6 +24,7 @@
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import AdminCard from '@components/admin-card.svelte';
 	import Modal from '@components/ui/modal.svelte';
+	import StickyActions from '@components/ui/sticky-actions.svelte';
 	import SmartTableShell from '@components/ui/smart-table/smart-table-shell.svelte';
 	import {
 		SMART_TABLE,
@@ -289,31 +290,24 @@
 <AdminPageShell
 	title={queue_title()}
 	icon="mdi:tray-full"
-	description="Monitor and manage background job processing"
 	showBackButton={true}
 	backUrl="/config"
 	fullHeight
+	flushContent={true}
+	titleCompact={true}
 >
-	{#snippet actions()}
-		<Button
-			variant="ghost"
-			onclick={() => refreshAll()}
-			leadingIcon="mdi:refresh"
-			data-testid="queue-refresh"
-			aria-label={queue_refresh_aria()}
-		>
-			{button_refresh()}
-		</Button>
-	{/snippet}
-
-	<div data-testid="queue-page" class="contents">
-		<!-- First-run orientation: what the queue is, why periodic rows exist, what a row means. -->
+	<div
+		data-testid="queue-page"
+		class="-mt-1 sm:mt-0 min-h-0 flex-1 overflow-y-auto space-y-2 sm:space-y-4 pb-4 pe-1.5 sm:pe-0.5"
+	>
+		<!-- First-run orientation: collapsed by default so mobile keeps stats & jobs visible. -->
 		<details
-			class="mb-4 shrink-0 rounded border border-tertiary-500/30 bg-tertiary-500/10 p-4 dark:border-primary-500/30 dark:bg-primary-500/10"
-			open
+			class="shrink-0 rounded border border-tertiary-500/30 bg-tertiary-500/10 p-2.5 sm:p-4 dark:border-primary-500/30 dark:bg-primary-500/10"
 			data-testid="queue-how-it-works"
 		>
-			<summary class="cursor-pointer text-sm font-semibold text-surface-900 dark:text-surface-100">
+			<summary
+				class="cursor-pointer text-xs sm:text-sm font-semibold text-surface-900 dark:text-surface-100"
+			>
 				{queue_how_it_works_title()}
 			</summary>
 			<div class="mt-3 space-y-2 text-xs text-surface-600 dark:text-surface-400">
@@ -343,11 +337,11 @@
 		</details>
 
 		<div
-			class="grid shrink-0 grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5"
+			class="grid shrink-0 grid-cols-6 gap-1.5 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5"
 			in:adminFade={{ delay: 100 }}
 			data-testid="queue-stats"
 		>
-			<div class="relative block no-underline text-inherit w-full">
+			<div class="relative block no-underline text-inherit w-full col-span-3 sm:col-span-1">
 				<a
 					aria-label={queue_view_all_aria()}
 					href={getFilterUrl()}
@@ -356,29 +350,34 @@
 					data-preload="hover"
 				>
 					<AdminCard
-						class="p-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-tertiary-500 dark:hover:border-primary-500 transition-colors h-full"
+						class="p-2.5 sm:p-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-tertiary-500 dark:hover:border-primary-500 transition-colors h-full"
 					>
-						<div class="flex items-center gap-3">
-							<div class="p-2 rounded bg-surface-200 dark:bg-surface-700">
-								<iconify-icon icon="mdi:format-list-bulleted" class="text-2xl"></iconify-icon>
+						<div class="flex items-center gap-2 sm:gap-3">
+							<div class="p-1.5 sm:p-2 rounded bg-surface-200 dark:bg-surface-700 shrink-0">
+								<iconify-icon icon="mdi:format-list-bulleted" class="text-lg sm:text-2xl"
+								></iconify-icon>
 							</div>
-							<div>
-								<p class="text-xs opacity-60 uppercase font-bold tracking-wider">{queue_total()}</p>
-								<p class="text-2xl font-bold" data-testid="queue-stat-total-value">
+							<div class="min-w-0">
+								<p
+									class="pe-5 text-[10px] sm:text-xs opacity-60 uppercase font-bold tracking-wider truncate"
+								>
+									{queue_total()}
+								</p>
+								<p class="text-lg sm:text-2xl font-bold" data-testid="queue-stat-total-value">
 									{data.stats.total}
 								</p>
 							</div>
 						</div>
 					</AdminCard>
 				</a>
-				<div class="absolute top-2.5 inset-e-2.5 z-10">
+				<div class="absolute top-2 inset-e-2 z-10">
 					<Tooltip title="Total number of jobs registered in the queue across all statuses">
 						<HelpIcon ariaLabel="Total jobs information" />
 					</Tooltip>
 				</div>
 			</div>
 
-			<div class="relative block no-underline text-inherit w-full">
+			<div class="relative block no-underline text-inherit w-full col-span-3 sm:col-span-1">
 				<a
 					aria-label={queue_view_pending_aria()}
 					href={getFilterUrl('pending')}
@@ -387,22 +386,26 @@
 					data-preload="hover"
 				>
 					<AdminCard
-						class="p-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-surface-500 transition-colors h-full"
+						class="p-2.5 sm:p-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-surface-500 transition-colors h-full"
 					>
-						<div class="flex items-center gap-3">
-							<div class="p-2 rounded bg-surface-500/10 text-surface-600 dark:text-surface-400">
-								<iconify-icon icon="mdi:clock-outline" class="text-2xl"></iconify-icon>
+						<div class="flex items-center gap-2 sm:gap-3">
+							<div
+								class="p-1.5 sm:p-2 rounded bg-surface-500/10 text-surface-600 dark:text-surface-400 shrink-0"
+							>
+								<iconify-icon icon="mdi:clock-outline" class="text-lg sm:text-2xl"></iconify-icon>
 							</div>
-							<div>
-								<p class="text-xs opacity-60 uppercase font-bold tracking-wider">
+							<div class="min-w-0">
+								<p
+									class="pe-5 text-[10px] sm:text-xs opacity-60 uppercase font-bold tracking-wider truncate"
+								>
 									{queue_pending()}
 								</p>
-								<p class="text-2xl font-bold">{data.stats.pending}</p>
+								<p class="text-lg sm:text-2xl font-bold">{data.stats.pending}</p>
 							</div>
 						</div>
 					</AdminCard>
 				</a>
-				<div class="absolute top-2.5 inset-e-2.5 z-10">
+				<div class="absolute top-2 inset-e-2 z-10">
 					<Tooltip
 						title="Jobs waiting for their scheduled time or awaiting an available background worker"
 					>
@@ -411,7 +414,7 @@
 				</div>
 			</div>
 
-			<div class="relative block no-underline text-inherit w-full">
+			<div class="relative block no-underline text-inherit w-full col-span-2 sm:col-span-1">
 				<a
 					aria-label={queue_view_running_aria()}
 					href={getFilterUrl('running')}
@@ -420,22 +423,26 @@
 					data-preload="hover"
 				>
 					<AdminCard
-						class="p-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-tertiary-500 dark:hover:border-primary-500 transition-colors h-full"
+						class="p-2 sm:p-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-tertiary-500 dark:hover:border-primary-500 transition-colors h-full"
 					>
-						<div class="flex items-center gap-3">
-							<div class="p-2 rounded bg-primary-500/10 text-primary-500 dark:text-primary-400">
-								<iconify-icon icon="mdi:loading" class="text-2xl"></iconify-icon>
+						<div class="flex items-center gap-2 sm:gap-3">
+							<div
+								class="hidden sm:block p-1.5 sm:p-2 rounded bg-primary-500/10 text-primary-500 dark:text-primary-400 shrink-0"
+							>
+								<iconify-icon icon="mdi:loading" class="text-lg sm:text-2xl"></iconify-icon>
 							</div>
-							<div>
-								<p class="text-xs opacity-60 uppercase font-bold tracking-wider">
+							<div class="min-w-0">
+								<p
+									class="pe-4 text-[9px] sm:text-xs opacity-60 uppercase font-bold tracking-wider truncate"
+								>
 									{queue_running()}
 								</p>
-								<p class="text-2xl font-bold">{data.stats.running}</p>
+								<p class="text-base sm:text-2xl font-bold">{data.stats.running}</p>
 							</div>
 						</div>
 					</AdminCard>
 				</a>
-				<div class="absolute top-2.5 inset-e-2.5 z-10">
+				<div class="absolute top-1.5 inset-e-1.5 sm:top-2 sm:inset-e-2 z-10">
 					<Tooltip
 						title="Jobs currently being claimed and executed by a background worker right now"
 					>
@@ -444,7 +451,7 @@
 				</div>
 			</div>
 
-			<div class="relative block no-underline text-inherit w-full">
+			<div class="relative block no-underline text-inherit w-full col-span-2 sm:col-span-1">
 				<a
 					aria-label={queue_view_completed_aria()}
 					href={getFilterUrl('completed')}
@@ -453,29 +460,34 @@
 					data-preload="hover"
 				>
 					<AdminCard
-						class="p-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-success-500 transition-colors h-full"
+						class="p-2 sm:p-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-success-500 transition-colors h-full"
 					>
-						<div class="flex items-center gap-3">
-							<div class="p-2 rounded bg-success-500/10 text-success-500 dark:text-success-400">
-								<iconify-icon icon="mdi:check-circle-outline" class="text-2xl"></iconify-icon>
+						<div class="flex items-center gap-2 sm:gap-3">
+							<div
+								class="hidden sm:block p-1.5 sm:p-2 rounded bg-success-500/10 text-success-500 dark:text-success-400 shrink-0"
+							>
+								<iconify-icon icon="mdi:check-circle-outline" class="text-lg sm:text-2xl"
+								></iconify-icon>
 							</div>
-							<div>
-								<p class="text-xs opacity-60 uppercase font-bold tracking-wider">
+							<div class="min-w-0">
+								<p
+									class="pe-4 text-[9px] sm:text-xs opacity-60 uppercase font-bold tracking-wider truncate"
+								>
 									{queue_completed()}
 								</p>
-								<p class="text-2xl font-bold">{data.stats.completed}</p>
+								<p class="text-base sm:text-2xl font-bold">{data.stats.completed}</p>
 							</div>
 						</div>
 					</AdminCard>
 				</a>
-				<div class="absolute top-2.5 inset-e-2.5 z-10">
+				<div class="absolute top-1.5 inset-e-1.5 sm:top-2 sm:inset-e-2 z-10">
 					<Tooltip title="Jobs that have finished successfully (auto-pruned after 7 days)">
 						<HelpIcon ariaLabel="Completed jobs information" />
 					</Tooltip>
 				</div>
 			</div>
 
-			<div class="relative block no-underline text-inherit w-full">
+			<div class="relative block no-underline text-inherit w-full col-span-2 sm:col-span-1">
 				<a
 					aria-label={queue_view_failed_aria()}
 					href={getFilterUrl('failed')}
@@ -484,22 +496,27 @@
 					data-preload="hover"
 				>
 					<AdminCard
-						class="p-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-error-500 transition-colors h-full"
+						class="p-2 sm:p-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-error-500 transition-colors h-full"
 					>
-						<div class="flex items-center gap-3">
-							<div class="p-2 rounded bg-error-500/10 text-error-500 dark:text-error-400">
-								<iconify-icon icon="mdi:alert-circle-outline" class="text-2xl"></iconify-icon>
+						<div class="flex items-center gap-2 sm:gap-3">
+							<div
+								class="hidden sm:block p-1.5 sm:p-2 rounded bg-error-500/10 text-error-500 dark:text-error-400 shrink-0"
+							>
+								<iconify-icon icon="mdi:alert-circle-outline" class="text-lg sm:text-2xl"
+								></iconify-icon>
 							</div>
-							<div>
-								<p class="text-xs opacity-60 uppercase font-bold tracking-wider">
+							<div class="min-w-0">
+								<p
+									class="pe-4 text-[9px] sm:text-xs opacity-60 uppercase font-bold tracking-wider truncate"
+								>
 									{queue_failed()}
 								</p>
-								<p class="text-2xl font-bold">{data.stats.failed}</p>
+								<p class="text-base sm:text-2xl font-bold">{data.stats.failed}</p>
 							</div>
 						</div>
 					</AdminCard>
 				</a>
-				<div class="absolute top-2.5 inset-e-2.5 z-10">
+				<div class="absolute top-1.5 inset-e-1.5 sm:top-2 sm:inset-e-2 z-10">
 					<Tooltip
 						title="Jobs that exhausted their retries and crashed with an error (click row to inspect error)"
 					>
@@ -509,9 +526,9 @@
 			</div>
 		</div>
 
-		<div class="mt-4 flex shrink-0 flex-wrap items-center justify-between gap-4">
+		<div class="mt-2 sm:mt-4 flex shrink-0 flex-wrap items-center justify-between gap-2 sm:gap-4">
 			<div class="flex items-center gap-2">
-				<h2 class="text-lg font-bold">{queue_recent()}</h2>
+				<h2 class="text-base sm:text-lg font-bold">{queue_recent()}</h2>
 				{#if page.url.searchParams.has('status')}
 					<Badge variant="primary" size="sm" class="uppercase" data-testid="queue-filter-badge">
 						{queue_filter()}
@@ -523,7 +540,7 @@
 				{/if}
 			</div>
 
-			<div class="flex items-center gap-2">
+			<div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
 				<Button
 					variant={page.url.searchParams.get('hideRoutine') === 'true' ? 'secondary' : 'ghost'}
 					size="sm"
@@ -532,10 +549,18 @@
 						? 'mdi:eye-off-outline'
 						: 'mdi:eye-outline'}
 					data-testid="queue-toggle-routine"
+					class="px-2 sm:px-3 text-xs whitespace-nowrap"
 				>
-					{page.url.searchParams.get('hideRoutine') === 'true'
-						? 'Showing User & Error Jobs'
-						: 'Hide Empty Heartbeats'}
+					<span class="sm:hidden"
+						>{page.url.searchParams.get('hideRoutine') === 'true'
+							? 'User/Errors'
+							: 'Heartbeats'}</span
+					>
+					<span class="hidden sm:inline"
+						>{page.url.searchParams.get('hideRoutine') === 'true'
+							? 'Showing User & Error Jobs'
+							: 'Hide Empty Heartbeats'}</span
+					>
 				</Button>
 
 				<Button
@@ -545,9 +570,10 @@
 					size="sm"
 					leadingIcon="mdi:refresh"
 					data-testid="queue-retry-failed"
+					class="px-2 sm:px-3 text-xs whitespace-nowrap"
 				>
-					{button_retry()}
-					{queue_failed()}
+					<span class="sm:hidden">{button_retry()}</span>
+					<span class="hidden sm:inline">{button_retry()} {queue_failed()}</span>
 				</Button>
 
 				<Button
@@ -557,8 +583,10 @@
 					size="sm"
 					leadingIcon="mdi:broom"
 					data-testid="queue-clear-completed"
+					class="px-2 sm:px-3 text-xs whitespace-nowrap"
 				>
-					{queue_clear_completed()}
+					<span class="sm:hidden">Clear</span>
+					<span class="hidden sm:inline">{queue_clear_completed()}</span>
 				</Button>
 			</div>
 		</div>
@@ -815,4 +843,19 @@
 			</div>
 		{/snippet}
 	</Modal>
+
+	<StickyActions>
+		<div class="flex w-full items-center justify-center sm:justify-end">
+			<Button
+				variant="surface"
+				onclick={() => refreshAll()}
+				leadingIcon="mdi:refresh"
+				data-testid="queue-refresh"
+				aria-label={queue_refresh_aria()}
+				class="w-full sm:w-auto h-9 sm:h-10 justify-center"
+			>
+				{button_refresh()}
+			</Button>
+		</div>
+	</StickyActions>
 </AdminPageShell>

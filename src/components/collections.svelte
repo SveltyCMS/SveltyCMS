@@ -845,12 +845,12 @@ Provides an organized interface for navigating hierarchical content structures.
 	</div>
 
 	{#if !isFullSidebar}
-		<div class="flex flex-col items-center gap-2">
+		<div class="flex w-full flex-col items-stretch gap-2">
 			<SystemTooltip title={collections_go_builder()} positioning={{ placement: 'right' }}>
 				<a
 					href="/config/collectionbuilder"
 					aria-label={collections_go_builder()}
-					class="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-600/10 dark:bg-primary-500/20 text-primary-600 dark:text-primary-400 hover:bg-primary-500 hover:text-white transition-colors"
+					class="flex h-9 w-full items-center justify-center rounded bg-primary-600/10 dark:bg-primary-500/20 text-primary-600 dark:text-primary-400 hover:bg-primary-500 hover:text-white transition-colors"
 				>
 					<iconify-icon icon="ic:round-add" width="18"></iconify-icon>
 				</a>

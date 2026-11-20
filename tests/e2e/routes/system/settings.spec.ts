@@ -266,7 +266,7 @@ test.describe("System Settings shell", () => {
   });
 
   test("multi-tenancy migration card check structure", async ({ page }) => {
-    await goSettings(page, "cache");
+    await goSettings(page, "scaling");
     const card = page.getByTestId("system-settings-mt-migration");
     await expect(card).toBeVisible({ timeout: ACTION_TIMEOUT });
     await expect(page.getByTestId("system-settings-check-structure")).toBeVisible();

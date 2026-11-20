@@ -20,9 +20,9 @@
 <script lang="ts">
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import AdminCard from '@components/admin-card.svelte';
+	import StickyActions from '@components/ui/sticky-actions.svelte';
 	import Tabs from '@components/ui/tabs';
 	import {
-		access_intro,
 		access_permissions_role_all,
 		access_reset,
 		access_reset_changes_aria,
@@ -166,25 +166,160 @@
 <AdminPageShell
 	title={access_title()}
 	icon="mdi:shield-account-outline"
-	description={access_intro()}
 	showBackButton={true}
 	backUrl="/config"
+	fullHeight={true}
+	flushContent={true}
+	titleCompact={true}
 >
-	{#snippet actions()}
-		<!-- Rendered in the PageTitle header (top-right). Deliberately NOT wrapped in
-		     StickyActions: with the theme sticky action bar enabled the layout moves
-		     these into the bottom-right bar, where the fixed toast region (z-9999) can
-		     overlay them and swallow the click (the golden-journey spec also scraps the
-		     sticky save in favour of a direct API POST for this reason). The header row
-		     is never covered. -->
-		<div data-testid="access-mgmt-actions" class="flex flex-wrap items-center gap-2">
+	<Tabs
+		value={currentTab}
+		onValueChange={(e) => (currentTab = e.value)}
+		class="flex min-h-0 flex-1 flex-col"
+	>
+		<!-- Tabs outside AdminCard, directly under PageTitle -->
+		<div
+			data-testid="access-mgmt-tabs"
+			class="-mt-3 sm:-mt-1 shrink-0 border-b border-(--admin-border-default) px-2"
+		>
+			<Tabs.List class="overflow-x-auto">
+				<Tabs.Trigger
+					value="0"
+					data-testid="access-tab-permissions"
+					aria-current={currentTab === '0' ? 'page' : undefined}
+				>
+					<iconify-icon icon="mdi:shield-lock-outline" width="18" height="18" aria-hidden="true"
+					></iconify-icon>
+					{system_permission()}
+				</Tabs.Trigger>
+				<Tabs.Trigger
+					value="1"
+					data-testid="access-tab-roles"
+					aria-current={currentTab === '1' ? 'page' : undefined}
+				>
+					<iconify-icon icon="mdi:account-group" width="18" height="18" aria-hidden="true"
+					></iconify-icon>
+					{system_roles()}
+				</Tabs.Trigger>
+				<Tabs.Trigger
+					value="2"
+					data-testid="access-tab-admin"
+					aria-current={currentTab === '2' ? 'page' : undefined}
+				>
+					<iconify-icon icon="mdi:account-cog" width="18" height="18" aria-hidden="true"
+					></iconify-icon>
+					{access_tab_admin()}
+				</Tabs.Trigger>
+				<Tabs.Trigger
+					value="3"
+					data-testid="access-tab-tokens"
+					aria-current={currentTab === '3' ? 'page' : undefined}
+				>
+					<iconify-icon icon="mdi:web" width="18" height="18" aria-hidden="true"></iconify-icon>
+					{access_tab_website_tokens()}
+				</Tabs.Trigger>
+				<Tabs.Trigger
+					value="4"
+					data-testid="access-tab-sso"
+					aria-current={currentTab === '4' ? 'page' : undefined}
+				>
+					<iconify-icon icon="mdi:shield-key-outline" width="18" height="18" aria-hidden="true"
+					></iconify-icon>
+					{access_tab_sso()}
+				</Tabs.Trigger>
+
+				<!-- Admin-role hint lives in the tab strip: as a centered row inside
+				     the permissions tab it duplicated the page title block and pushed
+				     the table down. -->
+				{#if currentTab === '0' && adminRole}
+					<span
+						class="ms-auto hidden shrink-0 self-center whitespace-nowrap px-2 text-xs text-(--admin-text-muted) lg:inline"
+						data-testid="access-permissions-admin-hint"
+					>
+						<span class="font-extrabold text-error-500" aria-hidden="true">*</span>
+						<span class="font-semibold text-tertiary-600 dark:text-primary-600"
+							>{adminRole.name}</span
+						>
+						{access_permissions_role_all()}
+					</span>
+				{/if}
+			</Tabs.List>
+		</div>
+
+		<!-- Scrollable content area -->
+		<div class="min-h-0 flex-1 overflow-y-auto pt-1.5 sm:pt-2 pb-4 pe-0.5">
+			<AdminCard
+				class="overflow-visible! border border-(--admin-border-default) bg-(--admin-bg-card) backdrop-blur-md shadow-xs"
+				data-testid="access-mgmt-page"
+			>
+				<Tabs.Content value="0">
+					<div class="p-0 sm:p-2">
+						{#if currentTab === '0'}
+							<Permissions roleData={rolesData} {setRoleData} {updateModifiedCount} />
+						{/if}
+					</div>
+				</Tabs.Content>
+				<Tabs.Content value="1">
+					<div class="p-1.5 sm:p-2">
+						{#if currentTab === '1'}
+							<Roles
+								roleData={rolesData}
+								{setRoleData}
+								{updateModifiedCount}
+								{draftEpoch}
+								permissions={page.data.permissions}
+							/>
+						{/if}
+					</div>
+				</Tabs.Content>
+				<Tabs.Content value="2">
+					<div class="p-1.5 sm:p-2">
+						{#if currentTab === '2'}
+							<AdminRole roleData={rolesData} {setRoleData} />
+						{/if}
+					</div>
+				</Tabs.Content>
+				<Tabs.Content value="3">
+					<div class="p-1.5 sm:p-2">
+						{#if currentTab === '3'}
+							<WebsiteTokens permissions={page.data.permissions} />
+						{/if}
+					</div>
+				</Tabs.Content>
+				<Tabs.Content value="4">
+					<div class="p-1.5 sm:p-2">
+						{#if currentTab === '4'}
+							<SsoProviders availableRoles={rolesData} />
+						{/if}
+					</div>
+				</Tabs.Content>
+			</AdminCard>
+		</div>
+	</Tabs>
+
+	<StickyActions>
+		<div
+			data-testid="access-mgmt-actions"
+			class="flex w-full items-center justify-center sm:justify-end gap-2"
+		>
+			<Button
+				variant="ghost"
+				onclick={resetChanges}
+				aria-label={access_reset_changes_aria()}
+				data-testid="access-mgmt-reset"
+				disabled={!hasModifiedChanges || globalLoadingStore.isLoading}
+				class="h-9 sm:h-10 font-semibold shadow-xs"
+			>
+				{access_reset()}
+			</Button>
+
 			<Button
 				variant="primary"
 				onclick={saveAllChanges}
 				aria-label={access_save_all_aria()}
 				data-testid="access-mgmt-save"
 				disabled={!hasModifiedChanges || globalLoadingStore.isLoading}
-				class="font-semibold shadow-xs"
+				class="h-9 sm:h-10 font-semibold shadow-xs"
 			>
 				{#if globalLoadingStore.isLoadingReason(loadingOperations.configSave)}
 					{access_saving()}
@@ -192,131 +327,6 @@
 					{access_save_count({ count: modifiedCount })}
 				{/if}
 			</Button>
-
-			<Button
-				variant="ghost"
-				onclick={resetChanges}
-				aria-label={access_reset_changes_aria()}
-				data-testid="access-mgmt-reset"
-				disabled={!hasModifiedChanges || globalLoadingStore.isLoading}
-				class="font-semibold shadow-xs"
-			>
-				{access_reset()}
-			</Button>
 		</div>
-	{/snippet}
-
-	<AdminCard
-		class="border border-(--admin-border-default) bg-(--admin-bg-card) backdrop-blur-md shadow-xs pt-4"
-		data-testid="access-mgmt-page"
-	>
-		<Tabs value={currentTab} onValueChange={(e) => (currentTab = e.value)} class="grow">
-			<div data-testid="access-mgmt-tabs">
-				<Tabs.List class="px-3 pt-2">
-					<Tabs.Trigger
-						value="0"
-						data-testid="access-tab-permissions"
-						aria-current={currentTab === '0' ? 'page' : undefined}
-					>
-						<iconify-icon icon="mdi:shield-lock-outline" width="18" height="18" aria-hidden="true"
-						></iconify-icon>
-						{system_permission()}
-					</Tabs.Trigger>
-					<Tabs.Trigger
-						value="1"
-						data-testid="access-tab-roles"
-						aria-current={currentTab === '1' ? 'page' : undefined}
-					>
-						<iconify-icon icon="mdi:account-group" width="18" height="18" aria-hidden="true"
-						></iconify-icon>
-						{system_roles()}
-					</Tabs.Trigger>
-					<Tabs.Trigger
-						value="2"
-						data-testid="access-tab-admin"
-						aria-current={currentTab === '2' ? 'page' : undefined}
-					>
-						<iconify-icon icon="mdi:account-cog" width="18" height="18" aria-hidden="true"
-						></iconify-icon>
-						{access_tab_admin()}
-					</Tabs.Trigger>
-					<Tabs.Trigger
-						value="3"
-						data-testid="access-tab-tokens"
-						aria-current={currentTab === '3' ? 'page' : undefined}
-					>
-						<iconify-icon icon="mdi:web" width="18" height="18" aria-hidden="true"></iconify-icon>
-						{access_tab_website_tokens()}
-					</Tabs.Trigger>
-					<Tabs.Trigger
-						value="4"
-						data-testid="access-tab-sso"
-						aria-current={currentTab === '4' ? 'page' : undefined}
-					>
-						<iconify-icon icon="mdi:shield-key-outline" width="18" height="18" aria-hidden="true"
-						></iconify-icon>
-						{access_tab_sso()}
-					</Tabs.Trigger>
-
-					<!-- Admin-role hint lives in the tab strip: as a centered row inside
-					     the permissions tab it duplicated the page title block and pushed
-					     the table down. -->
-					{#if currentTab === '0' && adminRole}
-						<span
-							class="ms-auto hidden shrink-0 self-center whitespace-nowrap px-2 text-xs text-(--admin-text-muted) lg:inline"
-							data-testid="access-permissions-admin-hint"
-						>
-							<span class="font-extrabold text-error-500" aria-hidden="true">*</span>
-							<span class="font-semibold text-tertiary-600 dark:text-primary-600"
-								>{adminRole.name}</span
-							>
-							{access_permissions_role_all()}
-						</span>
-					{/if}
-				</Tabs.List>
-			</div>
-
-			<Tabs.Content value="0">
-				<div class="p-2">
-					{#if currentTab === '0'}
-						<Permissions roleData={rolesData} {setRoleData} {updateModifiedCount} />
-					{/if}
-				</div>
-			</Tabs.Content>
-			<Tabs.Content value="1">
-				<div class="p-2">
-					{#if currentTab === '1'}
-						<Roles
-							roleData={rolesData}
-							{setRoleData}
-							{updateModifiedCount}
-							{draftEpoch}
-							permissions={page.data.permissions}
-						/>
-					{/if}
-				</div>
-			</Tabs.Content>
-			<Tabs.Content value="2">
-				<div class="p-2">
-					{#if currentTab === '2'}
-						<AdminRole roleData={rolesData} {setRoleData} />
-					{/if}
-				</div>
-			</Tabs.Content>
-			<Tabs.Content value="3">
-				<div class="p-2">
-					{#if currentTab === '3'}
-						<WebsiteTokens permissions={page.data.permissions} />
-					{/if}
-				</div>
-			</Tabs.Content>
-			<Tabs.Content value="4">
-				<div class="p-2">
-					{#if currentTab === '4'}
-						<SsoProviders availableRoles={rolesData} />
-					{/if}
-				</div>
-			</Tabs.Content>
-		</Tabs>
-	</AdminCard>
+	</StickyActions>
 </AdminPageShell>

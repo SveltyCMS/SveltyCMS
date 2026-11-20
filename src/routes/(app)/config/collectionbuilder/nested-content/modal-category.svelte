@@ -45,19 +45,14 @@ Features:
 	import type { ContentNode } from '@root/src/databases/db-interface';
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
+	import Modal from '@components/ui/modal.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import HelpIcon from '@components/ui/help-icon.svelte';
 
 	interface Props {
-		body?: string;
-		close?: (result?: any) => void;
+		open?: boolean;
 		existingCategory?: Partial<ContentNode>;
-		parent?: {
-			onClose?: () => void;
-			regionFooter?: string;
-			buttonPositive?: string;
-		};
-		title?: string;
+		onresult?: (result: any) => void;
 	}
 
 	interface FormData {
@@ -76,7 +71,7 @@ Features:
 		'mdi:cog-outline'
 	] as const;
 
-	const { existingCategory = { name: '', icon: '' }, close }: Props = $props();
+	let { open = $bindable(false), existingCategory, onresult }: Props = $props();
 
 	// State variables for form and UI
 	const formData = $state<FormData>({
@@ -89,11 +84,16 @@ Features:
 	let formError = $state<string | null>(null);
 	let validationErrors = $state<Record<string, string>>({});
 
-	// Populate form when editing
+	// Populate form when modal opens or existingCategory changes
 	$effect(() => {
-		formData.newCategoryName = existingCategory.name ?? '';
-		formData.newCategoryIcon = existingCategory.icon || DEFAULT_ICON;
-		formData.newCategoryDescription = (existingCategory as any)?.description ?? '';
+		if (open) {
+			formData.newCategoryName = existingCategory?.name ?? '';
+			formData.newCategoryIcon = existingCategory?.icon || DEFAULT_ICON;
+			formData.newCategoryDescription = (existingCategory as any)?.description ?? '';
+			categoryIconSearch = '';
+			formError = null;
+			validationErrors = {};
+		}
 	});
 
 	/** Collect category id and all descendant node ids (for cascade delete; server deletes attached collections and their .ts files). */
@@ -145,13 +145,12 @@ Features:
 		formError = null;
 
 		try {
-			if (close) {
-				// Ensure a fallback icon for new categories
-				if (!formData.newCategoryIcon) {
-					formData.newCategoryIcon = DEFAULT_ICON;
-				}
-				close(formData);
+			// Ensure a fallback icon for new categories
+			if (!formData.newCategoryIcon) {
+				formData.newCategoryIcon = DEFAULT_ICON;
 			}
+			onresult?.({ ...formData });
+			open = false;
 		} catch (error) {
 			logger.error('Error submitting category form:', error);
 			formError = error instanceof Error ? error.message : 'Error submitting form';
@@ -165,7 +164,7 @@ Features:
 	 * Cascades to all attached collections and subcategories.
 	 */
 	async function deleteCategory(): Promise<void> {
-		const categoryId = existingCategory._id?.toString();
+		const categoryId = existingCategory?._id?.toString();
 		if (!categoryId) {
 			formError = 'Category has no ID';
 			return;
@@ -177,204 +176,220 @@ Features:
 
 		const bodyText =
 			attachedCount > 0
-				? `Remove category "${existingCategory.name}" and all ${attachedCount} attached collection(s) and sub-categories? Click Save to persist. This action cannot be undone.`
-				: `Remove category "${existingCategory.name}"? Click Save to persist. This action cannot be undone.`;
+				? `Remove category "${existingCategory?.name}" and all ${attachedCount} attached collection(s) and sub-categories? Click Save to persist. This action cannot be undone.`
+				: `Remove category "${existingCategory?.name}"? Click Save to persist. This action cannot be undone.`;
 
 		const confirmed = confirm(bodyText);
 		if (!confirmed) return;
 
 		// Stage only — the board's Save button is the commit point.
-		close?.({ __categoryDeleted: true, categoryId });
+		onresult?.({ __categoryDeleted: true, categoryId });
+		open = false;
 	}
 
 	// Live preview derived state
 	const previewIcon = $derived(formData.newCategoryIcon || DEFAULT_ICON);
-	const isEditing = $derived(!!existingCategory._id);
+	const isEditing = $derived(!!existingCategory?._id);
 </script>
 
-<div class="modal-category-container">
-	{#if formError}
-		<div
-			class="mb-4 rounded-lg border border-error-500/20 bg-error-500/10 p-3 text-sm text-error-500 dark:text-error-400"
-			role="alert"
-		>
-			{formError}
+<Modal bind:open size="xl" contentClass="px-2.5 py-3 sm:p-6">
+	{#snippet header()}
+		<div class="flex items-center gap-2.5">
+			<iconify-icon
+				icon={previewIcon}
+				width="24"
+				class="shrink-0 text-tertiary-500 dark:text-primary-400"
+				aria-hidden="true"
+			></iconify-icon>
+			<h3 id="modal-title" class="h4 font-bold tracking-tight text-surface-900 dark:text-white">
+				{isEditing ? 'Edit Category' : 'Add New Category'}
+			</h3>
 		</div>
-	{/if}
+	{/snippet}
 
-	<form onsubmit={onFormSubmit} class="flex flex-col gap-6">
-		<!-- Two-column balanced layout (fixed height, never resizes during icon search) -->
-		<div class="grid grid-cols-1 gap-6 md:grid-cols-12">
-			<!-- Left column: Form fields + Live Preview -->
-			<div class="flex flex-col justify-between gap-4 md:col-span-5">
-				<div class="space-y-4">
-					<div class="flex items-center justify-between">
+	<div class="modal-category-container px-0.5">
+		{#if formError}
+			<div
+				class="mb-4 rounded-lg border border-error-500/20 bg-error-500/10 p-3 text-sm text-error-500 dark:text-error-400"
+				role="alert"
+			>
+				{formError}
+			</div>
+		{/if}
+
+		<form id="category-modal-form" onsubmit={onFormSubmit} class="flex flex-col gap-6">
+			<!-- Two-column balanced layout (fixed height, never resizes during icon search) -->
+			<div class="grid grid-cols-1 gap-6 md:grid-cols-12">
+				<!-- Left column: Form fields + Live Preview -->
+				<div class="flex flex-col justify-between gap-4 md:col-span-5">
+					<div class="space-y-4">
+						<div class="flex items-center gap-1.5">
+							<h3 class="text-sm font-semibold uppercase tracking-wide text-(--admin-text-muted)">
+								{modalcategory_category_details()}
+							</h3>
+							<SystemTooltip title={builder_tip_cat_details()}>
+								<HelpIcon ariaLabel={builder_help_category()} />
+							</SystemTooltip>
+						</div>
+
+						<div class="space-y-2">
+							<div class="flex items-center gap-1.5">
+								<label
+									for="category_name"
+									class="text-sm font-medium leading-none text-(--admin-text-muted)"
+								>
+									{modalcategory_categoryname()}
+								</label>
+								<span class="text-error-500" aria-hidden="true">*</span>
+								<SystemTooltip title={builder_tip_cat_name()}>
+									<HelpIcon ariaLabel={builder_help_category_name()} />
+								</SystemTooltip>
+							</div>
+							<Input
+								type="text"
+								id="category_name"
+								bind:value={formData.newCategoryName}
+								placeholder={modalcategory_placeholder()}
+								autocomplete="off"
+								error={validationErrors.name}
+								disabled={isSubmitting}
+								data-testid="category-name-input"
+							/>
+						</div>
+
+						<!-- Description field -->
+						<div class="space-y-2">
+							<div class="flex items-center gap-1.5">
+								<label
+									for="category_description"
+									class="text-sm font-medium leading-none text-(--admin-text-muted)"
+								>
+									{collectionname_description()}
+								</label>
+								<SystemTooltip title={builder_tip_cat_desc()}>
+									<HelpIcon ariaLabel={builder_help_category_desc()} />
+								</SystemTooltip>
+							</div>
+							<Input
+								type="text"
+								id="category_description"
+								bind:value={formData.newCategoryDescription}
+								placeholder={modalcategory_description_placeholder()}
+								autocomplete="off"
+								disabled={isSubmitting}
+								data-testid="category-description-input"
+							/>
+						</div>
+
+						<!-- Slug/Path field (read-only, computed from name) -->
+						<div class="space-y-2">
+							<div class="flex items-center gap-1.5">
+								<label
+									for="category_slug"
+									class="text-sm font-medium leading-none text-(--admin-text-muted)"
+								>
+									{modalcategory_path_label()}
+								</label>
+								<SystemTooltip title={builder_tip_cat_path()}>
+									<HelpIcon ariaLabel={builder_help_path()} />
+								</SystemTooltip>
+							</div>
+							<Input
+								type="text"
+								id="category_slug"
+								value={formData.newCategoryName
+									.trim()
+									.toLowerCase()
+									.replace(/\s+/g, '-')
+									.replace(/[^a-z0-9-]/g, '') || 'category'}
+								disabled={true}
+								class="opacity-70"
+								data-testid="category-slug-display"
+							/>
+						</div>
+					</div>
+
+					<!-- Live Preview -->
+					<div class="space-y-2">
 						<h3 class="text-sm font-semibold uppercase tracking-wide text-(--admin-text-muted)">
-							{modalcategory_category_details()}
+							{modalcategory_preview()}
 						</h3>
-						<SystemTooltip title={builder_tip_cat_details()}>
-							<HelpIcon ariaLabel={builder_help_category()} />
-						</SystemTooltip>
-					</div>
-
-					<div class="space-y-2">
-						<div class="flex items-center gap-1.5">
-							<label
-								for="category_name"
-								class="text-sm font-medium leading-none text-(--admin-text-muted)"
-							>
-								{modalcategory_categoryname()}
-							</label>
-							<span class="text-error-500" aria-hidden="true">*</span>
-							<SystemTooltip title={builder_tip_cat_name()}>
-								<HelpIcon ariaLabel={builder_help_category_name()} />
-							</SystemTooltip>
-						</div>
-						<Input
-							type="text"
-							id="category_name"
-							bind:value={formData.newCategoryName}
-							placeholder={modalcategory_placeholder()}
-							error={validationErrors.name}
-							disabled={isSubmitting}
-							data-testid="category-name-input"
-						/>
-					</div>
-
-					<!-- Description field -->
-					<div class="space-y-2">
-						<div class="flex items-center gap-1.5">
-							<label
-								for="category_description"
-								class="text-sm font-medium leading-none text-(--admin-text-muted)"
-							>
-								{collectionname_description()}
-							</label>
-							<SystemTooltip title={builder_tip_cat_desc()}>
-								<HelpIcon ariaLabel={builder_help_category_desc()} />
-							</SystemTooltip>
-						</div>
-						<Input
-							type="text"
-							id="category_description"
-							bind:value={formData.newCategoryDescription}
-							placeholder={modalcategory_description_placeholder()}
-							disabled={isSubmitting}
-							data-testid="category-description-input"
-						/>
-					</div>
-
-					<!-- Slug/Path field (read-only, computed from name) -->
-					<div class="space-y-2">
-						<div class="flex items-center gap-1.5">
-							<label
-								for="category_slug"
-								class="text-sm font-medium leading-none text-(--admin-text-muted)"
-							>
-								{modalcategory_path_label()}
-							</label>
-							<SystemTooltip title={builder_tip_cat_path()}>
-								<HelpIcon ariaLabel={builder_help_path()} />
-							</SystemTooltip>
-						</div>
-						<Input
-							type="text"
-							id="category_slug"
-							value={formData.newCategoryName
-								.trim()
-								.toLowerCase()
-								.replace(/\s+/g, '-')
-								.replace(/[^a-z0-9-]/g, '') || 'category'}
-							disabled={true}
-							class="opacity-70"
-							data-testid="category-slug-display"
-						/>
-					</div>
-				</div>
-
-				<!-- Live Preview -->
-				<div class="space-y-2">
-					<h3 class="text-sm font-semibold uppercase tracking-wide text-(--admin-text-muted)">
-						{modalcategory_preview()}
-					</h3>
-					<div
-						class="flex items-center gap-3 rounded-lg border border-surface-500/30 bg-surface-500/10 p-3.5 dark:border-surface-500/40 dark:bg-surface-800/40"
-						data-testid="category-preview"
-					>
 						<div
-							class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-tertiary-500/10 text-tertiary-500 dark:bg-primary-500/10 dark:text-primary-400"
+							class="flex items-center gap-3 rounded-lg border border-surface-500/30 bg-surface-500/10 p-3.5 dark:border-surface-500/40 dark:bg-surface-800/40"
+							data-testid="category-preview"
 						>
-							<iconify-icon icon={previewIcon} width="26" height="26" aria-hidden="true"
-							></iconify-icon>
-						</div>
-						<div class="min-w-0 flex-1">
-							<div class="truncate text-base font-semibold text-(--admin-text-body)">
-								{formData.newCategoryName || 'Category name'}
-							</div>
-							<div class="truncate font-mono text-xs text-(--admin-text-muted)">
-								{formData.newCategoryDescription || previewIcon}
-							</div>
-						</div>
-					</div>
-				</div>
-			</div>
-
-			<!-- Right column: Fixed-height Icon Picker -->
-			<div class="flex flex-col gap-3 md:col-span-7">
-				<div class="flex items-center justify-between gap-2">
-					<h3 class="text-sm font-semibold uppercase tracking-wide text-(--admin-text-muted)">
-						{modalcategory_icon()}
-					</h3>
-					<!-- Quick presets strip -->
-					<div
-						class="flex items-center gap-1"
-						role="group"
-						aria-label={modalcategory_choose_icon()}
-					>
-						{#each QUICK_CATEGORY_ICONS as quickIcon (quickIcon)}
-							<button
-								type="button"
-								onclick={() => (formData.newCategoryIcon = quickIcon)}
-								aria-label={quickIcon}
-								aria-pressed={previewIcon === quickIcon}
-								class="flex h-8 w-8 items-center justify-center rounded-md border transition-colors {previewIcon ===
-								quickIcon
-									? 'border-tertiary-500 bg-tertiary-500/10 text-tertiary-500 dark:border-primary-500 dark:bg-primary-500/10 dark:text-primary-400'
-									: 'border-surface-500/30 text-(--admin-text-muted) hover:border-surface-500/60 hover:text-(--admin-text-body)'}"
+							<div
+								class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-tertiary-500/10 text-tertiary-500 dark:bg-primary-500/10 dark:text-primary-400"
 							>
-								<iconify-icon icon={quickIcon} width="18" aria-hidden="true"></iconify-icon>
-							</button>
-						{/each}
+								<iconify-icon icon={previewIcon} width="26" height="26" aria-hidden="true"
+								></iconify-icon>
+							</div>
+							<div class="min-w-0 flex-1">
+								<div class="truncate text-base font-semibold text-(--admin-text-body)">
+									{formData.newCategoryName || 'Category name'}
+								</div>
+								<div class="truncate font-mono text-xs text-(--admin-text-muted)">
+									{formData.newCategoryDescription || previewIcon}
+								</div>
+							</div>
+						</div>
 					</div>
 				</div>
 
-				<div
-					class="rounded-lg border border-surface-500/30 bg-surface-500/10 p-3 dark:border-surface-500/40 dark:bg-surface-800/30"
-				>
-					<IconifyIconsPicker
-						bind:iconselected={formData.newCategoryIcon}
-						icon={previewIcon}
-						bind:searchQuery={categoryIconSearch}
-						hideSearchInput={false}
-						hideSelectedBanner={true}
-						alwaysOpen={true}
-						listHeightClass="h-44"
-					/>
-				</div>
-				{#if validationErrors.icon}
-					<span id="icon-error" class="block text-xs text-error-500 dark:text-error-400">
-						{validationErrors.icon}
-					</span>
-				{/if}
-			</div>
-		</div>
+				<!-- Right column: Fixed-height Icon Picker -->
+				<div class="flex flex-col gap-2.5 md:col-span-7">
+					<div class="flex flex-wrap items-center justify-between gap-2">
+						<h3 class="text-sm font-semibold uppercase tracking-wide text-(--admin-text-muted)">
+							{modalcategory_icon()}
+						</h3>
+						<!-- Quick presets strip -->
+						<div
+							class="flex flex-wrap items-center gap-1.5"
+							role="group"
+							aria-label={modalcategory_choose_icon()}
+						>
+							{#each QUICK_CATEGORY_ICONS as quickIcon (quickIcon)}
+								<button
+									type="button"
+									onclick={() => (formData.newCategoryIcon = quickIcon)}
+									aria-label={quickIcon}
+									aria-pressed={previewIcon === quickIcon}
+									class="flex h-8 w-8 items-center justify-center rounded-md border transition-colors {previewIcon ===
+									quickIcon
+										? 'border-tertiary-500 bg-tertiary-500/10 text-tertiary-500 dark:border-primary-500 dark:bg-primary-500/10 dark:text-primary-400'
+										: 'border-surface-500/30 text-(--admin-text-muted) hover:border-surface-500/60 hover:text-(--admin-text-body)'}"
+								>
+									<iconify-icon icon={quickIcon} width="18" aria-hidden="true"></iconify-icon>
+								</button>
+							{/each}
+						</div>
+					</div>
 
-		<!-- Footer -->
-		<footer
-			class="flex items-center border-t border-surface-500/30 pt-4 dark:border-surface-500/40 {isEditing
-				? 'justify-between'
-				: 'justify-end'}"
-		>
+					<div
+						class="rounded-lg border border-surface-500/30 bg-surface-500/10 p-3 dark:border-surface-500/40 dark:bg-surface-800/30"
+					>
+						<IconifyIconsPicker
+							bind:iconselected={formData.newCategoryIcon}
+							icon={previewIcon}
+							bind:searchQuery={categoryIconSearch}
+							hideSearchInput={false}
+							hideSelectedBanner={true}
+							alwaysOpen={true}
+							listHeightClass="h-44"
+						/>
+					</div>
+					{#if validationErrors.icon}
+						<span id="icon-error" class="block text-xs text-error-500 dark:text-error-400">
+							{validationErrors.icon}
+						</span>
+					{/if}
+				</div>
+			</div>
+		</form>
+	</div>
+
+	{#snippet footer()}
+		<div class="flex w-full items-center gap-2 {isEditing ? 'justify-between' : 'justify-end'}">
 			{#if isEditing}
 				<Button
 					variant="error"
@@ -388,16 +403,24 @@ Features:
 				</Button>
 			{/if}
 
-			<div class="flex gap-2">
-				<Button variant="ghost" type="button" onclick={() => close?.(null)} disabled={isSubmitting}>
+			<div class="flex flex-1 sm:flex-initial justify-end gap-2">
+				<Button
+					variant="ghost"
+					type="button"
+					onclick={() => (open = false)}
+					disabled={isSubmitting}
+					class="flex-1 sm:flex-initial"
+				>
 					{button_cancel()}
 				</Button>
 				<Button
 					variant="primary"
 					type="submit"
+					form="category-modal-form"
 					aria-label={button_save()}
 					disabled={isSubmitting}
 					data-testid="category-save-button"
+					class="flex-1 sm:flex-initial"
 				>
 					{#if isSubmitting}
 						<iconify-icon icon="eos-icons:loading" width={20} class="animate-spin"></iconify-icon>
@@ -405,6 +428,6 @@ Features:
 					{button_save()}
 				</Button>
 			</div>
-		</footer>
-	</form>
-</div>
+		</div>
+	{/snippet}
+</Modal>

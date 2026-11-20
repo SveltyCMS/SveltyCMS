@@ -316,11 +316,37 @@ export function buildFindCacheKey(params: BuildFindCacheKeyParams): string | nul
   ) {
     return `${tenantPrefix}collection:${schemaId}:find:id:${query._id}`;
   }
-  if (!decodedCursor && isEmptyQueryFilter(filter) && !options.search && !options.editEntryId) {
+  const isMultiColumnSort = Array.isArray(sort) && sort.length > 1;
+  if (
+    !decodedCursor &&
+    !isMultiColumnSort &&
+    isEmptyQueryFilter(filter) &&
+    !options.search &&
+    !options.editEntryId
+  ) {
     // Status-only list (no extra filter) — skip JSON.stringify. Fields/populate
     // interpolate via the canonical token (comma join for arrays) so repeated
     // finds with identical projections reuse the same string.
-    return `${tenantPrefix}collection:${schemaId}:find:${effectiveFilter}:${limit}:${offset}:${options.sortField ?? ""}:${options.sortDirection ?? "desc"}:${canonicalFieldToken(options.fields)}:${canonicalFieldToken(options.populate)}${langSuffix}`;
+    let sortField = options.sortField ?? "";
+    let sortDirection = options.sortDirection ?? "desc";
+    if (!options.sortField && sort) {
+      if (Array.isArray(sort)) {
+        const first = sort[0];
+        if (Array.isArray(first)) {
+          sortField = first[0] ?? "";
+          sortDirection = first[1] ?? "desc";
+        }
+      } else if (typeof sort === "object") {
+        for (const k in sort) {
+          if (Object.hasOwn(sort, k)) {
+            sortField = k;
+            sortDirection = (sort as Record<string, string>)[k] ?? "desc";
+            break;
+          }
+        }
+      }
+    }
+    return `${tenantPrefix}collection:${schemaId}:find:${effectiveFilter}:${limit}:${offset}:${sortField}:${sortDirection}:${canonicalFieldToken(options.fields)}:${canonicalFieldToken(options.populate)}${langSuffix}`;
   }
   // Sync FNV with flat delimited query shape — avoids JSON.stringify
   // reflection tax on list queries. fields/populate shape the RESPONSE,

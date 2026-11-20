@@ -83,7 +83,7 @@ Features:
 	// Visual hierarchy only. No transitions or transforms: the row must stay
 	// geometrically still so drag targeting is predictable.
 	const base =
-		'group w-full min-h-[48px] rounded flex items-center gap-2 sm:gap-3 cursor-pointer min-w-0 overflow-hidden border-2';
+		'group w-full min-h-[46px] sm:min-h-[48px] rounded flex items-center gap-1.5 sm:gap-3 px-1.5 sm:px-2 cursor-pointer min-w-0 overflow-hidden border-2';
 
 	const containerClass = $derived(
 		isCategory && isSelectedCategory
@@ -171,29 +171,40 @@ Features:
 			></iconify-icon>
 		</Button>
 	{:else}
-		<div class="w-5" role="none"></div>
+		<div class="w-1 sm:w-5 shrink-0" role="none"></div>
 	{/if}
 
 	<!-- Icon -->
-	<div class="relative flex items-center">
-		<iconify-icon {icon} width="24" class={iconClass} aria-hidden="true"></iconify-icon>
+	<div class="relative flex items-center shrink-0">
+		<iconify-icon {icon} width="20" class="{iconClass} sm:text-[24px]" aria-hidden="true"
+		></iconify-icon>
 	</div>
 
 	<!-- Name & Badge: flexible width for responsiveness -->
-	<div class="flex flex-1 flex-col gap-1 min-w-0">
+	<div class="flex flex-1 flex-col gap-0.5 sm:gap-1 min-w-0">
 		<div class="flex items-center gap-1 sm:gap-2 flex-wrap">
 			<span class="font-bold text-xs sm:text-base truncate max-w-37.5 sm:max-w-95" title={name}
 				>{name}</span
 			>
 			{#if isCategory}
-				<Badge variant="tertiary" size="sm" rounded={false}>{builder_badge_category()}</Badge>
-				<span class="text-xs text-(--admin-text-muted) font-medium">
+				<Badge
+					variant="tertiary"
+					size="sm"
+					rounded={false}
+					class="text-[9px]! px-1.5! py-0! sm:text-xs! sm:px-2!">{builder_badge_category()}</Badge
+				>
+				<span class="text-[10px] sm:text-xs text-(--admin-text-muted) font-medium">
 					{childCount === 1
 						? builder_count_items_singular({ count: childCount })
 						: builder_count_items_plural({ count: childCount })}
 				</span>
 			{:else}
-				<Badge variant="error" size="sm" rounded={false}>{builder_badge_collection()}</Badge>
+				<Badge
+					variant="error"
+					size="sm"
+					rounded={false}
+					class="text-[9px]! px-1.5! py-0! sm:text-xs! sm:px-2!">{builder_badge_collection()}</Badge
+				>
 			{/if}
 
 			{#if tags.length > 0}
@@ -238,7 +249,7 @@ Features:
 
 	<!-- Action Buttons -->
 	<div
-		class="ms-auto flex shrink-0 items-center gap-0.5 opacity-60 group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
+		class="ms-auto flex shrink-0 items-center gap-0 sm:gap-0.5 opacity-60 group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
 	>
 		<!-- Favorite Toggle (logical ms-auto group keeps it on the inner edge in LTR + RTL) -->
 		<SystemTooltip title={isFav ? builder_fav_remove_tip() : builder_fav_add_tip()}>
@@ -251,11 +262,11 @@ Features:
 					collectionMetadata.toggleFavorite(item.id);
 				}}
 				aria-label={isFav ? builder_fav_remove_aria({ name }) : builder_fav_add_aria({ name })}
-				class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-transform hover:scale-110"
+				class="flex min-h-7 min-w-6 sm:min-h-8 sm:min-w-8 items-center justify-center p-0! transition-transform hover:scale-110"
 			>
 				<iconify-icon
 					icon={isFav ? 'bi:star-fill' : 'bi:star'}
-					width="18"
+					width="15"
 					class={isFav
 						? 'text-warning-500'
 						: 'text-(--admin-text-muted) opacity-40 hover:opacity-100'}
@@ -274,11 +285,11 @@ Features:
 					onEditTags?.(item);
 				}}
 				aria-label={builder_manage_tags_aria({ name })}
-				class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80"
+				class="flex min-h-7 min-w-6 sm:min-h-8 sm:min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80"
 			>
 				<iconify-icon
 					icon="bi:tag"
-					width={20}
+					width={16}
 					class="text-(--admin-text-muted) hover:text-tertiary-500 dark:text-primary-500"
 				></iconify-icon>
 			</Button>
@@ -294,11 +305,11 @@ Features:
 						onEditCategory(item);
 					}}
 					aria-label={`${button_edit()} ${name}`}
-					class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80"
+					class="flex min-h-7 min-w-6 sm:min-h-8 sm:min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80"
 				>
 					<iconify-icon
 						icon="mdi:pencil"
-						width={22}
+						width={18}
 						aria-hidden="true"
 						class="text-tertiary-500 dark:text-primary-500"
 					></iconify-icon>
@@ -308,13 +319,13 @@ Features:
 					variant="transparent"
 					href={`/config/collectionbuilder/edit/${item.id}`}
 					data-sveltekit-preload-data="hover"
-					class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80"
+					class="flex min-h-7 min-w-6 sm:min-h-8 sm:min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80"
 					onclick={(e: MouseEvent) => e.stopPropagation()}
 					aria-label={`${button_edit()} ${name}`}
 				>
 					<iconify-icon
 						icon="mdi:pencil"
-						width={22}
+						width={18}
 						aria-hidden="true"
 						class="text-tertiary-500 dark:text-primary-500"
 					></iconify-icon>
@@ -332,9 +343,9 @@ Features:
 					onDuplicate?.(item);
 				}}
 				aria-label={`${builder_duplicate()} ${name}`}
-				class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80"
+				class="flex min-h-7 min-w-6 sm:min-h-8 sm:min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80"
 			>
-				<iconify-icon icon="mdi:content-copy" width={22} aria-hidden="true"></iconify-icon>
+				<iconify-icon icon="mdi:content-copy" width={18} aria-hidden="true"></iconify-icon>
 			</Button>
 		</SystemTooltip>
 
@@ -348,9 +359,9 @@ Features:
 					onDelete?.(item);
 				}}
 				aria-label={`${button_delete()} ${name}`}
-				class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80"
+				class="flex min-h-7 min-w-6 sm:min-h-8 sm:min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80"
 			>
-				<iconify-icon icon="mdi:delete" width={22} aria-hidden="true" class="text-error-500"
+				<iconify-icon icon="mdi:delete" width={18} aria-hidden="true" class="text-error-500"
 				></iconify-icon>
 			</Button>
 		</SystemTooltip>
@@ -361,10 +372,10 @@ Features:
 		     reorder with Alt+Arrow keys on the tree. -->
 		<SystemTooltip title={builder_drag_hint()}>
 			<span
-				class="drag-handle flex min-h-8 min-w-8 cursor-grab items-center justify-center opacity-60 active:cursor-grabbing"
+				class="drag-handle flex min-h-7 min-w-6 sm:min-h-8 sm:min-w-8 cursor-grab items-center justify-center opacity-60 active:cursor-grabbing"
 				aria-hidden="true"
 			>
-				<iconify-icon icon="mdi:drag-vertical" width={22}></iconify-icon>
+				<iconify-icon icon="mdi:drag-vertical" width={18}></iconify-icon>
 			</span>
 		</SystemTooltip>
 	</div>

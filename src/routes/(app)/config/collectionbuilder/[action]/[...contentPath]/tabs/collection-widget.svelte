@@ -714,7 +714,10 @@
 	</div>
 {/snippet}
 
-<div class="flex h-full min-h-112 w-full flex-col lg:flex-row" data-testid="collection-widgets-tab">
+<div
+	class="flex w-full flex-col lg:h-full lg:min-h-112 lg:flex-row"
+	data-testid="collection-widgets-tab"
+>
 	{#if viewMode === 'code'}
 		{@render codePane(true)}
 	{:else if viewMode === 'preview'}
@@ -728,10 +731,12 @@
 		</div>
 	{:else}
 		<!-- ═══ LEFT: Field canvas (visible in canvas & split modes) ═══ -->
-		<div class="flex min-h-0 min-w-0 flex-1 flex-col border-(--admin-border-default) lg:border-e">
+		<div
+			class="flex min-w-0 flex-col border-(--admin-border-default) lg:min-h-0 lg:flex-1 lg:border-e"
+		>
 			<!-- Header Removed -->
 
-			<div class="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+			<div class="p-3 sm:p-6 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
 				<!-- Duplicate Field Names Collision Warning Banner -->
 				{#if duplicateFieldNames.size > 0}
 					<div
@@ -1195,7 +1200,7 @@
 					</p>
 				</div>
 
-				<div class="min-h-0 flex-1 space-y-5 overflow-y-auto p-3 sm:p-4">
+				<div class="p-3 sm:p-4 space-y-5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
 					{#snippet paletteSection(
 						title: string,
 						list: typeof coreWidgets,
@@ -1225,11 +1230,17 @@
 											onclick={() => addSidebarWidget(w.key)}
 											data-testid={`quick-add-${w.key.toLowerCase()}`}
 											aria-label={`Add ${w.label} widget`}
-											class="group flex h-auto flex-col items-center justify-center gap-2 rounded-xl border border-surface-500/30 bg-(--admin-bg-card) p-3 text-center shadow-2xs transition-all hover:border-tertiary-500 hover:bg-tertiary-500/10 dark:hover:border-primary-500 dark:hover:bg-primary-900/20 {tone ===
+											class="group relative flex h-auto flex-col items-center justify-center gap-2 rounded-xl border border-surface-500/30 bg-(--admin-bg-card) p-3 text-center shadow-2xs transition-all hover:border-tertiary-500 hover:bg-tertiary-500/10 dark:hover:border-primary-500 dark:hover:bg-primary-900/20 {tone ===
 											'market'
 												? 'hover:border-warning-500'
 												: ''}"
 										>
+											<span
+												class="lg:hidden absolute top-2 inset-e-2 flex size-5 items-center justify-center rounded-full bg-tertiary-500/10 text-tertiary-500 dark:bg-primary-500/20 dark:text-primary-400"
+												aria-hidden="true"
+											>
+												<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
+											</span>
 											<div
 												class="flex h-10 w-10 items-center justify-center rounded-lg bg-tertiary-500/10 text-tertiary-600 dark:bg-surface-700 dark:text-primary-400 transition-colors group-hover:bg-tertiary-500 dark:group-hover:bg-primary-500 group-hover:text-white {tone ===
 												'market'

@@ -128,6 +128,7 @@ bulk actions, and predictive preloading.
 		SMART_TABLE_THEAD
 	} from '@components/ui/smart-table/chrome';
 	import SmartTableShell from '@components/ui/smart-table/smart-table-shell.svelte';
+	import Tooltip from '@components/ui/tooltip.svelte';
 	import SmartTableSavedViewsMenu from '@components/ui/smart-table/smart-table-saved-views-menu.svelte';
 	import SmartTableStatusFacets from '@components/ui/smart-table/smart-table-status-facets.svelte';
 	import SmartTableMetricsBadge from '@components/ui/smart-table/smart-table-metrics-badge.svelte';
@@ -145,6 +146,8 @@ bulk actions, and predictive preloading.
 	import { createEntryListHoverPreload } from './entry-list-hover-preload.svelte';
 	import { exportEntriesToCsv } from './entry-list-export';
 	import { memoizeLazyLoader } from '@utils/lazy-module';
+	import { decodeBooleanFilterParam, serializeBooleanFilterGroup } from '@utils/boolean-filter';
+	import { generateUUID } from '@utils/native-utils';
 	import type { AdvancedFilterClause } from './advanced-filter-modal.svelte';
 	const loadBulkFieldEditModal = memoizeLazyLoader(() => import('./bulk-field-edit-modal.svelte'));
 	const loadAdvancedFilterModal = memoizeLazyLoader(() => import('./advanced-filter-modal.svelte'));
@@ -363,20 +366,28 @@ bulk actions, and predictive preloading.
 	}
 
 	function onFilterChange(filterName: string, value: string) {
+		smartFilter.setFilter(filterName, value);
 		filterDebounce(() => {
-			smartFilter.setFilter(filterName, value);
 			commitFiltersToURL(true);
 		});
 	}
 
 	function onClearFilter(filterId: string) {
+		clearTimeout(filterTimeoutId);
 		smartFilter.clearFilter(filterId);
 		commitFiltersToURL(true);
 	}
 
 	function onClearAllFilters() {
+		clearTimeout(filterTimeoutId);
 		smartFilter.clearAll();
-		commitFiltersToURL(true);
+		advancedFilterClauses = [];
+		entryListPaginationSettings.filters = {};
+		updateURL({
+			...smartFilter.toURLParams(),
+			filterLogic: null,
+			page: '1'
+		});
 	}
 
 	const viewsScope = $derived(
@@ -599,13 +610,27 @@ bulk actions, and predictive preloading.
 		});
 	});
 
-	// Sync filters from URL → smartFilter (whitelist-aware) + pagination settings
+	// Sync filters from URL → smartFilter (whitelist-aware) + advanced filterLogic + pagination settings
 	$effect(() => {
 		const searchParams = page.url.searchParams;
+		const rawLogic = searchParams.get('filterLogic');
 		untrack(() => {
 			const changed = smartFilter.syncFromURL(searchParams);
 			const plain = smartFilter.toPlainObject();
-			const hasActiveUrlFilters = smartFilter.activeCount > 0;
+			const parsedLogic = decodeBooleanFilterParam(rawLogic);
+			if (parsedLogic) {
+				advancedFilterConjunction = parsedLogic.combinator;
+				advancedFilterClauses = parsedLogic.rules.map((r) => ({
+					id: generateUUID(),
+					field: r.field,
+					operator: r.operator,
+					value: r.value ?? ''
+				}));
+			} else if (advancedFilterClauses.length > 0) {
+				advancedFilterClauses = [];
+			}
+			const hasActiveUrlFilters =
+				smartFilter.activeCount > 0 || (parsedLogic?.rules.length ?? 0) > 0;
 
 			if (changed) {
 				entryListPaginationSettings.filters = { ...plain };
@@ -913,8 +938,6 @@ bulk actions, and predictive preloading.
 	 * wide). Facets and the table stay at `CONTENT_PADDING`: the title sits one
 	 * step further in, exactly like `AdminPageShell` pages (e.g. /mediagallery).
 	 */
-	const titleInset = $derived(ui.state.leftSidebar === 'hidden' ? 'ps-2 sm:ps-3' : 'ps-5 md:ps-10');
-
 	// Sync density from pagination settings ↔ smart table
 	$effect(() => {
 		const d = entryListPaginationSettings.density;
@@ -1080,33 +1103,24 @@ bulk actions, and predictive preloading.
 	function handleApplyAdvancedFilters(clauses: AdvancedFilterClause[], conjunction: 'AND' | 'OR') {
 		advancedFilterClauses = clauses;
 		advancedFilterConjunction = conjunction;
-		if (conjunction === 'AND') {
-			for (const clause of clauses) {
-				if (!clause.field) continue;
-				if (clause.operator === 'equals' || clause.operator === 'contains') {
-					smartFilter.setFilter(clause.field, clause.value);
-				} else if (clause.operator === 'gt' || clause.operator === 'gte') {
-					smartFilter.setFilter(clause.field, `${clause.value}:`);
-				} else if (clause.operator === 'lt' || clause.operator === 'lte') {
-					smartFilter.setFilter(clause.field, `:${clause.value}`);
-				}
-			}
+		if (clauses.length === 0) {
 			updateURL({
-				...smartFilter.toURLParams(),
 				filterLogic: null,
 				page: '1'
 			});
 			return;
 		}
+		const serialized = serializeBooleanFilterGroup({
+			combinator: conjunction,
+			rules: clauses.map((c) => ({
+				field: c.field,
+				operator: c.operator,
+				value: c.value
+			}))
+		});
+		filterShow = true;
 		updateURL({
-			filterLogic: JSON.stringify({
-				combinator: conjunction,
-				rules: clauses.map((c) => ({
-					field: c.field,
-					operator: c.operator,
-					value: c.value
-				}))
-			}),
+			filterLogic: serialized,
 			page: '1'
 		});
 	}
@@ -1380,19 +1394,22 @@ bulk actions, and predictive preloading.
 	</div>
 {:else}
 	<!-- Header Bar -->
-	<div class="mb-1 flex flex-wrap items-center justify-between gap-2 {titleInset}">
+	<div class="mb-1 flex flex-wrap items-center justify-between gap-2 {CONTENT_PADDING}">
 		<!-- Left: Sidebar Toggle, Title, Category Breadcrumb, Count -->
-		<div class="flex min-w-0 shrink-0 items-center gap-3">
+		<div
+			class="flex min-w-0 shrink-0 items-center gap-3 {ui.state.leftSidebar !== 'hidden'
+				? 'ps-3 md:ps-3'
+				: ''}"
+		>
 			{#if ui.state.leftSidebar === 'hidden'}
-				<Button
-					variant="outline"
+				<button
 					type="button"
 					onclick={() => ui.toggle('leftSidebar', screen.isDesktop ? 'full' : 'collapsed')}
 					aria-label={entrylist_open_sidebar()}
-					class="h-9 w-9 p-0 flex items-center justify-center rounded-lg border border-(--admin-border-default)"
+					class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-surface-500/30 bg-surface-800/40 transition-colors hover:bg-surface-700/60"
 				>
 					<iconify-icon icon="mingcute:menu-fill" width="20"></iconify-icon>
-				</Button>
+				</button>
 			{/if}
 
 			<div class="flex flex-col min-w-0">
@@ -1420,7 +1437,9 @@ bulk actions, and predictive preloading.
 			</div>
 		</div>
 		<!-- Center Toolbar + Views + Language: single aligned row on sm+ -->
-		<div class="hidden sm:flex flex-1 flex-nowrap items-center justify-center gap-2 min-w-0">
+		<div
+			class="hidden sm:flex flex-1 flex-nowrap items-center justify-center gap-2 min-w-0 overflow-x-auto"
+		>
 			<TableFilter
 				bind:globalSearchValue
 				bind:filterShow
@@ -1447,7 +1466,7 @@ bulk actions, and predictive preloading.
 				type="button"
 				onclick={() => (expand = !expand)}
 				aria-label={entrylist_expand_filters()}
-				class="h-10 px-3 rounded-(--admin-radius-input) sm:hidden border border-(--admin-border-default)"
+				class="h-9 w-9 p-0 rounded-(--admin-radius-input) sm:hidden border border-(--admin-border-default)"
 			>
 				<iconify-icon icon="material-symbols:filter-list-rounded" width="20"></iconify-icon>
 			</Button>
@@ -1500,8 +1519,8 @@ bulk actions, and predictive preloading.
 	     predicate set the rows use, instead of summing five separately cached buckets.
 	     Horizontal padding comes from CONTENT_PADDING so the chips line up with the
 	     table instead of touching the sidebar border. -->
-	<div class="mb-1 flex flex-wrap items-center justify-between gap-2 shrink-0 {CONTENT_PADDING}">
-		<div class="min-w-0">
+	<div class="mb-1 flex flex-nowrap items-center justify-between gap-2 shrink-0 {CONTENT_PADDING}">
+		<div class="min-w-0 flex-1 overflow-x-auto">
 			{#await statusFacets}
 				<SmartTableStatusFacets
 					facets={{}}
@@ -1552,10 +1571,7 @@ bulk actions, and predictive preloading.
 	{/if}
 
 	<div class="flex min-h-0 flex-1 flex-col {CONTENT_PADDING}">
-		<AdminCard
-			class="mt-0.5 flex h-full min-h-0 w-full flex-col rounded-xl"
-			data-testid="entry-list-card"
-		>
+		<AdminCard class="mt-0.5 flex h-full min-h-0 w-full flex-col" data-testid="entry-list-card">
 			{#if tableData.length > 0 || hasActiveFilters}
 				<SmartTableShell
 					empty={tableData.length === 0 && hasActiveFilters}
@@ -1630,6 +1646,8 @@ bulk actions, and predictive preloading.
 											{onFilterChange}
 											onClearAll={onClearAllFilters}
 											{onClearFilter}
+											onOpenAdvanced={() => (isAdvancedFilterOpen = true)}
+											advancedCount={advancedFilterClauses.length}
 										/>
 									{/if}
 
@@ -1660,30 +1678,37 @@ bulk actions, and predictive preloading.
 															: 'none'
 													: 'none'}
 											>
-												<button
-													type="button"
-													class="inline-flex max-w-full min-w-0 items-center justify-center gap-1 rounded px-1 py-1 font-semibold tracking-wider focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 {isActiveSort
-														? 'text-primary-600 dark:text-primary-400 font-bold'
-														: 'text-tertiary-500 dark:text-primary-500 hover:text-surface-500'}"
-													onclick={(e) => onSortChange(colKey, e.shiftKey)}
-													aria-label="Sort by {(header as TableHeader).label}"
+												<Tooltip
 													title="Click to sort, Shift+Click to compose secondary sorts"
+													triggerClass="inline-flex max-w-full min-w-0 justify-center"
 												>
-													<span class="truncate">{(header as TableHeader).label}</span>
-													{#if isActiveSort}
-														{#if smartTable.multiSort.length > 1}
-															<span
-																class="inline-flex items-center justify-center rounded-full bg-primary-500/20 text-primary-600 dark:text-primary-400 text-[10px] w-4 h-4 font-bold"
-															>
-																{rankInfo.rank}
-															</span>
+													<button
+														type="button"
+														class="inline-flex max-w-full min-w-0 items-center justify-center gap-1 rounded px-1 py-1 font-semibold tracking-wider focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 {isActiveSort
+															? 'text-primary-600 dark:text-primary-400 font-bold'
+															: 'text-tertiary-500 dark:text-primary-500 hover:text-surface-500'}"
+														onclick={(e) => onSortChange(colKey, e.shiftKey)}
+														aria-label="Sort by {(header as TableHeader).label}"
+													>
+														<span class="truncate">{(header as TableHeader).label}</span>
+														{#if isActiveSort}
+															{#if smartTable.multiSort.length > 1}
+																<span
+																	class="inline-flex items-center justify-center rounded-full bg-primary-500/20 text-primary-600 dark:text-primary-400 text-[10px] w-4 h-4 font-bold"
+																>
+																	{rankInfo.rank}
+																</span>
+															{/if}
+															{@const sortIcon =
+																rankInfo.direction === 1 ? 'mdi:arrow-up' : 'mdi:arrow-down'}
+															<iconify-icon
+																icon={sortIcon}
+																width="14"
+																class="shrink-0 origin-center"
+															></iconify-icon>
 														{/if}
-														{@const sortIcon =
-															rankInfo.direction === 1 ? 'mdi:arrow-up' : 'mdi:arrow-down'}
-														<iconify-icon icon={sortIcon} width="14" class="shrink-0 origin-center"
-														></iconify-icon>
-													{/if}
-												</button>
+													</button>
+												</Tooltip>
 												<ColumnResizeHandle
 													columnKey={colKey}
 													onResize={smartTable.setColumnWidth}
@@ -1692,7 +1717,9 @@ bulk actions, and predictive preloading.
 										{/each}
 									</tr>
 								</thead>
-								<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
+								<tbody
+									class="divide-y divide-surface-200/30 border-b border-surface-500/30 dark:divide-surface-700/30 dark:border-surface-500/40"
+								>
 									{#if useRowVirtualization && spacerTop > 0}
 										<tr style="height: {spacerTop}px" aria-hidden="true"></tr>
 									{/if}

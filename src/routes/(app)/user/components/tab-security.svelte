@@ -586,9 +586,9 @@ Features:
 		if (initialSessions == null) loadSessions().catch(() => {});
 	});
 
-	const cardClass = 'border border-(--admin-border-default) p-5 sm:p-6 shadow-sm';
+	const cardClass = 'border border-(--admin-border-default) p-3.5 sm:p-6 shadow-sm';
 	const rowClass =
-		'flex items-center justify-between gap-3 py-3 border-b border-surface-100 dark:border-surface-500/40 last:border-0';
+		'flex flex-wrap items-center justify-between gap-3 py-3 border-b border-surface-100 dark:border-surface-500/40 last:border-0';
 	const securityActionBtn = 'min-w-[5.5rem] justify-center shrink-0';
 	const securityRowIcon = 'shrink-0 text-tertiary-500 dark:text-primary-500';
 

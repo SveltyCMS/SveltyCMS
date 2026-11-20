@@ -212,7 +212,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 	{#if !isCheckingLicense}
 		{#if !licenseStatus.hasLicense && licenseStatus.active && licenseStatus.daysRemaining !== null}
 			<div
-				class="alert bg-warning-500/10 text-warning-600 dark:text-warning-400 flex items-center justify-between p-4 rounded-(--admin-radius-card) border border-warning-500/30"
+				class="alert bg-warning-500/10 text-warning-600 dark:text-warning-400 flex items-center justify-between p-3 sm:p-4 rounded border border-warning-500/30"
 			>
 				<div class="flex items-center gap-2">
 					<iconify-icon icon="mdi:clock-alert-outline" width="24"></iconify-icon>
@@ -224,16 +224,16 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 				<a
 					href="https://marketplace.sveltycms.com"
 					target="_blank"
-					class="preset-filled-warning-500 rounded-(--admin-radius-button) text-sm px-3 py-1 font-medium shadow-xs"
+					class="preset-filled-warning-500 rounded text-sm px-3 py-1 font-medium shadow-xs"
 					>{seo_input_get_license()}</a
 				>
 			</div>
 		{/if}
 	{/if}
-	<!-- Top Area: Preview & Analysis -->
-	<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+	<!-- Top Area: Preview (75%) & Analysis (25%) -->
+	<div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-stretch border-t border-surface-500 pt-3">
 		<!-- Left: Preview (Main) -->
-		<div class="lg:col-span-2 space-y-4">
+		<div class="md:col-span-3 space-y-3">
 			<SeoPreview
 				title={langData?.title || ''}
 				description={langData?.description || ''}
@@ -243,7 +243,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 		</div>
 
 		<!-- Right: Analysis Panel (compact with modal trigger) -->
-		<div class="lg:col-span-1">
+		<div class="md:col-span-1">
 			<SeoAnalysisPanel
 				analysisResult={analysisResults}
 				{isAnalyzing}
@@ -264,45 +264,40 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 
 	<!-- Bottom Area: Tabs & Inputs -->
 	<div
-		class="card p-4 bg-white/50 dark:bg-surface-900/50 backdrop-blur-sm relative overflow-hidden rounded-(--admin-radius-card) border border-(--admin-border-default)"
+		class="card p-2.5 sm:p-4 bg-white/50 dark:bg-surface-900/50 backdrop-blur-sm relative overflow-hidden rounded border border-(--admin-border-default)"
 	>
-		{#if !isCheckingLicense && !licenseStatus.active}
-			<div
-				class="absolute inset-0 z-10 bg-surface-500/10 dark:bg-surface-900/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center pointer-events-none rounded-(--admin-radius-card)"
-			>
+		<Tabs bind:value={activeTab} class="w-full">
+			<Tabs.List class="mb-4">
+				<Tabs.Trigger value="basic">{common_basic()}</Tabs.Trigger>
+				<Tabs.Trigger value="social">{common_social()}</Tabs.Trigger>
+				<Tabs.Trigger value="advanced">{common_advanced()}</Tabs.Trigger>
+			</Tabs.List>
+
+			{#if !isCheckingLicense && !licenseStatus.active && activeTab !== 'basic'}
 				<div
-					class="card p-6 shadow-xl max-w-lg pointer-events-auto border border-error-500/30 bg-error-500/10 dark:bg-error-900/20 rounded-(--admin-radius-card)"
+					class="card p-4 sm:p-6 my-2 text-center border border-error-500/30 bg-error-500/10 dark:bg-error-900/20 rounded"
 				>
-					<iconify-icon icon="mdi:lock-outline" width="48" class="text-error-500 mb-4"
+					<iconify-icon icon="mdi:lock-outline" width="40" class="text-error-500 mb-3"
 					></iconify-icon>
 					<h3 class="h3 font-bold mb-2">{seo_input_locked_title()}</h3>
-					<p class="mb-4">
+					<p class="mb-4 text-sm">
 						{seo_input_locked_body()}
 					</p>
-					<a
-						href="https://marketplace.sveltycms.com"
-						target="_blank"
-						class="preset-filled-error-500 w-full text-center py-2 px-4 rounded-(--admin-radius-button) font-medium shadow-xs"
-						>{seo_input_purchase_license()}</a
-					>
+					<div class="flex flex-col gap-2 sm:flex-row">
+						<a
+							href="/config/extensions?license=1"
+							class="preset-filled-primary-500 w-full text-center py-2 px-4 rounded font-medium shadow-xs"
+							>Activate License</a
+						>
+						<a
+							href="https://marketplace.sveltycms.com"
+							target="_blank"
+							class="preset-filled-error-500 w-full text-center py-2 px-4 rounded font-medium shadow-xs"
+							>{seo_input_purchase_license()}</a
+						>
+					</div>
 				</div>
-			</div>
-		{/if}
-
-		<Tabs bind:value={activeTab} class="w-full">
-			<Tabs.List class="mb-6">
-				<Tabs.Trigger value="basic">{common_basic()}</Tabs.Trigger>
-				{#if hasFeature('social')}
-					<Tabs.Trigger value="social" disabled={!isCheckingLicense && !licenseStatus.active}
-						>{common_social()}</Tabs.Trigger
-					>
-				{/if}
-				{#if hasFeature('advanced')}
-					<Tabs.Trigger value="advanced" disabled={!isCheckingLicense && !licenseStatus.active}
-						>{common_advanced()}</Tabs.Trigger
-					>
-				{/if}
-			</Tabs.List>
+			{/if}
 
 			{#if langData}
 				<Tabs.Content value="basic" class="mt-4 space-y-4">

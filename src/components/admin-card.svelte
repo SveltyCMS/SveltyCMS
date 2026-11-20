@@ -61,7 +61,7 @@ Use instead of raw `div.card` with ad-hoc dark: surface classes.
 		{/snippet}
 	</Card>
 {:else}
-	<div class={cn('card rounded', className)} style={adminStyles} {...rest}>
+	<div class={cn('card overflow-hidden rounded', className)} style={adminStyles} {...rest}>
 		{@render content?.()}
 	</div>
 {/if}

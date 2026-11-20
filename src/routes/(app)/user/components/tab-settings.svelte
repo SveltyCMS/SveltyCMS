@@ -177,7 +177,7 @@ Features:
 		modalState.trigger(ModalPrivacyData as never, { user });
 	}
 
-	const cardClass = 'border border-(--admin-border-default) p-5 sm:p-6 shadow-sm';
+	const cardClass = 'border border-(--admin-border-default) p-3.5 sm:p-6 shadow-sm';
 
 	const rtcPrefs = $derived(
 		((serverUser?.preferences ?? {}) as Record<string, Record<string, boolean>>).rtc ?? {}
@@ -285,11 +285,10 @@ Features:
 				<div class="flex flex-col gap-2 sm:flex-row">
 					<Button
 						variant="primary"
-						size="sm"
 						onclick={saveQuickAppearance}
 						loading={savingAppearance}
 						data-testid="user-save-appearance-btn"
-						class="flex-1"
+						class="w-full sm:flex-1"
 					>
 						{userpage_apply_appearance()}
 					</Button>
@@ -298,7 +297,7 @@ Features:
 						href="/config/design-system?tab=overrides"
 						data-testid="open-appearance-settings-btn"
 						aria-label={userpage_open_design_system_aria()}
-						class="flex-1 text-xs font-bold tracking-tight"
+						class="w-full sm:flex-1 text-xs font-bold tracking-tight"
 					>
 						<iconify-icon icon="mdi:compass-outline" width={14} class="me-1" aria-hidden="true"
 						></iconify-icon>

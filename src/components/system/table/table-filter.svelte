@@ -182,16 +182,16 @@ It includes search, filter toggles, column visibility, and density controls, opt
 	// fill + border) so the ghost icons stay legible on light backgrounds instead of
 	// melting into the page.
 	const btnChrome =
-		'h-10 w-10 p-0 flex items-center justify-center rounded-(--admin-radius-input) border border-(--admin-border-default) bg-(--admin-bg-card)/80 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors';
+		'h-9 w-9 p-0 flex items-center justify-center rounded-(--admin-radius-input) border border-(--admin-border-default) bg-transparent text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors';
 	const btnChromeActive =
-		'h-10 w-10 p-0 flex items-center justify-center rounded-(--admin-radius-input) border border-primary-500/60 bg-primary-500/10 text-primary-500 dark:border-primary-500/50 dark:bg-primary-500/20 dark:text-primary-400 transition-colors';
+		'h-9 w-9 p-0 flex items-center justify-center rounded-(--admin-radius-input) border border-primary-500/60 bg-primary-500/10 text-primary-500 dark:border-primary-500/50 dark:bg-primary-500/20 dark:text-primary-400 transition-colors';
 </script>
 
 <!-- Searching field. It renders ALONGSIDE the toolbar: the previous `{#if searchShow} … {:else} … {/if}`
      branch unmounted the filter/column/density buttons the moment search opened, so the user lost
      every other control (and the toggle that could close search again) while typing. -->
 {#if searchShow}
-	<div class="flex h-10 w-48 lg:w-64 min-w-0 shrink items-center gap-1 transition-all duration-300">
+	<div class="flex h-9 w-48 lg:w-64 min-w-0 shrink items-center gap-1 transition-all duration-300">
 		<div class="min-w-0 flex-1">
 			<FloatingInput
 				autofocus={searchShow}
@@ -201,7 +201,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 				icon="material-symbols:search-rounded"
 				aria-label={table_search_aria()}
 				onkeydown={handleSearchKeydown}
-				inputClass="h-10 rounded-(--admin-radius-input)"
+				inputClass="h-9 rounded-(--admin-radius-input)"
 			/>
 		</div>
 		<Button
@@ -227,7 +227,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 <span class="contents" bind:this={searchToggleEl}>
 	<SystemTooltip title={table_search_toggle()}>
 		<Button
-			variant="ghost"
+			variant="transparent"
 			type="button"
 			onclick={() => {
 				searchShow = !searchShow;
@@ -245,7 +245,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 <!-- Filter -->
 <SystemTooltip title={table_filter_toggle()}>
 	<Button
-		variant="ghost"
+		variant="transparent"
 		type="button"
 		onclick={() => {
 			filterShow = !filterShow;
@@ -261,7 +261,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 <!-- Column Order & Visibility -->
 <SystemTooltip title={table_column_toggle()}>
 	<Button
-		variant="ghost"
+		variant="transparent"
 		type="button"
 		onclick={() => {
 			columnShow = !columnShow;
@@ -277,7 +277,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 <!-- Spacing/Density -->
 <SystemTooltip title={table_density_label({ density: getDensityDisplayName() })}>
 	<Button
-		variant="ghost"
+		variant="transparent"
 		type="button"
 		onclick={() => {
 			cycleDensity();
@@ -298,7 +298,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		title={viewMode === 'table' ? table_switch_to_card_view() : table_switch_to_table_view()}
 	>
 		<Button
-			variant="ghost"
+			variant="transparent"
 			type="button"
 			onclick={() => onViewModeChange?.(viewMode === 'table' ? 'card' : 'table')}
 			aria-label={viewMode === 'table' ? table_switch_to_card_view() : table_switch_to_table_view()}

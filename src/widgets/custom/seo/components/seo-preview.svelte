@@ -121,26 +121,24 @@
 	);
 </script>
 
-<div class="mt-1 border-t border-surface-500 dark:text-surface-50">
-	<div class="mb-4 flex flex-wrap items-center justify-between gap-4">
+<div class="dark:text-surface-50">
+	<div class="mb-2 flex flex-wrap items-center justify-between gap-2">
 		<h3 class="h3 text-xl">{seo_preview_title()}</h3>
 
-		<div
-			class="btn-group border border-surface-500/30 rounded-(--admin-radius-button) overflow-hidden"
-		>
+		<div class="flex items-center gap-1.5">
 			<!-- Device Toggle: Desktop -->
 			<SystemTooltip title={common_desktop_view()}>
 				<Button
-					variant={!SeoPreviewToggle ? 'tertiary' : 'ghost'}
+					variant={!SeoPreviewToggle ? 'tertiary' : 'transparent'}
 					type="button"
 					onclick={() => (SeoPreviewToggle = false)}
 					aria-label={common_desktop_view()}
 					aria-pressed={!SeoPreviewToggle}
-					class="p-0! min-w-0 {!SeoPreviewToggle
-						? 'bg-tertiary-500/10 text-tertiary-500 dark:bg-tertiary-900/20'
+					class="h-9 w-9 p-0! min-w-0 {!SeoPreviewToggle
+						? 'text-tertiary-500 dark:text-primary-500'
 						: 'text-(--admin-text-muted)'}"
 				>
-					<iconify-icon icon="mdi:monitor" width={24}></iconify-icon>
+					<iconify-icon icon="mdi:monitor" width={20}></iconify-icon>
 				</Button>
 			</SystemTooltip>
 
@@ -152,11 +150,11 @@
 					onclick={() => (SeoPreviewToggle = true)}
 					aria-label={common_mobile_view()}
 					aria-pressed={SeoPreviewToggle}
-					class="p-0! min-w-0 {SeoPreviewToggle
+					class="h-9 w-9 p-0! min-w-0 {SeoPreviewToggle
 						? 'bg-tertiary-500/10 text-tertiary-500 dark:bg-tertiary-900/20'
 						: 'text-(--admin-text-muted)'}"
 				>
-					<iconify-icon icon="mdi:cellphone" width={24}></iconify-icon>
+					<iconify-icon icon="mdi:cellphone" width={20}></iconify-icon>
 				</Button>
 			</SystemTooltip>
 
@@ -167,9 +165,9 @@
 					type="button"
 					onclick={() => (heatmapMode = !heatmapMode)}
 					aria-pressed={heatmapMode}
-					class={heatmapMode ? 'preset-filled-warning-500' : ''}
+					class="h-9 px-2.5 gap-1.5 {heatmapMode ? 'preset-filled-warning-500' : ''}"
 				>
-					<iconify-icon icon="mdi:fire" width={24}></iconify-icon>
+					<iconify-icon icon="mdi:fire" width={20}></iconify-icon>
 					<span class="hidden sm:inline">{seo_preview_heatmap()}</span>
 				</Button>
 			</SystemTooltip>
@@ -178,7 +176,7 @@
 
 	<!-- Preview Card -->
 	<div
-		class="card bg-white/50 dark:bg-surface-900/50 backdrop-blur-sm p-4 transition-all duration-200 rounded-(--admin-radius-card) border border-(--admin-border-default) {SeoPreviewToggle
+		class="card bg-white/50 dark:bg-surface-900/50 backdrop-blur-sm p-4 transition-all duration-200 rounded border border-(--admin-border-default) {SeoPreviewToggle
 			? 'max-w-93.75 mx-auto'
 			: 'w-full'}"
 	>

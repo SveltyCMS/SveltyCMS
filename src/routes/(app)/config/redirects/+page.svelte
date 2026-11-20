@@ -20,6 +20,7 @@
 	import AdminCard from '@components/admin-card.svelte';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import Modal from '@components/ui/modal.svelte';
+	import StickyActions from '@components/ui/sticky-actions.svelte';
 	import SmartTableShell from '@components/ui/smart-table/smart-table-shell.svelte';
 	import {
 		SMART_TABLE,
@@ -313,195 +314,204 @@
 <AdminPageShell
 	title={redirects_title()}
 	icon="mdi:arrow-decision"
-	description="Manage your site redirects globally"
 	showBackButton={true}
 	backUrl="/config"
+	fullHeight={true}
+	flushContent={true}
+	titleCompact={true}
 >
-	{#snippet actions()}
-		<Button
-			variant="primary"
-			onclick={() => openModal()}
-			leadingIcon="mdi:plus"
-			data-testid="redirects-add"
-			aria-label={redirects_add_aria()}
-		>
-			{redirects_add()}
-		</Button>
-	{/snippet}
+	<div data-testid="redirects-page" class="flex min-h-0 flex-1 flex-col -mt-1 sm:mt-0">
+		<div class="min-h-0 flex-1 overflow-y-auto pb-4 pe-0.5">
+			<AdminCard
+				class="flex min-h-full flex-col space-y-3 sm:space-y-4 border border-surface-500/30 bg-white p-3.5 sm:p-6 shadow-xs backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/20"
+			>
+				<div class="relative">
+					<iconify-icon
+						icon="mdi:magnify"
+						class="pointer-events-none absolute inset-s-3 top-1/2 z-10 -translate-y-1/2 text-xl opacity-50"
+						aria-hidden="true"
+					></iconify-icon>
+					<Input
+						type="search"
+						bind:value={searchQuery}
+						placeholder={redirects_search_placeholder()}
+						aria-label={redirects_search_aria()}
+						data-testid="redirects-search"
+						class="ps-10 w-full"
+					/>
+				</div>
 
-	<div data-testid="redirects-page" class="contents">
-		<AdminCard
-			class="space-y-4 border border-surface-500/30 bg-white p-6 shadow-xs backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/20"
-		>
-			<div class="relative">
-				<iconify-icon
-					icon="mdi:magnify"
-					class="pointer-events-none absolute inset-s-3 top-1/2 z-10 -translate-y-1/2 text-xl opacity-50"
-					aria-hidden="true"
-				></iconify-icon>
-				<Input
-					type="search"
-					bind:value={searchQuery}
-					placeholder={redirects_search_placeholder()}
-					aria-label={redirects_search_aria()}
-					data-testid="redirects-search"
-					class="ps-10 w-full"
-				/>
-			</div>
+				<p class="text-xs text-surface-500" data-testid="redirects-count">
+					{filteredRedirects.length}
+					{filteredRedirects.length === 1 ? redirects_count_singular() : redirects_count_plural()}
+					{#if searchQuery.trim()}
+						{redirects_matching()} “{searchQuery.trim()}”
+					{/if}
+				</p>
 
-			<p class="text-xs text-surface-500" data-testid="redirects-count">
-				{filteredRedirects.length}
-				{filteredRedirects.length === 1 ? redirects_count_singular() : redirects_count_plural()}
-				{#if searchQuery.trim()}
-					{redirects_matching()} “{searchQuery.trim()}”
-				{/if}
-			</p>
+				<div class="w-full" data-testid="redirects-table">
+					<SmartTableShell
+						empty={sortedRedirects.length === 0}
+						emptyTitle={searchQuery.trim() ? redirects_empty_match() : redirects_empty_none()}
+						emptyDescription={searchQuery.trim()
+							? 'No redirects match your current search query.'
+							: 'Configure redirect rules to forward visitors and search engines.'}
+						emptyIcon="mdi:arrow-decision"
+						showPagination={sortedRedirects.length > 0}
+						bind:currentPage
+						bind:rowsPerPage
+						{pagesCount}
+						totalItems={sortedRedirects.length}
+						rowsPerPageOptions={[10, 25, 50, 100]}
+					>
+						{#snippet emptyAction()}
+							<div data-testid="redirects-empty" class="contents"></div>
+						{/snippet}
 
-			<div class="w-full" data-testid="redirects-table">
-				<SmartTableShell
-					empty={sortedRedirects.length === 0}
-					emptyTitle={searchQuery.trim() ? redirects_empty_match() : redirects_empty_none()}
-					emptyDescription={searchQuery.trim()
-						? 'No redirects match your current search query.'
-						: 'Configure redirect rules to forward visitors and search engines.'}
-					emptyIcon="mdi:arrow-decision"
-					showPagination={sortedRedirects.length > 0}
-					bind:currentPage
-					bind:rowsPerPage
-					{pagesCount}
-					totalItems={sortedRedirects.length}
-					rowsPerPageOptions={[10, 25, 50, 100]}
-				>
-					{#snippet emptyAction()}
-						<div data-testid="redirects-empty" class="contents"></div>
-					{/snippet}
-
-					<table class={SMART_TABLE}>
-						<thead class={SMART_TABLE_THEAD}>
-							<tr
-								class="border-b border-surface-500/30 text-xs uppercase tracking-wide dark:border-surface-600"
-							>
-								<th class="{SMART_TABLE_TH} text-start ps-3">
-									<button
-										type="button"
-										class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
-										onclick={() => toggleSort('from')}
-									>
-										{redirects_from_path()}
-										{#if sortField === 'from'}
-											<iconify-icon
-												icon={sortOrder === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'}
-												class="text-primary-500"
-											></iconify-icon>
-										{/if}
-									</button>
-								</th>
-								<th class="{SMART_TABLE_TH} text-start ps-3">
-									<button
-										type="button"
-										class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
-										onclick={() => toggleSort('to')}
-									>
-										{redirects_to_path()}
-										{#if sortField === 'to'}
-											<iconify-icon
-												icon={sortOrder === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'}
-												class="text-primary-500"
-											></iconify-icon>
-										{/if}
-									</button>
-								</th>
-								<th class="{SMART_TABLE_TH} text-center">
-									<button
-										type="button"
-										class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
-										onclick={() => toggleSort('type')}
-									>
-										{redirects_type()}
-										{#if sortField === 'type'}
-											<iconify-icon
-												icon={sortOrder === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'}
-												class="text-primary-500"
-											></iconify-icon>
-										{/if}
-									</button>
-								</th>
-								<th class="{SMART_TABLE_TH} text-center">
-									<button
-										type="button"
-										class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
-										onclick={() => toggleSort('active')}
-									>
-										{redirects_status()}
-										{#if sortField === 'active'}
-											<iconify-icon
-												icon={sortOrder === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'}
-												class="text-primary-500"
-											></iconify-icon>
-										{/if}
-									</button>
-								</th>
-								<th class="{SMART_TABLE_TH} text-end pe-3">{redirects_actions()}</th>
-							</tr>
-						</thead>
-						<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
-							{#each paginatedRedirects as redirect (redirect._id || redirect.from + redirect.to)}
+						<table class={SMART_TABLE}>
+							<thead class={SMART_TABLE_THEAD}>
 								<tr
-									class={SMART_TABLE_ROW_HOVER}
-									data-testid={`redirect-row-${redirect._id || 'new'}`}
-									data-from={redirect.from}
+									class="border-b border-surface-500/30 text-xs uppercase tracking-wide dark:border-surface-600"
 								>
-									<td class="{SMART_TABLE_TD} text-start ps-3 font-mono text-xs">{redirect.from}</td
-									>
-									<td class="{SMART_TABLE_TD} text-start ps-3 font-mono text-xs">{redirect.to}</td>
-									<td class={SMART_TABLE_TD}>
-										<Badge
-											variant={redirect.type === 301 || redirect.type === 308
-												? 'success'
-												: 'warning'}
+									<th class="{SMART_TABLE_TH} text-start ps-3">
+										<button
+											type="button"
+											class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
+											onclick={() => toggleSort('from')}
 										>
-											{redirect.type}
-										</Badge>
-									</td>
-									<td class={SMART_TABLE_TD}>
-										{#if redirect.active}
-											<Badge variant="primary">{common_active()}</Badge>
-										{:else}
-											<Badge variant="surface">{redirects_inactive()}</Badge>
-										{/if}
-									</td>
-									<td class="{SMART_TABLE_TD} text-end pe-3">
-										<div class="inline-flex min-w-20 items-center justify-end gap-2">
-											<Button
-												variant="ghost"
-												size="sm"
-												onclick={() => openModal(redirect)}
-												aria-label={redirects_edit_aria({ from: redirect.from })}
-												data-testid="redirect-edit"
-											>
-												<iconify-icon icon="mdi:pencil" width="18" height="18"></iconify-icon>
-												<span class="sr-only">{redirects_edit()}</span>
-											</Button>
-											<Button
-												variant="error"
-												size="sm"
-												aria-label={redirects_delete_aria({ from: redirect.from })}
-												data-testid="redirect-delete"
-												onclick={() => confirmDelete(redirect)}
-											>
-												<iconify-icon icon="mdi:trash-can" width="18" height="18"></iconify-icon>
-												<span class="sr-only">Delete</span>
-											</Button>
-										</div>
-									</td>
+											{redirects_from_path()}
+											{#if sortField === 'from'}
+												<iconify-icon
+													icon={sortOrder === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'}
+													class="text-primary-500"
+												></iconify-icon>
+											{/if}
+										</button>
+									</th>
+									<th class="{SMART_TABLE_TH} text-start ps-3">
+										<button
+											type="button"
+											class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
+											onclick={() => toggleSort('to')}
+										>
+											{redirects_to_path()}
+											{#if sortField === 'to'}
+												<iconify-icon
+													icon={sortOrder === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'}
+													class="text-primary-500"
+												></iconify-icon>
+											{/if}
+										</button>
+									</th>
+									<th class="{SMART_TABLE_TH} text-center">
+										<button
+											type="button"
+											class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
+											onclick={() => toggleSort('type')}
+										>
+											{redirects_type()}
+											{#if sortField === 'type'}
+												<iconify-icon
+													icon={sortOrder === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'}
+													class="text-primary-500"
+												></iconify-icon>
+											{/if}
+										</button>
+									</th>
+									<th class="{SMART_TABLE_TH} text-center">
+										<button
+											type="button"
+											class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
+											onclick={() => toggleSort('active')}
+										>
+											{redirects_status()}
+											{#if sortField === 'active'}
+												<iconify-icon
+													icon={sortOrder === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'}
+													class="text-primary-500"
+												></iconify-icon>
+											{/if}
+										</button>
+									</th>
+									<th class="{SMART_TABLE_TH} text-end pe-3">{redirects_actions()}</th>
 								</tr>
-							{/each}
-						</tbody>
-					</table>
-				</SmartTableShell>
-			</div>
-		</AdminCard>
+							</thead>
+							<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
+								{#each paginatedRedirects as redirect (redirect._id || redirect.from + redirect.to)}
+									<tr
+										class={SMART_TABLE_ROW_HOVER}
+										data-testid={`redirect-row-${redirect._id || 'new'}`}
+										data-from={redirect.from}
+									>
+										<td class="{SMART_TABLE_TD} text-start ps-3 font-mono text-xs"
+											>{redirect.from}</td
+										>
+										<td class="{SMART_TABLE_TD} text-start ps-3 font-mono text-xs">{redirect.to}</td
+										>
+										<td class={SMART_TABLE_TD}>
+											<Badge
+												variant={redirect.type === 301 || redirect.type === 308
+													? 'success'
+													: 'warning'}
+											>
+												{redirect.type}
+											</Badge>
+										</td>
+										<td class={SMART_TABLE_TD}>
+											{#if redirect.active}
+												<Badge variant="primary">{common_active()}</Badge>
+											{:else}
+												<Badge variant="surface">{redirects_inactive()}</Badge>
+											{/if}
+										</td>
+										<td class="{SMART_TABLE_TD} text-end pe-3">
+											<div class="inline-flex min-w-20 items-center justify-end gap-2">
+												<Button
+													variant="ghost"
+													size="sm"
+													onclick={() => openModal(redirect)}
+													aria-label={redirects_edit_aria({ from: redirect.from })}
+													data-testid="redirect-edit"
+												>
+													<iconify-icon icon="mdi:pencil" width="18" height="18"></iconify-icon>
+													<span class="sr-only">{redirects_edit()}</span>
+												</Button>
+												<Button
+													variant="error"
+													size="sm"
+													aria-label={redirects_delete_aria({ from: redirect.from })}
+													data-testid="redirect-delete"
+													onclick={() => confirmDelete(redirect)}
+												>
+													<iconify-icon icon="mdi:trash-can" width="18" height="18"></iconify-icon>
+													<span class="sr-only">Delete</span>
+												</Button>
+											</div>
+										</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</SmartTableShell>
+				</div>
+			</AdminCard>
+		</div>
 	</div>
+
+	<StickyActions>
+		<div class="flex w-full items-center justify-center sm:justify-end">
+			<Button
+				variant="primary"
+				onclick={() => openModal()}
+				leadingIcon="mdi:plus"
+				data-testid="redirects-add"
+				aria-label={redirects_add_aria()}
+				class="h-9 w-full sm:h-10 sm:w-auto sm:px-4"
+			>
+				{redirects_add()}
+			</Button>
+		</div>
+	</StickyActions>
 </AdminPageShell>
 
 {#if isModalOpen && selectedRedirect}

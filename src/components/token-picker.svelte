@@ -31,7 +31,7 @@
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { ui } from '@src/stores/ui-store.svelte';
 	import { nowISODateString } from '@utils/date';
-	import { adminFade, adminSlide } from '@utils/admin-transitions';
+	import { adminFade } from '@utils/admin-transitions';
 
 	import { page } from '$app/state';
 
@@ -53,12 +53,7 @@
 	let previousTokenResult = $state('');
 
 	// UI state
-	let openCategories = $state<Record<string, boolean>>({
-		entry: true,
-		user: false,
-		site: false,
-		system: false
-	});
+	let activeCategory = $state<string>('ALL');
 
 	// Derived data
 	let groupedTokens = $derived(
@@ -409,8 +404,8 @@
 
 {#if activeInput.current}
 	<div
-		class="token-window fixed z-9999 flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded border border-(--admin-border-default) bg-(--admin-bg-card) p-4 shadow-xl text-(--admin-text-body)"
-		style="bottom: 2rem; inset-inline-end: {rightPosition};"
+		class="token-window fixed inset-0 z-9999 flex h-dvh max-h-dvh w-full max-w-none flex-col overflow-hidden rounded-none border-0 bg-(--admin-bg-card) p-2.5 shadow-xl text-(--admin-text-body) sm:inset-auto sm:bottom-8 sm:h-auto sm:max-h-[85dvh] sm:max-w-xl sm:rounded sm:border sm:border-(--admin-border-default) sm:p-4"
+		style="inset-inline-end: {rightPosition};"
 		transition:adminFade={{ duration: 150 }}
 	>
 		<header use:draggable class="mb-4 flex cursor-move select-none items-center justify-between">
@@ -434,15 +429,14 @@
 					</Badge>
 				</h3>
 			</div>
-			<Button
-				variant="transparent"
-				rounded
+			<button
+				type="button"
 				onclick={closePicker}
 				aria-label="Close token picker"
-				class="inline-flex size-8 items-center justify-center bg-transparent p-0! min-w-0 text-(--admin-text-muted) hover:bg-surface-500/10 hover:text-(--admin-text-body)"
+				class="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-surface-500/30 bg-surface-800/40 text-(--admin-text-muted) transition-colors hover:bg-surface-500/10 hover:text-(--admin-text-body)"
 			>
 				<iconify-icon icon="mdi:close"></iconify-icon>
-			</Button>
+			</button>
 		</header>
 
 		{#if mode === 'list'}
@@ -455,68 +449,75 @@
 				/>
 			</div>
 
-			<div class="scrollbar-thin flex-1 space-y-2 overflow-y-auto pe-1">
-				{#each Object.entries(filteredGroups) as [cat, tokens] (cat)}
-					<div class="card preset-tonal p-2">
-						<Button
-							variant="ghost"
-							onclick={() => (openCategories[cat] = !openCategories[cat])}
-							class="flex w-full items-center justify-between text-sm font-bold uppercase opacity-70 hover:opacity-100"
-							aria-label="Toggle {cat} category"
-						>
-							<div class="flex items-center gap-2">
-								<iconify-icon icon={icons[cat]}></iconify-icon>
-								<span>{cat}</span>
-							</div>
-							<iconify-icon
-								icon="mdi:chevron-down"
-								class="transition-transform {openCategories[cat] || search ? 'rotate-180' : ''}"
-							></iconify-icon>
-						</Button>
+			<!-- Category Pill Tabs -->
+			<div class="mb-2 flex flex-nowrap items-center gap-1.5 overflow-x-auto pb-1 shrink-0">
+				<button
+					type="button"
+					onclick={() => (activeCategory = 'ALL')}
+					class="shrink-0 rounded px-2.5 py-1 text-xs font-semibold transition-colors {activeCategory ===
+					'ALL'
+						? 'bg-tertiary-500 text-white dark:bg-primary-500'
+						: 'bg-surface-500/10 text-(--admin-text-muted) hover:text-(--admin-text-body)'}"
+				>
+					All
+				</button>
+				{#each Object.keys(filteredGroups) as cat (cat)}
+					<button
+						type="button"
+						onclick={() => (activeCategory = cat)}
+						class="flex shrink-0 items-center gap-1.5 rounded px-2.5 py-1 text-xs font-semibold capitalize transition-colors {activeCategory ===
+						cat
+							? 'bg-tertiary-500 text-white dark:bg-primary-500'
+							: 'bg-surface-500/10 text-(--admin-text-muted) hover:text-(--admin-text-body)'}"
+					>
+						<iconify-icon icon={icons[cat]} width="14"></iconify-icon>
+						<span>{cat.toLowerCase()}</span>
+					</button>
+				{/each}
+			</div>
 
-						{#if openCategories[cat] || search}
-							<div transition:adminSlide class="mt-2 space-y-1">
-								{#each tokens as t (t.token)}
-									<AdminCard
-										class="preset-filled-surface-500 hover:preset-tonal-primary cursor-pointer p-2 transition-colors"
-										onclick={() => selectToken(t)}
-										onkeydown={(e) => e.key === 'Enter' && selectToken(t)}
-										tabindex={0}
-										role="button"
-									>
-										<div class="flex items-start justify-between gap-2">
-											<div class="flex-1 text-start">
-												<div class="text-sm font-medium">{t.name}</div>
-												<div class="flex items-center gap-2 mt-0.5">
-													<code
-														class="code text-[11px] text-tertiary-500 dark:text-primary-500 font-mono"
-														>{`{{ ${t.token} }}`}</code
-													>
-												</div>
-												{#if t.description}
-													<p class="text-[11px] opacity-70 mt-0.5 leading-snug">{t.description}</p>
-												{/if}
-											</div>
-											<div class="flex items-center gap-1.5 shrink-0">
-												<Badge variant="secondary" preset="tonal" class="text-[10px] uppercase"
-													>{t.type}</Badge
-												>
-												<Button
-													variant="outline"
-													onclick={(e: MouseEvent) => configureToken(t, e)}
-													aria-label="Configure token"
-													title="Configure token modifiers"
-													class="p-0! min-w-0 size-7"
-												>
-													<iconify-icon icon="mdi:plus" width="16"></iconify-icon>
-												</Button>
-											</div>
+			<div class="scrollbar-thin flex-1 space-y-1.5 overflow-y-auto pe-1">
+				{#each Object.entries(filteredGroups) as [cat, tokens] (cat)}
+					{#if search || activeCategory === 'ALL' || activeCategory === cat}
+						{#each tokens as t (t.token)}
+							<AdminCard
+								class="preset-filled-surface-500 hover:preset-tonal-primary cursor-pointer rounded p-2.5 transition-colors"
+								onclick={() => selectToken(t)}
+								onkeydown={(e) => e.key === 'Enter' && selectToken(t)}
+								tabindex={0}
+								role="button"
+							>
+								<div class="flex items-center justify-between gap-2">
+									<div class="min-w-0 flex-1 text-start">
+										<div class="flex items-center gap-2">
+											<span class="text-sm font-medium">{t.name}</span>
+											<Badge variant="secondary" preset="tonal" class="text-[10px] uppercase"
+												>{t.type}</Badge
+											>
 										</div>
-									</AdminCard>
-								{/each}
-							</div>
-						{/if}
-					</div>
+										<div class="flex items-center gap-2 mt-0.5">
+											<code
+												class="code text-[11px] text-tertiary-500 dark:text-primary-500 font-mono"
+												>{`{{ ${t.token} }}`}</code
+											>
+										</div>
+										{#if t.description}
+											<p class="text-[11px] opacity-70 mt-0.5 leading-snug">{t.description}</p>
+										{/if}
+									</div>
+									<Button
+										variant="primary"
+										onclick={(e: MouseEvent) => configureToken(t, e)}
+										aria-label="Configure token"
+										title="Configure token modifiers"
+										class="p-0! min-w-0 size-8 shrink-0 rounded flex items-center justify-center bg-tertiary-500 text-white dark:bg-primary-500"
+									>
+										<iconify-icon icon="mdi:plus" width="18"></iconify-icon>
+									</Button>
+								</div>
+							</AdminCard>
+						{/each}
+					{/if}
 				{/each}
 			</div>
 		{:else if selectedToken}

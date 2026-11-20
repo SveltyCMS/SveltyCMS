@@ -14,7 +14,7 @@
         "src/databases/auth/permission-catalog.ts"
       ],
       "model": "docs/reference/security/threat-models/api-dispatch.mdx",
-      "reviewed_at": "2026-11-18",
+      "reviewed_at": "2026-11-21",
       "fingerprint": "d3ecc7d776f5cf2cebaf901d015039420fe29c168901089e3620b5d743881ef9"
     },
     {
@@ -37,8 +37,8 @@
         "src/routes/api/[...path]/handlers/scim.ts"
       ],
       "model": "docs/reference/security/threat-models/auth-session.mdx",
-      "reviewed_at": "2026-11-18",
-      "fingerprint": "8b4a2610ae773cec53731e46e39cb9b66e3f706d880e7d8d5a61d181486843f6"
+      "reviewed_at": "2026-11-21",
+      "fingerprint": "0af845bfacae65a63895c407d92857b3de654caa1053c603790a333267f5aea0"
     },
     {
       "id": "content-write",
@@ -57,8 +57,8 @@
         "src/hooks/handle-collection-write-lane.ts"
       ],
       "model": "docs/reference/security/threat-models/content-write.mdx",
-      "reviewed_at": "2026-11-18",
-      "fingerprint": "928bf54f961791bd064b703a2d02d57507f717374b0e00c7ef84e1b11ed8cd94"
+      "reviewed_at": "2026-11-21",
+      "fingerprint": "21df7953b52c1c9edb89260e7c9a8c87cda8172a024f778b92a7c292d158debe"
     },
     {
       "id": "media-files",
@@ -74,7 +74,7 @@
         "src/routes/api/[...path]/handlers/media-transcode.ts"
       ],
       "model": "docs/reference/security/threat-models/media-files.mdx",
-      "reviewed_at": "2026-11-18",
+      "reviewed_at": "2026-11-21",
       "fingerprint": "ed3439964d2e636a6cd84a5c107cafefb35878eb1d9f1c070a7fb0c9d2d548e6"
     },
     {
@@ -89,8 +89,8 @@
         "src/utils/page-guards.server.ts"
       ],
       "model": "docs/reference/security/threat-models/admin-pages.mdx",
-      "reviewed_at": "2026-11-18",
-      "fingerprint": "785214846504cad83bcdc8452ee875c3cecd416968e9673d3f97dfd621cb5ea2"
+      "reviewed_at": "2026-11-21",
+      "fingerprint": "673df0e6fe60b82290af7c9ec63abe657f2d0d3d3b5fc85fc0768707d6bccee9"
     },
     {
       "id": "system-ops",
@@ -130,8 +130,8 @@
         "src/utils/test-bypass.server.ts"
       ],
       "model": "docs/reference/security/threat-models/system-ops.mdx",
-      "reviewed_at": "2026-11-18",
-      "fingerprint": "5c57cb8e3bc8b998558a27a2ce7dcf299f0d758eb4122e8216b91545029dbd97"
+      "reviewed_at": "2026-11-21",
+      "fingerprint": "a631bb5882d029fad57052b28426656a579bfaebddac5b3bb908ebb46c5934e0"
     }
   ]
 }

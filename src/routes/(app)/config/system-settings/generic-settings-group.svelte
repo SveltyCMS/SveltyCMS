@@ -78,6 +78,7 @@ Handles all field types and validation automatically
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
 	import StickyActions from '@components/ui/sticky-actions.svelte';
+	import { getThemeContext } from '@components/ui/theme-context.svelte';
 
 	// Remote Functions
 	// Remote Functions — loaded dynamically for code splitting
@@ -206,6 +207,8 @@ Handles all field types and validation automatically
 	const showLanguagePicker = $state<Record<string, boolean>>({}); // Track language picker visibility per field
 	const languageSearch = $state<Record<string, string>>({}); // Track search input per field
 	const showLogLevelPicker = $state<Record<string, boolean>>({}); // Track log level picker visibility per field
+	const theme = getThemeContext();
+	const stickyBarEnabled = $derived(theme?.features?.stickyActionBar ?? false);
 
 	// Derived fields for special layouts
 	const defaultLangField = $derived(group.fields.find((f) => f.key === 'DEFAULT_CONTENT_LANGUAGE'));
@@ -380,7 +383,7 @@ Handles all field types and validation automatically
 
 		// Check field type
 		if (field.type === 'boolean') {
-			return 'mdi:checkbox-marked';
+			return 'mdi:toggle-switch-outline';
 		}
 		if (field.type === 'number') {
 			return 'mdi:numeric';
@@ -946,10 +949,10 @@ Handles all field types and validation automatically
 											{#each languages as langCode (langCode)}
 												<Badge
 													variant="tertiary"
-													size="lg"
+													size="sm"
 													class="group hover:brightness-110 dark:bg-primary-500 dark:text-white dark:hover:brightness-110"
 												>
-													<span class="text-sm font-medium"
+													<span class="text-xs font-medium"
 														>{displayLanguage(langCode)} ({langCode})</span
 													>
 													{#if !availableLangsField.readonly}
@@ -962,7 +965,7 @@ Handles all field types and validation automatically
 																removeLanguage(availableLangsField.key, langCode as string)}
 															aria-label={settings_remove_language({ langCode })}
 														>
-															<iconify-icon icon="mdi:close" width="14"></iconify-icon>
+															<iconify-icon icon="mdi:close" width="12"></iconify-icon>
 														</Button>
 													{/if}
 												</Badge>
@@ -1145,10 +1148,10 @@ Handles all field types and validation automatically
 											{#each locales as langCode (langCode)}
 												<Badge
 													variant="tertiary"
-													size="lg"
+													size="sm"
 													class="group hover:brightness-110 dark:bg-primary-500 dark:text-white dark:hover:brightness-110"
 												>
-													<span class="text-sm font-medium"
+													<span class="text-xs font-medium"
 														>{displayLanguage(langCode)} ({langCode})</span
 													>
 													{#if getTextDirection(langCode) === 'rtl'}
@@ -1182,7 +1185,7 @@ Handles all field types and validation automatically
 															}}
 															aria-label={settings_remove_language({ langCode })}
 														>
-															<iconify-icon icon="mdi:close" width="14"></iconify-icon>
+															<iconify-icon icon="mdi:close" width="12"></iconify-icon>
 														</Button>
 													{/if}
 												</Badge>
@@ -1319,27 +1322,83 @@ Handles all field types and validation automatically
 								? 'md:col-span-2'
 								: ''}"
 						>
-							<div class="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
-								<iconify-icon
-									icon={getFieldIcon(field)}
-									width="18"
-									class="shrink-0 text-tertiary-500 dark:text-primary-500"
-								></iconify-icon>
-								<label
-									for={field.key}
-									class="text-sm font-semibold text-(--admin-text-body) md:text-base"
-									>{field.label}</label
-								>
-								{#if field.required}
-									<span class="text-error-500">*</span>
+							<div class="mb-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+								<div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+									<iconify-icon
+										icon={getFieldIcon(field)}
+										width="18"
+										class="shrink-0 text-tertiary-500 dark:text-primary-500"
+									></iconify-icon>
+									<label
+										for={field.key}
+										class="text-sm font-semibold text-(--admin-text-body) md:text-base"
+										>{field.label}</label
+									>
+									{#if field.required}
+										<span class="text-error-500">*</span>
+									{/if}
+									<!-- The icon is the only tooltip trigger; the label text stays inert -->
+									<SystemTooltip
+										title={field.description ? `${field.description} (${field.key})` : field.key}
+										positioning={{ placement: 'top' }}
+									>
+										<HelpIcon ariaLabel="Field information" />
+									</SystemTooltip>
+								</div>
+
+								{#if field.type === 'boolean'}
+									<Checkbox
+										bind:checked={values[field.key] as boolean}
+										required={field.required}
+										error={errors[field.key]}
+										onchange={(checked) => {
+											errors[field.key] = '';
+
+											if (field.key === 'SEASONS' && checked) {
+												if (!values.SEASON_REGION) {
+													const tz =
+														(values.TIMEZONE as string) ||
+														Intl.DateTimeFormat().resolvedOptions().timeZone ||
+														'';
+													values.SEASON_REGION = detectSeasonRegion(tz);
+												}
+											}
+										}}
+									/>
+								{:else if field.type === 'language-multi' && !field.readonly}
+									<Button
+										variant="tertiary"
+										size="sm"
+										type="button"
+										onclick={() => {
+											showLanguagePicker[field.key] = true;
+											languageSearch[field.key] = '';
+										}}
+										aria-haspopup="dialog"
+										aria-expanded={showLanguagePicker[field.key]}
+										aria-controls="{field.key}-lang-picker"
+										rounded
+										class="font-medium shrink-0"
+									>
+										<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
+										<span>{button_add()}</span>
+									</Button>
+								{:else if field.type === 'loglevel-multi' && !field.readonly}
+									<Button
+										variant="tertiary"
+										size="sm"
+										type="button"
+										onclick={() => (showLogLevelPicker[field.key] = true)}
+										aria-haspopup="dialog"
+										aria-expanded={showLogLevelPicker[field.key]}
+										aria-controls="{field.key}-loglevel-picker"
+										rounded
+										class="font-medium shrink-0"
+									>
+										<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
+										<span>{button_add()}</span>
+									</Button>
 								{/if}
-								<!-- The icon is the only tooltip trigger; the label text stays inert -->
-								<SystemTooltip
-									title={field.description ? `${field.description} (${field.key})` : field.key}
-									positioning={{ placement: 'top' }}
-								>
-									<HelpIcon ariaLabel="Field information" />
-								</SystemTooltip>
 							</div>
 
 							<!-- Text Input -->
@@ -1417,7 +1476,7 @@ Handles all field types and validation automatically
 											</span>
 										{:else if !field.readonly}
 											<Button
-												variant="ghost"
+												variant="transparent"
 												size="sm"
 												type="button"
 												class="size-8 min-w-0! p-0! shrink-0 items-center justify-center rounded text-surface-400 hover:text-surface-900 dark:hover:text-white hover:bg-surface-500/10 transition-colors"
@@ -1433,26 +1492,6 @@ Handles all field types and validation automatically
 										{/if}
 									{/snippet}
 								</Input>
-								<!-- Boolean Input -->
-							{:else if field.type === 'boolean'}
-								<Checkbox
-									bind:checked={values[field.key] as boolean}
-									required={field.required}
-									error={errors[field.key]}
-									onchange={(checked) => {
-										errors[field.key] = '';
-
-										if (field.key === 'SEASONS' && checked) {
-											if (!values.SEASON_REGION) {
-												const tz =
-													(values.TIMEZONE as string) ||
-													Intl.DateTimeFormat().resolvedOptions().timeZone ||
-													'';
-												values.SEASON_REGION = detectSeasonRegion(tz);
-											}
-										}
-									}}
-								/>
 								<!-- Select Input -->
 							{:else if field.type === 'select' && field.options}
 								<Select
@@ -1489,7 +1528,7 @@ Handles all field types and validation automatically
 								<!-- Language Multi-Select (Styled like SystemConfig.svelte) -->
 								<div class="relative">
 									<div
-										class="flex min-h-10 flex-wrap items-center gap-2 rounded border p-2 pe-20 {errors[
+										class="flex min-h-10 flex-wrap items-center gap-2 rounded border p-2 {errors[
 											field.key
 										]
 											? 'border-error-500 bg-error-500/10 dark:bg-error-900/20'
@@ -1500,10 +1539,10 @@ Handles all field types and validation automatically
 											{#each languages as langCode (langCode)}
 												<Badge
 													variant="tertiary"
-													size="lg"
+													size="sm"
 													class="group hover:brightness-110 dark:bg-primary-500 dark:text-white dark:hover:brightness-110"
 												>
-													<span class="text-sm font-medium"
+													<span class="text-xs font-medium"
 														>{displayLanguage(langCode)} ({langCode})</span
 													>
 													{#if !field.readonly}
@@ -1515,7 +1554,7 @@ Handles all field types and validation automatically
 															onclick={() => removeLanguage(field.key, langCode as string)}
 															aria-label={settings_remove_language({ langCode })}
 														>
-															<iconify-icon icon="mdi:close" width="14"></iconify-icon>
+															<iconify-icon icon="mdi:close" width="12"></iconify-icon>
 														</Button>
 													{/if}
 												</Badge>
@@ -1524,26 +1563,6 @@ Handles all field types and validation automatically
 											<span class="text-(--admin-text-muted) dark:text-surface-50 text-xs"
 												>{field.placeholder}</span
 											>
-										{/if}
-
-										{#if !field.readonly}
-											<Button
-												variant="tertiary"
-												size="sm"
-												type="button"
-												onclick={() => {
-													showLanguagePicker[field.key] = true;
-													languageSearch[field.key] = '';
-												}}
-												aria-haspopup="dialog"
-												aria-expanded={showLanguagePicker[field.key]}
-												aria-controls="{field.key}-lang-picker"
-												rounded
-												class="absolute inset-e-1.5 top-1.5 font-medium"
-											>
-												<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
-												<span>{button_add()}</span>
-											</Button>
 										{/if}
 									</div>
 
@@ -1609,7 +1628,7 @@ Handles all field types and validation automatically
 							{:else if field.type === 'loglevel-multi'}
 								<div class="relative">
 									<div
-										class="flex min-h-10 flex-wrap items-center gap-2 rounded border p-2 pe-20 {errors[
+										class="flex min-h-10 flex-wrap items-center gap-2 rounded border p-2 {errors[
 											field.key
 										]
 											? 'border-error-500 bg-error-500/10 dark:bg-error-900/20'
@@ -1620,10 +1639,10 @@ Handles all field types and validation automatically
 											{#each levels as level (level)}
 												<Badge
 													variant="tertiary"
-													size="lg"
+													size="sm"
 													class="group capitalize hover:brightness-110 dark:bg-primary-500 dark:text-white dark:hover:brightness-110"
 												>
-													<span class="text-sm font-medium">{level}</span>
+													<span class="text-xs font-medium">{level}</span>
 													{#if !field.readonly}
 														<Button
 															variant="transparent"
@@ -1633,7 +1652,7 @@ Handles all field types and validation automatically
 															onclick={() => removeLogLevel(field.key, level as LogLevel)}
 															aria-label={settings_remove_log_level({ level })}
 														>
-															<iconify-icon icon="mdi:close" width="14"></iconify-icon>
+															<iconify-icon icon="mdi:close" width="12"></iconify-icon>
 														</Button>
 													{/if}
 												</Badge>
@@ -1642,23 +1661,6 @@ Handles all field types and validation automatically
 											<span class="text-(--admin-text-muted) dark:text-surface-50 text-xs"
 												>{field.placeholder}</span
 											>
-										{/if}
-
-										{#if !field.readonly}
-											<Button
-												variant="tertiary"
-												size="sm"
-												type="button"
-												onclick={() => (showLogLevelPicker[field.key] = true)}
-												aria-haspopup="dialog"
-												aria-expanded={showLogLevelPicker[field.key]}
-												aria-controls="{field.key}-loglevel-picker"
-												rounded
-												class="absolute inset-e-1.5 top-1.5 font-medium"
-											>
-												<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
-												<span>{button_add()}</span>
-											</Button>
 										{/if}
 									</div>
 
@@ -1770,24 +1772,32 @@ Handles all field types and validation automatically
 			{/if}
 
 			<!-- Local Group Actions -->
-			<div class="mt-4 border-t border-(--admin-border-default) pt-6">
+			<div
+				class={children || !stickyBarEnabled
+					? 'mt-4 border-t border-(--admin-border-default) pt-6'
+					: ''}
+			>
 				<!-- Children slot (e.g. Repair Cache) rendered outside StickyActions to avoid double-render in global sticky bar -->
 				{#if children}
-					<div class="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto mb-3">
+					<div
+						class="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto {stickyBarEnabled
+							? ''
+							: 'mb-3'}"
+					>
 						{@render children()}
 					</div>
 				{/if}
 
 				<StickyActions>
-					<div class="flex w-full items-center justify-between gap-2">
-						<div class="flex items-center gap-2">
+					<div class="flex w-full items-center justify-center gap-2 sm:justify-between">
+						<div class="flex items-center gap-1.5 sm:gap-2">
 							<Button
 								variant="ghost"
 								type="button"
 								disabled={saving || !hasUnsavedChanges}
 								data-testid="settings-group-discard"
 								onclick={discardChanges}
-								class="shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded px-3 py-1.5 text-sm font-medium"
+								class="size-9 min-w-0! shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded p-0! text-sm font-medium sm:h-9 sm:w-auto sm:px-3"
 							>
 								<iconify-icon icon="mdi:undo" width="16"></iconify-icon>
 								<span class="hidden sm:inline">{settings_discard()}</span>
@@ -1801,10 +1811,10 @@ Handles all field types and validation automatically
 								onclick={resetToDefaults}
 								aria-label={settings_reset_defaults()}
 								title={settings_reset_defaults()}
-								class="hidden sm:inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded px-3 py-1.5 text-sm font-medium"
+								class="size-9 min-w-0! shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded p-0! text-sm font-medium sm:h-9 sm:w-auto sm:px-3"
 							>
 								<iconify-icon icon="mdi:restore" width="16"></iconify-icon>
-								<span>{settings_reset_defaults()}</span>
+								<span class="hidden sm:inline">{settings_reset_defaults()}</span>
 							</Button>
 
 							<!-- Secondary import/export: icon-only so the bar cannot clip labels -->

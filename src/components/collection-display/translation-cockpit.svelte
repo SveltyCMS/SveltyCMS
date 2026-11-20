@@ -277,7 +277,7 @@ Features:
 	<div class="space-y-6 p-1">
 		<!-- Dual-Lens Language Control Bar -->
 		<div
-			class="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl bg-surface-500/10 border border-surface-500/30"
+			class="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded bg-surface-500/10 border border-surface-500/30"
 		>
 			<!-- Lens 1: Admin Interface (systemLanguage) -->
 			<div class="space-y-1.5">

@@ -344,7 +344,7 @@ full ARIA validation linkage, and transparent background support for overlays.
 			<label
 				for={currentId}
 				class={cn(
-					'pointer-events-none absolute origin-start transform transition-all duration-200 ease-in-out',
+					'pointer-events-none absolute origin-left rtl:origin-right transform transition-all duration-200 ease-in-out',
 					sizeConfig.labelClass,
 					labelStart,
 					'peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100',

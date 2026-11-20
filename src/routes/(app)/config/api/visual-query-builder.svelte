@@ -15,8 +15,6 @@
 		api_vqb_add_filter,
 		api_vqb_copy,
 		api_vqb_copy_response_aria,
-		api_vqb_copy_rest,
-		api_vqb_executing,
 		api_vqb_execution_response,
 		api_vqb_field_placeholder,
 		api_vqb_filter_conditions,
@@ -37,7 +35,6 @@
 		api_vqb_remove_filter_aria,
 		api_vqb_response_hint,
 		api_vqb_rest_endpoint,
-		api_vqb_run_now,
 		api_vqb_sort_field,
 		api_vqb_target_collection,
 		api_vqb_value_placeholder
@@ -54,16 +51,17 @@
 
 	interface Props {
 		collections: Array<{ id: string; name: string; icon?: string }>;
+		isExecuting?: boolean;
 	}
 
 	interface FilterRow extends PlaygroundFilterRow {
 		id: string;
 	}
 
-	let { collections }: Props = $props();
+	let { collections, isExecuting = $bindable(false) }: Props = $props();
 
 	/** Shared card chrome — mirrors the `/user` account panels. */
-	const cardClass = 'p-5 sm:p-6';
+	const cardClass = 'p-3.5 sm:p-6';
 
 	// Active configuration state — default to empty filters so initial "Run Query Now"
 	// returns all documents without assuming a hardcoded "published" status.
@@ -76,7 +74,6 @@
 	let skip = $state<number>(0);
 
 	// Execution state
-	let isExecuting = $state(false);
 	let executeResponse = $state<string | null>(null);
 	let executeStatus = $state<number | null>(null);
 	let executeDuration = $state<number | null>(null);
@@ -133,7 +130,7 @@
 		filters = filters.filter((f) => f.id !== id);
 	}
 
-	async function executeQuery() {
+	export async function executeQuery() {
 		isExecuting = true;
 		executeResponse = null;
 		executeStatus = null;
@@ -162,6 +159,10 @@
 		}
 	}
 
+	export function copyRestUrl() {
+		copyToClipboard(generatedRestUrl, 'REST URL');
+	}
+
 	function copyToClipboard(text: string, label: string) {
 		navigator.clipboard.writeText(text);
 		toast.success(`${label} copied to clipboard`);
@@ -175,11 +176,11 @@
 	</SystemTooltip>
 {/snippet}
 
-<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-6">
 	<!-- Left: Visual Query Builder Panel -->
-	<div class="lg:col-span-7 space-y-6">
+	<div class="lg:col-span-7 space-y-3 sm:space-y-6">
 		<AdminCard class={cardClass}>
-			<div class="space-y-6">
+			<div class="space-y-4 sm:space-y-6">
 				<div>
 					<h3 class="text-base font-bold text-surface-900 dark:text-surface-100">
 						{api_vqb_heading()}
@@ -328,29 +329,12 @@
 						/>
 					</div>
 				</div>
-
-				<!-- Action Buttons -->
-				<div class="flex items-center gap-3 pt-2">
-					<Button variant="primary" disabled={isExecuting} onclick={executeQuery}>
-						{#if isExecuting}
-							<iconify-icon icon="mdi:loading" class="animate-spin me-2"></iconify-icon>
-							{api_vqb_executing()}
-						{:else}
-							<iconify-icon icon="mdi:play" width="18" class="me-1.5"></iconify-icon>
-							{api_vqb_run_now()}
-						{/if}
-					</Button>
-					<Button variant="outline" onclick={() => copyToClipboard(generatedRestUrl, 'REST URL')}>
-						<iconify-icon icon="mdi:content-copy" width="16" class="me-1.5"></iconify-icon>
-						{api_vqb_copy_rest()}
-					</Button>
-				</div>
 			</div>
 		</AdminCard>
 	</div>
 
 	<!-- Right: Live Output & Code Generation Panel -->
-	<div class="lg:col-span-5 space-y-6">
+	<div class="lg:col-span-5 space-y-3 sm:space-y-6">
 		<!-- Generated Query Preview -->
 		<AdminCard class={cardClass}>
 			<div class="space-y-4">

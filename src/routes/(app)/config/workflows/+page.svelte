@@ -29,6 +29,7 @@ Professional free-form canvas with:
 	import Checkbox from '@components/ui/checkbox.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
+	import StickyActions from '@components/ui/sticky-actions.svelte';
 	import Tooltip from '@components/ui/tooltip.svelte';
 	import HelpIcon from '@components/ui/help-icon.svelte';
 	import {
@@ -513,9 +514,19 @@ Professional free-form canvas with:
 	 */
 	function edgeLabelParam(index: number, reversed: boolean): number {
 		if (index === 0 && !reversed) return 0.5;
-		const step = 0.14 + 0.05 * Math.floor(index / 2);
+		if (reversed && index < 2) return 0.32;
+		const step = 0.22 + 0.05 * Math.floor(index / 2);
 		return index % 2 === 0 ? 0.5 - step : 0.5 + step;
 	}
+
+	let detailsOpen = $state(false);
+	let propertiesOpen = $state(false);
+
+	$effect(() => {
+		if (selectedNodeId || selectedTransitionId) {
+			propertiesOpen = true;
+		}
+	});
 
 	function measure(): void {
 		const canvas = canvasEl;
@@ -560,7 +571,7 @@ Professional free-form canvas with:
 				const len = Math.hypot(end.x - start.x, end.y - start.y) || 1;
 				const nx = -(end.y - start.y) / len;
 				const ny = (end.x - start.x) / len;
-				const bow = 48 + index * 18;
+				const bow = 68 + index * 20;
 				ctrlX = mx + nx * bow;
 				ctrlY = my + ny * bow;
 			}
@@ -624,640 +635,729 @@ Professional free-form canvas with:
 		icon="mdi:sitemap"
 		showBackButton={true}
 		backUrl="/config"
-		description="Visual Lifecycle Management (FSM)"
 		fullHeight
+		flushContent={true}
+		titleCompact={true}
 		spaceY="4"
 	>
-		{#snippet actions()}
-			<Button
-				variant="tertiary"
-				onclick={addState}
-				data-testid="workflow-add-state"
-				class="group whitespace-nowrap"
-			>
-				<iconify-icon
-					icon="mdi:shape-polygon-plus"
-					width="18"
-					class="transition-transform group-hover:scale-110"
-					aria-hidden="true"
-				></iconify-icon>
-				<span>{workflows_add_state()}</span>
-			</Button>
-			<Button
-				variant="secondary"
-				onclick={addTransition}
-				data-testid="workflow-add-transition"
-				class="group whitespace-nowrap"
-			>
-				<iconify-icon
-					icon="mdi:arrow-decision-outline"
-					width="18"
-					class="transition-transform group-hover:scale-110"
-					aria-hidden="true"
-				></iconify-icon>
-				<span>{workflows_add_transition()}</span>
-			</Button>
-			<Button
-				variant="tertiary"
-				onclick={autoLayout}
-				class="group whitespace-nowrap"
-				title="Reset positions to a clean grid"
-			>
-				<iconify-icon
-					icon="mdi:view-grid-outline"
-					width="18"
-					class="transition-transform group-hover:scale-110"
-					aria-hidden="true"
-				></iconify-icon>
-				<span>Auto Layout</span>
-			</Button>
-			<Button
-				variant="primary"
-				onclick={saveWorkflow}
-				data-testid="workflow-save"
-				class="group whitespace-nowrap"
-			>
-				<iconify-icon
-					icon="mdi:content-save"
-					width="18"
-					class="transition-transform group-hover:scale-110"
-					aria-hidden="true"
-				></iconify-icon>
-				<span>{workflows_save()}</span>
-			</Button>
-		{/snippet}
-
-		<!-- Toolbar -->
-		<AdminCard
-			class="grid grid-cols-1 items-start gap-4 border border-surface-500/20 bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-3 dark:border-surface-500/30 dark:bg-surface-900"
-			data-testid="workflow-toolbar"
-		>
-			<div data-testid="workflow-collection-select">
-				<Select
-					bind:value={selectedCollectionId}
-					options={collectionOptions}
-					placeholder={workflows_collection_placeholder()}
-					size="md"
-					onchange={() => loadWorkflow(selectedCollectionId)}
-					class="min-w-48"
-				>
-					{#snippet labelSnippet()}
-						<div class="flex items-center gap-1.5 text-sm font-semibold text-(--admin-text-body)">
-							<span>Target Collection</span>
-							<Tooltip
-								title="The collection whose content lifecycle is controlled by this workflow state machine."
-							>
-								<HelpIcon ariaLabel="Target collection information" />
-							</Tooltip>
-						</div>
-					{/snippet}
-				</Select>
-			</div>
-			<Input bind:value={workflowName} placeholder={workflows_name_placeholder()} class="min-w-48">
-				{#snippet labelSnippet()}
-					<div class="flex items-center gap-1.5 text-sm font-semibold text-(--admin-text-body)">
-						<span>Workflow Name</span>
-						<Tooltip title="Descriptive name for this content review and publishing workflow.">
-							<HelpIcon ariaLabel="Workflow name information" />
-						</Tooltip>
-					</div>
-				{/snippet}
-			</Input>
-			<Input
-				bind:value={workflowDescription}
-				placeholder={workflows_description_placeholder()}
-				class="min-w-48"
-			>
-				{#snippet labelSnippet()}
-					<div class="flex items-center gap-1.5 text-sm font-semibold text-(--admin-text-body)">
-						<span>Description</span>
-						<Tooltip
-							title="Optional summary of this workflow's review stages and approval criteria."
-						>
-							<HelpIcon ariaLabel="Workflow description information" />
-						</Tooltip>
-					</div>
-				{/snippet}
-			</Input>
-		</AdminCard>
-
-		<div
-			class="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-4"
-			data-testid="workflow-builder"
-		>
-			<!-- Canvas -->
-			<div
-				class="relative min-h-128 overflow-hidden rounded-xl border border-surface-500/20 bg-surface-500/10 dark:border-surface-500/25 dark:bg-surface-500/10 lg:col-span-3 select-none {isPanning
-					? 'cursor-grabbing'
-					: 'cursor-default'}"
-				bind:this={canvasEl}
-				data-testid="workflow-canvas"
-				role="region"
-				aria-label="Workflow Canvas"
-				onpointerdown={onCanvasPointerDown}
-				onpointermove={onCanvasPointerMove}
-				onpointerup={onCanvasPointerUp}
-			>
-				<!-- Subtle dot grid -->
-				<div
-					id="wf-grid-bg"
-					class="pointer-events-none absolute inset-0 opacity-[0.45] dark:opacity-[0.35]"
-					style="background-image: radial-gradient(circle, currentColor 1px, transparent 1px); background-size: {22 *
-						zoom}px {22 *
-						zoom}px; background-position: {panX}px {panY}px; color: var(--color-surface-400);"
-				></div>
-
-				<!-- Transform layer for zoom and pan -->
-				<div
-					class="absolute inset-0 origin-top-left transition-transform duration-75"
-					style="transform: translate({panX}px, {panY}px) scale({zoom});"
-				>
-					<!-- Connector overlay -->
-					<svg class="pointer-events-none absolute inset-0 z-0 h-full w-full overflow-visible">
-						<defs>
-							<marker
-								id="wf-arrow"
-								viewBox="0 0 10 10"
-								refX="9"
-								refY="5"
-								markerWidth="6"
-								markerHeight="6"
-								markerUnits="userSpaceOnUse"
-								orient="auto-start-reverse"
-							>
-								<path d="M0,0 L10,5 L0,10 z" class="fill-surface-400 dark:fill-surface-500" />
-							</marker>
-							<marker
-								id="wf-arrow-active"
-								viewBox="0 0 10 10"
-								refX="9"
-								refY="5"
-								markerWidth="6"
-								markerHeight="6"
-								markerUnits="userSpaceOnUse"
-								orient="auto-start-reverse"
-							>
-								<path d="M0,0 L10,5 L0,10 z" class="fill-primary-500" />
-							</marker>
-						</defs>
-
-						{#each connectors as link (link.id)}
-							<path
-								d={link.d}
-								fill="none"
-								stroke-width={link.selected || hoveredConnectorId === link.id ? 2.5 : 2}
-								aria-hidden="true"
-								class="transition-colors duration-150 {link.selected ||
-								hoveredConnectorId === link.id
-									? 'stroke-primary-500'
-									: 'stroke-surface-400/80 dark:stroke-surface-500'}"
-								marker-end={link.selected || hoveredConnectorId === link.id
-									? 'url(#wf-arrow-active)'
-									: 'url(#wf-arrow)'}
-							/>
-						{/each}
-
-						<!-- Live dragging transition wire -->
-						{#if portDrag}
-							<path
-								d={`M ${portDrag.startX} ${portDrag.startY} L ${portDrag.currentX} ${portDrag.currentY}`}
-								fill="none"
-								stroke-width="2.5"
-								stroke-dasharray="4 4"
-								class="stroke-primary-500 animate-pulse"
-								marker-end="url(#wf-arrow-active)"
-							/>
-						{/if}
-
-						<!-- Hit areas -->
-						{#each connectors as link (link.id)}
-							<path
-								d={link.d}
-								fill="none"
-								stroke="transparent"
-								stroke-width="20"
-								pointer-events="stroke"
-								role="button"
-								tabindex="0"
-								aria-label={link.label}
-								onmouseenter={() => (hoveredConnectorId = link.id)}
-								onmouseleave={() => {
-									if (hoveredConnectorId === link.id) hoveredConnectorId = null;
-								}}
-								onfocus={() => (hoveredConnectorId = link.id)}
-								onblur={() => {
-									if (hoveredConnectorId === link.id) hoveredConnectorId = null;
-								}}
-								onclick={() => selectTransition(link.id)}
-								onkeydown={(event) => {
-									if (event.key === 'Enter' || event.key === ' ') {
-										event.preventDefault();
-										selectTransition(link.id);
-									}
-								}}
-							/>
-						{/each}
-					</svg>
-
-					<!-- Always-visible transition labels -->
-					<div class="pointer-events-none absolute inset-0 z-20">
-						{#each connectors as link (link.id)}
-							{#if link.label}
-								<div
-									class="pointer-events-auto absolute flex -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium shadow-sm transition-all duration-150
-										{link.selected || hoveredConnectorId === link.id
-										? 'border-primary-500 bg-primary-500 text-white scale-105 ring-2 ring-primary-500/20'
-										: 'border-surface-500/30 bg-white text-surface-900 shadow-xs dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100'}"
-									style="left: {link.lx}px; top: {link.ly}px;"
-								>
-									<span class="max-w-35 truncate">{link.label}</span>
-									<button
-										type="button"
-										class="inline-flex h-4 w-4 items-center justify-center rounded-full opacity-60 transition-opacity hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10"
-										title="Delete transition"
-										aria-label="Delete transition {link.label}"
-										onclick={(e) => {
-											e.stopPropagation();
-											removeTransition(link.id);
-										}}
-									>
-										×
-									</button>
-								</div>
-							{/if}
-						{/each}
-					</div>
-
-					<!-- State cards -->
-					{#each states as state (state.id)}
-						{@const isSelected = selectedNodeId === state.id}
-						<div
-							use:registerState={state.id}
-							role="button"
-							tabindex="0"
-							data-testid={`workflow-state-${state.id}`}
-							data-wf-state-id={state.id}
-							aria-label={`State: ${state.label}`}
-							class="group absolute z-10 w-55 cursor-grab touch-none rounded-xl border bg-white shadow-sm transition-all duration-150 active:cursor-grabbing dark:bg-surface-900
-								{isSelected
-								? 'border-primary-500 shadow-lg ring-4 ring-primary-500/15 scale-[1.015]'
-								: 'border-surface-500/30 hover:border-surface-500/30 hover:shadow-md dark:border-surface-500/40 dark:hover:border-surface-600'}"
-							style="left: {state.x ?? 0}px; top: {state.y ?? 0}px;"
-							onpointerdown={(event) => onCardPointerDown(event, state)}
-							onpointermove={onCardPointerMove}
-							onpointerup={endCardDrag}
-							onpointercancel={endCardDrag}
-							onkeydown={(event) => {
-								if (event.key === 'Enter' || event.key === ' ') {
-									event.preventDefault();
-									selectNode(state.id);
-								}
-							}}
-						>
-							<!-- Left accent bar -->
-							<div
-								class="absolute inset-y-0 -inset-s-px w-1.5 rounded-s-xl"
-								style="background-color: {state.color}"
-							></div>
-
-							<!-- Connection Port (Right handle to drag-create transition) -->
-							<button
-								type="button"
-								class="absolute -inset-e-3.5 top-1/2 -translate-y-1/2 size-7 rounded-full border-2 border-white bg-primary-500 text-white shadow-md flex items-center justify-center cursor-crosshair transition-all duration-200 hover:scale-125 dark:border-surface-500/40 opacity-0 group-hover:opacity-100 group-hover:animate-pulse z-30"
-								title="Drag to another state to connect"
-								aria-label={`Connect transition from ${state.label}`}
-								onpointerdown={(e) => startPortDrag(e, state)}
-							>
-								<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
-							</button>
-
-							<!-- Header -->
-							<div class="flex items-start gap-2.5 py-3 ps-4 pe-3">
-								<div class="min-w-0 flex-1 pt-0.5">
-									<div class="flex flex-wrap items-center gap-1.5">
-										<span
-											class="truncate text-sm font-semibold text-surface-900 dark:text-surface-50"
-										>
-											{state.label}
-										</span>
-										{#if state.isInitial}
-											<span
-												class="rounded-full bg-primary-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400"
-											>
-												{workflows_initial()}
-											</span>
-										{/if}
-										{#if state.isFinal}
-											<span
-												class="rounded-full bg-success-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-success-600 dark:text-success-400"
-											>
-												Final
-											</span>
-										{/if}
-									</div>
-								</div>
-
-								<div
-									class="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100"
-								>
-									<Tooltip title="Drag to move">
-										<span
-											class="inline-flex size-7 items-center justify-center rounded-md text-surface-400 hover:bg-surface-500/10 hover:text-surface-600 dark:hover:bg-surface-800"
-											aria-hidden="true"
-										>
-											<iconify-icon icon="mdi:drag-vertical" width="16"></iconify-icon>
-										</span>
-									</Tooltip>
-									<Tooltip title={workflows_delete_state_aria()}>
-										<button
-											type="button"
-											class="inline-flex size-7 items-center justify-center rounded-md text-surface-400 transition-colors hover:bg-error-500/10 hover:text-error-500"
-											aria-label={`Delete state ${state.label}`}
-											onclick={(e) => {
-												e.stopPropagation();
-												removeStateWithConfirm(state.id);
-											}}
-										>
-											<iconify-icon icon="mdi:close" width="15" aria-hidden="true"></iconify-icon>
-										</button>
-									</Tooltip>
-								</div>
-							</div>
-
-							<!-- Outgoing transitions -->
-							<div class="border-t border-surface-100 px-3 py-2.5 dark:border-surface-500/40">
-								{#if transitions.some((t) => t.from === state.id)}
-									<div class="space-y-1">
-										{#each transitions.filter((t) => t.from === state.id) as trans (trans.id)}
-											<button
-												type="button"
-												class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-start text-xs transition-colors
-													{selectedTransitionId === trans.id
-													? 'bg-primary-500/10 text-primary-600 dark:text-primary-400 font-medium'
-													: 'hover:bg-surface-500/10 dark:hover:bg-surface-800/80'}"
-												onclick={(event) => {
-													event.stopPropagation();
-													selectTransition(trans.id);
-												}}
-											>
-												<span class="text-surface-400">→</span>
-												<span class="min-w-0 flex-1 truncate font-medium">
-													{states.find((s) => s.id === trans.to)?.label ?? trans.to}
-												</span>
-											</button>
-										{/each}
-									</div>
-								{:else}
-									<p class="py-1 text-center text-[10px] text-surface-400/80 dark:text-surface-500">
-										No outgoing transitions
-									</p>
-								{/if}
-							</div>
-						</div>
-					{/each}
-				</div>
-
-				<!-- Bottom-Right Canvas Controls: Zoom In / Out / Reset / Pan hint -->
-				<div
-					class="absolute bottom-3 inset-e-3 z-30 flex items-center gap-1 rounded-lg border border-surface-500/30 bg-white/90 p-1 shadow-md backdrop-blur-sm dark:border-surface-500/40 dark:bg-surface-900/90"
-				>
-					<Tooltip title="Zoom out">
-						<button
-							type="button"
-							class="size-7 flex items-center justify-center rounded text-surface-600 hover:bg-surface-500/10 dark:text-surface-300 dark:hover:bg-surface-800 transition-colors"
-							onclick={zoomOut}
-							aria-label="Zoom out"
-						>
-							<iconify-icon icon="mdi:minus" width="16"></iconify-icon>
-						</button>
-					</Tooltip>
-					<span class="px-1.5 text-xs font-mono font-medium text-surface-500">
-						{Math.round(zoom * 100)}%
-					</span>
-					<Tooltip title="Zoom in">
-						<button
-							type="button"
-							class="size-7 flex items-center justify-center rounded text-surface-600 hover:bg-surface-500/10 dark:text-surface-300 dark:hover:bg-surface-800 transition-colors"
-							onclick={zoomIn}
-							aria-label="Zoom in"
-						>
-							<iconify-icon icon="mdi:plus" width="16"></iconify-icon>
-						</button>
-					</Tooltip>
-					<div class="h-4 w-px bg-surface-200 dark:bg-surface-700 mx-0.5"></div>
-					<Tooltip title="Reset viewport (100%)">
-						<button
-							type="button"
-							class="size-7 flex items-center justify-center rounded text-surface-600 hover:bg-surface-500/10 dark:text-surface-300 dark:hover:bg-surface-800 transition-colors"
-							onclick={resetViewport}
-							aria-label="Reset viewport"
-						>
-							<iconify-icon icon="mdi:fit-to-screen-outline" width="16"></iconify-icon>
-						</button>
-					</Tooltip>
-				</div>
-			</div>
-
-			<!-- Properties Inspector -->
+		<div class="-mt-1 flex min-h-0 flex-1 flex-col gap-2 sm:mt-0 sm:gap-4 pb-1">
+			<!-- Toolbar (collapsible on mobile) -->
 			<AdminCard
-				class="overflow-y-auto border border-surface-500/20 bg-white p-5 shadow-sm dark:border-surface-500/30 dark:bg-surface-900"
+				class="shrink-0 border border-surface-500/20 bg-white p-2.5 sm:p-4 shadow-sm dark:border-surface-500/30 dark:bg-surface-900"
+				data-testid="workflow-toolbar"
 			>
-				<div class="mb-5 flex items-center justify-between">
-					<h3 class="text-xs font-bold uppercase tracking-widest text-surface-400">
-						{workflows_properties()}
-					</h3>
-				</div>
+				<button
+					type="button"
+					onclick={() => (detailsOpen = !detailsOpen)}
+					aria-expanded={detailsOpen}
+					class="flex w-full items-center justify-between gap-2 text-start sm:hidden"
+				>
+					<div class="flex min-w-0 items-center gap-2">
+						<iconify-icon
+							icon="mdi:tune-variant"
+							width="16"
+							class="shrink-0 text-tertiary-500 dark:text-primary-400"
+							aria-hidden="true"
+						></iconify-icon>
+						<span class="truncate text-xs font-semibold text-(--admin-text-body)">
+							{workflowName || 'Workflow Details'}
+						</span>
+					</div>
+					<iconify-icon
+						icon={detailsOpen ? 'mdi:chevron-up' : 'mdi:chevron-down'}
+						width="18"
+						class="shrink-0 text-(--admin-text-muted)"
+						aria-hidden="true"
+					></iconify-icon>
+				</button>
 
-				{#if selectedNodeId}
-					{@const node = states.find((s) => s.id === selectedNodeId)}
-					{#if node}
-						<div class="space-y-5" in:fade={{ duration: 150 }}>
-							<div class="flex items-center gap-2">
+				<div
+					class="{detailsOpen
+						? 'mt-2.5 pt-2.5 border-t border-(--admin-border-default) grid'
+						: 'hidden'} sm:grid grid-cols-1 items-start gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3"
+				>
+					<div data-testid="workflow-collection-select">
+						<Select
+							bind:value={selectedCollectionId}
+							options={collectionOptions}
+							placeholder={workflows_collection_placeholder()}
+							size="md"
+							onchange={() => loadWorkflow(selectedCollectionId)}
+							class="w-full"
+						>
+							{#snippet labelSnippet()}
 								<div
-									class="h-3 w-3 rounded-full ring-2 ring-white dark:ring-surface-900"
-									style="background-color: {node.color}"
-								></div>
-								<Badge variant="primary" size="sm">{workflows_state_label()}</Badge>
-							</div>
-
-							<Input id="state-name" bind:value={node.label} label="Display Label" />
-
-							<div>
-								<label class="mb-1.5 block text-sm font-medium" for="accent-color"
-									>Accent Color</label
+									class="flex items-center gap-1.5 text-sm font-semibold text-(--admin-text-body)"
 								>
-								<div class="flex items-center gap-3">
-									<input
-										id="accent-color"
-										type="color"
-										bind:value={node.color}
-										class="h-10 w-14 cursor-pointer rounded-lg border border-surface-500/30 bg-transparent p-1 dark:border-surface-500/40"
-									/>
-									<span class="font-mono text-xs text-surface-500">{node.color}</span>
+									<span>Target Collection</span>
+									<Tooltip
+										title="The collection whose content lifecycle is controlled by this workflow state machine."
+									>
+										<HelpIcon ariaLabel="Target collection information" />
+									</Tooltip>
 								</div>
+							{/snippet}
+						</Select>
+					</div>
+					<Input
+						bind:value={workflowName}
+						placeholder={workflows_name_placeholder()}
+						class="w-full"
+					>
+						{#snippet labelSnippet()}
+							<div class="flex items-center gap-1.5 text-sm font-semibold text-(--admin-text-body)">
+								<span>Workflow Name</span>
+								<Tooltip title="Descriptive name for this content review and publishing workflow.">
+									<HelpIcon ariaLabel="Workflow name information" />
+								</Tooltip>
 							</div>
+						{/snippet}
+					</Input>
+					<Input
+						bind:value={workflowDescription}
+						placeholder={workflows_description_placeholder()}
+						class="w-full"
+					>
+						{#snippet labelSnippet()}
+							<div class="flex items-center gap-1.5 text-sm font-semibold text-(--admin-text-body)">
+								<span>Description</span>
+								<Tooltip
+									title="Optional summary of this workflow's review stages and approval criteria."
+								>
+									<HelpIcon ariaLabel="Workflow description information" />
+								</Tooltip>
+							</div>
+						{/snippet}
+					</Input>
+				</div>
+			</AdminCard>
 
-							<div
-								class="space-y-3 rounded-lg border border-surface-100 bg-surface-500/50 p-3 dark:border-surface-500/40 dark:bg-surface-900/50"
-							>
-								<Checkbox
-									checked={node.isInitial ?? false}
-									label="Initial State"
-									size="sm"
-									onchange={(checked) => {
-										node.isInitial = checked;
-										if (checked) {
-											states.forEach((s) => {
-												if (s.id !== node.id) s.isInitial = false;
-											});
+			<div
+				class="flex min-h-0 flex-1 flex-col gap-2 sm:gap-4 lg:grid lg:grid-cols-4"
+				data-testid="workflow-builder"
+			>
+				<!-- Canvas -->
+				<div
+					class="relative min-h-0 flex-1 overflow-auto lg:overflow-hidden touch-pan-x touch-pan-y lg:touch-none rounded-xl border border-surface-500/20 bg-surface-500/10 dark:border-surface-500/25 dark:bg-surface-500/10 lg:col-span-3 select-none {isPanning
+						? 'cursor-grabbing'
+						: 'cursor-default'}"
+					bind:this={canvasEl}
+					data-testid="workflow-canvas"
+					role="region"
+					aria-label="Workflow Canvas"
+					onpointerdown={onCanvasPointerDown}
+					onpointermove={onCanvasPointerMove}
+					onpointerup={onCanvasPointerUp}
+				>
+					<!-- Subtle dot grid -->
+					<div
+						id="wf-grid-bg"
+						class="pointer-events-none absolute inset-0 opacity-[0.45] dark:opacity-[0.35]"
+						style="background-image: radial-gradient(circle, currentColor 1px, transparent 1px); background-size: {22 *
+							zoom}px {22 *
+							zoom}px; background-position: {panX}px {panY}px; color: var(--color-surface-400);"
+					></div>
+
+					<!-- Transform layer for zoom and pan -->
+					<div
+						class="absolute inset-0 origin-top-left transition-transform duration-75"
+						style="transform: translate({panX}px, {panY}px) scale({zoom});"
+					>
+						<!-- Connector overlay -->
+						<svg class="pointer-events-none absolute inset-0 z-0 h-full w-full overflow-visible">
+							<defs>
+								<marker
+									id="wf-arrow"
+									viewBox="0 0 10 10"
+									refX="9"
+									refY="5"
+									markerWidth="6"
+									markerHeight="6"
+									markerUnits="userSpaceOnUse"
+									orient="auto-start-reverse"
+								>
+									<path d="M0,0 L10,5 L0,10 z" class="fill-surface-400 dark:fill-surface-500" />
+								</marker>
+								<marker
+									id="wf-arrow-active"
+									viewBox="0 0 10 10"
+									refX="9"
+									refY="5"
+									markerWidth="6"
+									markerHeight="6"
+									markerUnits="userSpaceOnUse"
+									orient="auto-start-reverse"
+								>
+									<path d="M0,0 L10,5 L0,10 z" class="fill-primary-500" />
+								</marker>
+							</defs>
+
+							{#each connectors as link (link.id)}
+								<path
+									d={link.d}
+									fill="none"
+									stroke-width={link.selected || hoveredConnectorId === link.id ? 2.5 : 2}
+									aria-hidden="true"
+									class="transition-colors duration-150 {link.selected ||
+									hoveredConnectorId === link.id
+										? 'stroke-primary-500'
+										: 'stroke-surface-400/80 dark:stroke-surface-500'}"
+									marker-end={link.selected || hoveredConnectorId === link.id
+										? 'url(#wf-arrow-active)'
+										: 'url(#wf-arrow)'}
+								/>
+							{/each}
+
+							<!-- Live dragging transition wire -->
+							{#if portDrag}
+								<path
+									d={`M ${portDrag.startX} ${portDrag.startY} L ${portDrag.currentX} ${portDrag.currentY}`}
+									fill="none"
+									stroke-width="2.5"
+									stroke-dasharray="4 4"
+									class="stroke-primary-500 animate-pulse"
+									marker-end="url(#wf-arrow-active)"
+								/>
+							{/if}
+
+							<!-- Hit areas -->
+							{#each connectors as link (link.id)}
+								<path
+									d={link.d}
+									fill="none"
+									stroke="transparent"
+									stroke-width="20"
+									pointer-events="stroke"
+									role="button"
+									tabindex="0"
+									aria-label={link.label}
+									onmouseenter={() => (hoveredConnectorId = link.id)}
+									onmouseleave={() => {
+										if (hoveredConnectorId === link.id) hoveredConnectorId = null;
+									}}
+									onfocus={() => (hoveredConnectorId = link.id)}
+									onblur={() => {
+										if (hoveredConnectorId === link.id) hoveredConnectorId = null;
+									}}
+									onclick={() => selectTransition(link.id)}
+									onkeydown={(event) => {
+										if (event.key === 'Enter' || event.key === ' ') {
+											event.preventDefault();
+											selectTransition(link.id);
 										}
 									}}
 								/>
-								<Checkbox
-									checked={node.isFinal ?? false}
-									label="Final State"
-									size="sm"
-									onchange={(checked) => {
-										node.isFinal = checked;
-									}}
-								/>
-							</div>
+							{/each}
+						</svg>
 
-							<Button
-								variant="error"
-								onclick={() => {
-									removeStateWithConfirm(node.id);
-								}}
-								size="sm"
-								class="mt-2 w-full"
-							>
-								{workflows_delete_state()}
-							</Button>
-						</div>
-					{/if}
-				{:else if selectedTransitionId}
-					{@const trans = transitions.find((t) => t.id === selectedTransitionId)}
-					{#if trans}
-						<div class="space-y-5" in:fade={{ duration: 150 }}>
-							<Badge variant="secondary" size="sm">{workflows_transition_label()}</Badge>
-
-							<Input id="trans-label" bind:value={trans.label} label="Button Label" />
-
-							<div class="grid grid-cols-1 gap-4">
-								<Select
-									bind:value={trans.from}
-									label="From State"
-									size="sm"
-									options={states.map((s) => ({ value: s.id, label: s.label }))}
-								/>
-								<Select
-									bind:value={trans.to}
-									label="To State"
-									size="sm"
-									options={states.map((s) => ({ value: s.id, label: s.label }))}
-								/>
-							</div>
-
-							<Select
-								bind:value={trans.requiredRole}
-								label="Required Role (RBAC)"
-								size="sm"
-								description="User must have this role to trigger this transition."
-								options={[
-									{ value: '', label: 'No Role (Anyone)' },
-									{ value: 'admin', label: 'Administrator' },
-									...roleOptions
-								]}
-							/>
-
-							<Button
-								variant="error"
-								onclick={() => {
-									removeTransition(trans.id);
-								}}
-								size="sm"
-								class="mt-2 w-full"
-							>
-								{workflows_delete_transition()}
-							</Button>
-						</div>
-					{/if}
-				{:else}
-					<div class="space-y-6" in:fade={{ duration: 150 }}>
-						<div
-							class="rounded-xl border border-surface-500/30 bg-surface-500/80 p-4 dark:border-surface-500/40 dark:bg-surface-900/60"
-						>
-							<p class="mb-3 text-sm font-semibold text-surface-600 dark:text-surface-100">
-								{workflowName || 'Untitled workflow'}
-							</p>
-							<ul class="space-y-1.5 text-xs text-surface-500">
-								<li class="flex items-center gap-2">
-									<span class="inline-block h-1.5 w-1.5 rounded-full bg-surface-400"></span>
-									{states.length}
-									{states.length === 1 ? workflows_state_singular() : workflows_state_plural()}
-								</li>
-								<li class="flex items-center gap-2">
-									<span class="inline-block h-1.5 w-1.5 rounded-full bg-surface-400"></span>
-									{transitions.length}
-									{transitions.length === 1
-										? workflows_transition_singular()
-										: workflows_transition_plural()}
-								</li>
-								<li class="flex items-center gap-2">
-									<span class="inline-block h-1.5 w-1.5 rounded-full bg-surface-400"></span>
-									{selectedCollectionId
-										? (collectionOptions.find((o) => o.value === selectedCollectionId)?.label ??
-											selectedCollectionId)
-										: 'No collection selected'}
-								</li>
-							</ul>
+						<!-- Always-visible transition labels -->
+						<div class="pointer-events-none absolute inset-0 z-20">
+							{#each connectors as link (link.id)}
+								{#if link.label}
+									<div
+										class="pointer-events-auto absolute flex -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium shadow-sm transition-all duration-150
+										{link.selected || hoveredConnectorId === link.id
+											? 'border-primary-500 bg-primary-500 text-white scale-105 ring-2 ring-primary-500/20'
+											: 'border-surface-500/30 bg-white text-surface-900 shadow-xs dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100'}"
+										style="left: {link.lx}px; top: {link.ly}px;"
+									>
+										<span class="max-w-35 truncate">{link.label}</span>
+										<button
+											type="button"
+											class="inline-flex h-4 w-4 items-center justify-center rounded-full opacity-60 transition-opacity hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10"
+											title="Delete transition"
+											aria-label="Delete transition {link.label}"
+											onclick={(e) => {
+												e.stopPropagation();
+												removeTransition(link.id);
+											}}
+										>
+											×
+										</button>
+									</div>
+								{/if}
+							{/each}
 						</div>
 
-						<div class="flex flex-col items-center justify-center py-8 text-center">
+						<!-- State cards -->
+						{#each states as state (state.id)}
+							{@const isSelected = selectedNodeId === state.id}
 							<div
-								class="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-500/10 dark:bg-surface-800"
+								use:registerState={state.id}
+								role="button"
+								tabindex="0"
+								data-testid={`workflow-state-${state.id}`}
+								data-wf-state-id={state.id}
+								aria-label={`State: ${state.label}`}
+								class="group absolute z-10 w-55 cursor-grab touch-none rounded-xl border bg-white shadow-sm transition-all duration-150 active:cursor-grabbing dark:bg-surface-900
+								{isSelected
+									? 'border-primary-500 shadow-lg ring-4 ring-primary-500/15 scale-[1.015]'
+									: 'border-surface-500/30 hover:border-surface-500/30 hover:shadow-md dark:border-surface-500/40 dark:hover:border-surface-600'}"
+								style="left: {state.x ?? 0}px; top: {state.y ?? 0}px;"
+								onpointerdown={(event) => onCardPointerDown(event, state)}
+								onpointermove={onCardPointerMove}
+								onpointerup={endCardDrag}
+								onpointercancel={endCardDrag}
+								onkeydown={(event) => {
+									if (event.key === 'Enter' || event.key === ' ') {
+										event.preventDefault();
+										selectNode(state.id);
+									}
+								}}
 							>
-								<iconify-icon icon="mdi:gesture-tap" width="28" class="text-surface-400"
-								></iconify-icon>
-							</div>
-							<p class="text-sm font-medium text-surface-600 dark:text-surface-400">
-								{workflows_inspector_hint()}
-							</p>
-							<p class="mt-1 max-w-56 text-balance text-xs text-surface-400">
-								Click a state or transition arrow to edit its properties
-							</p>
-						</div>
+								<!-- Left accent bar -->
+								<div
+									class="absolute inset-y-0 -inset-s-px w-1.5 rounded-s-xl"
+									style="background-color: {state.color}"
+								></div>
 
-						<div
-							class="border-t border-surface-500/30 dark:border-surface-500/40 pt-4 text-[11px] text-surface-400 space-y-1"
+								<!-- Connection Port (Right handle to drag-create transition) -->
+								<button
+									type="button"
+									class="absolute -inset-e-3.5 top-1/2 -translate-y-1/2 size-7 rounded-full border-2 border-white bg-primary-500 text-white shadow-md flex items-center justify-center cursor-crosshair transition-all duration-200 hover:scale-125 dark:border-surface-500/40 opacity-0 group-hover:opacity-100 group-hover:animate-pulse z-30"
+									title="Drag to another state to connect"
+									aria-label={`Connect transition from ${state.label}`}
+									onpointerdown={(e) => startPortDrag(e, state)}
+								>
+									<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
+								</button>
+
+								<!-- Header -->
+								<div class="flex items-start gap-2.5 py-3 ps-4 pe-3">
+									<div class="min-w-0 flex-1 pt-0.5">
+										<div class="flex flex-wrap items-center gap-1.5">
+											<span
+												class="truncate text-sm font-semibold text-surface-900 dark:text-surface-50"
+											>
+												{state.label}
+											</span>
+											{#if state.isInitial}
+												<span
+													class="rounded-full bg-primary-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400"
+												>
+													{workflows_initial()}
+												</span>
+											{/if}
+											{#if state.isFinal}
+												<span
+													class="rounded-full bg-success-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-success-600 dark:text-success-400"
+												>
+													Final
+												</span>
+											{/if}
+										</div>
+									</div>
+
+									<div
+										class="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100"
+									>
+										<Tooltip title="Drag to move">
+											<span
+												class="inline-flex size-7 items-center justify-center rounded-md text-surface-400 hover:bg-surface-500/10 hover:text-surface-600 dark:hover:bg-surface-800"
+												aria-hidden="true"
+											>
+												<iconify-icon icon="mdi:drag-vertical" width="16"></iconify-icon>
+											</span>
+										</Tooltip>
+										<Tooltip title={workflows_delete_state_aria()}>
+											<button
+												type="button"
+												class="inline-flex size-7 items-center justify-center rounded-md text-surface-400 transition-colors hover:bg-error-500/10 hover:text-error-500"
+												aria-label={`Delete state ${state.label}`}
+												onclick={(e) => {
+													e.stopPropagation();
+													removeStateWithConfirm(state.id);
+												}}
+											>
+												<iconify-icon icon="mdi:close" width="15" aria-hidden="true"></iconify-icon>
+											</button>
+										</Tooltip>
+									</div>
+								</div>
+
+								<!-- Outgoing transitions -->
+								<div class="border-t border-surface-100 px-3 py-2.5 dark:border-surface-500/40">
+									{#if transitions.some((t) => t.from === state.id)}
+										<div class="space-y-1">
+											{#each transitions.filter((t) => t.from === state.id) as trans (trans.id)}
+												<button
+													type="button"
+													class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-start text-xs transition-colors
+													{selectedTransitionId === trans.id
+														? 'bg-primary-500/10 text-primary-600 dark:text-primary-400 font-medium'
+														: 'hover:bg-surface-500/10 dark:hover:bg-surface-800/80'}"
+													onclick={(event) => {
+														event.stopPropagation();
+														selectTransition(trans.id);
+													}}
+												>
+													<span class="text-surface-400">→</span>
+													<span class="min-w-0 flex-1 truncate font-medium">
+														{states.find((s) => s.id === trans.to)?.label ?? trans.to}
+													</span>
+												</button>
+											{/each}
+										</div>
+									{:else}
+										<p
+											class="py-1 text-center text-[10px] text-surface-400/80 dark:text-surface-500"
+										>
+											No outgoing transitions
+										</p>
+									{/if}
+								</div>
+							</div>
+						{/each}
+					</div>
+
+					<!-- Bottom-Right Canvas Controls (desktop only; moved into Properties header on <lg) -->
+					<div
+						class="hidden lg:flex absolute bottom-3 inset-e-3 z-30 items-center gap-1 rounded-lg border border-surface-500/30 bg-white/90 p-1 shadow-md backdrop-blur-sm dark:border-surface-500/40 dark:bg-surface-900/90"
+					>
+						<Tooltip title="Zoom out">
+							<button
+								type="button"
+								class="size-7 flex items-center justify-center rounded text-surface-600 hover:bg-surface-500/10 dark:text-surface-300 dark:hover:bg-surface-800 transition-colors"
+								onclick={zoomOut}
+								aria-label="Zoom out"
+							>
+								<iconify-icon icon="mdi:minus" width="16"></iconify-icon>
+							</button>
+						</Tooltip>
+						<span class="px-1.5 text-xs font-mono font-medium text-surface-500">
+							{Math.round(zoom * 100)}%
+						</span>
+						<Tooltip title="Zoom in">
+							<button
+								type="button"
+								class="size-7 flex items-center justify-center rounded text-surface-600 hover:bg-surface-500/10 dark:text-surface-300 dark:hover:bg-surface-800 transition-colors"
+								onclick={zoomIn}
+								aria-label="Zoom in"
+							>
+								<iconify-icon icon="mdi:plus" width="16"></iconify-icon>
+							</button>
+						</Tooltip>
+						<div class="h-4 w-px bg-surface-200 dark:bg-surface-700 mx-0.5"></div>
+						<Tooltip title="Reset viewport (100%)">
+							<button
+								type="button"
+								class="size-7 flex items-center justify-center rounded text-surface-600 hover:bg-surface-500/10 dark:text-surface-300 dark:hover:bg-surface-800 transition-colors"
+								onclick={resetViewport}
+								aria-label="Reset viewport"
+							>
+								<iconify-icon icon="mdi:fit-to-screen-outline" width="16"></iconify-icon>
+							</button>
+						</Tooltip>
+					</div>
+				</div>
+
+				<!-- Properties Inspector (sticky footer on <lg, right sidebar on lg+) -->
+				<AdminCard
+					class="sticky bottom-0 z-30 shrink-0 max-h-[55dvh] overflow-y-auto lg:static lg:max-h-none border border-surface-500/20 bg-white p-2.5 sm:p-5 shadow-md lg:shadow-sm dark:border-surface-500/30 dark:bg-surface-900"
+				>
+					<div
+						class="{propertiesOpen
+							? 'sticky top-0 z-10 -mx-2.5 -mt-2.5 px-2.5 pt-2.5 pb-2 border-b border-(--admin-border-default) bg-white dark:bg-surface-900 lg:static lg:m-0 lg:border-b-0 lg:p-0'
+							: ''} flex items-center justify-between gap-2"
+					>
+						<button
+							type="button"
+							onclick={() => (propertiesOpen = !propertiesOpen)}
+							aria-expanded={propertiesOpen}
+							class="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-surface-400 lg:pointer-events-none"
 						>
-							<p class="font-semibold text-surface-500 uppercase tracking-wider text-[10px]">
-								Shortcuts
-							</p>
-							<p>
-								<kbd class="px-1 py-0.5 rounded bg-surface-500/10 dark:bg-surface-800 font-mono"
-									>Del</kbd
-								> Delete selected
-							</p>
-							<p>
-								<kbd class="px-1 py-0.5 rounded bg-surface-500/10 dark:bg-surface-800 font-mono"
-									>Esc</kbd
-								> Deselect
-							</p>
-							<p>
-								<kbd class="px-1 py-0.5 rounded bg-surface-500/10 dark:bg-surface-800 font-mono"
-									>Arrows</kbd
-								> Nudge card
-							</p>
-							<p>
-								<kbd class="px-1 py-0.5 rounded bg-surface-500/10 dark:bg-surface-800 font-mono"
-									>Alt + Drag</kbd
-								> Pan canvas
-							</p>
+							<span>{workflows_properties()}</span>
+							<iconify-icon
+								icon={propertiesOpen ? 'mdi:chevron-up' : 'mdi:chevron-down'}
+								width="16"
+								class="lg:hidden"
+								aria-hidden="true"
+							></iconify-icon>
+						</button>
+
+						<!-- Mobile/Tablet Zoom Controls inside Properties header -->
+						<div
+							class="flex lg:hidden items-center gap-0.5 rounded-lg border border-surface-500/30 bg-surface-500/10 p-0.5 dark:border-surface-500/40"
+						>
+							<button
+								type="button"
+								class="size-7 flex items-center justify-center rounded text-surface-600 hover:bg-surface-500/10 dark:text-surface-300 dark:hover:bg-surface-800"
+								onclick={zoomOut}
+								aria-label="Zoom out"
+							>
+								<iconify-icon icon="mdi:minus" width="15"></iconify-icon>
+							</button>
+							<span class="px-1 text-[11px] font-mono font-medium text-surface-500">
+								{Math.round(zoom * 100)}%
+							</span>
+							<button
+								type="button"
+								class="size-7 flex items-center justify-center rounded text-surface-600 hover:bg-surface-500/10 dark:text-surface-300 dark:hover:bg-surface-800"
+								onclick={zoomIn}
+								aria-label="Zoom in"
+							>
+								<iconify-icon icon="mdi:plus" width="15"></iconify-icon>
+							</button>
+							<div class="mx-0.5 h-3.5 w-px bg-surface-500/30"></div>
+							<button
+								type="button"
+								class="size-7 flex items-center justify-center rounded text-surface-600 hover:bg-surface-500/10 dark:text-surface-300 dark:hover:bg-surface-800"
+								onclick={resetViewport}
+								aria-label="Reset viewport"
+							>
+								<iconify-icon icon="mdi:fit-to-screen-outline" width="15"></iconify-icon>
+							</button>
 						</div>
 					</div>
-				{/if}
-			</AdminCard>
+
+					<div class="{propertiesOpen ? 'mt-3 block' : 'hidden'} lg:mt-4 lg:block">
+						{#if selectedNodeId}
+							{@const node = states.find((s) => s.id === selectedNodeId)}
+							{#if node}
+								<div class="space-y-3 sm:space-y-4" in:fade={{ duration: 150 }}>
+									<div class="flex items-center gap-2">
+										<div
+											class="h-3 w-3 rounded-full ring-2 ring-white dark:ring-surface-900"
+											style="background-color: {node.color}"
+										></div>
+										<Badge variant="primary" size="sm">{workflows_state_label()}</Badge>
+									</div>
+
+									<div class="flex items-end gap-2.5">
+										<div class="min-w-0 flex-1">
+											<Input id="state-name" bind:value={node.label} label="Display Label" />
+										</div>
+										<div class="shrink-0">
+											<label
+												class="mb-1 block text-[11px] font-medium text-(--admin-text-muted)"
+												for="accent-color">Color</label
+											>
+											<input
+												id="accent-color"
+												type="color"
+												bind:value={node.color}
+												aria-label="Accent Color"
+												class="h-10 w-12 cursor-pointer rounded-lg border border-surface-500/30 bg-transparent p-1 dark:border-surface-500/40"
+											/>
+										</div>
+									</div>
+
+									<div
+										class="grid grid-cols-2 gap-2 rounded-lg border border-surface-100 bg-surface-500/50 p-2.5 dark:border-surface-500/40 dark:bg-surface-900/50"
+									>
+										<Checkbox
+											checked={node.isInitial ?? false}
+											label="Initial State"
+											size="sm"
+											onchange={(checked) => {
+												node.isInitial = checked;
+												if (checked) {
+													states.forEach((s) => {
+														if (s.id !== node.id) s.isInitial = false;
+													});
+												}
+											}}
+										/>
+										<Checkbox
+											checked={node.isFinal ?? false}
+											label="Final State"
+											size="sm"
+											onchange={(checked) => {
+												node.isFinal = checked;
+											}}
+										/>
+									</div>
+
+									<Button
+										variant="error"
+										onclick={() => {
+											removeStateWithConfirm(node.id);
+										}}
+										size="sm"
+										class="w-full"
+									>
+										{workflows_delete_state()}
+									</Button>
+								</div>
+							{/if}
+						{:else if selectedTransitionId}
+							{@const trans = transitions.find((t) => t.id === selectedTransitionId)}
+							{#if trans}
+								<div class="space-y-3 sm:space-y-4" in:fade={{ duration: 150 }}>
+									<Badge variant="secondary" size="sm">{workflows_transition_label()}</Badge>
+
+									<Input id="trans-label" bind:value={trans.label} label="Button Label" />
+
+									<div class="grid grid-cols-2 gap-2.5">
+										<Select
+											bind:value={trans.from}
+											label="From State"
+											size="sm"
+											options={states.map((s) => ({ value: s.id, label: s.label }))}
+										/>
+										<Select
+											bind:value={trans.to}
+											label="To State"
+											size="sm"
+											options={states.map((s) => ({ value: s.id, label: s.label }))}
+										/>
+									</div>
+
+									<Select
+										bind:value={trans.requiredRole}
+										label="Required Role (RBAC)"
+										size="sm"
+										description="User must have this role to trigger this transition."
+										options={[
+											{ value: '', label: 'No Role (Anyone)' },
+											{ value: 'admin', label: 'Administrator' },
+											...roleOptions
+										]}
+									/>
+
+									<Button
+										variant="error"
+										onclick={() => {
+											removeTransition(trans.id);
+										}}
+										size="sm"
+										class="mt-2 w-full"
+									>
+										{workflows_delete_transition()}
+									</Button>
+								</div>
+							{/if}
+						{:else}
+							<div class="space-y-6" in:fade={{ duration: 150 }}>
+								<div
+									class="rounded-xl border border-surface-500/30 bg-surface-500/80 p-4 dark:border-surface-500/40 dark:bg-surface-900/60"
+								>
+									<p class="mb-3 text-sm font-semibold text-surface-600 dark:text-surface-100">
+										{workflowName || 'Untitled workflow'}
+									</p>
+									<ul class="space-y-1.5 text-xs text-surface-500">
+										<li class="flex items-center gap-2">
+											<span class="inline-block h-1.5 w-1.5 rounded-full bg-surface-400"></span>
+											{states.length}
+											{states.length === 1 ? workflows_state_singular() : workflows_state_plural()}
+										</li>
+										<li class="flex items-center gap-2">
+											<span class="inline-block h-1.5 w-1.5 rounded-full bg-surface-400"></span>
+											{transitions.length}
+											{transitions.length === 1
+												? workflows_transition_singular()
+												: workflows_transition_plural()}
+										</li>
+										<li class="flex items-center gap-2">
+											<span class="inline-block h-1.5 w-1.5 rounded-full bg-surface-400"></span>
+											{selectedCollectionId
+												? (collectionOptions.find((o) => o.value === selectedCollectionId)?.label ??
+													selectedCollectionId)
+												: 'No collection selected'}
+										</li>
+									</ul>
+								</div>
+
+								<div class="flex flex-col items-center justify-center py-8 text-center">
+									<div
+										class="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-500/10 dark:bg-surface-800"
+									>
+										<iconify-icon icon="mdi:gesture-tap" width="28" class="text-surface-400"
+										></iconify-icon>
+									</div>
+									<p class="text-sm font-medium text-surface-600 dark:text-surface-400">
+										{workflows_inspector_hint()}
+									</p>
+									<p class="mt-1 max-w-56 text-balance text-xs text-surface-400">
+										Click a state or transition arrow to edit its properties
+									</p>
+								</div>
+
+								<div
+									class="border-t border-surface-500/30 dark:border-surface-500/40 pt-3 text-[11px] text-surface-400 space-y-2"
+								>
+									<p class="font-semibold text-surface-500 uppercase tracking-wider text-[10px]">
+										Shortcuts
+									</p>
+									<div class="grid grid-cols-2 gap-x-2 gap-y-1.5">
+										<p class="truncate">
+											<kbd
+												class="px-1 py-0.5 rounded bg-surface-500/10 dark:bg-surface-800 font-mono"
+												>Del</kbd
+											> Delete
+										</p>
+										<p class="truncate">
+											<kbd
+												class="px-1 py-0.5 rounded bg-surface-500/10 dark:bg-surface-800 font-mono"
+												>Esc</kbd
+											> Deselect
+										</p>
+										<p class="truncate">
+											<kbd
+												class="px-1 py-0.5 rounded bg-surface-500/10 dark:bg-surface-800 font-mono"
+												>Arrows</kbd
+											> Nudge
+										</p>
+										<p class="truncate">
+											<kbd
+												class="px-1 py-0.5 rounded bg-surface-500/10 dark:bg-surface-800 font-mono"
+												>Alt+Drag</kbd
+											> Pan
+										</p>
+									</div>
+								</div>
+							</div>
+						{/if}
+					</div>
+				</AdminCard>
+			</div>
 		</div>
+
+		<StickyActions>
+			<div class="flex w-full items-center justify-center sm:justify-end gap-1.5 sm:gap-2">
+				<Button
+					variant="tertiary"
+					onclick={addState}
+					data-testid="workflow-add-state"
+					title={workflows_add_state()}
+					aria-label={workflows_add_state()}
+					class="size-9 min-w-0! p-0! sm:h-10 sm:w-auto sm:px-3 flex items-center justify-center gap-1.5 whitespace-nowrap"
+				>
+					<iconify-icon icon="mdi:shape-polygon-plus" width="18" aria-hidden="true"></iconify-icon>
+					<span class="hidden sm:inline">{workflows_add_state()}</span>
+				</Button>
+				<Button
+					variant="secondary"
+					onclick={addTransition}
+					data-testid="workflow-add-transition"
+					title={workflows_add_transition()}
+					aria-label={workflows_add_transition()}
+					class="size-9 min-w-0! p-0! sm:h-10 sm:w-auto sm:px-3 flex items-center justify-center gap-1.5 whitespace-nowrap"
+				>
+					<iconify-icon icon="mdi:arrow-decision-outline" width="18" aria-hidden="true"
+					></iconify-icon>
+					<span class="hidden sm:inline">{workflows_add_transition()}</span>
+				</Button>
+				<Button
+					variant="tertiary"
+					onclick={autoLayout}
+					title="Auto Layout"
+					aria-label="Auto Layout"
+					class="size-9 min-w-0! p-0! sm:h-10 sm:w-auto sm:px-3 flex items-center justify-center gap-1.5 whitespace-nowrap"
+				>
+					<iconify-icon icon="mdi:view-grid-outline" width="18" aria-hidden="true"></iconify-icon>
+					<span class="hidden sm:inline">Auto Layout</span>
+				</Button>
+				<Button
+					variant="primary"
+					onclick={saveWorkflow}
+					data-testid="workflow-save"
+					class="h-9 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm flex items-center gap-1.5 whitespace-nowrap"
+				>
+					<iconify-icon icon="mdi:content-save" width="18" aria-hidden="true"></iconify-icon>
+					<span>{workflows_save()}</span>
+				</Button>
+			</div>
+		</StickyActions>
 	</AdminPageShell>
 </div>

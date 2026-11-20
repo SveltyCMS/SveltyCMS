@@ -118,10 +118,11 @@ This layout provides the administrative shell, including sidebars and header con
 	// Initialize Adaptive Workspace Theme Context based on User Role
 	const userRole = $derived(data.user?.role || 'editor');
 
-	// Try to load admin theme config from the active DB theme, fall back to role-based defaults
-	// The config shape is dynamic (JSON from DB), so we use Record<string, any>
+	type DbAdminThemeConfig = NonNullable<Parameters<typeof mergeAdminThemeWithUserPrefs>[0]> & {
+		layoutState?: Record<string, unknown>;
+	};
 	const dbAdminConfig = $derived(
-		(data.theme as any)?.config?.adminTheme as Record<string, any> | undefined
+		(data.theme as { config?: { adminTheme?: DbAdminThemeConfig } } | undefined)?.config?.adminTheme
 	);
 
 	const tenantThemeDefaults = $derived(
@@ -138,15 +139,22 @@ This layout provides the administrative shell, including sidebars and header con
 			density: initialDensity,
 			variant: initialVariant as any,
 			accentMode: 'default',
-			themeName: (data.theme as any)?.name || 'default',
+			themeName: (data.theme as { name?: string } | undefined)?.name || 'default',
 			customCss: dbAdminConfig?.customCss,
 			features: {
 				stickyActionBar: dbAdminConfig?.features?.stickyActionBar ?? false,
 				collapsibleSidebar:
 					dbAdminConfig?.features?.collapsibleSidebar ?? ui.state.leftSidebar !== 'hidden',
 				brandedLogin: dbAdminConfig?.features?.brandedLogin ?? false,
-				highContrastMode: dbAdminConfig?.features?.highContrastMode ?? false,
-				reducedMotion: dbAdminConfig?.features?.reducedMotion ?? false,
+				highContrastMode:
+					(data.user?.preferences?.theme as { highContrast?: boolean } | undefined)?.highContrast ??
+					dbAdminConfig?.features?.highContrastMode ??
+					false,
+				reducedMotion:
+					(data.user?.preferences?.theme as { reducedMotion?: boolean } | undefined)
+						?.reducedMotion ??
+					dbAdminConfig?.features?.reducedMotion ??
+					false,
 				layoutRegions: dbAdminConfig?.features?.layoutRegions ?? {
 					collections: 'left',
 					mediaGalleries: 'left'
@@ -156,7 +164,13 @@ This layout provides the administrative shell, including sidebars and header con
 	);
 
 	$effect(() => {
-		void data.user?.preferences?.theme;
+		const userTheme = data.user?.preferences?.theme as
+			| { highContrast?: boolean; reducedMotion?: boolean }
+			| undefined;
+		theme.features.highContrastMode =
+			userTheme?.highContrast ?? dbAdminConfig?.features?.highContrastMode ?? false;
+		theme.features.reducedMotion =
+			userTheme?.reducedMotion ?? dbAdminConfig?.features?.reducedMotion ?? false;
 		userThemePrefs.release();
 	});
 
@@ -355,7 +369,10 @@ This layout provides the administrative shell, including sidebars and header con
 			const layoutLocked = dbAdminConfig?.lockedSettings?.layoutState === true;
 			if (layoutLocked) return;
 
-			const diff = diffLayoutPrefsFromTenant(prefs, dbAdminConfig?.layoutState);
+			const diff = diffLayoutPrefsFromTenant(
+				prefs,
+				dbAdminConfig?.layoutState as Parameters<typeof diffLayoutPrefsFromTenant>[1]
+			);
 			try {
 				await fetch('/api/user/update-user-attributes', {
 					method: 'PUT',
@@ -478,7 +495,9 @@ This layout provides the administrative shell, including sidebars and header con
 		initPredictivePreload();
 		initBounceDetector();
 		widgets.initialize();
-		initializeDarkMode((data as any).themePreference);
+		initializeDarkMode(
+			(data as { themePreference?: Parameters<typeof initializeDarkMode>[0] }).themePreference
+		);
 
 		// Primary Mod+K + Gin/Coffee-style Alt+G (same on Windows, Linux, macOS).
 		// Both must work while typing — the palette is a global jump target.
@@ -653,10 +672,12 @@ This layout provides the administrative shell, including sidebars and header con
 					{#if !screen.isMobile && leftSidebarState !== 'hidden'}
 						<aside
 							data-testid="app-left-sidebar"
-							class="max-md:hidden max-h-dvh shrink-0 bg-surface-500/10 text-center transition-[width] duration-300 ease-in-out dark:bg-surface-900 overflow-visible"
-							style="width: {leftSidebarState === 'full'
-								? 'var(--admin-sidebar-width, 240px)'
-								: 'var(--admin-sidebar-compact-width, 120px)'}"
+							class="max-md:hidden max-h-dvh shrink-0 bg-surface-500/10 text-center transition-[width] duration-300 ease-in-out dark:bg-surface-900 overflow-visible {leftSidebarState ===
+							'collapsed'
+								? 'w-(--admin-sidebar-compact-width,120px)'
+								: ui.leftSidebarTouched
+									? 'w-(--admin-sidebar-width,240px)'
+									: 'md:max-lg:w-(--admin-sidebar-compact-width,120px) lg:w-(--admin-sidebar-width,240px)'}"
 							aria-label={applayout_left_sidebar_nav()}
 						>
 							<LeftSidebar />

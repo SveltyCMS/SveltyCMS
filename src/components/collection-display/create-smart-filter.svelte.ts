@@ -173,7 +173,6 @@ export function createSmartFilter(
   function syncFromURL(searchParams: URLSearchParams | ReadonlyURLSearchParams): boolean {
     let hasChanges = false;
     const seen = new Set<string>();
-    const anyFilterInUrl = [...searchParams.keys()].some((k) => k.startsWith(urlPrefix));
 
     for (const [key, value] of searchParams.entries()) {
       if (!key.startsWith(urlPrefix)) continue;
@@ -193,12 +192,10 @@ export function createSmartFilter(
       }
     }
 
-    if (anyFilterInUrl) {
-      for (const key in filters) {
-        if (!seen.has(key)) {
-          delete filters[key];
-          hasChanges = true;
-        }
+    for (const key in filters) {
+      if (!seen.has(key)) {
+        delete filters[key];
+        hasChanges = true;
       }
     }
 

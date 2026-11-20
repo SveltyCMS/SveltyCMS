@@ -21,6 +21,7 @@ Lists all configured workflow automations with status, trigger, and operation su
 	import Loader from '@components/ui/loader.svelte';
 	import AdminCard from '@components/admin-card.svelte';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
+	import StickyActions from '@components/ui/sticky-actions.svelte';
 	import {
 		automations_activate_selected,
 		automations_activate_selected_aria,
@@ -223,30 +224,22 @@ Lists all configured workflow automations with status, trigger, and operation su
 <AdminPageShell
 	title={automations_title()}
 	icon="mdi:robot-outline"
-	description="Automate actions when content changes — send emails, call webhooks, update fields"
-	spaceY="8"
+	fullHeight={true}
+	flushContent={true}
+	titleCompact={true}
+	spaceY="4"
 	showBackButton={true}
 	backUrl="/config"
 >
-	{#snippet actions()}
-		<Button
-			variant="primary"
-			href="/config/automations/new"
-			leadingIcon="mdi:plus"
-			data-sveltekit-preload-data="hover"
-			data-preload="hover"
-			data-testid="automations-new"
-		>
-			{automations_new()}
-		</Button>
-	{/snippet}
-
-	<div data-testid="automations-page" class="contents">
+	<div
+		data-testid="automations-page"
+		class="min-h-0 flex-1 overflow-y-auto space-y-2.5 sm:space-y-4 pt-2 pb-4 pe-0.5"
+	>
 		<!-- Search & Bulk Actions -->
 		<AdminCard
-			class="space-y-4 border border-surface-500/30 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50"
+			class="space-y-2 sm:space-y-4 border border-surface-500/30 bg-white p-2.5 sm:p-5 shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50"
 		>
-			<div class="flex flex-col md:flex-row items-center gap-4">
+			<div class="flex flex-col md:flex-row items-center gap-2 sm:gap-4">
 				<div class="relative flex-1 w-full">
 					<iconify-icon
 						icon="mdi:magnify"
@@ -264,7 +257,7 @@ Lists all configured workflow automations with status, trigger, and operation su
 
 				<div class="flex items-center gap-2 w-full md:w-auto">
 					<div
-						class="flex items-center gap-2 px-3 py-2 me-auto"
+						class="flex items-center gap-2 px-1 py-1 sm:px-3 sm:py-2 me-auto"
 						data-testid="automations-select-all"
 					>
 						<Checkbox
@@ -537,4 +530,20 @@ Lists all configured workflow automations with status, trigger, and operation su
 			</AdminCard>
 		{/if}
 	</div>
+
+	<StickyActions>
+		<div class="flex w-full items-center justify-center sm:justify-end">
+			<Button
+				variant="primary"
+				href="/config/automations/new"
+				leadingIcon="mdi:plus"
+				data-sveltekit-preload-data="hover"
+				data-preload="hover"
+				data-testid="automations-new"
+				class="w-full sm:w-auto h-9 sm:h-10 justify-center"
+			>
+				{automations_new()}
+			</Button>
+		</div>
+	</StickyActions>
 </AdminPageShell>

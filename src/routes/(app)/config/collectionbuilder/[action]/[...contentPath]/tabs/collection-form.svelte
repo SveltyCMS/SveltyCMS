@@ -257,32 +257,32 @@
 	});
 </script>
 
-<div class="space-y-6">
+<div class="space-y-3 sm:space-y-6">
 	<!-- Section Header -->
-	<div class="flex items-center gap-3">
+	<div class="flex items-center gap-2.5 sm:gap-3">
 		<div
-			class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-tertiary-500/10 text-tertiary-500 dark:bg-primary-900/20 dark:text-primary-500"
+			class="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-xl bg-tertiary-500/10 text-tertiary-500 dark:bg-primary-900/20 dark:text-primary-500"
 		>
-			<iconify-icon icon="mdi:information-outline" width="24"></iconify-icon>
+			<iconify-icon icon="mdi:information-outline" width="20" class="sm:text-[24px]"></iconify-icon>
 		</div>
-		<div>
+		<div class="min-w-0">
 			<div class="flex items-center gap-2">
-				<h2 class="text-xl font-bold text-(--admin-text-body)">
+				<h2 class="text-base sm:text-xl font-bold text-(--admin-text-body)">
 					{collection_form_definition()}
 				</h2>
 				<SystemTooltip title={builder_tip_def_step()}>
 					<HelpIcon ariaLabel={builder_help_definition()} />
 				</SystemTooltip>
 			</div>
-			<p class="text-sm text-(--admin-text-muted)">
+			<p class="hidden sm:block text-sm text-(--admin-text-muted)">
 				{collection_form_intro()}
 			</p>
 		</div>
 	</div>
 
-	<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+	<div class="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6">
 		<!-- Left: Name & Database ID -->
-		<AdminCard class="p-6">
+		<AdminCard class="p-3 sm:p-6">
 			<div class="flex items-center justify-between mb-4">
 				<h3 class="text-base font-semibold text-(--admin-text-body) flex items-center gap-2">
 					<iconify-icon icon="mdi:form-textbox" width="18" class="text-tertiary-500"></iconify-icon>

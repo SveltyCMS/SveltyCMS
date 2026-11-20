@@ -57,7 +57,10 @@ It provides functionality to:
 			label: role.name
 		}))
 	);
-	const hasChanges = $derived(selectedAdminRole !== currentAdminRole);
+	const hasChanges = $derived(Boolean(selectedAdminRole) && selectedAdminRole !== currentAdminRole);
+	const selectedRoleName = $derived(
+		availableRoles.find((r: Role) => r._id === selectedAdminRole)?.name ?? selectedAdminRole
+	);
 
 	// Initialize component data (run once)
 	$effect(() => {
@@ -67,7 +70,6 @@ It provides functionality to:
 			if (currentAdmin) {
 				currentAdminRole = currentAdmin._id;
 				currentAdminName = currentAdmin.name;
-				selectedAdminRole = currentAdmin._id;
 			}
 		}
 	});
@@ -115,25 +117,30 @@ It provides functionality to:
 		});
 	};
 
-	// Function to cancel changes and reset the selected role to the current admin role
+	// Function to cancel changes and reset the selected role
 	const cancelChanges = () => {
-		selectedAdminRole = currentAdminRole ?? '';
+		selectedAdminRole = '';
 	};
 </script>
 
 {#if error}
 	<p class="error">{error}</p>
 {:else}
-	<h3 class="mb-2 text-center text-xl font-bold">{access_admin_role_heading()}</h3>
-	<p class="mb-4 justify-center text-center text-sm text-(--admin-text-muted)">
-		{access_admin_role_intro()}
-	</p>
-	<div class="wrapper my-4">
-		<!-- Display current admin role-->
-		<p class="my-4 text-center lg:text-start">
-			{access_admin_role_current()}
-			<span class="ms-2 text-tertiary-500 dark:text-primary-500">{currentAdminName}</span>
-		</p>
+	<div class="mx-auto max-w-lg space-y-3 p-2 sm:p-4">
+		<div class="text-center">
+			<h3 class="text-lg sm:text-xl font-bold">{access_admin_role_heading()}</h3>
+			<p class="hidden sm:block mt-1 text-sm text-(--admin-text-muted)">
+				{access_admin_role_intro()}
+			</p>
+		</div>
+
+		<!-- Display current admin role -->
+		<div
+			class="flex items-center justify-between rounded-lg border border-(--admin-border-default) bg-surface-500/10 px-3 py-2.5 text-sm"
+		>
+			<span class="text-(--admin-text-muted)">{access_admin_role_current()}</span>
+			<span class="font-semibold text-tertiary-500 dark:text-primary-500">{currentAdminName}</span>
+		</div>
 
 		<!-- Dropdown to select admin role -->
 		<Select
@@ -155,17 +162,22 @@ It provides functionality to:
 
 		<!-- Save and Cancel Buttons -->
 		{#if hasChanges}
-			<!-- Display new admin role-->
-			<p class="mt-4 text-center lg:text-start">
+			<p class="text-center text-sm sm:text-start">
 				{access_admin_role_selected()}
-				<span class="ms-2 text-tertiary-500 dark:text-primary-500">{selectedAdminRole}</span>
+				<span class="ms-2 font-semibold text-tertiary-500 dark:text-primary-500"
+					>{selectedRoleName}</span
+				>
 			</p>
-			<div class="mt-4 flex justify-between">
-				<!-- cancel -->
-				<Button variant="outline" onclick={cancelChanges}>{button_cancel()}</Button>
-
-				<!-- Save -->
-				<Button variant="primary" onclick={saveAdminRole} disabled={isSaving}>
+			<div class="flex gap-2 pt-1">
+				<Button variant="outline" onclick={cancelChanges} class="flex-1 sm:flex-initial"
+					>{button_cancel()}</Button
+				>
+				<Button
+					variant="primary"
+					onclick={saveAdminRole}
+					disabled={isSaving}
+					class="flex-1 sm:flex-initial"
+				>
 					{#if isSaving}
 						{access_saving()}
 					{:else}
@@ -177,7 +189,7 @@ It provides functionality to:
 
 		<!-- Notification Message -->
 		{#if notification}
-			<p class="mt-4 text-success-600">{notification}</p>
+			<p class="text-sm text-success-600">{notification}</p>
 		{/if}
 	</div>
 {/if}

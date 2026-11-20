@@ -107,43 +107,51 @@
 	}
 </script>
 
-<div class="flex flex-col gap-6" data-testid="dashboard-widgets-view">
-	<div class="flex flex-col gap-2">
-		<h2 class="text-lg font-bold text-surface-900 dark:text-surface-100">
+<div class="flex flex-col gap-3 sm:gap-6" data-testid="dashboard-widgets-view">
+	<div class="flex flex-col gap-1 sm:gap-2">
+		<h2 class="text-base sm:text-lg font-bold text-surface-900 dark:text-surface-100">
 			{dwv_heading()}
 		</h2>
-		<p class="text-sm text-surface-500 dark:text-surface-400">
+		<p class="hidden sm:block text-sm text-surface-500 dark:text-surface-400">
 			{dwv_intro()}
 		</p>
 	</div>
 
 	<!-- Stats Summary Grid -->
-	<div class="grid grid-cols-2 gap-3 sm:grid-cols-4" data-testid="dashboard-widgets-stats">
+	<div class="grid grid-cols-2 gap-2 sm:gap-3 sm:grid-cols-4" data-testid="dashboard-widgets-stats">
 		<AdminCard
-			class="flex items-center gap-3.5 p-4 bg-(--admin-bg-card) border border-surface-500/20"
+			class="flex items-center gap-2.5 sm:gap-3.5 p-2.5 sm:p-4 bg-(--admin-bg-card) border border-surface-500/20"
 		>
 			<div
-				class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary-500/10 text-primary-600 dark:text-primary-400"
+				class="flex size-9 sm:size-11 shrink-0 items-center justify-center rounded-lg bg-primary-500/10 text-primary-600 dark:text-primary-400"
 			>
-				<iconify-icon icon="mdi:view-dashboard" width="22" aria-hidden="true"></iconify-icon>
+				<iconify-icon icon="mdi:view-dashboard" width="20" aria-hidden="true"></iconify-icon>
 			</div>
-			<div>
-				<p class="text-xs font-medium text-surface-500">{dwv_total_widgets()}</p>
-				<p class="text-xl font-bold text-surface-900 dark:text-surface-100">{stats.total}</p>
+			<div class="min-w-0">
+				<p class="truncate text-[11px] sm:text-xs font-medium text-surface-500">
+					{dwv_total_widgets()}
+				</p>
+				<p class="text-lg sm:text-xl font-bold text-surface-900 dark:text-surface-100">
+					{stats.total}
+				</p>
 			</div>
 		</AdminCard>
 
 		<AdminCard
-			class="flex items-center gap-3.5 p-4 bg-(--admin-bg-card) border border-surface-500/20"
+			class="flex items-center gap-2.5 sm:gap-3.5 p-2.5 sm:p-4 bg-(--admin-bg-card) border border-surface-500/20"
 		>
 			<div
-				class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-success-500/10 text-success-600 dark:text-success-400"
+				class="flex size-9 sm:size-11 shrink-0 items-center justify-center rounded-lg bg-success-500/10 text-success-600 dark:text-success-400"
 			>
-				<iconify-icon icon="mdi:gift-outline" width="22" aria-hidden="true"></iconify-icon>
+				<iconify-icon icon="mdi:gift-outline" width="20" aria-hidden="true"></iconify-icon>
 			</div>
-			<div>
-				<p class="text-xs font-medium text-surface-500">{dwv_free_tier()}</p>
-				<p class="text-xl font-bold text-surface-900 dark:text-surface-100">{stats.free}</p>
+			<div class="min-w-0">
+				<p class="truncate text-[11px] sm:text-xs font-medium text-surface-500">
+					{dwv_free_tier()}
+				</p>
+				<p class="text-lg sm:text-xl font-bold text-surface-900 dark:text-surface-100">
+					{stats.free}
+				</p>
 			</div>
 		</AdminCard>
 

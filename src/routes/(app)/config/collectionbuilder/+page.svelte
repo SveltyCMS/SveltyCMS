@@ -80,6 +80,8 @@ None (TreeView has its own keyboard navigation)
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { setRouteContext } from '@src/stores/ui-store.svelte.ts';
 	import Button from '@components/ui/button.svelte';
+	import StickyActions from '@components/ui/sticky-actions.svelte';
+	import Tooltip from '@components/ui/tooltip.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import Slot from '@components/system/slot.svelte';
@@ -564,86 +566,80 @@ None (TreeView has its own keyboard navigation)
 		return path;
 	}
 
+	let isCategoryModalOpen = $state(false);
+	let editingCategory = $state<Partial<ContentNode> | undefined>(undefined);
+
 	function modalAddCategory(existingCategory: Partial<ContentNode> | undefined = undefined): void {
-		modalState.trigger(
-			ModalCategory as any,
-			{
-				existingCategory: existingCategory as ContentNode | undefined,
-				title: existingCategory ? 'Edit Category' : 'Add New Category',
-				body: existingCategory
-					? 'Modify Category Details'
-					: 'Enter a name and icon for your new category',
-				size: 'xl'
-			},
-			async (
-				response: CategoryModalResponse | boolean | { __categoryDeleted: true; categoryId: string }
-			) => {
-				// User cancelled
-				if (!response || typeof response === 'boolean') {
-					return;
-				}
+		editingCategory = existingCategory;
+		isCategoryModalOpen = true;
+	}
 
-				// Deletion is staged by the modal; stage the cascade here too.
-				if (typeof response === 'object' && '__categoryDeleted' in response) {
-					stageDeletes(getDescendantIds(response.categoryId, currentConfig));
-					return;
-				}
+	function handleCategoryModalResult(
+		response: CategoryModalResponse | boolean | { __categoryDeleted: true; categoryId: string }
+	): void {
+		// User cancelled
+		if (!response || typeof response === 'boolean') {
+			return;
+		}
 
-				const form = response as CategoryModalResponse;
-				const nameTrimmed = form.newCategoryName.trim();
-				const icon = form.newCategoryIcon || 'mdi:folder-outline';
+		// Deletion is staged by the modal; stage the cascade here too.
+		if (typeof response === 'object' && '__categoryDeleted' in response) {
+			stageDeletes(getDescendantIds(response.categoryId, currentConfig));
+			return;
+		}
 
-				if (existingCategory?._id) {
-					// Edit existing category — staged as a rename (no immediate save).
-					const updated = {
-						...existingCategory,
-						name: form.newCategoryName,
-						icon,
-						description:
-							form.newCategoryDescription ?? (existingCategory as any)?.description ?? '',
-						updatedAt: nowISODateString()
-					} as ContentNode;
+		const form = response as CategoryModalResponse;
+		const nameTrimmed = form.newCategoryName.trim();
+		const icon = form.newCategoryIcon || 'mdi:folder-outline';
 
-					currentConfig = currentConfig.map((node) =>
-						node._id?.toString() === updated._id?.toString() ? updated : node
-					);
-					setDraftContentStructure(currentConfig);
-					nodesToSave = {
-						...nodesToSave,
-						[updated._id?.toString() ?? '']: { type: 'rename', node: updated }
-					};
-					draftRevision++;
-					toast.success(`Category "${nameTrimmed}" staged. Click Save to persist.`);
-				} else {
-					// Create new category — staged as a create (no immediate save).
-					const newId = generateUUID() as unknown as DatabaseId;
-					const path = uniquePathForCategory(form.newCategoryName);
-					const newCategory: ContentNode = {
-						_id: newId,
-						name: form.newCategoryName,
-						icon,
-						path,
-						order: currentConfig.length,
-						translations: [],
-						description: form.newCategoryDescription ?? '',
-						updatedAt: nowISODateString(),
-						createdAt: nowISODateString(),
-						parentId: undefined,
-						nodeType: 'category',
-						source: 'builder'
-					};
+		if (editingCategory?._id) {
+			// Edit existing category — staged as a rename (no immediate save).
+			const updated = {
+				...editingCategory,
+				name: form.newCategoryName,
+				icon,
+				description: form.newCategoryDescription ?? (editingCategory as any)?.description ?? '',
+				updatedAt: nowISODateString()
+			} as ContentNode;
 
-					currentConfig = [...currentConfig, newCategory];
-					setDraftContentStructure(currentConfig);
-					nodesToSave = {
-						...nodesToSave,
-						[newId.toString()]: { type: 'create', node: newCategory }
-					};
-					draftRevision++;
-					toast.success(`Category "${nameTrimmed}" staged. Click Save to persist.`);
-				}
-			}
-		);
+			currentConfig = currentConfig.map((node) =>
+				node._id?.toString() === updated._id?.toString() ? updated : node
+			);
+			setDraftContentStructure(currentConfig);
+			nodesToSave = {
+				...nodesToSave,
+				[updated._id?.toString() ?? '']: { type: 'rename', node: updated }
+			};
+			draftRevision++;
+			toast.success(`Category "${nameTrimmed}" staged. Click Save to persist.`);
+		} else {
+			// Create new category — staged as a create (no immediate save).
+			const newId = generateUUID() as unknown as DatabaseId;
+			const path = uniquePathForCategory(form.newCategoryName);
+			const newCategory: ContentNode = {
+				_id: newId,
+				name: form.newCategoryName,
+				icon,
+				path,
+				order: currentConfig.length,
+				translations: [],
+				description: form.newCategoryDescription ?? '',
+				updatedAt: nowISODateString(),
+				createdAt: nowISODateString(),
+				parentId: undefined,
+				nodeType: 'category',
+				source: 'builder'
+			};
+
+			currentConfig = [...currentConfig, newCategory];
+			setDraftContentStructure(currentConfig);
+			nodesToSave = {
+				...nodesToSave,
+				[newId.toString()]: { type: 'create', node: newCategory }
+			};
+			draftRevision++;
+			toast.success(`Category "${nameTrimmed}" staged. Click Save to persist.`);
+		}
 	}
 
 	function modalQuickStart(): void {
@@ -741,6 +737,9 @@ None (TreeView has its own keyboard navigation)
 	icon="mdi:database-cog-outline"
 	showBackButton={true}
 	backUrl="/config"
+	fullHeight={true}
+	flushContent={true}
+	titleCompact={true}
 	titleBorderless={true}
 >
 	{#snippet subtitle()}
@@ -760,107 +759,104 @@ None (TreeView has its own keyboard navigation)
 			</div>
 		{/if}
 	{/snippet}
-	{#snippet actions()}
-		<Button
-			variant="primary"
-			data-testid="save-structure-button"
-			onclick={handleSave}
-			disabled={isLoading ||
-				(pendingPresetId === null &&
-					pendingDuplicates.length === 0 &&
-					Object.keys(nodesToSave).length === 0)}
-			title={pendingPresetId === null &&
-			pendingDuplicates.length === 0 &&
-			Object.keys(nodesToSave).length === 0
-				? builder_tip_save_no_changes()
-				: builder_tip_save_changes()}
-			aria-keyshortcuts="mod+s"
-			size="md"
-			class="flex items-center gap-1.5 px-4"
-		>
-			{#if isLoading}
-				<iconify-icon icon="mdi:loading" width="20" class="animate-spin"></iconify-icon>
-			{:else}
-				<iconify-icon icon="mdi:content-save" width="20"></iconify-icon>
-			{/if}
-			<span>{button_save()}</span>
-		</Button>
-	{/snippet}
 
 	{#if currentConfig.length > 0 || pendingPresetId !== null || pendingDuplicates.length > 0 || Object.keys(nodesToSave).length > 0}
-		<AdminCard class="p-6 border border-(--admin-border-default) backdrop-blur-md shadow-xs">
-			<div class="mb-4 flex flex-wrap justify-center gap-2" in:fade={{ duration: 300 }}>
-				<SystemTooltip title={builder_tip_quick_start()} role={null} tabindex={null}>
+		<div class="flex min-h-0 flex-1 flex-col gap-2 sm:gap-4 pb-2">
+			<div
+				class="shrink-0 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-center"
+				in:fade={{ duration: 300 }}
+			>
+				<SystemTooltip
+					title={builder_tip_quick_start()}
+					role={null}
+					tabindex={null}
+					triggerClass="w-full sm:w-auto"
+				>
 					<Button
 						onclick={() => modalQuickStart()}
 						variant="warning"
-						size="lg"
-						class="group whitespace-nowrap"
+						size="md"
+						class="group w-full sm:w-auto justify-center gap-1.5 whitespace-nowrap px-2 sm:px-4 text-xs sm:text-sm"
 						disabled={isLoading}
 					>
 						<iconify-icon
 							icon="mdi:magic-staff"
-							width="24"
-							class="transition-transform group-hover:rotate-12"
+							width="16"
+							class="transition-transform group-hover:rotate-12 shrink-0"
 						></iconify-icon>
-						<span>{builder_quick_start()}</span>
+						<span class="truncate">{builder_quick_start()}</span>
 					</Button>
 				</SystemTooltip>
 
-				<SystemTooltip title={builder_tip_introspect()} role={null} tabindex={null}>
+				<SystemTooltip
+					title={builder_tip_introspect()}
+					role={null}
+					tabindex={null}
+					triggerClass="w-full sm:w-auto"
+				>
 					<Button
 						onclick={() => modalIntrospectSchema()}
 						variant="success"
-						size="lg"
-						class="group whitespace-nowrap"
+						size="md"
+						class="group w-full sm:w-auto justify-center gap-1.5 whitespace-nowrap px-2 sm:px-4 text-xs sm:text-sm"
 						disabled={isLoading}
 						data-testid="introspect-schema-button"
 					>
 						<iconify-icon
 							icon="mdi:database-arrow-right"
-							width="24"
-							class="transition-transform group-hover:scale-110"
+							width="16"
+							class="transition-transform group-hover:scale-110 shrink-0"
 						></iconify-icon>
-						<span>{builder_introspect_ingest()}</span>
+						<span class="truncate">{builder_introspect_ingest()}</span>
 					</Button>
 				</SystemTooltip>
 
-				<SystemTooltip title={builder_tip_add_category()} role={null} tabindex={null}>
+				<SystemTooltip
+					title={builder_tip_add_category()}
+					role={null}
+					tabindex={null}
+					triggerClass="w-full sm:w-auto"
+				>
 					<Button
 						onclick={() => modalAddCategory()}
 						variant="transparent"
-						size="lg"
-						class="group whitespace-nowrap preset-filled-tertiary-500 shadow-tertiary-500/20"
+						size="md"
+						class="group w-full sm:w-auto justify-center gap-1.5 whitespace-nowrap px-2 sm:px-4 text-xs sm:text-sm bg-tertiary-500! text-white! hover:bg-tertiary-600! shadow-tertiary-500/20"
 						disabled={isLoading}
 						data-testid="add-category-button"
 					>
 						<iconify-icon
 							icon="mdi:folder-plus"
-							width="24"
-							class="transition-transform group-hover:scale-110"
+							width="16"
+							class="transition-transform group-hover:scale-110 shrink-0"
 						></iconify-icon>
-						<span>{collection_addcategory()}</span>
+						<span class="truncate">{collection_addcategory()}</span>
 					</Button>
 				</SystemTooltip>
 
-				<SystemTooltip title={builder_tip_add_collection()} role={null} tabindex={null}>
+				<SystemTooltip
+					title={builder_tip_add_collection()}
+					role={null}
+					tabindex={null}
+					triggerClass="w-full sm:w-auto"
+				>
 					<Button
 						href={newCollectionHref}
 						data-preload="hover"
 						onclick={setupNewCollection}
 						variant="error"
-						size="lg"
-						class="group whitespace-nowrap"
+						size="md"
+						class="group w-full sm:w-auto justify-center gap-1.5 whitespace-nowrap px-2 sm:px-4 text-xs sm:text-sm"
 						disabled={isLoading}
 						data-testid="add-collection-button"
 						aria-keyshortcuts="Mod+N"
 					>
 						<iconify-icon
 							icon="ic:round-plus"
-							width="24"
-							class="transition-transform group-hover:rotate-90"
+							width="16"
+							class="transition-transform group-hover:rotate-90 shrink-0"
 						></iconify-icon>
-						<span>{collection_add()}</span>
+						<span class="truncate">{collection_add()}</span>
 					</Button>
 				</SystemTooltip>
 
@@ -869,40 +865,97 @@ None (TreeView has its own keyboard navigation)
 						type="button"
 						onclick={handleClearCategorySelection}
 						variant="ghost"
-						class="flex items-center gap-1 text-(--admin-text-muted)"
+						size="md"
+						class="col-span-2 sm:col-span-1 flex items-center justify-center gap-1 text-(--admin-text-muted)"
 						disabled={isLoading}
 						aria-label={builder_clear_category_aria()}
 					>
-						<iconify-icon icon="mdi:close-circle-outline" width="24"></iconify-icon>
-						<span class="hidden sm:inline">{builder_clear_selection()}</span>
+						<iconify-icon icon="mdi:close-circle-outline" width="18"></iconify-icon>
+						<span>{builder_clear_selection()}</span>
 					</Button>
 				{/if}
 			</div>
 
-			<p class="text-center" role="note">
-				{stripHtml(builder_note_instant())}<br />
-				{stripHtml(builder_note_layout())}
-			</p>
+			<AdminCard
+				class="flex min-h-0 flex-1 flex-col px-2 py-2.5 sm:p-6 border border-(--admin-border-default) backdrop-blur-md shadow-xs"
+			>
+				<!-- Mobile: compact 1-line hint with tooltip; Desktop: full instructions -->
+				<div
+					class="mb-2 flex items-center justify-between gap-2 text-xs text-(--admin-text-muted) sm:hidden shrink-0"
+				>
+					<span class="truncate">{collection_description()}</span>
+					<Tooltip
+						title={`${stripHtml(builder_note_instant())} ${stripHtml(builder_note_layout())}`}
+					>
+						<button
+							type="button"
+							aria-label="Collection Builder instructions"
+							class="flex size-7 shrink-0 items-center justify-center rounded border border-(--admin-border-default) bg-(--admin-bg-input) text-(--admin-text-muted)"
+						>
+							<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"
+							></iconify-icon>
+						</button>
+					</Tooltip>
+				</div>
 
-			<div data-testid="collection-builder-board">
-				<div class="mx-auto w-full max-w-screen-2xl">
-					<p class="mb-6 text-center text-tertiary-600 dark:text-primary-500">
+				<div class="hidden sm:block shrink-0">
+					<p class="text-center text-sm" role="note">
+						{stripHtml(builder_note_instant())}<br />
+						{stripHtml(builder_note_layout())}
+					</p>
+					<p class="mb-4 text-center text-sm text-tertiary-600 dark:text-primary-500">
 						{collection_description()}
 					</p>
-
-					<TreeViewBoard
-						contentNodes={currentConfig}
-						structureKey={treeVersion}
-						onNodeUpdate={handleNodeUpdate}
-						onEditCategory={modalAddCategory}
-						onDeleteNode={handleDeleteNode}
-						onDuplicateNode={handleDuplicateNode}
-						{selectedCategoryId}
-						onSelectCategory={handleSelectCategory}
-					/>
 				</div>
+
+				<div
+					data-testid="collection-builder-board"
+					class="min-h-0 flex-1 overflow-y-auto pe-0.5 pb-1"
+				>
+					<div class="mx-auto w-full max-w-screen-2xl">
+						<TreeViewBoard
+							contentNodes={currentConfig}
+							structureKey={treeVersion}
+							onNodeUpdate={handleNodeUpdate}
+							onEditCategory={modalAddCategory}
+							onDeleteNode={handleDeleteNode}
+							onDuplicateNode={handleDuplicateNode}
+							{selectedCategoryId}
+							onSelectCategory={handleSelectCategory}
+						/>
+					</div>
+				</div>
+			</AdminCard>
+		</div>
+
+		<StickyActions>
+			<div class="flex w-full items-center justify-center sm:justify-end gap-2">
+				<Button
+					variant="primary"
+					data-testid="save-structure-button"
+					onclick={handleSave}
+					disabled={isLoading ||
+						(pendingPresetId === null &&
+							pendingDuplicates.length === 0 &&
+							Object.keys(nodesToSave).length === 0)}
+					title={pendingPresetId === null &&
+					pendingDuplicates.length === 0 &&
+					Object.keys(nodesToSave).length === 0
+						? builder_tip_save_no_changes()
+						: builder_tip_save_changes()}
+					aria-keyshortcuts="mod+s"
+					size="md"
+					class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4"
+				>
+					{#if isLoading}
+						<iconify-icon icon="mdi:loading" width="18" class="animate-spin"></iconify-icon>
+					{:else}
+						<iconify-icon icon="mdi:content-save" width="18"></iconify-icon>
+					{/if}
+					<span>{button_save()}</span>
+				</Button>
 			</div>
-		</AdminCard>
+		</StickyActions>
 	{:else}
 		<EmptyState
 			onAddCollection={setupNewCollection}
@@ -911,6 +964,12 @@ None (TreeView has its own keyboard navigation)
 			onQuickStart={modalQuickStart}
 		/>
 	{/if}
+
+	<ModalCategory
+		bind:open={isCategoryModalOpen}
+		existingCategory={editingCategory}
+		onresult={handleCategoryModalResult}
+	/>
 
 	<Slot name="collection_builder" />
 </AdminPageShell>

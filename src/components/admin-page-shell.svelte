@@ -112,7 +112,7 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 	<AdminZone zone="content-header" inline={true} />
 
 	<div
-		class="px-2 {flushContent ? 'pb-0 pt-0' : `pb-2 pt-4 ${spaceClass}`} {fullHeight
+		class="px-2 {flushContent ? 'pb-0 pt-0' : `pb-2 pt-2 ${spaceClass}`} {fullHeight
 			? 'flex min-h-0 flex-1 flex-col'
 			: ''}"
 	>

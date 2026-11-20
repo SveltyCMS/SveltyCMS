@@ -306,7 +306,9 @@ It provides the following functionality:
 {#if error}
 	<p class="error">{error}</p>
 {:else}
-	<div class="sticky top-0 z-10 mb-4 flex flex-col gap-2.5">
+	<div
+		class="sticky top-0 z-20 mb-2 sm:mb-4 flex flex-col gap-2 rounded-t border-b border-(--admin-border-default) bg-(--admin-bg-card) px-2 pt-2 pb-2 sm:border-b-0 sm:px-0 sm:pt-0 sm:pb-0"
+	>
 		<div class="w-full">
 			<FloatingInput
 				bind:value={searchTerm}
@@ -318,7 +320,7 @@ It provides the following functionality:
 
 		{#if allCategories.length > 2}
 			<div
-				class="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-thin scrollbar-thumb-surface-500/30"
+				class="flex flex-wrap items-center gap-1.5 py-0.5"
 				role="toolbar"
 				aria-label="Filter permissions by category"
 			>
@@ -328,7 +330,7 @@ It provides the following functionality:
 						size="sm"
 						rounded
 						type="button"
-						class="whitespace-nowrap font-medium!"
+						class="h-7! shrink-0 whitespace-nowrap px-2.5! text-xs! font-medium!"
 						onclick={() => (selectedCategory = category)}
 						aria-pressed={selectedCategory === category}
 					>

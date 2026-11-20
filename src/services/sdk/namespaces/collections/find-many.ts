@@ -233,12 +233,16 @@ function normalizeFilterOperators(f: Record<string, unknown>): Record<string, un
         out[k] = { $in: vObj.in };
       } else if ("eq" in vObj) {
         out[k] = { $eq: vObj.eq };
+      } else if ("ne" in vObj) {
+        out[k] = { $ne: vObj.ne };
       } else if ("isNull" in vObj && typeof vObj.isNull === "boolean") {
         out[k] = vObj.isNull ? { $eq: null } : { $ne: null };
-      } else if ("gte" in vObj || "lte" in vObj) {
+      } else if ("gte" in vObj || "lte" in vObj || "gt" in vObj || "lt" in vObj) {
         const range: Record<string, unknown> = {};
         if ("gte" in vObj) range.$gte = vObj.gte;
         if ("lte" in vObj) range.$lte = vObj.lte;
+        if ("gt" in vObj) range.$gt = vObj.gt;
+        if ("lt" in vObj) range.$lt = vObj.lt;
         out[k] = range;
       } else {
         out[k] = v;
@@ -246,6 +250,49 @@ function normalizeFilterOperators(f: Record<string, unknown>): Record<string, un
     } else {
       out[k] = v;
     }
+  }
+  return out;
+}
+
+const translatedFieldsMemo = new WeakMap<object, Set<string>>();
+
+function getTranslatedFieldNames(schema: Schema | null | undefined): Set<string> {
+  if (!schema || typeof schema !== "object") return new Set();
+  const cached = translatedFieldsMemo.get(schema);
+  if (cached) return cached;
+  const out = new Set<string>();
+  for (const raw of schema.fields ?? []) {
+    const field = raw as Record<string, unknown> | null;
+    if (!field || typeof field !== "object" || !field.translated) continue;
+    for (const k of ["db_fieldName", "name", "path", "key", "label"] as const) {
+      const v = field[k];
+      if (typeof v === "string" && v) {
+        out.add(v);
+        out.add(v.toLowerCase());
+      }
+    }
+  }
+  translatedFieldsMemo.set(schema, out);
+  return out;
+}
+
+function localizeTranslatedSort(
+  sort: SortSpec | undefined,
+  translatedFields: Set<string>,
+  language: string | undefined,
+): SortSpec | undefined {
+  if (!sort || !language || translatedFields.size === 0) return sort;
+  if (Array.isArray(sort)) {
+    return sort.map(([field, dir]): [string, "asc" | "desc"] => [
+      translatedFields.has(field) && !field.includes(".") ? `${field}.${language}` : field,
+      dir,
+    ]);
+  }
+  const out: Record<string, "asc" | "desc"> = {};
+  for (const [field, dir] of Object.entries(sort)) {
+    const localizedField =
+      translatedFields.has(field) && !field.includes(".") ? `${field}.${language}` : field;
+    out[localizedField] = dir;
   }
   return out;
 }
@@ -793,6 +840,10 @@ export async function executeFind(
           ? ([[options.sortField, options.sortDirection || "desc"]] as [string, "asc" | "desc"][])
           : undefined;
   const sort = stripGuardedSort(requestedSort, guarded);
+  const dbSort =
+    !keysetMode && language && !editEntryId && sort
+      ? localizeTranslatedSort(sort, getTranslatedFieldNames(schema), language)
+      : sort;
 
   const sortForDb = keysetMode
     ? withIdTiebreaker(
@@ -803,7 +854,7 @@ export async function executeFind(
               : { _id: decodedCursor.d === "asc" ? 1 : -1 }
             : defaultPageSortOption()),
       )
-    : (sort ?? defaultListSortOption());
+    : (dbSort ?? defaultListSortOption());
 
   const skipRequestCache = bypassCache || options.bypassRequestCache === true;
   const skipCacheService = options.skipCacheService === true;
@@ -992,6 +1043,27 @@ export async function executeFind(
           mode: "list",
         }),
       );
+      if (Array.isArray(sort) && sort.length > 0) {
+        (data as Array<Record<string, unknown>>).sort((a, b) => {
+          for (const [field, dir] of sort) {
+            const mult = dir === "desc" ? -1 : 1;
+            const av = a[field];
+            const bv = b[field];
+            if (av == null && bv == null) continue;
+            if (av == null || av === "") return 1;
+            if (bv == null || bv === "") return -1;
+            const cmp =
+              typeof av === "number" && typeof bv === "number"
+                ? av - bv
+                : String(av).localeCompare(String(bv), language, {
+                    numeric: true,
+                    sensitivity: "base",
+                  });
+            if (cmp !== 0) return cmp * mult;
+          }
+          return 0;
+        });
+      }
       if (plan.hasRelations) {
         await hydrateRelationDisplays(data, schema, ctx._dbAdapter, tenantId);
       }

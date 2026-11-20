@@ -1,60 +1,60 @@
 {
   "version": 1,
   "summary": {
-    "generatedAt": "2026-11-08T15:42:18.983Z",
-    "totalFiles": 1505,
-    "totalLoc": 423193,
-    "totalBytes": 14314514,
-    "runtimeEdgeCount": 6186,
-    "typeEdgeCount": 1463,
+    "generatedAt": "2026-11-20T23:11:50.232Z",
+    "totalFiles": 1524,
+    "totalLoc": 439435,
+    "totalBytes": 14969572,
+    "runtimeEdgeCount": 6375,
+    "typeEdgeCount": 1521,
     "barrelCount": 8,
     "passThroughBarrelCount": 0,
     "reExportBridgeCount": 2,
-    "microFileCount": 262,
-    "singleCallerCount": 499,
+    "microFileCount": 258,
+    "singleCallerCount": 506,
     "sameDirUntestedSingleCallerCount": 12,
-    "orphanFileCount": 19,
-    "unusedRuntimeExportCount": 123,
-    "testOnlyRuntimeExportCount": 502,
+    "orphanFileCount": 18,
+    "unusedRuntimeExportCount": 135,
+    "testOnlyRuntimeExportCount": 523,
     "runtimeCycleCount": 0,
     "clientServerLeakCount": 0,
-    "clientReachableFiles": 467,
-    "clientReachableKB": 4192,
+    "clientReachableFiles": 469,
+    "clientReachableKB": 4273,
     "byArea": {
       "src/hooks.client.ts": {
         "files": 1,
-        "loc": 41,
+        "loc": 45,
         "microFiles": 1,
         "barrels": 0,
         "singleCallers": 0
       },
       "src/hooks.server.ts": {
         "files": 1,
-        "loc": 1241,
+        "loc": 1278,
         "microFiles": 0,
         "barrels": 0,
         "singleCallers": 0
       },
       "src/hooks.ws.ts": {
         "files": 1,
-        "loc": 323,
+        "loc": 330,
         "microFiles": 0,
         "barrels": 0,
         "singleCallers": 0
       },
       "src/widgets": {
-        "files": 156,
-        "loc": 24989,
-        "microFiles": 46,
-        "barrels": 29,
+        "files": 160,
+        "loc": 25305,
+        "microFiles": 49,
+        "barrels": 30,
         "singleCallers": 13
       },
       "src/utils": {
-        "files": 221,
-        "loc": 45580,
+        "files": 224,
+        "loc": 46634,
         "microFiles": 31,
         "barrels": 2,
-        "singleCallers": 58
+        "singleCallers": 59
       },
       "src/types": {
         "files": 2,
@@ -72,59 +72,59 @@
       },
       "src/stores": {
         "files": 23,
-        "loc": 7446,
+        "loc": 7665,
         "microFiles": 4,
         "barrels": 0,
         "singleCallers": 3
       },
       "src/services": {
-        "files": 165,
-        "loc": 60728,
-        "microFiles": 16,
+        "files": 176,
+        "loc": 66838,
+        "microFiles": 15,
         "barrels": 2,
-        "singleCallers": 54
+        "singleCallers": 56
       },
       "src/routes": {
-        "files": 334,
-        "loc": 108610,
-        "microFiles": 61,
+        "files": 331,
+        "loc": 111153,
+        "microFiles": 57,
         "barrels": 0,
-        "singleCallers": 138
+        "singleCallers": 139
       },
       "src/plugins": {
-        "files": 188,
-        "loc": 36672,
-        "microFiles": 46,
+        "files": 189,
+        "loc": 37209,
+        "microFiles": 45,
         "barrels": 15,
-        "singleCallers": 63
+        "singleCallers": 64
       },
       "src/hooks": {
         "files": 24,
-        "loc": 10887,
+        "loc": 11292,
         "microFiles": 2,
         "barrels": 0,
         "singleCallers": 8
       },
       "src/databases": {
         "files": 147,
-        "loc": 69140,
-        "microFiles": 9,
+        "loc": 72806,
+        "microFiles": 7,
         "barrels": 2,
-        "singleCallers": 61
+        "singleCallers": 62
       },
       "src/content": {
-        "files": 21,
-        "loc": 7016,
-        "microFiles": 3,
+        "files": 22,
+        "loc": 7138,
+        "microFiles": 4,
         "barrels": 1,
         "singleCallers": 4
       },
       "src/components": {
-        "files": 220,
-        "loc": 50302,
+        "files": 222,
+        "loc": 51524,
         "microFiles": 43,
         "barrels": 9,
-        "singleCallers": 97
+        "singleCallers": 98
       }
     },
     "smellSummary": {
@@ -134,7 +134,7 @@
       "clientNodeLeaks": 0,
       "deepRelativeImports": 0,
       "testInvariantViolations": 0,
-      "clientBoundaryCandidates": 27
+      "clientBoundaryCandidates": 28
     },
     "publicApiBarrelPaths": [
       "src/components/ui/tabs/index.ts",

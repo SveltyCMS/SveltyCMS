@@ -7,7 +7,7 @@
  * - Plugin registry state for tenant
  */
 
-import { pluginRegistry } from "@src/plugins";
+import { availablePlugins, pluginRegistry } from "@src/plugins";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { LocalCMS } from "@src/services/sdk";
 import { dbAdapter } from "@src/databases/db";
@@ -25,12 +25,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 
     const tenantId = locals.tenantId || "default";
     // The runtime registry is only populated once `initializePlugins` has run.
-    // Fall back to empty array if pluginRegistry.getAll() returns nothing or throws.
+    // Fall back to the static `availablePlugins` catalog if the runtime registry is empty (e.g. HMR or pre-init).
     let catalog: any[] = [];
     try {
       catalog = pluginRegistry.getAll() || [];
     } catch (regErr) {
       logger.warn("Could not retrieve plugins from pluginRegistry:", regErr);
+    }
+    if (catalog.length === 0) {
+      catalog = availablePlugins;
     }
 
     let enabledById: Record<string, boolean> = {};

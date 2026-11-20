@@ -30,6 +30,7 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 	import Loader from '@components/ui/loader.svelte';
 	import AdminCard from '@components/admin-card.svelte';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
+	import StickyActions from '@components/ui/sticky-actions.svelte';
 	import {
 		WEBHOOK_EVENT_TYPES,
 		filterWebhooksByQuery,
@@ -214,159 +215,170 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 <AdminPageShell
 	title={config_tile_webhooks()}
 	icon="mdi:webhook"
-	description="Manage webhook endpoints and event subscriptions"
 	showBackButton={true}
 	backUrl="/config"
+	fullHeight={true}
+	flushContent={true}
+	titleCompact={true}
 >
-	{#snippet actions()}
-		<div class="flex items-center gap-2">
+	<div data-testid="webhooks-page" class="flex min-h-0 flex-1 flex-col -mt-1 sm:mt-0">
+		{#if !isLoading && webhooks.length > 0}
+			<div class="shrink-0 pb-2 sm:pb-3">
+				<Input
+					type="search"
+					bind:value={searchQuery}
+					placeholder={webhooks_search_placeholder()}
+					aria-label={webhooks_search_aria()}
+					data-testid="webhooks-search"
+					class="w-full sm:max-w-md"
+				/>
+			</div>
+		{/if}
+
+		<div class="min-h-0 flex-1 overflow-y-auto pb-4 pe-0.5">
+			{#if isLoading}
+				<AdminCard
+					class="p-6 border border-(--admin-border-default) bg-(--admin-bg-card) backdrop-blur-md shadow-xs"
+				>
+					<div
+						class="flex flex-col items-center justify-center py-20"
+						data-testid="webhooks-loading"
+					>
+						<Loader variant="text" lines={2} lastLineWidth="50%" ariaLabel="Loading webhooks" />
+					</div>
+				</AdminCard>
+			{:else}
+				{#if webhooks.length === 0}
+					<div in:fade>
+						<AdminCard
+							class="p-12 text-center border-2 border-dashed border-(--admin-border-default) bg-(--admin-bg-card) backdrop-blur-md shadow-xs"
+							data-testid="webhooks-empty"
+						>
+							<iconify-icon icon="mdi:webhook-off" class="text-6xl mb-4 opacity-20"></iconify-icon>
+							<h3 class="h3 font-bold">{webhooks_empty_title()}</h3>
+							<p class="mb-6 opacity-60">{webhooks_empty_intro()}</p>
+							<Button
+								variant="tertiary"
+								onclick={openAddModal}
+								aria-label={webhooks_add_aria()}
+								data-testid="webhooks-empty-cta"
+							>
+								{automations_empty_cta()}
+							</Button>
+						</AdminCard>
+					</div>
+				{:else if filteredWebhooks.length === 0}
+					<AdminCard class="p-8 text-center" data-testid="webhooks-search-empty">
+						<p class="opacity-60">{webhooks_no_match()}</p>
+					</AdminCard>
+				{:else}
+					<div in:fade>
+						<AdminCard
+							class="p-3 sm:p-6 border border-(--admin-border-default) bg-(--admin-bg-card) backdrop-blur-md shadow-xs space-y-3 sm:space-y-4"
+							data-testid="webhooks-list"
+						>
+							<div class="grid gap-3 sm:gap-4">
+								{#each filteredWebhooks as webhook (webhook.id)}
+									<AdminCard
+										class="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:border-tertiary-500 dark:hover:border-primary-500 transition-colors"
+										data-testid={`webhook-card-${webhook.id}`}
+										data-webhook-name={webhook.name}
+									>
+										<div class="flex-1 min-w-0">
+											<div class="flex items-center gap-2 mb-1">
+												<span class="font-bold text-lg truncate">{webhook.name}</span>
+												{#if webhook.active}
+													<Badge variant="success" size="sm" class="uppercase"
+														>{common_active()}</Badge
+													>
+												{:else}
+													<Badge preset="tonal" color="surface" size="sm" class="uppercase"
+														>{twofa_status_disabled()}</Badge
+													>
+												{/if}
+											</div>
+											<div class="text-xs font-mono opacity-60 truncate mb-2">{webhook.url}</div>
+											<div class="flex flex-wrap gap-1">
+												{#each webhook.events as event (event)}
+													<Badge preset="tonal" color="primary" size="sm">{event}</Badge>
+												{/each}
+											</div>
+										</div>
+
+										<div
+											class="flex items-center gap-2 w-full md:w-auto mt-2 md:mt-0 pt-4 md:pt-0 border-t md:border-t-0 border-(--admin-border-default)"
+										>
+											<Button
+												variant="surface"
+												onclick={() => testWebhook(webhook as Webhook)}
+												title={webhooks_send_test_event()}
+												aria-label={webhooks_test_aria({ name: webhook.name })}
+												data-testid="webhook-test"
+												size="sm"
+											>
+												<iconify-icon icon="mdi:send-outline"></iconify-icon>
+												<span class="hidden sm:inline">{button_test()}</span>
+											</Button>
+											<Button
+												variant="surface"
+												onclick={() => openEditModal(webhook)}
+												title={webhooks_edit_configuration()}
+												aria-label={webhooks_edit_aria({ name: webhook.name })}
+												data-testid="webhook-edit"
+												size="sm"
+											>
+												<iconify-icon icon="mdi:pencil-outline"></iconify-icon>
+												<span class="hidden sm:inline">{button_edit()}</span>
+											</Button>
+											<Button
+												variant="error"
+												onclick={() => confirmDelete(webhook)}
+												title={webhooks_delete_title()}
+												aria-label={webhooks_delete_aria({ name: webhook.name })}
+												data-testid="webhook-delete"
+												size="sm"
+											>
+												<iconify-icon icon="mdi:trash-can-outline"></iconify-icon>
+											</Button>
+										</div>
+									</AdminCard>
+								{/each}
+							</div>
+						</AdminCard>
+					</div>
+				{/if}
+			{/if}
+		</div>
+	</div>
+
+	<StickyActions>
+		<div class="flex w-full items-center justify-center gap-2 sm:justify-end">
 			<Button
 				variant="ghost"
+				size="sm"
 				href="/config/webhooks/logs"
 				data-preload="hover"
 				data-testid="webhooks-logs-link"
 				leadingIcon="mdi:clipboard-text-outline"
+				class="h-9 shrink-0 whitespace-nowrap sm:h-10 sm:px-4"
 			>
 				{webhooks_delivery_logs()}
 			</Button>
 			<!-- Disabled in the server HTML: `onclick` only exists after hydration. -->
 			<Button
 				variant="primary"
+				size="sm"
 				onclick={openAddModal}
 				aria-label={webhooks_add_aria()}
 				leadingIcon="mdi:plus"
 				disabled={!hydration.hydrated}
 				data-testid="webhooks-add"
+				class="h-9 flex-1 whitespace-nowrap sm:h-10 sm:flex-none sm:px-4"
 			>
 				{webhooks_add()}
 			</Button>
 		</div>
-	{/snippet}
-
-	<div data-testid="webhooks-page" class="contents">
-		{#if isLoading}
-			<AdminCard
-				class="p-6 border border-(--admin-border-default) bg-(--admin-bg-card) backdrop-blur-md shadow-xs"
-			>
-				<div class="flex flex-col items-center justify-center py-20" data-testid="webhooks-loading">
-					<Loader variant="text" lines={2} lastLineWidth="50%" ariaLabel="Loading webhooks" />
-				</div>
-			</AdminCard>
-		{:else}
-			{#if webhooks.length > 0}
-				<div class="mb-4">
-					<Input
-						type="search"
-						bind:value={searchQuery}
-						placeholder={webhooks_search_placeholder()}
-						aria-label={webhooks_search_aria()}
-						data-testid="webhooks-search"
-						class="max-w-md"
-					/>
-				</div>
-			{/if}
-
-			{#if webhooks.length === 0}
-				<div in:fade>
-					<AdminCard
-						class="p-12 text-center border-2 border-dashed border-(--admin-border-default) bg-(--admin-bg-card) backdrop-blur-md shadow-xs"
-						data-testid="webhooks-empty"
-					>
-						<iconify-icon icon="mdi:webhook-off" class="text-6xl mb-4 opacity-20"></iconify-icon>
-						<h3 class="h3 font-bold">{webhooks_empty_title()}</h3>
-						<p class="mb-6 opacity-60">{webhooks_empty_intro()}</p>
-						<Button
-							variant="tertiary"
-							onclick={openAddModal}
-							aria-label={webhooks_add_aria()}
-							data-testid="webhooks-empty-cta"
-						>
-							{automations_empty_cta()}
-						</Button>
-					</AdminCard>
-				</div>
-			{:else if filteredWebhooks.length === 0}
-				<AdminCard class="p-8 text-center" data-testid="webhooks-search-empty">
-					<p class="opacity-60">{webhooks_no_match()}</p>
-				</AdminCard>
-			{:else}
-				<div in:fade>
-					<AdminCard
-						class="p-6 border border-(--admin-border-default) bg-(--admin-bg-card) backdrop-blur-md shadow-xs space-y-4"
-						data-testid="webhooks-list"
-					>
-						<div class="grid gap-4">
-							{#each filteredWebhooks as webhook (webhook.id)}
-								<AdminCard
-									class="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:border-tertiary-500 dark:hover:border-primary-500 transition-colors"
-									data-testid={`webhook-card-${webhook.id}`}
-									data-webhook-name={webhook.name}
-								>
-									<div class="flex-1 min-w-0">
-										<div class="flex items-center gap-2 mb-1">
-											<span class="font-bold text-lg truncate">{webhook.name}</span>
-											{#if webhook.active}
-												<Badge variant="success" size="sm" class="uppercase"
-													>{common_active()}</Badge
-												>
-											{:else}
-												<Badge preset="tonal" color="surface" size="sm" class="uppercase"
-													>{twofa_status_disabled()}</Badge
-												>
-											{/if}
-										</div>
-										<div class="text-xs font-mono opacity-60 truncate mb-2">{webhook.url}</div>
-										<div class="flex flex-wrap gap-1">
-											{#each webhook.events as event (event)}
-												<Badge preset="tonal" color="primary" size="sm">{event}</Badge>
-											{/each}
-										</div>
-									</div>
-
-									<div
-										class="flex items-center gap-2 w-full md:w-auto mt-2 md:mt-0 pt-4 md:pt-0 border-t md:border-t-0 border-(--admin-border-default)"
-									>
-										<Button
-											variant="surface"
-											onclick={() => testWebhook(webhook as Webhook)}
-											title={webhooks_send_test_event()}
-											aria-label={webhooks_test_aria({ name: webhook.name })}
-											data-testid="webhook-test"
-											size="sm"
-										>
-											<iconify-icon icon="mdi:send-outline"></iconify-icon>
-											<span class="hidden sm:inline">{button_test()}</span>
-										</Button>
-										<Button
-											variant="surface"
-											onclick={() => openEditModal(webhook)}
-											title={webhooks_edit_configuration()}
-											aria-label={webhooks_edit_aria({ name: webhook.name })}
-											data-testid="webhook-edit"
-											size="sm"
-										>
-											<iconify-icon icon="mdi:pencil-outline"></iconify-icon>
-											<span class="hidden sm:inline">{button_edit()}</span>
-										</Button>
-										<Button
-											variant="error"
-											onclick={() => confirmDelete(webhook)}
-											title={webhooks_delete_title()}
-											aria-label={webhooks_delete_aria({ name: webhook.name })}
-											data-testid="webhook-delete"
-											size="sm"
-										>
-											<iconify-icon icon="mdi:trash-can-outline"></iconify-icon>
-										</Button>
-									</div>
-								</AdminCard>
-							{/each}
-						</div>
-					</AdminCard>
-				</div>
-			{/if}
-		{/if}
-	</div>
+	</StickyActions>
 </AdminPageShell>
 
 {#if showModal && editingWebhook}

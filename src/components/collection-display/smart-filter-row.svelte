@@ -96,7 +96,8 @@ from `createSmartFilter`. Supports text, select, date, number-range, and boolean
 		onFilterChange(name, next);
 	}
 
-	const hasActive = $derived(activeFilters.length > 0);
+	const totalActiveCount = $derived(activeFilters.length + advancedCount);
+	const hasActive = $derived(totalActiveCount > 0);
 </script>
 
 <!-- Active filter badges (above column inputs) -->
@@ -107,10 +108,10 @@ from `createSmartFilter`. Supports text, select, date, number-range, and boolean
 				class="flex flex-wrap items-center gap-2"
 				role="status"
 				aria-live="polite"
-				aria-label="{activeFilters.length} active filter{activeFilters.length === 1 ? '' : 's'}"
+				aria-label="{totalActiveCount} active filter{totalActiveCount === 1 ? '' : 's'}"
 			>
 				<span class="text-xs font-medium text-(--admin-text-muted)">
-					{activeFilters.length} active filter{activeFilters.length === 1 ? '' : 's'}:
+					{totalActiveCount} active filter{totalActiveCount === 1 ? '' : 's'}:
 				</span>
 				{#each activeFilters as chip (chip.id)}
 					<Badge variant="tertiary" size="sm" class="gap-1 normal-case tracking-normal">
@@ -242,10 +243,11 @@ from `createSmartFilter`. Supports text, select, date, number-range, and boolean
 					<input
 						aria-label={`Filter ${def?.label ?? header.label}`}
 						type="search"
+						autocomplete="off"
 						{name}
 						{value}
 						placeholder={def?.label ?? header.label}
-						class="h-8 w-full min-w-0 rounded border border-surface-500/30 bg-white px-2 text-xs text-surface-800 placeholder:text-surface-400 dark:border-surface-500/40 dark:bg-surface-800 dark:text-surface-100 dark:placeholder:text-surface-500"
+						class="h-8 w-full min-w-0 rounded border border-surface-500/30 bg-transparent px-2 text-center text-xs text-surface-600 dark:border-surface-500/40 dark:text-surface-100"
 						oninput={(e) => onFilterChange(name, (e.currentTarget as HTMLInputElement).value)}
 					/>
 				{/if}

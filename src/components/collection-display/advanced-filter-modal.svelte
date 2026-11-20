@@ -74,8 +74,8 @@ Provides operator selection, type-specific inputs, and accessible keyboard navig
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
+	import Modal from '@components/ui/modal.svelte';
 	import Select from '@components/ui/select.svelte';
-	import AdminCard from '@components/admin-card.svelte';
 	import { generateUUID } from '@utils/native-utils';
 	import type { FieldDefinition, FieldInstance } from '@src/content/types';
 	import { getFieldName } from '@utils/schema/field-utils';
@@ -194,6 +194,14 @@ Provides operator selection, type-specific inputs, and accessible keyboard navig
 		return op === 'is_empty' || op === 'is_not_empty';
 	}
 
+	function handleFieldChange(clause: AdvancedFilterClause, nextField: string) {
+		clause.field = nextField;
+		const validOps = getOperatorsForField(nextField);
+		if (!validOps.some((o) => o.value === clause.operator)) {
+			clause.operator = validOps[0]?.value ?? 'equals';
+		}
+	}
+
 	function handleSubmit(e: SubmitEvent) {
 		e.preventDefault();
 		const validClauses = clauses.filter(
@@ -202,191 +210,141 @@ Provides operator selection, type-specific inputs, and accessible keyboard navig
 		onApply(validClauses, conjunction);
 		isOpen = false;
 	}
-
-	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape') {
-			isOpen = false;
-			onClose();
-		}
-	}
 </script>
 
-{#if isOpen}
-	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4"
-		role="presentation"
-		onclick={(e) => {
-			if (e.target === e.currentTarget) {
-				isOpen = false;
-				onClose();
-			}
-		}}
-		onkeydown={handleKeydown}
-	>
-		<AdminCard
-			class="w-full max-w-2xl space-y-4 border border-surface-500/30 bg-white p-6 shadow-2xl dark:border-surface-500/40 dark:bg-surface-800 max-h-[90vh] flex flex-col"
-			role="dialog"
-			aria-modal="true"
-			aria-labelledby="adv-filter-title"
-		>
-			<header class="flex items-center justify-between border-b border-surface-500/20 pb-3">
-				<div>
-					<h3
-						id="adv-filter-title"
-						class="text-lg font-bold text-tertiary-500 dark:text-primary-500"
-					>
-						Advanced Filters
-					</h3>
-					<p class="text-xs text-(--admin-text-muted)">
-						Build compound multi-clause filter queries with AND / OR conjunctions.
-					</p>
-				</div>
+<Modal bind:open={isOpen} title="Advanced Filters" size="lg" onclose={onClose}>
+	<div class="flex flex-col gap-3">
+		<p class="text-xs text-(--admin-text-muted)">
+			Build compound multi-clause filter queries with AND / OR conjunctions.
+		</p>
+
+		<!-- Conjunction switch -->
+		<div class="flex items-center gap-3 py-1">
+			<span class="text-xs font-semibold uppercase text-(--admin-text-muted)">Match:</span>
+			<div
+				class="inline-flex rounded border border-surface-500/30 bg-surface-500/10 p-0.5 dark:border-surface-500/40 dark:bg-surface-900"
+			>
 				<button
 					type="button"
-					class="p-1 rounded-lg text-surface-500 hover:text-surface-600 dark:hover:text-surface-100 hover:bg-surface-500/10"
-					onclick={() => {
-						isOpen = false;
-						onClose();
-					}}
-					aria-label="Close dialog"
+					class="px-3 py-1 text-xs font-medium rounded transition-colors {conjunction === 'AND'
+						? 'bg-primary-500 text-white font-bold shadow-xs'
+						: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-white'}"
+					onclick={() => (conjunction = 'AND')}
 				>
-					<iconify-icon icon="material-symbols:close" width="20"></iconify-icon>
+					ALL conditions (AND)
 				</button>
-			</header>
-
-			<!-- Conjunction switch -->
-			<div class="flex items-center gap-3 py-1">
-				<span class="text-xs font-semibold uppercase text-(--admin-text-muted)">Match:</span>
-				<div
-					class="inline-flex rounded-lg border border-surface-500/30 bg-surface-500/10 p-0.5 dark:border-surface-500/40 dark:bg-surface-900"
+				<button
+					type="button"
+					class="px-3 py-1 text-xs font-medium rounded transition-colors {conjunction === 'OR'
+						? 'bg-primary-500 text-white font-bold shadow-xs'
+						: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-white'}"
+					onclick={() => (conjunction = 'OR')}
 				>
+					ANY condition (OR)
+				</button>
+			</div>
+		</div>
+
+		<!-- Clause list -->
+		<form class="space-y-3 py-1" onsubmit={handleSubmit}>
+			{#each clauses as clause, index (clause.id)}
+				{@const ops = getOperatorsForField(clause.field)}
+				{@const noValue = isNoValueOperator(clause.operator)}
+				<div
+					class="flex flex-wrap sm:flex-nowrap items-center gap-2 p-2 rounded border border-surface-500/20 bg-surface-500/10 dark:bg-surface-900/20"
+				>
+					<span class="text-xs font-bold text-surface-400 w-6 text-center shrink-0">
+						{index + 1}.
+					</span>
+
+					<!-- Field Select -->
+					<div class="w-full sm:w-44 shrink-0">
+						<Select
+							size="sm"
+							label=""
+							placeholder="Field"
+							options={fieldSelectOptions}
+							value={clause.field}
+							onchange={(v) => handleFieldChange(clause, v)}
+							aria-label={`Field for condition ${index + 1}`}
+						/>
+					</div>
+
+					<!-- Operator Select -->
+					<div class="w-full sm:w-36 shrink-0">
+						<Select
+							size="sm"
+							label=""
+							placeholder="Operator"
+							options={ops}
+							bind:value={clause.operator}
+							aria-label={`Operator for condition ${index + 1}`}
+						/>
+					</div>
+
+					<!-- Value Input -->
+					<div class="flex-1 min-w-32">
+						{#if noValue}
+							<span class="text-xs text-surface-400 italic px-2">No value required</span>
+						{:else}
+							<input
+								type="text"
+								autocomplete="off"
+								bind:value={clause.value}
+								placeholder="Value..."
+								class="h-9 w-full rounded border border-surface-500/30 bg-white px-2.5 text-xs text-surface-800 placeholder:text-surface-400 dark:border-surface-500/40 dark:bg-surface-800 dark:text-surface-100 dark:placeholder:text-surface-500"
+								aria-label={`Value for condition ${index + 1}`}
+							/>
+						{/if}
+					</div>
+
+					<!-- Delete clause button -->
 					<button
 						type="button"
-						class="px-3 py-1 text-xs font-medium rounded-md transition-colors {conjunction === 'AND'
-							? 'bg-primary-500 text-white font-bold shadow-xs'
-							: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-white'}"
-						onclick={() => (conjunction = 'AND')}
+						class="h-8 w-8 shrink-0 flex items-center justify-center rounded text-surface-500 hover:text-error-500 hover:bg-error-500/10 transition-colors"
+						onclick={() => removeClause(index)}
+						aria-label={`Remove condition ${index + 1}`}
+						title="Remove condition"
 					>
-						ALL conditions (AND)
-					</button>
-					<button
-						type="button"
-						class="px-3 py-1 text-xs font-medium rounded-md transition-colors {conjunction === 'OR'
-							? 'bg-primary-500 text-white font-bold shadow-xs'
-							: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-white'}"
-						onclick={() => (conjunction = 'OR')}
-					>
-						ANY condition (OR)
+						<iconify-icon icon="material-symbols:delete-outline-rounded" width="18"></iconify-icon>
 					</button>
 				</div>
+			{/each}
+
+			<!-- Add Clause Row -->
+			<div class="pt-1">
+				<Button variant="outline" size="sm" type="button" onclick={addClause} class="gap-1 text-xs">
+					<iconify-icon icon="material-symbols:add" width="16"></iconify-icon>
+					Add Condition
+				</Button>
 			</div>
 
-			<!-- Clause list -->
-			<form class="flex-1 overflow-y-auto space-y-3 py-2 pe-1" onsubmit={handleSubmit}>
-				{#each clauses as clause, index (clause.id)}
-					{@const ops = getOperatorsForField(clause.field)}
-					{@const noValue = isNoValueOperator(clause.operator)}
-					<div
-						class="flex flex-wrap sm:flex-nowrap items-center gap-2 p-2 rounded-lg border border-surface-500/20 bg-surface-500/10 dark:bg-surface-900/20"
-					>
-						<span class="text-xs font-bold text-surface-400 w-6 text-center shrink-0">
-							{index + 1}.
-						</span>
+			<footer class="flex items-center justify-between border-t border-surface-500/20 pt-4 mt-4">
+				<Button
+					variant="ghost"
+					size="sm"
+					type="button"
+					onclick={clearAll}
+					class="text-xs text-surface-500 hover:text-error-500"
+				>
+					Reset Conditions
+				</Button>
 
-						<!-- Field Select -->
-						<div class="w-full sm:w-44 shrink-0">
-							<Select
-								size="sm"
-								label=""
-								placeholder="Field"
-								options={fieldSelectOptions}
-								bind:value={clause.field}
-								aria-label={`Field for condition ${index + 1}`}
-							/>
-						</div>
-
-						<!-- Operator Select -->
-						<div class="w-full sm:w-36 shrink-0">
-							<Select
-								size="sm"
-								label=""
-								placeholder="Operator"
-								options={ops}
-								bind:value={clause.operator}
-								aria-label={`Operator for condition ${index + 1}`}
-							/>
-						</div>
-
-						<!-- Value Input -->
-						<div class="flex-1 min-w-32">
-							{#if noValue}
-								<span class="text-xs text-surface-400 italic px-2">No value required</span>
-							{:else}
-								<input
-									type="text"
-									bind:value={clause.value}
-									placeholder="Value..."
-									class="h-9 w-full rounded border border-surface-500/30 bg-white px-2.5 text-xs text-surface-800 placeholder:text-surface-400 dark:border-surface-500/40 dark:bg-surface-800 dark:text-surface-100 dark:placeholder:text-surface-500"
-									aria-label={`Value for condition ${index + 1}`}
-								/>
-							{/if}
-						</div>
-
-						<!-- Delete clause button -->
-						<button
-							type="button"
-							class="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg text-surface-500 hover:text-error-500 hover:bg-error-500/10 transition-colors"
-							onclick={() => removeClause(index)}
-							aria-label={`Remove condition ${index + 1}`}
-							title="Remove condition"
-						>
-							<iconify-icon icon="material-symbols:delete-outline-rounded" width="18"
-							></iconify-icon>
-						</button>
-					</div>
-				{/each}
-
-				<!-- Add Clause Row -->
-				<div class="pt-1">
+				<div class="flex items-center gap-2">
 					<Button
 						variant="outline"
 						size="sm"
 						type="button"
-						onclick={addClause}
-						class="gap-1 text-xs"
+						onclick={() => {
+							isOpen = false;
+							onClose();
+						}}
 					>
-						<iconify-icon icon="material-symbols:add" width="16"></iconify-icon>
-						Add Condition
+						Cancel
 					</Button>
+					<Button variant="primary" size="sm" type="submit">Apply Filters</Button>
 				</div>
-
-				<footer class="flex items-center justify-between border-t border-surface-500/20 pt-4 mt-4">
-					<Button
-						variant="ghost"
-						size="sm"
-						type="button"
-						onclick={clearAll}
-						class="text-xs text-surface-500 hover:text-error-500"
-					>
-						Reset Conditions
-					</Button>
-
-					<div class="flex items-center gap-2">
-						<Button
-							variant="outline"
-							size="sm"
-							type="button"
-							onclick={() => {
-								isOpen = false;
-								onClose();
-							}}
-						>
-							Cancel
-						</Button>
-						<Button variant="primary" size="sm" type="submit">Apply Filters</Button>
-					</div>
-				</footer>
-			</form>
-		</AdminCard>
+			</footer>
+		</form>
 	</div>
-{/if}
+</Modal>

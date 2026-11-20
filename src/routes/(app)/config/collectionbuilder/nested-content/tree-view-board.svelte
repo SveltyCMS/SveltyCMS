@@ -982,11 +982,11 @@ offset within the row on the native `dragover` event — that event carries
 </div>
 
 <!-- Toolbar -->
-<div class="mb-4 flex flex-wrap items-center gap-2">
+<div class="mb-1.5 sm:mb-3 flex flex-wrap items-center gap-1.5 sm:gap-2">
 	<!-- Plain Input + placeholder (as in the sidebar search): a floating label pads the
 	     top of the field, which pushed the caret below centre when focused. The browser's
 	     own search clear button is hidden so only the styled clear button shows. -->
-	<div class="relative flex-1 min-w-50">
+	<div class="relative min-w-0 flex-1 sm:min-w-50">
 		<Input
 			type="search"
 			bind:value={searchText}
@@ -1011,14 +1011,15 @@ offset within the row on the native `dragover` event — that event carries
 			<iconify-icon icon="mdi:close" width="16" aria-hidden="true"></iconify-icon>
 		</Button>
 	{/snippet}
-	<!-- Favorites Filter Chip -->
-	<SystemTooltip title={builder_filter_fav_tip()}>
+	<!-- Favorites Filter Chip (hidden on mobile so Search + Expand/Collapse sit on one row) -->
+	<SystemTooltip title={builder_filter_fav_tip()} triggerClass="hidden sm:inline-flex">
 		<Button
 			variant="surface"
 			type="button"
 			data-testid="filter-favorites-button"
 			onclick={() => (showOnlyFavorites = !showOnlyFavorites)}
 			aria-label={builder_filter_fav_aria()}
+			class="h-10 px-3 text-sm"
 		>
 			<iconify-icon icon={showOnlyFavorites ? 'bi:star-fill' : 'bi:star'} width="14"></iconify-icon>
 			<span>{collections_favorites()}</span>
@@ -1028,7 +1029,7 @@ offset within the row on the native `dragover` event — that event carries
 	<!-- Tag Filter Dropdown -->
 	{#if allTags.length > 0}
 		<!-- Same 40px height as the Favorites / Expand / Collapse buttons beside it -->
-		<div class="relative w-44">
+		<div class="relative hidden sm:block w-44">
 			<SystemTooltip title={builder_filter_tags_tip()} wFull>
 				<Select
 					bind:value={selectedTagFilter}
@@ -1042,22 +1043,28 @@ offset within the row on the native `dragover` event — that event carries
 	{/if}
 
 	{#if searchText || showOnlyFavorites || selectedTagFilter}
-		<Button variant="outline" type="button" onclick={clearAllFilters} class="">
+		<Button
+			variant="outline"
+			type="button"
+			onclick={clearAllFilters}
+			class="hidden sm:inline-flex h-10 px-2.5 text-sm"
+		>
 			{collections_clear_filters()}
 		</Button>
 	{/if}
-	<div class="flex gap-2 ms-auto">
+	<div class="flex shrink-0 gap-1.5 sm:gap-2 sm:ms-auto">
 		<SystemTooltip title={builder_expand_all_aria()}>
 			<Button
 				variant="surface"
 				type="button"
 				onclick={expandAll}
 				aria-label={builder_expand_all_aria()}
-				class="shadow-sm"
+				class="size-10 min-w-0! p-0! sm:h-10 sm:w-auto sm:px-3 shadow-sm"
 			>
-				<iconify-icon icon="mdi:unfold-more-horizontal" width={24} aria-hidden="true"
+				<iconify-icon icon="mdi:unfold-more-horizontal" width={20} aria-hidden="true"
 				></iconify-icon>
-				<span class="ms-1 uppercase text-xs font-bold">{builder_expand_all()}</span>
+				<span class="hidden sm:inline ms-1 uppercase text-xs font-bold">{builder_expand_all()}</span
+				>
 			</Button>
 		</SystemTooltip>
 		<SystemTooltip title={builder_collapse_all_aria()}>
@@ -1066,11 +1073,13 @@ offset within the row on the native `dragover` event — that event carries
 				type="button"
 				onclick={collapseAll}
 				aria-label={builder_collapse_all_aria()}
-				class="shadow-sm"
+				class="size-10 min-w-0! p-0! sm:h-10 sm:w-auto sm:px-3 shadow-sm"
 			>
-				<iconify-icon icon="mdi:unfold-less-horizontal" width={24} aria-hidden="true"
+				<iconify-icon icon="mdi:unfold-less-horizontal" width={20} aria-hidden="true"
 				></iconify-icon>
-				<span class="ms-1 uppercase text-xs font-bold">{builder_collapse_all()}</span>
+				<span class="hidden sm:inline ms-1 uppercase text-xs font-bold"
+					>{builder_collapse_all()}</span
+				>
 			</Button>
 		</SystemTooltip>
 		{#if treeStats.collections > 0 || treeStats.categories > 0}
@@ -1119,7 +1128,7 @@ offset within the row on the native `dragover` event — that event carries
 			</p>
 		</div>
 	{:else}
-		<div role="group" aria-label={builder_tree_group_aria()} class="pt-2">
+		<div role="group" aria-label={builder_tree_group_aria()} class="pt-0.5 sm:pt-2">
 			<!-- Invisible drop target at the very top to catch overshoots -->
 			<div
 				class="tree-top-dropzone"

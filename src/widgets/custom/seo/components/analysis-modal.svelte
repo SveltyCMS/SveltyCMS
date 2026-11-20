@@ -9,6 +9,7 @@ Displays detailed SEO analysis results in a modal overlay.
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';
 	import Loader from '@components/ui/loader.svelte';
+	import Modal from '@components/ui/modal.svelte';
 	import {
 		button_close,
 		common_readability,
@@ -22,7 +23,6 @@ Displays detailed SEO analysis results in a modal overlay.
 		seo_analysis_running,
 		trash_th_content
 	} from '@src/paraglide/messages';
-	import { fade, scale } from 'svelte/transition';
 	import type { SeoAnalysisResult } from '../seo-types';
 
 	interface Props {
@@ -37,191 +37,150 @@ Displays detailed SEO analysis results in a modal overlay.
 		show = false;
 		onclose();
 	}
-
-	function handleKeydown(event: KeyboardEvent) {
-		if (show && event.key === 'Escape') {
-			close();
-		}
-	}
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
+<Modal bind:open={show} size="lg" {onclose}>
+	{#snippet header()}
+		<h3 class="h4 font-bold flex items-center gap-2 text-surface-900 dark:text-white">
+			<iconify-icon
+				icon="mdi:google-analytics"
+				width="22"
+				class="text-tertiary-500 dark:text-primary-500"
+			></iconify-icon>
+			{seo_analysis_report_title()}
+		</h3>
+	{/snippet}
 
-{#if show}
-	<!-- Backdrop -->
-	<div
-		class="fixed inset-0 z-999 bg-black/50 backdrop-blur-sm"
-		transition:fade={{ duration: 150 }}
-		onclick={close}
-		role="presentation"
-	></div>
-
-	<!-- Modal -->
-	<div
-		class="fixed inset-0 z-1000 m-auto h-fit w-fit shadow-xl"
-		transition:scale={{ duration: 200, start: 0.95 }}
-		role="dialog"
-		aria-modal="true"
-	>
-		<div
-			class="card w-[90vw] max-w-2xl max-h-[85vh] overflow-hidden flex flex-col bg-white dark:bg-surface-900"
-		>
-			<!-- Header -->
-			<header
-				class="card-header flex items-center justify-between border-b border-surface-500/20 p-4"
+	<div class="space-y-4">
+		{#if analysisResult}
+			<!-- Score Overview -->
+			<div
+				class="flex items-center justify-center p-4 bg-(--admin-bg-card) rounded-(--admin-radius-card) border border-(--admin-border-default) mb-6"
 			>
-				<h3 class="h3 flex items-center gap-2">
-					<iconify-icon
-						icon="mdi:google-analytics"
-						width="24"
-						class="text-tertiary-500 dark:text-primary-500"
-					></iconify-icon>
-					{seo_analysis_report_title()}
-				</h3>
-				<Button
-					variant="outline"
-					type="button"
-					onclick={close}
-					aria-label={button_close()}
-					class="p-0! min-w-0"
-				>
-					<iconify-icon icon="mdi:close" width="24"></iconify-icon>
-				</Button>
-			</header>
-
-			<!-- Content -->
-			<div class="flex-1 overflow-y-auto p-4 space-y-4">
-				{#if analysisResult}
-					<!-- Score Overview -->
+				<div class="text-center">
 					<div
-						class="flex items-center justify-center p-4 bg-(--admin-bg-card) rounded-(--admin-radius-card) border border-(--admin-border-default) mb-6"
+						class="radial-progress text-4xl font-bold {analysisResult.score.overall >= 80
+							? 'text-success-500'
+							: analysisResult.score.overall >= 50
+								? 'text-warning-500'
+								: 'text-error-500'}"
+						style="--value:{analysisResult.score.overall}; --size:6rem;"
 					>
-						<div class="text-center">
-							<div
-								class="radial-progress text-4xl font-bold {analysisResult.score.overall >= 80
-									? 'text-success-500'
-									: analysisResult.score.overall >= 50
-										? 'text-warning-500'
-										: 'text-error-500'}"
-								style="--value:{analysisResult.score.overall}; --size:6rem;"
-							>
-								{analysisResult.score.overall}%
-							</div>
-							<p class="mt-2 font-bold text-(--admin-text-muted)">
-								{seo_analysis_overall_score()}
-							</p>
-						</div>
-						<div class="ms-8 grid grid-cols-2 gap-4 text-sm">
-							<div class="flex flex-col">
-								<span class="opacity-70">{seo_analysis_keywords()}</span>
-								<span
-									class="font-bold {analysisResult.score.keywords >= 80
-										? 'text-success-500'
-										: 'text-warning-500'}">{analysisResult.score.keywords}%</span
-								>
-							</div>
-							<div class="flex flex-col">
-								<span class="opacity-70">{trash_th_content()}</span>
-								<span
-									class="font-bold {analysisResult.score.content >= 80
-										? 'text-success-500'
-										: 'text-warning-500'}">{analysisResult.score.content}%</span
-								>
-							</div>
-							<div class="flex flex-col">
-								<span class="opacity-70">{common_technical()}</span>
-								<span
-									class="font-bold {analysisResult.score.technical >= 80
-										? 'text-success-500'
-										: 'text-warning-500'}">{analysisResult.score.technical}%</span
-								>
-							</div>
-							<div class="flex flex-col">
-								<span class="opacity-70">{common_readability()}</span>
-								<span
-									class="font-bold {analysisResult.score.readability >= 80
-										? 'text-success-500'
-										: 'text-warning-500'}">{analysisResult.score.readability}%</span
-								>
-							</div>
-						</div>
+						{analysisResult.score.overall}%
 					</div>
-
-					<!-- Suggestions List -->
-					{#if analysisResult.suggestions.length > 0}
-						<div class="space-y-3">
-							<!-- Group by priority/type implicitly by sorting -->
-							<h4 class="h4">{seo_analysis_room_improvement()}</h4>
-							{#each analysisResult.suggestions as suggestion (suggestion.title)}
-								{const suggestionIcon =
-									suggestion.type === 'error'
-										? 'mdi:alert-circle'
-										: suggestion.type === 'warning'
-											? 'mdi:alert'
-											: 'mdi:information'}
-								<div
-									class="card border-s-4 p-4 {suggestion.type === 'error'
-										? 'border-error-500 bg-error-500/10'
-										: suggestion.type === 'warning'
-											? 'border-warning-500 bg-warning-500/10'
-											: 'border-tertiary-500 dark:border-primary-500 bg-tertiary-500 dark:bg-primary-500/10'}"
-								>
-									<div class="flex items-start justify-between">
-										<div>
-											<div class="font-bold flex items-center gap-2">
-												<iconify-icon icon={suggestionIcon} width="16"></iconify-icon>
-												{suggestion.title}
-											</div>
-											<p class="text-sm mt-1 opacity-90">{suggestion.description}</p>
-											{#if suggestion.fix}
-												<div
-													class="mt-2 text-xs font-mono bg-surface-500/10 dark:bg-surface-800/50 p-2 rounded-(--admin-radius-input)"
-												>
-													<strong>{seo_analysis_fix()}</strong>
-													{suggestion.fix}
-												</div>
-											{/if}
-										</div>
-										<Badge
-											variant={suggestion.type === 'error'
-												? 'error'
-												: suggestion.type === 'warning'
-													? 'warning'
-													: 'primary'}
-											size="sm"
-										>
-											{suggestion.type}
-										</Badge>
-									</div>
-								</div>
-							{/each}
-						</div>
-					{:else}
-						<div class="card border-s-4 border-success-500 bg-success-500/10 p-4 flex items-center">
-							<iconify-icon icon="mdi:check-circle" class="text-2xl me-2 text-success-500"
-							></iconify-icon>
-							<span class="text-success-600 dark:text-success-400 font-medium"
-								>{seo_analysis_all_clear()}</span
-							>
-						</div>
-					{/if}
-				{:else}
-					<div class="p-8 text-center">
-						<Loader
-							variant="circle"
-							width="size-16"
-							height="size-16"
-							class="mx-auto mb-4"
-							ariaLabel="Running SEO analysis"
-						/>
-						<p>{seo_analysis_running()}</p>
+					<p class="mt-2 font-bold text-(--admin-text-muted)">
+						{seo_analysis_overall_score()}
+					</p>
+				</div>
+				<div class="ms-8 grid grid-cols-2 gap-4 text-sm">
+					<div class="flex flex-col">
+						<span class="opacity-70">{seo_analysis_keywords()}</span>
+						<span
+							class="font-bold {analysisResult.score.keywords >= 80
+								? 'text-success-500'
+								: 'text-warning-500'}">{analysisResult.score.keywords}%</span
+						>
 					</div>
-				{/if}
+					<div class="flex flex-col">
+						<span class="opacity-70">{trash_th_content()}</span>
+						<span
+							class="font-bold {analysisResult.score.content >= 80
+								? 'text-success-500'
+								: 'text-warning-500'}">{analysisResult.score.content}%</span
+						>
+					</div>
+					<div class="flex flex-col">
+						<span class="opacity-70">{common_technical()}</span>
+						<span
+							class="font-bold {analysisResult.score.technical >= 80
+								? 'text-success-500'
+								: 'text-warning-500'}">{analysisResult.score.technical}%</span
+						>
+					</div>
+					<div class="flex flex-col">
+						<span class="opacity-70">{common_readability()}</span>
+						<span
+							class="font-bold {analysisResult.score.readability >= 80
+								? 'text-success-500'
+								: 'text-warning-500'}">{analysisResult.score.readability}%</span
+						>
+					</div>
+				</div>
 			</div>
-			<!-- Footer -->
-			<footer class="card-footer p-4 border-t border-surface-500/20 flex justify-end">
-				<Button variant="surface" onclick={close}>{button_close()}</Button>
-			</footer>
-		</div>
+
+			<!-- Suggestions List -->
+			{#if analysisResult.suggestions.length > 0}
+				<div class="space-y-3">
+					<!-- Group by priority/type implicitly by sorting -->
+					<h4 class="h4">{seo_analysis_room_improvement()}</h4>
+					{#each analysisResult.suggestions as suggestion (suggestion.title)}
+						{const suggestionIcon =
+							suggestion.type === 'error'
+								? 'mdi:alert-circle'
+								: suggestion.type === 'warning'
+									? 'mdi:alert'
+									: 'mdi:information'}
+						<div
+							class="card border-s-4 p-4 {suggestion.type === 'error'
+								? 'border-error-500 bg-error-500/10'
+								: suggestion.type === 'warning'
+									? 'border-warning-500 bg-warning-500/10'
+									: 'border-tertiary-500 dark:border-primary-500 bg-tertiary-500 dark:bg-primary-500/10'}"
+						>
+							<div class="flex items-start justify-between">
+								<div>
+									<div class="font-bold flex items-center gap-2">
+										<iconify-icon icon={suggestionIcon} width="16"></iconify-icon>
+										{suggestion.title}
+									</div>
+									<p class="text-sm mt-1 opacity-90">{suggestion.description}</p>
+									{#if suggestion.fix}
+										<div
+											class="mt-2 text-xs font-mono bg-surface-500/10 dark:bg-surface-800/50 p-2 rounded-(--admin-radius-input)"
+										>
+											<strong>{seo_analysis_fix()}</strong>
+											{suggestion.fix}
+										</div>
+									{/if}
+								</div>
+								<Badge
+									variant={suggestion.type === 'error'
+										? 'error'
+										: suggestion.type === 'warning'
+											? 'warning'
+											: 'primary'}
+									size="sm"
+								>
+									{suggestion.type}
+								</Badge>
+							</div>
+						</div>
+					{/each}
+				</div>
+			{:else}
+				<div class="card border-s-4 border-success-500 bg-success-500/10 p-4 flex items-center">
+					<iconify-icon icon="mdi:check-circle" class="text-2xl me-2 text-success-500"
+					></iconify-icon>
+					<span class="text-success-600 dark:text-success-400 font-medium"
+						>{seo_analysis_all_clear()}</span
+					>
+				</div>
+			{/if}
+		{:else}
+			<div class="p-8 text-center">
+				<Loader
+					variant="circle"
+					width="size-16"
+					height="size-16"
+					class="mx-auto mb-4"
+					ariaLabel="Running SEO analysis"
+				/>
+				<p>{seo_analysis_running()}</p>
+			</div>
+		{/if}
 	</div>
-{/if}
+
+	{#snippet footer()}
+		<Button variant="surface" onclick={close}>{button_close()}</Button>
+	{/snippet}
+</Modal>

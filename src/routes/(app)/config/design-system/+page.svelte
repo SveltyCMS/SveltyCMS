@@ -33,6 +33,7 @@ Deep links: /config/design-system?tab=themes|customizer|preview|overrides
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import AdminCard from '@components/admin-card.svelte';
 	import Select from '@components/ui/select.svelte';
+	import StickyActions from '@components/ui/sticky-actions.svelte';
 	import Textarea from '@components/ui/textarea.svelte';
 	import Toggle from '@components/ui/toggle.svelte';
 	import Tooltip from '@components/ui/tooltip.svelte';
@@ -485,6 +486,7 @@ Deep links: /config/design-system?tab=themes|customizer|preview|overrides
 	});
 
 	const visibleTabs = $derived(ALL_TABS.filter((t) => !t.adminOnly || isAdmin));
+	const visibleTabOptions = $derived(visibleTabs.map((t) => ({ value: t.id, label: t.label })));
 
 	function setActiveTab(id: AppearanceTabId) {
 		activeTab = id;
@@ -935,792 +937,839 @@ Deep links: /config/design-system?tab=themes|customizer|preview|overrides
 <AdminPageShell
 	title={theme_title()}
 	icon="mdi:compass-outline"
-	description="Workspace themes and marketplace, one theme customizer, live component preview, and personal overrides"
 	showBackButton={true}
 	backUrl="/config"
+	fullHeight={true}
+	flushContent={true}
+	titleCompact={true}
 >
-	<!-- Active theme badge -->
-	{#if !loadingThemes}
-		{@const current = activeTheme()}
-		{#if current}
-			<AdminCard class="flex items-center gap-3 flex-wrap p-4">
-				<iconify-icon
-					icon="mdi:theme-light-dark"
-					class="text-2xl text-tertiary-500 dark:text-primary-500"
-				></iconify-icon>
-				<div class="flex-1 min-w-0">
-					<div class="font-bold text-sm truncate">{current.name}</div>
-					<div class="text-xs" style="color: var(--admin-text-muted)">
-						{current.density || 'cozy'} · {current.variant || 'bordered'} · {themes.length}{' '}
-						{themes.length === 1 ? theme_total_singular() : theme_total_plural()}
-					</div>
-				</div>
-			</AdminCard>
-		{/if}
-	{/if}
+	<div class="flex min-h-0 flex-1 flex-col -mt-1 sm:mt-0">
+		<div class="shrink-0 space-y-2">
+			<!-- Active theme badge -->
+			{#if !loadingThemes}
+				{@const current = activeTheme()}
+				{#if current}
+					<AdminCard class="flex items-center gap-2.5 sm:gap-3 flex-wrap px-3 py-2 sm:p-4">
+						<iconify-icon
+							icon="mdi:theme-light-dark"
+							class="text-xl sm:text-2xl text-tertiary-500 dark:text-primary-500"
+						></iconify-icon>
+						<div class="flex-1 min-w-0">
+							<div class="font-bold text-sm truncate">{current.name}</div>
+							<div class="text-xs" style="color: var(--admin-text-muted)">
+								{current.density || 'cozy'} · {current.variant || 'bordered'} · {themes.length}{' '}
+								{themes.length === 1 ? theme_total_singular() : theme_total_plural()}
+							</div>
+						</div>
+					</AdminCard>
+				{/if}
+			{/if}
 
-	<!-- Tab Navigation (all users: overrides + preview; admin: full workspace) -->
-	<AdminCard class="shadow-sm backdrop-blur-md">
-		<!-- Underline tab style of the shared Tabs component (ui/tabs/chrome.ts) -->
-		<div
-			class="{TAB_STRIP} px-2 overflow-x-auto scrollbar-hide max-w-full"
-			role="tablist"
-			tabindex="-1"
-			onkeydown={onTabKeydown}
-			data-testid="appearance-tabs"
-		>
-			{#each visibleTabs as tab (tab.id)}
-				<Button
-					variant="transparent"
-					role="tab"
-					id={`appearance-tab-${tab.id}`}
-					aria-controls={`appearance-panel-${tab.id}`}
-					aria-selected={activeTab === tab.id}
-					tabindex={activeTab === tab.id ? 0 : -1}
-					onclick={() => setActiveTab(tab.id)}
-					data-testid={`appearance-tab-${tab.id}`}
-					class={tabTrigger(activeTab === tab.id)}
+			<!-- Mobile: dropdown selector -->
+			<div class="pb-1 md:hidden">
+				<Select
+					value={activeTab}
+					options={visibleTabOptions}
+					aria-label="Appearance sections"
+					data_testid="appearance-tab-select"
+					onchange={(val: string) => setActiveTab(val as AppearanceTabId)}
+				/>
+			</div>
+
+			<!-- Desktop/Tablet: underline tab strip outside AdminCard -->
+			<div class="hidden md:block border-b border-(--admin-border-default)">
+				<div
+					class="{TAB_STRIP} px-2 overflow-x-auto scrollbar-hide max-w-full"
+					role="tablist"
+					tabindex="-1"
+					onkeydown={onTabKeydown}
+					data-testid="appearance-tabs"
 				>
-					<iconify-icon icon={tab.icon} width="18" height="18" aria-hidden="true"></iconify-icon>
-					<span>{tab.label}</span>
-				</Button>
-			{/each}
+					{#each visibleTabs as tab (tab.id)}
+						<Button
+							variant="transparent"
+							role="tab"
+							id={`appearance-tab-${tab.id}`}
+							aria-controls={`appearance-panel-${tab.id}`}
+							aria-selected={activeTab === tab.id}
+							tabindex={activeTab === tab.id ? 0 : -1}
+							onclick={() => setActiveTab(tab.id)}
+							data-testid={`appearance-tab-${tab.id}`}
+							class={tabTrigger(activeTab === tab.id)}
+						>
+							<iconify-icon icon={tab.icon} width="18" height="18" aria-hidden="true"
+							></iconify-icon>
+							<span>{tab.label}</span>
+						</Button>
+					{/each}
+				</div>
+			</div>
 		</div>
 
-		<!-- Tab Content -->
-		<div
-			class="p-6"
-			role="tabpanel"
-			id={`appearance-panel-${activeTab}`}
-			aria-labelledby={`appearance-tab-${activeTab}`}
-			tabindex="0"
-			in:adminFade
-		>
-			{#key activeTab}
-				<!-- ═══ MY OVERRIDES (all users) ═══ -->
-				{#if activeTab === 'overrides'}
-					<div
-						class="space-y-4"
-						id="my-overrides"
-						data-testid="appearance-overrides-panel"
-						in:adminFade
-					>
-						<div class="flex items-center gap-2 mb-1">
-							<iconify-icon
-								icon="mdi:account-edit"
-								class="text-xl text-tertiary-500 dark:text-primary-500"
-							></iconify-icon>
-							<h3 class="font-bold text-sm">{theme_my_overrides()}</h3>
-							<span class="text-xs" style="color: var(--admin-text-muted)"
-								>{theme_apply_instant()}</span
+		<div class="min-h-0 flex-1 overflow-y-auto pt-2 pb-4 pe-0.5">
+			<!-- Tab Navigation (all users: overrides + preview; admin: full workspace) -->
+			<AdminCard class="flex min-h-full flex-col shadow-sm backdrop-blur-md">
+				<!-- Tab Content -->
+				<div
+					class="p-3.5 sm:p-6"
+					role="tabpanel"
+					id={`appearance-panel-${activeTab}`}
+					aria-labelledby={`appearance-tab-${activeTab}`}
+					tabindex="0"
+					in:adminFade
+				>
+					{#key activeTab}
+						<!-- ═══ MY OVERRIDES (all users) ═══ -->
+						{#if activeTab === 'overrides'}
+							<div
+								class="space-y-4"
+								id="my-overrides"
+								data-testid="appearance-overrides-panel"
+								in:adminFade
 							>
-						</div>
-						<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-							<div>
-								<Select
-									bind:value={myDensity}
-									ariaLabel="Density"
-									disabled={isPreferenceLocked(loadedTheme?.lockedSettings, 'density')}
-									options={[
-										{ value: '', label: 'Use theme default' },
-										{ value: 'compact', label: 'Compact' },
-										{ value: 'cozy', label: 'Cozy' },
-										{ value: 'spacious', label: 'Spacious' }
-									]}
-								>
-									{#snippet labelSnippet()}
-										{@render fieldLabel('Density', HELP.density)}
-									{/snippet}
-								</Select>
-							</div>
-							<div>
-								<Select
-									bind:value={myVariant}
-									ariaLabel="Card Style"
-									disabled={isPreferenceLocked(loadedTheme?.lockedSettings, 'variant')}
-									options={[
-										{ value: '', label: 'Use theme default' },
-										{ value: 'flat', label: 'Flat' },
-										{ value: 'bordered', label: 'Bordered' },
-										{ value: 'elevated', label: 'Elevated' }
-									]}
-								>
-									{#snippet labelSnippet()}
-										{@render fieldLabel('Card Style', HELP.cardStyle)}
-									{/snippet}
-								</Select>
-							</div>
-							<div class="flex flex-col justify-end">
-								<Toggle
-									bind:value={myReducedMotion}
-									disabled={isPreferenceLocked(loadedTheme?.lockedSettings, 'reducedMotion')}
-								>
-									{#snippet labelSnippet()}
-										{@render fieldLabel('Reduced Motion', HELP.reducedMotion)}
-									{/snippet}
-								</Toggle>
-							</div>
-							<div class="flex flex-col justify-end">
-								<Toggle
-									bind:value={myHighContrast}
-									disabled={isPreferenceLocked(loadedTheme?.lockedSettings, 'highContrast')}
-								>
-									{#snippet labelSnippet()}
-										{@render fieldLabel('High Contrast', HELP.highContrast)}
-									{/snippet}
-								</Toggle>
-							</div>
-						</div>
-
-						<div class="mt-2 pt-4 border-t" style="border-color: var(--admin-border-default)">
-							<div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-								<div>
-									<h4 class="font-semibold text-sm">{theme_my_layout()}</h4>
-									<p class="text-xs" style="color: var(--admin-text-muted)">
-										{theme_my_layout_desc()}
-									</p>
-								</div>
-								<Tooltip title={HELP.useCurrentLayout} class="max-w-xs leading-snug">
-									<Button
-										variant="outline"
-										size="sm"
-										onclick={captureCurrentLayout}
-										disabled={layoutLocked}
-									>
-										{theme_use_current()}
-									</Button>
-								</Tooltip>
-							</div>
-							{#if layoutLocked}
-								<p class="text-xs text-warning-600 dark:text-warning-400 mb-3">
-									{theme_layout_locked()}
-								</p>
-							{/if}
-							<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-								{#each USER_LAYOUT_PREF_KEYS as key (key)}
-									<Select
-										id={`layout-pref-${key}`}
-										bind:value={myLayoutPrefs[key]}
-										ariaLabel={getLayoutPrefLabel(key)}
-										disabled={layoutLocked}
-										options={layoutVisibilityOptions}
-									>
-										{#snippet labelSnippet()}
-											{@render fieldLabel(getLayoutPrefLabel(key), HELP.layoutRegion)}
-										{/snippet}
-									</Select>
-								{/each}
-							</div>
-						</div>
-
-						<div class="flex gap-2 mt-3">
-							<Button
-								variant="primary"
-								size="sm"
-								onclick={saveMyOverrides}
-								data-testid="appearance-save-overrides">{theme_save_preferences()}</Button
-							>
-							<Button
-								variant="ghost"
-								size="sm"
-								onclick={clearMyOverrides}
-								data-testid="appearance-clear-overrides">{theme_clear_overrides()}</Button
-							>
-						</div>
-					</div>
-
-					<!-- ═══ LIVE PREVIEW (design system playground) ═══ -->
-				{:else if activeTab === 'preview'}
-					<div data-testid="appearance-preview-panel" in:adminFade>
-						<DesignSystemPreview bind:density bind:variant />
-					</div>
-
-					<!-- ═══ THEMES (MULTI-THEME MANAGEMENT) ═══ -->
-				{:else if activeTab === 'themes' && isAdmin}
-					<div class="space-y-6" data-testid="appearance-themes-panel" in:adminFade>
-						<h3 class="text-lg font-bold mb-2 flex items-center gap-2">
-							<iconify-icon
-								icon="mdi:theme-light-dark"
-								class="text-tertiary-500 dark:text-primary-500"
-							></iconify-icon>
-							{theme_installed_themes()}
-						</h3>
-						<p class="text-sm text-(--admin-text-muted) mb-4">
-							{theme_intro()}
-						</p>
-
-						{#if loadingThemes}
-							<div class="text-center py-2 text-(--admin-text-muted)">{theme_loading_themes()}</div>
-						{:else}
-							<div class="space-y-3 max-w-2xl" data-testid="appearance-theme-list">
-								{#each themes as t (t.id)}
-									<AdminCard
-										data-testid={`appearance-theme-card-${t.id}`}
-										data-theme-name={t.name}
-										class="p-4 border-2 {t.isActive
-											? 'border-tertiary-500 dark:border-primary-500 bg-tertiary-500/30 dark:bg-primary-900/10'
-											: 'border-(--admin-border-default)'} flex items-center gap-3 flex-wrap"
-									>
-										<iconify-icon
-											icon={t.isActive ? 'mdi:checkbox-marked-circle' : 'mdi:theme-light-dark'}
-											class="text-xl {t.isActive
-												? 'text-tertiary-500 dark:text-primary-500'
-												: 'text-(--admin-text-muted)'}"
-										></iconify-icon>
-										<div class="flex-1 min-w-0">
-											<div class="font-bold text-sm flex items-center gap-2">
-												{t.name}
-												{#if t.isActive}<Badge
-														preset="tonal"
-														color="success"
-														size="sm"
-														data-testid="appearance-theme-active-badge">{theme_active()}</Badge
-													>{/if}
-												{#if t.isDefault}<Badge preset="tonal" color="surface" size="sm"
-														>{theme_default()}</Badge
-													>{/if}
-											</div>
-											<div class="text-xs text-(--admin-text-muted)">
-												{t.density || 'cozy'} · {t.variant || 'bordered'}
-											</div>
-										</div>
-										<div class="flex items-center gap-1">
-											{#if !t.isActive}
-												<Button
-													variant="primary"
-													size="sm"
-													onclick={() => handleActivate(t.id)}
-													data-testid={`appearance-theme-activate-${t.id}`}
-													>{theme_activate()}</Button
-												>
-											{/if}
-											<Button
-												variant="ghost"
-												size="sm"
-												leadingIcon="mdi:content-copy"
-												onclick={() => {
-													cloneName = '';
-													handleClone(t.id);
-												}}
-												aria-label={theme_clone_aria({ name: t.name })}
-												data-testid={`appearance-theme-clone-${t.id}`}
-											></Button>
-											{#if !t.isActive && !t.isDefault}
-												<Button
-													variant="ghost"
-													size="sm"
-													leadingIcon="mdi:delete"
-													onclick={() => handleDelete(t.id)}
-													aria-label="Delete {t.name}"
-													data-testid={`appearance-theme-delete-${t.id}`}
-												></Button>
-											{/if}
-										</div>
-									</AdminCard>
-								{/each}
-							</div>
-
-							<!-- Create new theme -->
-							<AdminCard
-								class="mt-6 max-w-2xl border border-surface-500/30 p-4 dark:border-surface-500/40"
-								data-testid="appearance-theme-create"
-							>
-								<h4 class="font-bold text-sm mb-3">{theme_create_heading()}</h4>
-								<div class="flex gap-2">
-									<Input
-										bind:value={newThemeName}
-										class="flex-1"
-										placeholder={theme_new_name_placeholder()}
-										aria-label={theme_new_name_aria()}
-										error={themeNameError}
-										oninput={() => (themeNameError = '')}
-										data-testid="appearance-theme-name"
-										onkeydown={(e) => {
-											if (e.key === 'Enter') handleCreate();
-										}}
-									/>
-									<Button
-										variant="tertiary"
-										onclick={handleCreate}
-										leadingIcon="mdi:plus"
-										disabled={!newThemeName.trim()}
-										data-testid="appearance-theme-create-btn">{theme_create()}</Button
+								<div class="flex items-center gap-2 mb-1">
+									<iconify-icon
+										icon="mdi:account-edit"
+										class="text-xl text-tertiary-500 dark:text-primary-500"
+									></iconify-icon>
+									<h3 class="font-bold text-sm">{theme_my_overrides()}</h3>
+									<span class="text-xs" style="color: var(--admin-text-muted)"
+										>{theme_apply_instant()}</span
 									>
 								</div>
-								<p class="text-xs text-(--admin-text-muted) mt-2">
-									{theme_create_intro()}
-								</p>
-							</AdminCard>
-						{/if}
+								<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+									<div>
+										<Select
+											bind:value={myDensity}
+											ariaLabel="Density"
+											disabled={isPreferenceLocked(loadedTheme?.lockedSettings, 'density')}
+											options={[
+												{ value: '', label: 'Use theme default' },
+												{ value: 'compact', label: 'Compact' },
+												{ value: 'cozy', label: 'Cozy' },
+												{ value: 'spacious', label: 'Spacious' }
+											]}
+										>
+											{#snippet labelSnippet()}
+												{@render fieldLabel('Density', HELP.density)}
+											{/snippet}
+										</Select>
+									</div>
+									<div>
+										<Select
+											bind:value={myVariant}
+											ariaLabel="Card Style"
+											disabled={isPreferenceLocked(loadedTheme?.lockedSettings, 'variant')}
+											options={[
+												{ value: '', label: 'Use theme default' },
+												{ value: 'flat', label: 'Flat' },
+												{ value: 'bordered', label: 'Bordered' },
+												{ value: 'elevated', label: 'Elevated' }
+											]}
+										>
+											{#snippet labelSnippet()}
+												{@render fieldLabel('Card Style', HELP.cardStyle)}
+											{/snippet}
+										</Select>
+									</div>
+									<div class="flex flex-col justify-end">
+										<Toggle
+											bind:value={myReducedMotion}
+											disabled={isPreferenceLocked(loadedTheme?.lockedSettings, 'reducedMotion')}
+										>
+											{#snippet labelSnippet()}
+												{@render fieldLabel('Reduced Motion', HELP.reducedMotion)}
+											{/snippet}
+										</Toggle>
+									</div>
+									<div class="flex flex-col justify-end">
+										<Toggle
+											bind:value={myHighContrast}
+											disabled={isPreferenceLocked(loadedTheme?.lockedSettings, 'highContrast')}
+										>
+											{#snippet labelSnippet()}
+												{@render fieldLabel('High Contrast', HELP.highContrast)}
+											{/snippet}
+										</Toggle>
+									</div>
+								</div>
 
-						<!-- Marketplace: themes are installed from the same place they are activated. -->
-						<div class="mt-8 max-w-2xl">
-							<h4 class="font-bold text-sm mb-2 flex items-center gap-2">
-								<iconify-icon
-									icon="icon-park-outline:shopping-bag"
-									class="text-tertiary-500 dark:text-primary-500"
-								></iconify-icon>
-								{theme_marketplace()}
-							</h4>
-							<p class="text-xs text-(--admin-text-muted) mb-3">
-								{theme_browse_from()}{' '}
-								<a
-									href="https://marketplace.sveltycms.com"
-									target="_blank"
-									rel="noopener"
-									class="text-tertiary-500 dark:text-primary-500 underline"
-									>{theme_marketplace_url()}</a
-								>.
-								{#if marketplaceSource === 'local'}
-									{theme_show_local()}
-								{:else}
-									{theme_catalog_source()} {marketplaceSource}.
-								{/if}
-							</p>
-
-							{#if loadingMarketplace}
-								<p class="text-sm text-(--admin-text-muted) mb-4">{theme_loading_marketplace()}</p>
-							{:else if marketplaceThemes.length === 0}
-								<p class="text-sm text-(--admin-text-muted) mb-4">{theme_no_marketplace()}</p>
-							{:else}
-								<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-									{#each marketplaceThemes as item (item.id)}
-										<AdminCard class="p-4 border border-(--admin-border-default)">
-											<h5 class="font-bold text-sm">{item.name}</h5>
-											<p class="text-xs text-(--admin-text-muted) mt-1 mb-3 line-clamp-2">
-												{item.description}
+								<div class="mt-2 pt-4 border-t" style="border-color: var(--admin-border-default)">
+									<div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+										<div>
+											<h4 class="font-semibold text-sm">{theme_my_layout()}</h4>
+											<p class="text-xs" style="color: var(--admin-text-muted)">
+												{theme_my_layout_desc()}
 											</p>
-											<div class="flex items-center justify-between gap-2">
-												<Badge preset="tonal" color="surface" size="sm">{item.source}</Badge>
-												{#if item.installed}
-													<Badge preset="tonal" color="success" size="sm">{theme_installed()}</Badge
-													>
-												{:else if isAdmin}
-													<Button
-														variant="tertiary"
-														size="sm"
-														onclick={() => installMarketplaceTheme(item.id)}
-														loading={saving}
-													>
-														{theme_install()}
-													</Button>
-												{/if}
-											</div>
-										</AdminCard>
-									{/each}
+										</div>
+										<Tooltip title={HELP.useCurrentLayout} class="max-w-xs leading-snug">
+											<Button
+												variant="outline"
+												size="sm"
+												onclick={captureCurrentLayout}
+												disabled={layoutLocked}
+											>
+												{theme_use_current()}
+											</Button>
+										</Tooltip>
+									</div>
+									{#if layoutLocked}
+										<p class="text-xs text-warning-600 dark:text-warning-400 mb-3">
+											{theme_layout_locked()}
+										</p>
+									{/if}
+									<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+										{#each USER_LAYOUT_PREF_KEYS as key (key)}
+											<Select
+												id={`layout-pref-${key}`}
+												bind:value={myLayoutPrefs[key]}
+												ariaLabel={getLayoutPrefLabel(key)}
+												disabled={layoutLocked}
+												options={layoutVisibilityOptions}
+											>
+												{#snippet labelSnippet()}
+													{@render fieldLabel(getLayoutPrefLabel(key), HELP.layoutRegion)}
+												{/snippet}
+											</Select>
+										{/each}
+									</div>
 								</div>
-							{/if}
-						</div>
 
-						<!-- Theme JSON: import and export are inverse operations, so they share one card. -->
-						<AdminCard
-							class="mt-6 max-w-2xl border border-surface-500/30 p-4 dark:border-surface-500/40"
-							data-testid="appearance-theme-transfer"
-						>
-							<h4 class="font-bold text-sm mb-1 flex items-center gap-2">
-								<iconify-icon
-									icon="mdi:swap-horizontal"
-									class="text-tertiary-500 dark:text-primary-500"
-								></iconify-icon>
-								{theme_export_import()}
-							</h4>
-							<p class="text-xs text-(--admin-text-muted) mb-3">{theme_export_intro()}</p>
-							<div class="grid gap-3 md:grid-cols-[1fr_auto]">
-								<Textarea
-									bind:value={importPresetJson}
-									textareaClass="min-h-30 font-mono text-xs"
-									placeholder={'{"name":"My Theme","properties":{...}}'}
-									rows={6}
-									error={importJsonError}
-									oninput={() => (importJsonError = '')}
-								>
-									{#snippet labelSnippet()}
-										{@render fieldLabel(theme_import_json(), HELP.importJson)}
-									{/snippet}
-								</Textarea>
-								<div class="flex flex-col justify-end gap-2">
+								<div class="flex gap-2 mt-3">
 									<Button
-										variant="tertiary"
-										onclick={importPreset}
-										loading={saving}
-										disabled={!importPresetJson.trim()}
-										leadingIcon="mdi:upload"
+										variant="primary"
+										size="sm"
+										onclick={saveMyOverrides}
+										data-testid="appearance-save-overrides">{theme_save_preferences()}</Button
 									>
-										{theme_import_theme()}
-									</Button>
-									<Button variant="outline" onclick={exportTheme} leadingIcon="mdi:download">
-										{theme_export_json()}
-									</Button>
+									<Button
+										variant="ghost"
+										size="sm"
+										onclick={clearMyOverrides}
+										data-testid="appearance-clear-overrides">{theme_clear_overrides()}</Button
+									>
 								</div>
 							</div>
-							<p class="mt-2 text-xs text-(--admin-text-muted)">{theme_import_intro()}</p>
-						</AdminCard>
-					</div>
 
-					<!-- ═══ THEME CUSTOMIZER — active theme: palette, layout, features, code ═══ -->
-				{:else if activeTab === 'customizer' && isAdmin}
-					<div class="space-y-8" data-testid="appearance-customizer-panel" in:adminFade>
-						<section>
-							<h3 class="text-lg font-bold mb-2 flex items-center gap-2">
-								<iconify-icon
-									icon="mdi:palette-swatch"
-									class="text-tertiary-500 dark:text-primary-500"
-								></iconify-icon>
-								{theme_presets()}
-							</h3>
-							<p class="text-sm text-(--admin-text-muted) mb-2">
-								{theme_presets_intro()}
-							</p>
-							<p class="text-sm mb-4">
-								<button
-									type="button"
-									aria-label={theme_preview_aria()}
-									class="text-tertiary-500 dark:text-primary-500 underline inline-flex items-center gap-1"
-									onclick={() => setActiveTab('preview')}
-								>
-									<iconify-icon icon="mdi:compass-outline" width="16"></iconify-icon>
-									{theme_open_preview()}
-								</button>
-								{theme_preview_rest()}
-							</p>
+							<!-- ═══ LIVE PREVIEW (design system playground) ═══ -->
+						{:else if activeTab === 'preview'}
+							<div data-testid="appearance-preview-panel" in:adminFade>
+								<DesignSystemPreview bind:density bind:variant />
+							</div>
 
-							<PaletteStudio bind:customCss onOpenPreview={() => setActiveTab('preview')} />
-						</section>
-
-						<!-- ═══ LAYOUT & STYLE — one control per setting ═══ -->
-						<section class="space-y-4">
-							<h3 class="text-lg font-bold mb-2 flex items-center gap-2">
-								<iconify-icon icon="mdi:resize" class="text-tertiary-500 dark:text-primary-500"
-								></iconify-icon>
-								{theme_layout_density()}
-							</h3>
-							<div class="space-y-6 max-w-2xl">
-								<h4 class="font-bold text-sm">{theme_layout_presets()}</h4>
-								<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-									<AdminCard
-										class="cursor-pointer p-4 border-2 {density === 'cozy' && variant === 'bordered'
-											? 'border-tertiary-500 dark:border-primary-500'
-											: 'border-(--admin-border-default)'} hover:border-tertiary-500 dark:hover:border-primary-400 transition-colors"
-										onclick={() => {
-											density = 'cozy';
-											variant = 'bordered';
-										}}
-										role="button"
-										tabindex={0}
-										aria-label={theme_cozy_aria()}
-									>
-										<iconify-icon
-											icon="mdi:monitor-dashboard"
-											class="text-2xl text-tertiary-500 dark:text-primary-500 mb-2"
-										></iconify-icon>
-										<h4 class="font-bold text-sm">{theme_cozy_default()}</h4>
-										<p class="text-xs text-(--admin-text-muted)">
-											{theme_cozy_default_desc()}
-										</p>
-									</AdminCard>
-
-									<AdminCard
-										class="cursor-pointer p-4 border-2 {density === 'compact' && variant === 'flat'
-											? 'border-tertiary-500 dark:border-primary-500'
-											: 'border-(--admin-border-default)'} hover:border-tertiary-500 dark:hover:border-primary-400 transition-colors"
-										onclick={() => {
-											density = 'compact';
-											variant = 'flat';
-										}}
-										role="button"
-										tabindex={0}
-										aria-label={theme_compact_aria()}
-									>
-										<iconify-icon
-											icon="mdi:table-large"
-											class="text-2xl text-tertiary-500 dark:text-primary-500 mb-2"
-										></iconify-icon>
-										<h4 class="font-bold text-sm">{theme_compact_pro()}</h4>
-										<p class="text-xs text-(--admin-text-muted)">
-											{theme_compact_pro_desc()}
-										</p>
-									</AdminCard>
-
-									<AdminCard
-										class="cursor-pointer p-4 border-2 {density === 'spacious' &&
-										variant === 'elevated'
-											? 'border-tertiary-500 dark:border-primary-500'
-											: 'border-(--admin-border-default)'} hover:border-tertiary-500 dark:hover:border-primary-400 transition-colors"
-										onclick={() => {
-											density = 'spacious';
-											variant = 'elevated';
-										}}
-										role="button"
-										tabindex={0}
-										aria-label={theme_spacious_aria()}
-									>
-										<iconify-icon
-											icon="mdi:pen"
-											class="text-2xl text-tertiary-500 dark:text-primary-500 mb-2"
-										></iconify-icon>
-										<h4 class="font-bold text-sm">{theme_spacious_writer()}</h4>
-										<p class="text-xs text-(--admin-text-muted)">
-											{theme_spacious_writer_desc()}
-										</p>
-									</AdminCard>
-								</div>
-
-								<Select bind:value={density} options={densityOptions} ariaLabel="Admin Density">
-									{#snippet labelSnippet()}
-										{@render fieldLabel('Admin Density', HELP.adminDensity)}
-									{/snippet}
-								</Select>
-								<p class="text-xs text-(--admin-text-muted)">
-									{theme_sidebar()}
-									{density === 'compact' ? '200px' : density === 'spacious' ? '300px' : '240px'} · {theme_header()}
-									{density === 'compact' ? '48px' : density === 'spacious' ? '72px' : '64px'}
+							<!-- ═══ THEMES (MULTI-THEME MANAGEMENT) ═══ -->
+						{:else if activeTab === 'themes' && isAdmin}
+							<div class="space-y-6" data-testid="appearance-themes-panel" in:adminFade>
+								<h3 class="text-lg font-bold mb-2 flex items-center gap-2">
+									<iconify-icon
+										icon="mdi:theme-light-dark"
+										class="text-tertiary-500 dark:text-primary-500"
+									></iconify-icon>
+									{theme_installed_themes()}
+								</h3>
+								<p class="text-sm text-(--admin-text-muted) mb-4">
+									{theme_intro()}
 								</p>
-							</div>
-						</section>
 
-						<!-- ═══ VISUAL STYLE ═══ -->
-						<section class="space-y-4">
-							<h3 class="text-lg font-bold mb-2 flex items-center gap-2">
-								<iconify-icon
-									icon="mdi:format-paint"
-									class="text-tertiary-500 dark:text-primary-500"
-								></iconify-icon>
-								{theme_visual_style()}
-							</h3>
-							<div class="space-y-6 max-w-2xl">
-								<Select bind:value={variant} options={variantOptions} ariaLabel="Card Variant">
-									{#snippet labelSnippet()}
-										{@render fieldLabel('Card Variant', HELP.cardVariant)}
-									{/snippet}
-								</Select>
-								<div class="grid grid-cols-3 gap-4">
+								{#if loadingThemes}
+									<div class="text-center py-2 text-(--admin-text-muted)">
+										{theme_loading_themes()}
+									</div>
+								{:else}
+									<div class="space-y-3 max-w-2xl" data-testid="appearance-theme-list">
+										{#each themes as t (t.id)}
+											<AdminCard
+												data-testid={`appearance-theme-card-${t.id}`}
+												data-theme-name={t.name}
+												class="p-4 border-2 {t.isActive
+													? 'border-tertiary-500 dark:border-primary-500 bg-tertiary-500/30 dark:bg-primary-900/10'
+													: 'border-(--admin-border-default)'} flex items-center gap-3 flex-wrap"
+											>
+												<iconify-icon
+													icon={t.isActive ? 'mdi:checkbox-marked-circle' : 'mdi:theme-light-dark'}
+													class="text-xl {t.isActive
+														? 'text-tertiary-500 dark:text-primary-500'
+														: 'text-(--admin-text-muted)'}"
+												></iconify-icon>
+												<div class="flex-1 min-w-0">
+													<div class="font-bold text-sm flex items-center gap-2">
+														{t.name}
+														{#if t.isActive}<Badge
+																preset="tonal"
+																color="success"
+																size="sm"
+																data-testid="appearance-theme-active-badge">{theme_active()}</Badge
+															>{/if}
+														{#if t.isDefault}<Badge preset="tonal" color="surface" size="sm"
+																>{theme_default()}</Badge
+															>{/if}
+													</div>
+													<div class="text-xs text-(--admin-text-muted)">
+														{t.density || 'cozy'} · {t.variant || 'bordered'}
+													</div>
+												</div>
+												<div class="flex items-center gap-1">
+													{#if !t.isActive}
+														<Button
+															variant="primary"
+															size="sm"
+															onclick={() => handleActivate(t.id)}
+															data-testid={`appearance-theme-activate-${t.id}`}
+															>{theme_activate()}</Button
+														>
+													{/if}
+													<Button
+														variant="ghost"
+														size="sm"
+														leadingIcon="mdi:content-copy"
+														onclick={() => {
+															cloneName = '';
+															handleClone(t.id);
+														}}
+														aria-label={theme_clone_aria({ name: t.name })}
+														data-testid={`appearance-theme-clone-${t.id}`}
+													></Button>
+													{#if !t.isActive && !t.isDefault}
+														<Button
+															variant="ghost"
+															size="sm"
+															leadingIcon="mdi:delete"
+															onclick={() => handleDelete(t.id)}
+															aria-label="Delete {t.name}"
+															data-testid={`appearance-theme-delete-${t.id}`}
+														></Button>
+													{/if}
+												</div>
+											</AdminCard>
+										{/each}
+									</div>
+
+									<!-- Create new theme -->
 									<AdminCard
-										class="p-6 {variant === 'flat'
-											? 'border-tertiary-500 dark:border-primary-500 ring-2'
-											: ''}"
-										style="border-width: {variant === 'flat'
-											? '0'
-											: 'var(--admin-border-width, 1px)'}; box-shadow: none;"
+										class="mt-6 max-w-2xl border border-surface-500/30 p-4 dark:border-surface-500/40"
+										data-testid="appearance-theme-create"
 									>
-										<div class="text-sm font-bold mb-2">{theme_flat()}</div>
-										<div class="text-xs text-(--admin-text-muted)">{theme_flat_desc()}</div>
+										<h4 class="font-bold text-sm mb-3">{theme_create_heading()}</h4>
+										<div class="flex gap-2">
+											<Input
+												bind:value={newThemeName}
+												class="flex-1"
+												placeholder={theme_new_name_placeholder()}
+												aria-label={theme_new_name_aria()}
+												error={themeNameError}
+												oninput={() => (themeNameError = '')}
+												data-testid="appearance-theme-name"
+												onkeydown={(e) => {
+													if (e.key === 'Enter') handleCreate();
+												}}
+											/>
+											<Button
+												variant="tertiary"
+												onclick={handleCreate}
+												leadingIcon="mdi:plus"
+												disabled={!newThemeName.trim()}
+												data-testid="appearance-theme-create-btn">{theme_create()}</Button
+											>
+										</div>
+										<p class="text-xs text-(--admin-text-muted) mt-2">
+											{theme_create_intro()}
+										</p>
 									</AdminCard>
-									<AdminCard
-										class="p-6 {variant === 'bordered'
-											? 'border-tertiary-500 dark:border-primary-500 ring-2'
-											: 'border-(--admin-border-default)'}"
-										style="border-width: var(--admin-border-width, 1px); box-shadow: var(--admin-shadow-elevation, 0 1px 3px 0 rgb(0 0 0 / 0.1));"
-									>
-										<div class="text-sm font-bold mb-2">{theme_bordered()}</div>
-										<div class="text-xs text-(--admin-text-muted)">{theme_bordered_desc()}</div>
-									</AdminCard>
-									<AdminCard
-										class="p-6 {variant === 'elevated'
-											? 'border-tertiary-500 dark:border-primary-500 ring-2'
-											: ''}"
-										style="border-width: var(--admin-border-width, 1px); box-shadow: var(--admin-shadow-elevated, 0 10px 15px -3px rgb(0 0 0 / 0.05));"
-									>
-										<div class="text-sm font-bold mb-2">{theme_elevated()}</div>
-										<div class="text-xs text-(--admin-text-muted)">{theme_elevated_desc()}</div>
-									</AdminCard>
-								</div>
-							</div>
-						</section>
+								{/if}
 
-						<!-- ═══ FEATURES & GOVERNANCE ═══ -->
-						<section class="space-y-4">
-							<h3 class="text-lg font-bold mb-2 flex items-center gap-2">
-								<iconify-icon
-									icon="mdi:toggle-switch"
-									class="text-tertiary-500 dark:text-primary-500"
-								></iconify-icon>
-								{theme_features()}
-							</h3>
-							<div class="max-w-2xl space-y-4">
-								<AdminCard
-									class="p-4 border border-(--admin-border-default) flex items-center justify-between"
-								>
-									<div>
-										<div class="font-bold text-sm">{theme_sticky_bar()}</div>
-										<div class="text-xs text-(--admin-text-muted)">
-											{theme_sticky_bar_desc()}
-										</div>
-									</div>
-									<Toggle bind:value={stickyActionBar} />
-								</AdminCard>
-								<AdminCard
-									class="p-4 border border-(--admin-border-default) flex items-center justify-between"
-								>
-									<div>
-										<div class="font-bold text-sm">{theme_collapsible_sidebar()}</div>
-										<div class="text-xs text-(--admin-text-muted)">
-											{theme_collapsible_sidebar_desc()}
-										</div>
-									</div>
-									<Toggle bind:value={collapsibleSidebar} />
-								</AdminCard>
-								<AdminCard
-									class="p-4 border border-(--admin-border-default) flex items-center justify-between"
-								>
-									<div>
-										<div class="font-bold text-sm">{theme_branded_login()}</div>
-										<div class="text-xs text-(--admin-text-muted)">
-											{theme_branded_login_desc()}
-										</div>
-									</div>
-									<Toggle bind:value={brandedLogin} />
-								</AdminCard>
-								<AdminCard
-									class="p-4 border border-(--admin-border-default) flex items-center justify-between"
-								>
-									<div>
-										<div class="font-bold text-sm">{theme_high_contrast()}</div>
-										<div class="text-xs text-(--admin-text-muted)">
-											{theme_high_contrast_desc()}
-										</div>
-									</div>
-									<Toggle bind:value={highContrastMode} />
-								</AdminCard>
-								<AdminCard
-									class="p-4 border border-(--admin-border-default) flex items-center justify-between"
-								>
-									<div>
-										<div class="font-bold text-sm">{theme_reduced_motion()}</div>
-										<div class="text-xs text-(--admin-text-muted)">
-											{theme_reduced_motion_desc()}
-										</div>
-									</div>
-									<Toggle bind:value={reducedMotion} />
-								</AdminCard>
-
-								<!-- Layout Region: Collections Position -->
-								<AdminCard class="p-4 border border-(--admin-border-default)">
-									<div class="mb-3">
-										<div class="font-bold text-sm">{theme_collections_position()}</div>
-										<div class="text-xs text-(--admin-text-muted)">
-											{theme_collections_position_desc()}
-										</div>
-									</div>
-									<Select
-										bind:value={collectionsLayout}
-										options={collectionsLayoutOptions}
-										ariaLabel={theme_collections_position()}
-									>
-										{#snippet labelSnippet()}
-											{@render fieldLabel(theme_collections_position(), HELP.collectionsPosition)}
-										{/snippet}
-									</Select>
-								</AdminCard>
-
-								<!-- Lock user overrides -->
-								<AdminCard
-									class="p-4 border border-warning-500/30 dark:border-warning-500/40 bg-warning-500/20 dark:bg-warning-900/10"
-								>
-									<div class="mb-3">
-										<div class="font-bold text-sm">{theme_lock_overrides()}</div>
-										<div class="text-xs text-(--admin-text-muted)">
-											{theme_lock_overrides_desc()}
-										</div>
-									</div>
-									<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-										<Toggle bind:value={lockDensity}>
-											{#snippet labelSnippet()}
-												{@render fieldLabel('Lock density', HELP.lock)}
-											{/snippet}
-										</Toggle>
-										<Toggle bind:value={lockVariant}>
-											{#snippet labelSnippet()}
-												{@render fieldLabel('Lock card style', HELP.lock)}
-											{/snippet}
-										</Toggle>
-										<Toggle bind:value={lockReducedMotion}>
-											{#snippet labelSnippet()}
-												{@render fieldLabel('Lock reduced motion', HELP.lock)}
-											{/snippet}
-										</Toggle>
-										<Toggle bind:value={lockHighContrast}>
-											{#snippet labelSnippet()}
-												{@render fieldLabel('Lock high contrast', HELP.lock)}
-											{/snippet}
-										</Toggle>
-										<Toggle bind:value={lockLayoutState}>
-											{#snippet labelSnippet()}
-												{@render fieldLabel('Lock layout state', HELP.lock)}
-											{/snippet}
-										</Toggle>
-									</div>
-								</AdminCard>
-							</div>
-						</section>
-
-						<!-- ═══ ADVANCED (CSS & danger zone) ═══ -->
-						<section class="space-y-4">
-							<h3 class="text-lg font-bold mb-2 flex items-center gap-2">
-								<iconify-icon icon="mdi:code-tags" class="text-tertiary-500 dark:text-primary-500"
-								></iconify-icon>
-								{theme_advanced()}
-							</h3>
-							<div class="max-w-2xl space-y-6">
-								<div>
-									<Textarea
-										id="admin-custom-css"
-										bind:value={customCss}
-										textareaClass="min-h-50 font-mono text-xs"
-										placeholder={'/* Custom admin styles */\n.admin-special-header { border-color: oklch(65% 0.2 260deg); }'}
-										rows={10}
-									>
-										{#snippet labelSnippet()}
-											{@render fieldLabel('Custom CSS', HELP.customCss)}
-										{/snippet}
-									</Textarea>
-									<p class="text-xs text-(--admin-text-muted) mt-2">
-										{theme_css_hint()}
-									</p>
-								</div>
-
-								<AdminCard
-									class="p-4 border border-error-500/30 dark:border-error-500/40 bg-error-500/30 dark:bg-error-900/10"
-								>
-									<h4 class="font-bold text-sm text-error-600 dark:text-error-400 mb-2">
-										{theme_danger_zone()}
+								<!-- Marketplace: themes are installed from the same place they are activated. -->
+								<div class="mt-8 max-w-2xl">
+									<h4 class="font-bold text-sm mb-2 flex items-center gap-2">
+										<iconify-icon
+											icon="icon-park-outline:shopping-bag"
+											class="text-tertiary-500 dark:text-primary-500"
+										></iconify-icon>
+										{theme_marketplace()}
 									</h4>
 									<p class="text-xs text-(--admin-text-muted) mb-3">
-										{theme_reset_intro()}
+										{theme_browse_from()}{' '}
+										<a
+											href="https://marketplace.sveltycms.com"
+											target="_blank"
+											rel="noopener"
+											class="text-tertiary-500 dark:text-primary-500 underline"
+											>{theme_marketplace_url()}</a
+										>.
+										{#if marketplaceSource === 'local'}
+											{theme_show_local()}
+										{:else}
+											{theme_catalog_source()} {marketplaceSource}.
+										{/if}
 									</p>
-									<Button variant="error" onclick={resetToDefaults} leadingIcon="mdi:restore-alert"
-										>{theme_reset_defaults()}</Button
-									>
+
+									{#if loadingMarketplace}
+										<p class="text-sm text-(--admin-text-muted) mb-4">
+											{theme_loading_marketplace()}
+										</p>
+									{:else if marketplaceThemes.length === 0}
+										<p class="text-sm text-(--admin-text-muted) mb-4">{theme_no_marketplace()}</p>
+									{:else}
+										<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+											{#each marketplaceThemes as item (item.id)}
+												<AdminCard class="p-4 border border-(--admin-border-default)">
+													<h5 class="font-bold text-sm">{item.name}</h5>
+													<p class="text-xs text-(--admin-text-muted) mt-1 mb-3 line-clamp-2">
+														{item.description}
+													</p>
+													<div class="flex items-center justify-between gap-2">
+														<Badge preset="tonal" color="surface" size="sm">{item.source}</Badge>
+														{#if item.installed}
+															<Badge preset="tonal" color="success" size="sm"
+																>{theme_installed()}</Badge
+															>
+														{:else if isAdmin}
+															<Button
+																variant="tertiary"
+																size="sm"
+																onclick={() => installMarketplaceTheme(item.id)}
+																loading={saving}
+															>
+																{theme_install()}
+															</Button>
+														{/if}
+													</div>
+												</AdminCard>
+											{/each}
+										</div>
+									{/if}
+								</div>
+
+								<!-- Theme JSON: import and export are inverse operations, so they share one card. -->
+								<AdminCard
+									class="mt-6 max-w-2xl border border-surface-500/30 p-4 dark:border-surface-500/40"
+									data-testid="appearance-theme-transfer"
+								>
+									<h4 class="font-bold text-sm mb-1 flex items-center gap-2">
+										<iconify-icon
+											icon="mdi:swap-horizontal"
+											class="text-tertiary-500 dark:text-primary-500"
+										></iconify-icon>
+										{theme_export_import()}
+									</h4>
+									<p class="text-xs text-(--admin-text-muted) mb-3">{theme_export_intro()}</p>
+									<div class="grid gap-3 md:grid-cols-[1fr_auto]">
+										<Textarea
+											bind:value={importPresetJson}
+											textareaClass="min-h-30 font-mono text-xs"
+											placeholder={'{"name":"My Theme","properties":{...}}'}
+											rows={6}
+											error={importJsonError}
+											oninput={() => (importJsonError = '')}
+										>
+											{#snippet labelSnippet()}
+												{@render fieldLabel(theme_import_json(), HELP.importJson)}
+											{/snippet}
+										</Textarea>
+										<div class="flex flex-col justify-end gap-2">
+											<Button
+												variant="tertiary"
+												onclick={importPreset}
+												loading={saving}
+												disabled={!importPresetJson.trim()}
+												leadingIcon="mdi:upload"
+											>
+												{theme_import_theme()}
+											</Button>
+											<Button variant="outline" onclick={exportTheme} leadingIcon="mdi:download">
+												{theme_export_json()}
+											</Button>
+										</div>
+									</div>
+									<p class="mt-2 text-xs text-(--admin-text-muted)">{theme_import_intro()}</p>
 								</AdminCard>
 							</div>
-						</section>
-					</div>
-				{/if}
-			{/key}
+
+							<!-- ═══ THEME CUSTOMIZER — active theme: palette, layout, features, code ═══ -->
+						{:else if activeTab === 'customizer' && isAdmin}
+							<div class="space-y-8" data-testid="appearance-customizer-panel" in:adminFade>
+								<section>
+									<h3 class="text-lg font-bold mb-2 flex items-center gap-2">
+										<iconify-icon
+											icon="mdi:palette-swatch"
+											class="text-tertiary-500 dark:text-primary-500"
+										></iconify-icon>
+										{theme_presets()}
+									</h3>
+									<p class="text-sm text-(--admin-text-muted) mb-2">
+										{theme_presets_intro()}
+									</p>
+									<p class="text-sm mb-4">
+										<button
+											type="button"
+											aria-label={theme_preview_aria()}
+											class="text-tertiary-500 dark:text-primary-500 underline inline-flex items-center gap-1"
+											onclick={() => setActiveTab('preview')}
+										>
+											<iconify-icon icon="mdi:compass-outline" width="16"></iconify-icon>
+											{theme_open_preview()}
+										</button>
+										{theme_preview_rest()}
+									</p>
+
+									<PaletteStudio bind:customCss onOpenPreview={() => setActiveTab('preview')} />
+								</section>
+
+								<!-- ═══ LAYOUT & STYLE — one control per setting ═══ -->
+								<section class="space-y-4">
+									<h3 class="text-lg font-bold mb-2 flex items-center gap-2">
+										<iconify-icon icon="mdi:resize" class="text-tertiary-500 dark:text-primary-500"
+										></iconify-icon>
+										{theme_layout_density()}
+									</h3>
+									<div class="space-y-6 max-w-2xl">
+										<h4 class="font-bold text-sm">{theme_layout_presets()}</h4>
+										<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+											<AdminCard
+												class="cursor-pointer p-4 border-2 {density === 'cozy' &&
+												variant === 'bordered'
+													? 'border-tertiary-500 dark:border-primary-500'
+													: 'border-(--admin-border-default)'} hover:border-tertiary-500 dark:hover:border-primary-400 transition-colors"
+												onclick={() => {
+													density = 'cozy';
+													variant = 'bordered';
+												}}
+												role="button"
+												tabindex={0}
+												aria-label={theme_cozy_aria()}
+											>
+												<iconify-icon
+													icon="mdi:monitor-dashboard"
+													class="text-2xl text-tertiary-500 dark:text-primary-500 mb-2"
+												></iconify-icon>
+												<h4 class="font-bold text-sm">{theme_cozy_default()}</h4>
+												<p class="text-xs text-(--admin-text-muted)">
+													{theme_cozy_default_desc()}
+												</p>
+											</AdminCard>
+
+											<AdminCard
+												class="cursor-pointer p-4 border-2 {density === 'compact' &&
+												variant === 'flat'
+													? 'border-tertiary-500 dark:border-primary-500'
+													: 'border-(--admin-border-default)'} hover:border-tertiary-500 dark:hover:border-primary-400 transition-colors"
+												onclick={() => {
+													density = 'compact';
+													variant = 'flat';
+												}}
+												role="button"
+												tabindex={0}
+												aria-label={theme_compact_aria()}
+											>
+												<iconify-icon
+													icon="mdi:table-large"
+													class="text-2xl text-tertiary-500 dark:text-primary-500 mb-2"
+												></iconify-icon>
+												<h4 class="font-bold text-sm">{theme_compact_pro()}</h4>
+												<p class="text-xs text-(--admin-text-muted)">
+													{theme_compact_pro_desc()}
+												</p>
+											</AdminCard>
+
+											<AdminCard
+												class="cursor-pointer p-4 border-2 {density === 'spacious' &&
+												variant === 'elevated'
+													? 'border-tertiary-500 dark:border-primary-500'
+													: 'border-(--admin-border-default)'} hover:border-tertiary-500 dark:hover:border-primary-400 transition-colors"
+												onclick={() => {
+													density = 'spacious';
+													variant = 'elevated';
+												}}
+												role="button"
+												tabindex={0}
+												aria-label={theme_spacious_aria()}
+											>
+												<iconify-icon
+													icon="mdi:pen"
+													class="text-2xl text-tertiary-500 dark:text-primary-500 mb-2"
+												></iconify-icon>
+												<h4 class="font-bold text-sm">{theme_spacious_writer()}</h4>
+												<p class="text-xs text-(--admin-text-muted)">
+													{theme_spacious_writer_desc()}
+												</p>
+											</AdminCard>
+										</div>
+
+										<Select bind:value={density} options={densityOptions} ariaLabel="Admin Density">
+											{#snippet labelSnippet()}
+												{@render fieldLabel('Admin Density', HELP.adminDensity)}
+											{/snippet}
+										</Select>
+										<p class="text-xs text-(--admin-text-muted)">
+											{theme_sidebar()}
+											{density === 'compact' ? '200px' : density === 'spacious' ? '300px' : '240px'} ·
+											{theme_header()}
+											{density === 'compact' ? '48px' : density === 'spacious' ? '72px' : '64px'}
+										</p>
+									</div>
+								</section>
+
+								<!-- ═══ VISUAL STYLE ═══ -->
+								<section class="space-y-4">
+									<h3 class="text-lg font-bold mb-2 flex items-center gap-2">
+										<iconify-icon
+											icon="mdi:format-paint"
+											class="text-tertiary-500 dark:text-primary-500"
+										></iconify-icon>
+										{theme_visual_style()}
+									</h3>
+									<div class="space-y-6 max-w-2xl">
+										<Select bind:value={variant} options={variantOptions} ariaLabel="Card Variant">
+											{#snippet labelSnippet()}
+												{@render fieldLabel('Card Variant', HELP.cardVariant)}
+											{/snippet}
+										</Select>
+										<div class="grid grid-cols-3 gap-4">
+											<AdminCard
+												class="p-6 {variant === 'flat'
+													? 'border-tertiary-500 dark:border-primary-500 ring-2'
+													: ''}"
+												style="border-width: {variant === 'flat'
+													? '0'
+													: 'var(--admin-border-width, 1px)'}; box-shadow: none;"
+											>
+												<div class="text-sm font-bold mb-2">{theme_flat()}</div>
+												<div class="text-xs text-(--admin-text-muted)">{theme_flat_desc()}</div>
+											</AdminCard>
+											<AdminCard
+												class="p-6 {variant === 'bordered'
+													? 'border-tertiary-500 dark:border-primary-500 ring-2'
+													: 'border-(--admin-border-default)'}"
+												style="border-width: var(--admin-border-width, 1px); box-shadow: var(--admin-shadow-elevation, 0 1px 3px 0 rgb(0 0 0 / 0.1));"
+											>
+												<div class="text-sm font-bold mb-2">{theme_bordered()}</div>
+												<div class="text-xs text-(--admin-text-muted)">{theme_bordered_desc()}</div>
+											</AdminCard>
+											<AdminCard
+												class="p-6 {variant === 'elevated'
+													? 'border-tertiary-500 dark:border-primary-500 ring-2'
+													: ''}"
+												style="border-width: var(--admin-border-width, 1px); box-shadow: var(--admin-shadow-elevated, 0 10px 15px -3px rgb(0 0 0 / 0.05));"
+											>
+												<div class="text-sm font-bold mb-2">{theme_elevated()}</div>
+												<div class="text-xs text-(--admin-text-muted)">{theme_elevated_desc()}</div>
+											</AdminCard>
+										</div>
+									</div>
+								</section>
+
+								<!-- ═══ FEATURES & GOVERNANCE ═══ -->
+								<section class="space-y-4">
+									<h3 class="text-lg font-bold mb-2 flex items-center gap-2">
+										<iconify-icon
+											icon="mdi:toggle-switch"
+											class="text-tertiary-500 dark:text-primary-500"
+										></iconify-icon>
+										{theme_features()}
+									</h3>
+									<div class="max-w-2xl space-y-4">
+										<AdminCard
+											class="p-4 border border-(--admin-border-default) flex items-center justify-between"
+										>
+											<div>
+												<div class="font-bold text-sm">{theme_sticky_bar()}</div>
+												<div class="text-xs text-(--admin-text-muted)">
+													{theme_sticky_bar_desc()}
+												</div>
+											</div>
+											<Toggle bind:value={stickyActionBar} />
+										</AdminCard>
+										<AdminCard
+											class="p-4 border border-(--admin-border-default) flex items-center justify-between"
+										>
+											<div>
+												<div class="font-bold text-sm">{theme_collapsible_sidebar()}</div>
+												<div class="text-xs text-(--admin-text-muted)">
+													{theme_collapsible_sidebar_desc()}
+												</div>
+											</div>
+											<Toggle bind:value={collapsibleSidebar} />
+										</AdminCard>
+										<AdminCard
+											class="p-4 border border-(--admin-border-default) flex items-center justify-between"
+										>
+											<div>
+												<div class="font-bold text-sm">{theme_branded_login()}</div>
+												<div class="text-xs text-(--admin-text-muted)">
+													{theme_branded_login_desc()}
+												</div>
+											</div>
+											<Toggle bind:value={brandedLogin} />
+										</AdminCard>
+										<AdminCard
+											class="p-4 border border-(--admin-border-default) flex items-center justify-between"
+										>
+											<div>
+												<div class="font-bold text-sm">{theme_high_contrast()}</div>
+												<div class="text-xs text-(--admin-text-muted)">
+													{theme_high_contrast_desc()}
+												</div>
+											</div>
+											<Toggle bind:value={highContrastMode} />
+										</AdminCard>
+										<AdminCard
+											class="p-4 border border-(--admin-border-default) flex items-center justify-between"
+										>
+											<div>
+												<div class="font-bold text-sm">{theme_reduced_motion()}</div>
+												<div class="text-xs text-(--admin-text-muted)">
+													{theme_reduced_motion_desc()}
+												</div>
+											</div>
+											<Toggle bind:value={reducedMotion} />
+										</AdminCard>
+
+										<!-- Layout Region: Collections Position -->
+										<AdminCard class="p-4 border border-(--admin-border-default)">
+											<div class="mb-3">
+												<div class="font-bold text-sm">{theme_collections_position()}</div>
+												<div class="text-xs text-(--admin-text-muted)">
+													{theme_collections_position_desc()}
+												</div>
+											</div>
+											<Select
+												bind:value={collectionsLayout}
+												options={collectionsLayoutOptions}
+												ariaLabel={theme_collections_position()}
+											>
+												{#snippet labelSnippet()}
+													{@render fieldLabel(
+														theme_collections_position(),
+														HELP.collectionsPosition
+													)}
+												{/snippet}
+											</Select>
+										</AdminCard>
+
+										<!-- Lock user overrides -->
+										<AdminCard
+											class="p-4 border border-warning-500/30 dark:border-warning-500/40 bg-warning-500/20 dark:bg-warning-900/10"
+										>
+											<div class="mb-3">
+												<div class="font-bold text-sm">{theme_lock_overrides()}</div>
+												<div class="text-xs text-(--admin-text-muted)">
+													{theme_lock_overrides_desc()}
+												</div>
+											</div>
+											<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+												<Toggle bind:value={lockDensity}>
+													{#snippet labelSnippet()}
+														{@render fieldLabel('Lock density', HELP.lock)}
+													{/snippet}
+												</Toggle>
+												<Toggle bind:value={lockVariant}>
+													{#snippet labelSnippet()}
+														{@render fieldLabel('Lock card style', HELP.lock)}
+													{/snippet}
+												</Toggle>
+												<Toggle bind:value={lockReducedMotion}>
+													{#snippet labelSnippet()}
+														{@render fieldLabel('Lock reduced motion', HELP.lock)}
+													{/snippet}
+												</Toggle>
+												<Toggle bind:value={lockHighContrast}>
+													{#snippet labelSnippet()}
+														{@render fieldLabel('Lock high contrast', HELP.lock)}
+													{/snippet}
+												</Toggle>
+												<Toggle bind:value={lockLayoutState}>
+													{#snippet labelSnippet()}
+														{@render fieldLabel('Lock layout state', HELP.lock)}
+													{/snippet}
+												</Toggle>
+											</div>
+										</AdminCard>
+									</div>
+								</section>
+
+								<!-- ═══ ADVANCED (CSS & danger zone) ═══ -->
+								<section class="space-y-4">
+									<h3 class="text-lg font-bold mb-2 flex items-center gap-2">
+										<iconify-icon
+											icon="mdi:code-tags"
+											class="text-tertiary-500 dark:text-primary-500"
+										></iconify-icon>
+										{theme_advanced()}
+									</h3>
+									<div class="max-w-2xl space-y-6">
+										<div>
+											<Textarea
+												id="admin-custom-css"
+												bind:value={customCss}
+												textareaClass="min-h-50 font-mono text-xs"
+												placeholder={'/* Custom admin styles */\n.admin-special-header { border-color: oklch(65% 0.2 260deg); }'}
+												rows={10}
+											>
+												{#snippet labelSnippet()}
+													{@render fieldLabel('Custom CSS', HELP.customCss)}
+												{/snippet}
+											</Textarea>
+											<p class="text-xs text-(--admin-text-muted) mt-2">
+												{theme_css_hint()}
+											</p>
+										</div>
+
+										<AdminCard
+											class="p-4 border border-error-500/30 dark:border-error-500/40 bg-error-500/30 dark:bg-error-900/10"
+										>
+											<h4 class="font-bold text-sm text-error-600 dark:text-error-400 mb-2">
+												{theme_danger_zone()}
+											</h4>
+											<p class="text-xs text-(--admin-text-muted) mb-3">
+												{theme_reset_intro()}
+											</p>
+											<Button
+												variant="error"
+												onclick={resetToDefaults}
+												leadingIcon="mdi:restore-alert">{theme_reset_defaults()}</Button
+											>
+										</AdminCard>
+									</div>
+								</section>
+							</div>
+						{/if}
+					{/key}
+				</div>
+			</AdminCard>
 		</div>
-	</AdminCard>
+	</div>
 
 	<!-- Save Bar (admin theme edits only) -->
 	{#if hasChanges && isAdmin && activeTab !== 'overrides' && activeTab !== 'preview'}
-		<div
-			class="sticky bottom-0 z-30 flex flex-wrap items-center justify-between gap-3 border-t border-(--admin-border-default) bg-(--admin-bg-card)/90 px-4 py-4 backdrop-blur-md max-md:pe-20"
-		>
-			<p
-				class="flex items-center gap-1.5 text-sm font-medium text-warning-600 dark:text-warning-400"
-			>
-				<iconify-icon icon="mdi:alert-circle" class="shrink-0" width="16"></iconify-icon>
-				{theme_unsaved()}
-			</p>
-			<div class="flex gap-2">
-				<Button variant="ghost" onclick={discardChanges} data-testid="appearance-theme-discard"
-					>{theme_discard()}</Button
+		<StickyActions>
+			<div class="flex w-full flex-wrap items-center justify-between gap-2 sm:gap-3">
+				<p
+					class="flex items-center gap-1.5 text-xs sm:text-sm font-medium text-warning-600 dark:text-warning-400"
 				>
-				<Button
-					variant="primary"
-					onclick={saveTheme}
-					loading={saving}
-					data-testid="appearance-theme-save">{theme_save_theme()}</Button
-				>
+					<iconify-icon icon="mdi:alert-circle" class="shrink-0" width="16"></iconify-icon>
+					<span class="truncate">{theme_unsaved()}</span>
+				</p>
+				<div class="flex items-center gap-2 ms-auto">
+					<Button
+						variant="ghost"
+						size="sm"
+						onclick={discardChanges}
+						data-testid="appearance-theme-discard"
+						class="h-9 sm:h-10 sm:px-4"
+					>
+						{theme_discard()}
+					</Button>
+					<Button
+						variant="primary"
+						size="sm"
+						onclick={saveTheme}
+						loading={saving}
+						data-testid="appearance-theme-save"
+						class="h-9 sm:h-10 sm:px-4"
+					>
+						{theme_save_theme()}
+					</Button>
+				</div>
 			</div>
-		</div>
+		</StickyActions>
 	{/if}
 </AdminPageShell>
