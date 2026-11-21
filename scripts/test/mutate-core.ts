@@ -251,12 +251,12 @@ export const SECURITY_TARGETS: readonly Mutation[] = [
     file: "src/databases/auth/revocation-epoch.ts",
     description: "isSessionRevoked: stop honouring the global revocation epoch",
     find: [
-      "  if (globalRevocationEpoch > 0 && issuedAtMs < globalRevocationEpoch) {",
+      "  if (globalRevocationEpoch > 0 && issuedAtMs <= globalRevocationEpoch) {",
       "    return true;",
       "  }",
     ].join("\n"),
     replace: [
-      "  if (globalRevocationEpoch > 0 && issuedAtMs < globalRevocationEpoch) {",
+      "  if (globalRevocationEpoch > 0 && issuedAtMs <= globalRevocationEpoch) {",
       "    return false;",
       "  }",
     ].join("\n"),
@@ -267,12 +267,12 @@ export const SECURITY_TARGETS: readonly Mutation[] = [
     file: "src/databases/auth/revocation-epoch.ts",
     description: "isSessionRevoked: stop honouring the per-tenant revocation epoch",
     find: [
-      "    if (tenantEpoch !== undefined && issuedAtMs < tenantEpoch) {",
+      "    if (tenantEpoch !== undefined && issuedAtMs <= tenantEpoch) {",
       "      return true;",
       "    }",
     ].join("\n"),
     replace: [
-      "    if (tenantEpoch !== undefined && issuedAtMs < tenantEpoch) {",
+      "    if (tenantEpoch !== undefined && issuedAtMs <= tenantEpoch) {",
       "      return false;",
       "    }",
     ].join("\n"),
@@ -283,12 +283,12 @@ export const SECURITY_TARGETS: readonly Mutation[] = [
     file: "src/databases/auth/revocation-epoch.ts",
     description: "isSessionRevoked: stop honouring the per-user revocation epoch",
     find: [
-      "    if (userEpoch !== undefined && issuedAtMs < userEpoch) {",
+      "    if (userEpoch !== undefined && issuedAtMs <= userEpoch) {",
       "      return true;",
       "    }",
     ].join("\n"),
     replace: [
-      "    if (userEpoch !== undefined && issuedAtMs < userEpoch) {",
+      "    if (userEpoch !== undefined && issuedAtMs <= userEpoch) {",
       "      return false;",
       "    }",
     ].join("\n"),

@@ -41,6 +41,7 @@ export async function handleBackupRoutes(
   const action = segments[1];
   const user = event.locals.user as Record<string, any> | undefined;
   const userId = (user?._id ?? user?.id ?? "system") as string;
+  const isGlobalSuperAdmin = event.locals.isAdmin === true && (!tenantId || tenantId === "global");
 
   // ── GET /api/backups ────────────────────────────────────────────────────
   if (!action && request.method === "GET") {
@@ -88,6 +89,19 @@ export async function handleBackupRoutes(
     }
 
     const result = await backupService.validateBackup(body.backupPath);
+    if (
+      !isGlobalSuperAdmin &&
+      result.manifest?.tenantId &&
+      result.manifest.tenantId !== (tenantId as string) &&
+      result.manifest.tenantId !== "global"
+    ) {
+      return errorResponse(
+        event,
+        "Forbidden: cannot validate backup belonging to another tenant",
+        403,
+        "TENANT_MISMATCH",
+      );
+    }
     // validateBackup returns BackupValidation — no success:boolean wrapper
     return successResponse(event, result);
   }
@@ -136,7 +150,7 @@ export async function handleBackupRoutes(
       confirmed: true,
       tenantId: tenantId as string,
       userId,
-      superAdminOverride: body.superAdminOverride ?? false,
+      superAdminOverride: Boolean(body.superAdminOverride) && isGlobalSuperAdmin,
       decryptionKey: body.decryptionKey,
       collections: body.collections,
       background: body.background,
@@ -161,7 +175,10 @@ export async function handleBackupRoutes(
       return errorResponse(event, "jobId is required as a path parameter", 400, "MISSING_PARAM");
     }
 
-    const result = await backupService.getJobStatus(jobId);
+    const result = await backupService.getJobStatus(
+      jobId,
+      isGlobalSuperAdmin ? undefined : (tenantId as string),
+    );
 
     if (!result) {
       return errorResponse(event, `Job "${jobId}" not found`, 404, "JOB_NOT_FOUND");

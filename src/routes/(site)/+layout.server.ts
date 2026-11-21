@@ -18,7 +18,9 @@ export const load: LayoutServerLoad = async ({ url, cookies, locals }) => {
   // unsigned cms_draft_mode=true / cms_preview_entry cookies on their own.
   const candidateToken =
     url.searchParams.get("preview_token") || cookies.get("cms_preview_token") || "";
-  const validated = candidateToken ? previewService.validateToken(candidateToken) : null;
+  const validated = candidateToken
+    ? previewService.validateToken(candidateToken, undefined, url.hostname)
+    : null;
   const isDraft = Boolean(validated?.valid);
   const previewEntryId: string | undefined = validated?.valid ? validated.entryId : undefined;
 

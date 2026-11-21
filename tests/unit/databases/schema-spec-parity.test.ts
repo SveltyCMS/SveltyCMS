@@ -190,6 +190,15 @@ describe("system schema spec vs drizzle schema.ts", () => {
             problems.push(`${dialect}: index ${name} missing from rendered bootstrap DDL`);
           }
         }
+        if (dialect === "postgresql") {
+          expect(haystack).toContain("CREATE EXTENSION IF NOT EXISTS pg_trgm");
+          expect(haystack).toContain(
+            "CREATE INDEX IF NOT EXISTS media_items_filename_trgm_idx ON media_items USING gin (filename gin_trgm_ops)",
+          );
+          expect(haystack).toContain(
+            "CREATE INDEX IF NOT EXISTS media_items_original_filename_trgm_idx ON media_items USING gin (originalFilename gin_trgm_ops)",
+          );
+        }
         expect(problems, problems.join("\n")).toEqual([]);
       });
     });

@@ -5,7 +5,8 @@
 
 // Utils
 import { contentSystem } from "@src/content/index.server";
-import { generateUUID } from "@utils/native-utils";
+import { generateUUID, timingSafeStringEqual } from "@utils/native-utils";
+import { getTestSecret } from "@utils/server/setup-check";
 import type { DatabaseId, ISODateString } from "@src/content/types";
 
 /** Cached lazy handle to the egress guard — one module-registry lookup instead of one per call. */
@@ -19,6 +20,7 @@ import {
   generateGithubAuthUrl,
   generateGoogleAuthUrl,
   getOAuthRedirectUri,
+  verifyOAuthState,
 } from "@src/databases/auth/google-auth";
 //Db
 import { auth, dbInitPromise } from "@src/databases/db";
@@ -34,13 +36,6 @@ import { saveAvatarImage } from "@utils/media/media-storage.server";
 // Auth
 import { OAuth2Client } from "google-auth-library";
 import type { Actions, PageServerLoad } from "./$types";
-
-/**
- * Per-request language carry for the OAuth callback (the legacy global `app`
- * bridge was removed with store.svelte.ts). Email templates for a freshly
- * provisioned Google user are sent in the locale Google reported.
- */
-let _oauthUserLanguage = "en";
 
 // Types
 interface GoogleUserInfo {
@@ -58,9 +53,9 @@ async function sendWelcomeEmail(
   email: string,
   username: string,
   request: Request,
+  userLanguage = "en",
 ) {
   try {
-    const userLanguage = _oauthUserLanguage || "en";
     const hostProd = publicEnv.HOST_PROD;
     const siteName = publicEnv.SITE_NAME;
     const emailProps = {
@@ -180,11 +175,12 @@ async function handleGoogleUser(
   const { isSetupCompleteAsync } = await import("@utils/server/setup-check");
   const setupComplete = await isSetupCompleteAsync();
 
+  let resolvedUserLanguage = "en";
   if (googleUser.locale) {
     const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || "en"]) as Locale[];
     const locale = googleUser.locale as Locale;
     if (supportedLocales.includes(locale)) {
-      _oauthUserLanguage = locale;
+      resolvedUserLanguage = locale;
     }
   }
 
@@ -278,7 +274,7 @@ async function handleGoogleUser(
       invalidateUserCountCache();
 
       // Send welcome email for new admin
-      await sendWelcomeEmail(fetchFn, email, googleUser.name || "", request);
+      await sendWelcomeEmail(fetchFn, email, googleUser.name || "", request, resolvedUserLanguage);
     } else {
       const { isMultiTenantEnabled } = await import("@utils/tenant-isolation.server");
       const isOpenSignup = isMultiTenantEnabled() && Boolean(getPrivateSettingSync("DEMO"));
@@ -358,7 +354,7 @@ async function handleGoogleUser(
       );
 
       // Send welcome email for invited users
-      await sendWelcomeEmail(fetchFn, email, googleUser.name || "", request);
+      await sendWelcomeEmail(fetchFn, email, googleUser.name || "", request, resolvedUserLanguage);
     }
   }
 
@@ -397,9 +393,21 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 
     logger.debug("OAuth Callback called:");
 
-    // TEST_MODE: allow overriding hasAdminUser via query param for E2E tests
+    // TEST_MODE: allow overriding hasAdminUser via query param for E2E tests (non-prod or verified secret)
+    const testSecretHeader =
+      request.headers.get("x-test-secret") || url.searchParams.get("__test_secret__");
+    const expectedTestSecret = process.env.TEST_API_SECRET || getTestSecret();
+    const isVerifiedTestHarness =
+      process.env.NODE_ENV !== "production" ||
+      Boolean(
+        testSecretHeader &&
+        expectedTestSecret &&
+        timingSafeStringEqual(testSecretHeader, expectedTestSecret),
+      );
     const isTestOAuthMock =
-      process.env.TEST_MODE === "true" && url.searchParams.has("__test_oauth_mock__");
+      process.env.TEST_MODE === "true" &&
+      isVerifiedTestHarness &&
+      url.searchParams.has("__test_oauth_mock__");
     const hasAdminUser =
       isTestOAuthMock && url.searchParams.has("__test_is_first__")
         ? false
@@ -410,12 +418,51 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
     const state = url.searchParams.get("state");
     const errorParam = url.searchParams.get("error");
     const errorSubtype = url.searchParams.get("error_subtype");
-    const token =
-      isTestOAuthMock && !state
-        ? url.searchParams.get("__test_token__") || "mock-e2e-token"
-        : state
-          ? decodeURIComponent(state)
-          : null;
+    const isSecureOAuthCookie =
+      url.protocol === "https:" ||
+      (url.hostname !== "localhost" &&
+        process.env.NODE_ENV !== "development" &&
+        process.env.TEST_MODE !== "true");
+    const oauthNonceCookieName = isSecureOAuthCookie
+      ? "__Host-svelty_oauth_nonce"
+      : "svelty_oauth_nonce";
+
+    let token: string | null = null;
+    if (isTestOAuthMock && !state) {
+      token = url.searchParams.get("__test_token__") || "mock-e2e-token";
+    } else if (code) {
+      // Callback phase: verify HMAC-signed state and browser-bound HttpOnly nonce cookie
+      const verifiedPayload = state ? verifyOAuthState(state) : null;
+      const expectedNonce = cookies.get(oauthNonceCookieName);
+      if (expectedNonce) {
+        cookies.delete(oauthNonceCookieName, { path: "/" });
+      }
+      if (verifiedPayload && expectedNonce && verifiedPayload.startsWith(`${expectedNonce}:`)) {
+        const extractedToken = verifiedPayload.slice(expectedNonce.length + 1);
+        token = extractedToken && extractedToken !== "no-token" ? extractedToken : null;
+      } else if (verifiedPayload && !expectedNonce && isTestOAuthMock) {
+        token = verifiedPayload !== "no-token" ? verifiedPayload : null;
+      } else if (state && isTestOAuthMock) {
+        token = decodeURIComponent(state);
+      } else if (!isTestOAuthMock) {
+        throw error(403, "OAuth CSRF validation failed: invalid or expired state parameter");
+      }
+    } else if (state) {
+      // Initial step with invite token in query
+      token = verifyOAuthState(state) ?? decodeURIComponent(state);
+    }
+
+    const issueOAuthStatePayload = (inviteToken: string | null): string => {
+      const nonce = generateUUID();
+      cookies.set(oauthNonceCookieName, nonce, {
+        path: "/",
+        httpOnly: true,
+        sameSite: "lax",
+        secure: isSecureOAuthCookie,
+        maxAge: 600,
+      });
+      return `${nonce}:${inviteToken || "no-token"}`;
+    };
 
     logger.debug(`Authorization code from URL: ${code}`);
     logger.debug(`Registration token from state: ${token}`);
@@ -428,7 +475,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
         url: url.toString(),
       });
       if (errorParam === "interaction_required" || errorParam === "access_denied") {
-        const authUrl = await generateGoogleAuthUrl(token, "consent");
+        const authUrl = await generateGoogleAuthUrl(issueOAuthStatePayload(token), "consent");
         redirect(302, authUrl, { external: true });
       } else {
         throw error(
@@ -443,10 +490,11 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
       const provider = url.searchParams.get("provider") || "google";
       // For first user (no existing users), redirect directly to OAuth
       if (!hasAdminUser) {
+        const statePayload = issueOAuthStatePayload(token);
         const authUrl =
           provider === "github"
-            ? await generateGithubAuthUrl(token, "consent")
-            : await generateGoogleAuthUrl(token, "consent");
+            ? await generateGithubAuthUrl(statePayload, "consent")
+            : await generateGoogleAuthUrl(statePayload, "consent");
         redirect(302, authUrl, { external: true });
       }
 
@@ -457,10 +505,11 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 
       // For non-first users with a token, redirect to OAuth with the token
       if (hasAdminUser && token) {
+        const statePayload = issueOAuthStatePayload(token);
         const authUrl =
           provider === "github"
-            ? await generateGithubAuthUrl(token, "consent")
-            : await generateGoogleAuthUrl(token, "consent");
+            ? await generateGithubAuthUrl(statePayload, "consent")
+            : await generateGoogleAuthUrl(statePayload, "consent");
         redirect(302, authUrl, { external: true });
       }
     }
@@ -515,8 +564,15 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
         const emails = await emailResponse.json();
         // GitHub returns an error envelope (not an array) when the token lacks
         // `user:email`; treat that as "no additional emails" instead of a 500.
-        const emailList = Array.isArray(emails) ? emails : [];
-        const primaryEmail = emailList.find((e: any) => e.primary)?.email || emailList[0]?.email;
+        const emailList = Array.isArray(emails)
+          ? (emails as Array<{ email?: string; primary?: boolean; verified?: boolean }>)
+          : [];
+        const primaryEmail =
+          emailList.find((e) => e.primary && e.verified === true)?.email ||
+          emailList.find((e) => e.verified === true)?.email;
+        if (!primaryEmail) {
+          throw error(400, "No verified email address found on GitHub account");
+        }
 
         googleUser = {
           email: primaryEmail,
@@ -658,12 +714,28 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 };
 
 export const actions: Actions = {
-  OAuth: async ({ request }) => {
+  OAuth: async ({ request, cookies, url }) => {
     const data = await request.formData();
-    const registrationToken = data.get("token");
+    const registrationToken = data.get("token")?.toString() || null;
     try {
-      // Generate OAuth URL with registration token in state parameter
-      const authUrl = await generateGoogleAuthUrl(registrationToken?.toString() || null);
+      const isSecureOAuthCookie =
+        url.protocol === "https:" ||
+        (url.hostname !== "localhost" &&
+          process.env.NODE_ENV !== "development" &&
+          process.env.TEST_MODE !== "true");
+      const oauthNonceCookieName = isSecureOAuthCookie
+        ? "__Host-svelty_oauth_nonce"
+        : "svelty_oauth_nonce";
+      const nonce = generateUUID();
+      cookies.set(oauthNonceCookieName, nonce, {
+        path: "/",
+        httpOnly: true,
+        sameSite: "lax",
+        secure: isSecureOAuthCookie,
+        maxAge: 600,
+      });
+      // Generate OAuth URL with nonce + registration token in signed state parameter
+      const authUrl = await generateGoogleAuthUrl(`${nonce}:${registrationToken || "no-token"}`);
       throw redirect(302, authUrl, { external: true });
     } catch (err) {
       if (err instanceof Error) {

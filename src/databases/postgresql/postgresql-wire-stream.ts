@@ -10,6 +10,9 @@
 
 import { assertSafeSqlIdentifier, buildRawTenantClause } from "../core/relational-utils";
 import {
+  WIRE_LIST_DECLINED,
+  WIRE_POINT_DECLINED,
+  WIRE_POINT_MISSING,
   buildPointWireSqlTemplates,
   collectSafeMaterializedColumns,
   resolvePointWireQuery,
@@ -68,20 +71,20 @@ export class PostgresWireStreamEngine {
     id: DatabaseId,
     options: BaseQueryOptions,
   ): Promise<RawPointWireStreamResult> {
-    if (!exec) return { kind: "declined" };
+    if (!exec) return WIRE_POINT_DECLINED;
 
     try {
       let cachedWireSql = this._pointSqlCache.get(table);
       if (cachedWireSql === undefined) {
         if (!executor.getColumn(table, "data")) {
           this._pointSqlCache.set(table, { declined: true } as PointWireSqlTemplates);
-          return { kind: "declined" };
+          return WIRE_POINT_DECLINED;
         }
 
         const matCols = collectSafeMaterializedColumns(table);
         if (!matCols) {
           this._pointSqlCache.set(table, { declined: true } as PointWireSqlTemplates);
-          return { kind: "declined" };
+          return WIRE_POINT_DECLINED;
         }
 
         const updatedAtSelect = executor.getColumn(table, "updatedAt") ? '"updatedAt"' : "''";
@@ -111,11 +114,11 @@ export class PostgresWireStreamEngine {
         });
         this._pointSqlCache.set(table, cachedWireSql);
       } else if (cachedWireSql.declined) {
-        return { kind: "declined" };
+        return WIRE_POINT_DECLINED;
       }
 
       const resolved = resolvePointWireQuery(cachedWireSql, id, options);
-      if (!resolved) return { kind: "declined" };
+      if (!resolved) return WIRE_POINT_DECLINED;
 
       const rows = (await exec.unsafe(resolved.sqlText, resolved.params, {
         prepare: true,
@@ -123,7 +126,7 @@ export class PostgresWireStreamEngine {
         doc_text?: unknown;
         updated_at?: unknown;
       }>;
-      if (!Array.isArray(rows) || rows.length === 0) return { kind: "missing" };
+      if (!Array.isArray(rows) || rows.length === 0) return WIRE_POINT_MISSING;
       const first = rows[0];
       const docText =
         typeof first.doc_text === "string"
@@ -143,7 +146,7 @@ export class PostgresWireStreamEngine {
         etag: `"${String(id)}-${updatedToken}"`,
       };
     } catch {
-      return { kind: "declined" };
+      return WIRE_POINT_DECLINED;
     }
   }
 
@@ -167,11 +170,11 @@ export class PostgresWireStreamEngine {
       fields?: string[];
     },
   ): Promise<RawListWireStreamResult> {
-    if (!exec) return { kind: "declined" };
+    if (!exec) return WIRE_LIST_DECLINED;
 
     try {
       const v = validateWireListInput(executor, table, options, '"', true);
-      if (!v) return { kind: "declined" };
+      if (!v) return WIRE_LIST_DECLINED;
       const { isProjected, projectedFields, orderClause, cacheKey, limit, offset } = v;
 
       let tableCache = this._listSqlCache.get(table);
@@ -201,7 +204,7 @@ export class PostgresWireStreamEngine {
           doc = buildProjectedListDoc(projectedFields);
         } else {
           const matCols = collectSafeMaterializedColumns(table);
-          if (!matCols) return { kind: "declined" };
+          if (!matCols) return WIRE_LIST_DECLINED;
           subColSet.add('"data"');
           subColSet.add('"_id"');
           const pairs: string[] = [`'_id', "_id"`];
@@ -253,7 +256,7 @@ export class PostgresWireStreamEngine {
       const hasTenantParam = tenantClause.params.length > 0;
       const hasTenantClause = tenantClause.sql !== "";
       const wantPublished = options?.requirePublished === true;
-      if (wantPublished && !cachedWireSql.basePub) return { kind: "declined" };
+      if (wantPublished && !cachedWireSql.basePub) return WIRE_LIST_DECLINED;
 
       let sqlText: string;
       let params: unknown[];
@@ -290,7 +293,7 @@ export class PostgresWireStreamEngine {
       logger.debug(
         `[Postgres rawFindListWireStream] falling back: ${err instanceof Error ? err.message : String(err)}`,
       );
-      return { kind: "declined" };
+      return WIRE_LIST_DECLINED;
     }
   }
 }

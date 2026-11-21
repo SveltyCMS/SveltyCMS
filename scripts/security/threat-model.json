@@ -15,7 +15,7 @@
       ],
       "model": "docs/reference/security/threat-models/api-dispatch.mdx",
       "reviewed_at": "2026-11-21",
-      "fingerprint": "d3ecc7d776f5cf2cebaf901d015039420fe29c168901089e3620b5d743881ef9"
+      "fingerprint": "82342066286c5492d298197a12ff7f127ca804e5bb95fcfa853715756d224bef"
     },
     {
       "id": "auth-session",
@@ -38,7 +38,7 @@
       ],
       "model": "docs/reference/security/threat-models/auth-session.mdx",
       "reviewed_at": "2026-11-21",
-      "fingerprint": "eeb8c6cff47224efd9e85480f58a5ef26a6b7aff1a5156c1b5de9e0f2ef89e03"
+      "fingerprint": "35a83b932530c40cb7de83265cee087e7e72f365eb3d1695735e71245af19d1e"
     },
     {
       "id": "content-write",
@@ -58,7 +58,7 @@
       ],
       "model": "docs/reference/security/threat-models/content-write.mdx",
       "reviewed_at": "2026-11-21",
-      "fingerprint": "21df7953b52c1c9edb89260e7c9a8c87cda8172a024f778b92a7c292d158debe"
+      "fingerprint": "cf3eeb072fa951e33f3b840f96a845a0a54202b72b5698b161028844bc2c303d"
     },
     {
       "id": "media-files",
@@ -75,7 +75,7 @@
       ],
       "model": "docs/reference/security/threat-models/media-files.mdx",
       "reviewed_at": "2026-11-21",
-      "fingerprint": "ed3439964d2e636a6cd84a5c107cafefb35878eb1d9f1c070a7fb0c9d2d548e6"
+      "fingerprint": "fe218f60a5612f1e502b8a9334102f53fb5bfeb09486b3036aaed114d71062bb"
     },
     {
       "id": "admin-pages",
@@ -90,7 +90,7 @@
       ],
       "model": "docs/reference/security/threat-models/admin-pages.mdx",
       "reviewed_at": "2026-11-21",
-      "fingerprint": "9433df759dba1b4736cd7d662ea1120b95b634807a535faabf69a35a54c590ee"
+      "fingerprint": "363c99b4243833d12434254e3811fbb242593ad9601ad27f143983be2536dc33"
     },
     {
       "id": "system-ops",
@@ -131,7 +131,7 @@
       ],
       "model": "docs/reference/security/threat-models/system-ops.mdx",
       "reviewed_at": "2026-11-21",
-      "fingerprint": "a631bb5882d029fad57052b28426656a579bfaebddac5b3bb908ebb46c5934e0"
+      "fingerprint": "0fca31959399c646fba089e9dfeed8767db2a5db44e8c9b2af61867fc93d45a0"
     }
   ]
 }

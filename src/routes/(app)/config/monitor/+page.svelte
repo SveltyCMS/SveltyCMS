@@ -446,7 +446,9 @@
 										{JSON.stringify(log.details)}
 									</td>
 									<td class="py-2.5 text-end font-mono hidden lg:table-cell text-xs opacity-40">
-										{log.hash ? log.hash.substring(0, 12) + '...' : '--'}
+										{(log.chainHash ?? log.hash)
+											? String(log.chainHash ?? log.hash).substring(0, 12) + '...'
+											: '--'}
 									</td>
 								</tr>
 							{/each}

@@ -12,6 +12,20 @@ import type { IFtsAdapter, DatabaseResult, DatabaseId } from "../db-interface";
 import type { IDBAdapter } from "../db-interface";
 import { assertSafeSqlIdentifier, buildRawTenantClause } from "../core/relational-utils";
 
+function escapeMariaSqlLiteral(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/\0/g, "").replace(/'/g, "''");
+}
+
+function clampFtsLimit(limit?: number): number {
+  const n = typeof limit === "number" ? Math.trunc(limit) : 50;
+  return Number.isFinite(n) ? Math.max(1, Math.min(1000, n)) : 50;
+}
+
+function clampFtsOffset(offset?: number): number {
+  const n = typeof offset === "number" ? Math.trunc(offset) : 0;
+  return Number.isFinite(n) ? Math.max(0, n) : 0;
+}
+
 export class MariaDBFtsAdapter implements IFtsAdapter {
   private adapter: IDBAdapter;
 
@@ -37,8 +51,8 @@ export class MariaDBFtsAdapter implements IFtsAdapter {
       { name: "description" },
     ];
 
-    const limit = options?.limit ?? 50;
-    const offset = options?.offset ?? 0;
+    const limit = clampFtsLimit(options?.limit);
+    const offset = clampFtsOffset(options?.offset);
 
     try {
       return await this.searchWithMatch(collection, query, columns, limit, offset, options);
@@ -61,7 +75,9 @@ export class MariaDBFtsAdapter implements IFtsAdapter {
       .join(", ");
     const filterSQL = this.buildFilterSQL(options);
 
-    const matchExpr = `MATCH(${columnNames}) AGAINST('${query.replace(/'/g, "''")}' IN BOOLEAN MODE)`;
+    const safeLimit = clampFtsLimit(limit);
+    const safeOffset = clampFtsOffset(offset);
+    const matchExpr = `MATCH(${columnNames}) AGAINST('${escapeMariaSqlLiteral(query)}' IN BOOLEAN MODE)`;
 
     const rawSQL = `
       SELECT *, ${matchExpr} AS relevance
@@ -69,7 +85,7 @@ export class MariaDBFtsAdapter implements IFtsAdapter {
       WHERE ${matchExpr}
       ${filterSQL}
       ORDER BY relevance DESC
-      LIMIT ${limit} OFFSET ${offset}
+      LIMIT ${safeLimit} OFFSET ${safeOffset}
     `;
 
     const countSQL = `
@@ -109,11 +125,9 @@ export class MariaDBFtsAdapter implements IFtsAdapter {
   ): Promise<DatabaseResult<{ items: any[]; total: number }>> {
     const safeCollection = assertSafeSqlIdentifier(collection, "table");
     const colNames = columns.map((c) => `\`${assertSafeSqlIdentifier(c.name, "column")}\``);
-    const escapedQuery = query
-      .replace(/\\/g, "\\\\")
-      .replace(/'/g, "''")
-      .replace(/%/g, "\\%")
-      .replace(/_/g, "\\_");
+    const safeLimit = clampFtsLimit(limit);
+    const safeOffset = clampFtsOffset(offset);
+    const escapedQuery = escapeMariaSqlLiteral(query).replace(/%/g, "\\%").replace(/_/g, "\\_");
     const orConditions = colNames.map((col) => `${col} LIKE '%${escapedQuery}%'`).join(" OR ");
     const filterSQL = this.buildFilterSQL(options);
 
@@ -122,7 +136,7 @@ export class MariaDBFtsAdapter implements IFtsAdapter {
       FROM \`${safeCollection}\`
       WHERE (${orConditions})
       ${filterSQL}
-      LIMIT ${limit} OFFSET ${offset}
+      LIMIT ${safeLimit} OFFSET ${safeOffset}
     `;
 
     const countSQL = `
@@ -171,7 +185,7 @@ export class MariaDBFtsAdapter implements IFtsAdapter {
       for (const [key, value] of Object.entries(options.filters)) {
         if (value !== undefined && value !== null) {
           const safeKey = assertSafeSqlIdentifier(key, "fts.filter");
-          const strVal = String(value).replace(/'/g, "''");
+          const strVal = escapeMariaSqlLiteral(String(value));
           conditions.push(`\`${safeKey}\` = '${strVal}'`);
         }
       }

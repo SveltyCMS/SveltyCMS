@@ -51,6 +51,23 @@ export type RawListWireStreamResult =
   | { kind: "found"; wireBody: string; etag: string }
   | { kind: "declined" };
 
+/** Shared frozen singletons — avoids allocating throwaway envelopes on every missing/declined wire lookup. */
+export const WIRE_POINT_MISSING: RawPointWireStreamResult = Object.freeze({ kind: "missing" });
+export const WIRE_POINT_DECLINED: RawPointWireStreamResult = Object.freeze({ kind: "declined" });
+export const WIRE_LIST_DECLINED: RawListWireStreamResult = Object.freeze({ kind: "declined" });
+
+const WIRE_RECORD_NOT_FOUND: DatabaseResult<null> = Object.freeze({
+  success: false,
+  message: "Entry not found",
+  error: Object.freeze({ code: "RECORD_NOT_FOUND", message: "Entry not found" }),
+});
+
+const WIRE_LIST_DECLINED_RESULT: DatabaseResult<null> = Object.freeze({
+  success: false,
+  message: "Direct-to-wire list declined",
+  error: Object.freeze({ code: "DECLINED", message: "Direct-to-wire list declined" }),
+});
+
 /**
  * Structural contract required by the direct-to-wire read runner.
  */
@@ -124,11 +141,7 @@ export async function executeFindPointWireStream(
     return { success: true, data: { wireBody: rawWire.wireBody, etag: rawWire.etag } };
   }
   if (rawWire.kind === "missing") {
-    return {
-      success: false,
-      message: "Entry not found",
-      error: { code: "RECORD_NOT_FOUND", message: "Entry not found" },
-    };
+    return WIRE_RECORD_NOT_FOUND;
   }
 
   return ctx.wrap(async () => {
@@ -189,11 +202,7 @@ export async function executeFindListWireStream(
     return { success: true, data: { wireBody: rawWire.wireBody, etag: rawWire.etag } };
   }
 
-  return {
-    success: false,
-    message: "Direct-to-wire list declined",
-    error: { code: "DECLINED", message: "Direct-to-wire list declined" },
-  };
+  return WIRE_LIST_DECLINED_RESULT;
 }
 
 // ---------------------------------------------------------------------------

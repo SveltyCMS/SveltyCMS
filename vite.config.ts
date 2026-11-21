@@ -185,10 +185,12 @@ const RESOLVED_ALIASES: Record<string, string> = Object.fromEntries(
   Object.entries(pathAliases).map(([key, target]) => [key, path.resolve(CWD, target)]),
 );
 
-const TRUSTED_ORIGINS = [
-  ...Array.from({ length: 600 }, (_, i) => `http://127.0.0.1:${4173 + i}`),
-  ...Array.from({ length: 600 }, (_, i) => `http://localhost:${4173 + i}`),
-];
+const TRUSTED_ORIGINS = isHarnessBuildOrDev
+  ? [
+      ...Array.from({ length: 600 }, (_, i) => `http://127.0.0.1:${4173 + i}`),
+      ...Array.from({ length: 600 }, (_, i) => `http://localhost:${4173 + i}`),
+    ]
+  : [];
 
 const paths = {
   configDir: path.resolve(CWD, "config"),
@@ -972,7 +974,7 @@ function postBuildPlugin(): Plugin {
           {
             pattern: /h\(a,s,\(\)=>\{s\.statusCode=404,s\.end\(\)\}\)/,
             replacement:
-              '(()=>{const __svelty_next=()=>{s.statusCode=404;s.end()};const __svelty_lanes=globalThis["__SVELTY_FAST_LANES__"];const m=a.method;if(__svelty_lanes&&(m==="GET"||m==="HEAD"||m==="POST"||m==="PATCH"||m==="PUT")&&a.headers["x-fast-lane"]!=="off"){let __svelty_rb;if(m==="POST"||m==="PATCH"||m==="PUT"){__svelty_rb=()=>new Promise((resolve,reject)=>{const chunks=[];let size=0;a.on("data",c=>{size+=c.length;if(size>15728640){reject(new Error("Payload too large"));return}chunks.push(c)});a.on("end",()=>resolve(Buffer.concat(chunks)));a.on("error",reject)})};__svelty_lanes({method:m,url:a.url||"/",origin:process.env.ORIGIN||("http://"+(a.headers.host||"localhost")),headers:a.headers,clientAddress:a.socket?.remoteAddress||"127.0.0.1",readBody:__svelty_rb}).then(__svelty_out=>{if(!__svelty_out){h(a,s,__svelty_next);return}s.writeHead(__svelty_out.status,__svelty_out.headers);s.end(__svelty_out.body)}).catch(()=>h(a,s,__svelty_next));return}h(a,s,__svelty_next)})()',
+              '(()=>{const __svelty_next=()=>{s.statusCode=404;s.end()};const __svelty_lanes=globalThis["__SVELTY_FAST_LANES__"];const m=a.method;if(__svelty_lanes&&(m==="GET"||m==="HEAD"||m==="POST"||m==="PATCH"||m==="PUT")&&a.headers["x-fast-lane"]!=="off"){let __svelty_rb;if(m==="POST"||m==="PATCH"||m==="PUT"){__svelty_rb=()=>new Promise((resolve,reject)=>{const chunks=[];let size=0;a.on("data",c=>{size+=c.length;if(size>15728640){reject(new Error("Payload too large"));return}chunks.push(c)});a.on("end",()=>resolve(chunks.length===1?chunks[0]:Buffer.concat(chunks)));a.on("error",reject)})};__svelty_lanes({method:m,url:a.url||"/",origin:process.env.ORIGIN||("http://"+(a.headers.host||"localhost")),headers:a.headers,clientAddress:a.socket?.remoteAddress||"127.0.0.1",readBody:__svelty_rb}).then(__svelty_out=>{if(!__svelty_out){h(a,s,__svelty_next);return}s.writeHead(__svelty_out.status,__svelty_out.headers);s.end(__svelty_out.body)}).catch(()=>h(a,s,__svelty_next));return}h(a,s,__svelty_next)})()',
             warnIfMissing: "adapter-node entry patch: request-listener pattern not found",
           },
         ]);

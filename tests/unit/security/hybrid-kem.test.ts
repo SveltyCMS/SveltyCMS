@@ -11,10 +11,14 @@
 
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
+  generateCompositeKemKeyPair,
   generateKemKeyPair,
   hybridOpen,
   hybridSeal,
+  isCompositeKemAvailable,
+  isHybridEnvelope,
   isMlKemAvailable,
+  type CompositeKemKeyPair,
   type KemKeyPair,
 } from "@utils/security/hybrid-kem";
 
@@ -247,5 +251,90 @@ describeKem("hybrid-kem", () => {
     } finally {
       spy.mockRestore();
     }
+  });
+
+  describe("composite X25519 + ML-KEM-768 (v2: envelope)", () => {
+    let compositePair: CompositeKemKeyPair;
+    let compositeReady = false;
+
+    beforeAll(async () => {
+      compositeReady = await isCompositeKemAvailable();
+      if (compositeReady) {
+        compositePair = await generateCompositeKemKeyPair();
+      }
+    });
+
+    it("round-trips through a 10-part v2: X25519+ML-KEM-768 envelope with AAD", async () => {
+      if (!compositeReady) return;
+      const plaintext = encoder.encode("composite classical+PQ secret");
+      const aad = encoder.encode("tenant:acme|field:ssn");
+      const envelope = await hybridSeal(plaintext, {
+        publicKey: compositePair.publicKey,
+        classicalPublicKey: compositePair.classicalPublicKey,
+        aad,
+      });
+
+      expect(envelope.startsWith("v2:")).toBe(true);
+      expect(envelope.split(":")).toHaveLength(10);
+      expect(isHybridEnvelope(envelope)).toBe(true);
+
+      const opened = await hybridOpen(envelope, {
+        privateKey: compositePair.privateKey,
+        classicalPrivateKey: compositePair.classicalPrivateKey,
+        aad,
+      });
+      expectBytesEqual(opened, plaintext);
+    });
+
+    it("fails closed when classicalPrivateKey is missing or wrong", async () => {
+      if (!compositeReady) return;
+      const envelope = await hybridSeal(encoder.encode("composite fail-closed"), {
+        publicKey: compositePair.publicKey,
+        classicalPublicKey: compositePair.classicalPublicKey,
+      });
+
+      await expect(hybridOpen(envelope, { privateKey: compositePair.privateKey })).rejects.toThrow(
+        /opening failed/i,
+      );
+
+      const other = await generateCompositeKemKeyPair();
+      await expect(
+        hybridOpen(envelope, {
+          privateKey: compositePair.privateKey,
+          classicalPrivateKey: other.classicalPrivateKey,
+        }),
+      ).rejects.toThrow(/opening failed/i);
+
+      await expect(
+        hybridOpen(envelope, {
+          privateKey: other.privateKey,
+          classicalPrivateKey: compositePair.classicalPrivateKey,
+        }),
+      ).rejects.toThrow(/opening failed/i);
+    });
+
+    it("rejects a tampered ephemeral X25519 public key or ciphertext", async () => {
+      if (!compositeReady) return;
+      const envelope = await hybridSeal(encoder.encode("tamper x25519"), {
+        publicKey: compositePair.publicKey,
+        classicalPublicKey: compositePair.classicalPublicKey,
+      });
+
+      const tamperedEphemeral = replaceField(envelope, 2, flipBase64Url(envelope.split(":")[2]));
+      await expect(
+        hybridOpen(tamperedEphemeral, {
+          privateKey: compositePair.privateKey,
+          classicalPrivateKey: compositePair.classicalPrivateKey,
+        }),
+      ).rejects.toThrow(/opening failed/i);
+
+      const tamperedPayload = replaceField(envelope, 9, flipBase64Url(envelope.split(":")[9]));
+      await expect(
+        hybridOpen(tamperedPayload, {
+          privateKey: compositePair.privateKey,
+          classicalPrivateKey: compositePair.classicalPrivateKey,
+        }),
+      ).rejects.toThrow(/opening failed/i);
+    });
   });
 });

@@ -221,7 +221,8 @@
 				collections.activeValue = {
 					...currentEntry!,
 					status: StatusTypes.schedule,
-					_scheduled: timestamp
+					_scheduled: timestamp,
+					_scheduledAction: action
 				};
 				toast.success(`Entry scheduled for ${action}.`);
 			}

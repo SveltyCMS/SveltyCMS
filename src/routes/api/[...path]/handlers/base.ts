@@ -16,6 +16,53 @@ import { safeParse, type GenericSchema, type InferOutput } from "valibot";
 
 const STATIC_JSON_HEADERS = { "content-type": "application/json" } as const;
 
+/**
+ * Monomorphic prototype-based Response facade for fast-lane JSON responses.
+ * Avoids allocating per-response `text`/`json` async closures on every hot
+ * create, update, GraphQL, and collection read response.
+ */
+export class FastLaneJsonResponse {
+  public readonly status: number;
+  public readonly ok: boolean;
+  public readonly headers: Headers;
+  public readonly __fastHeaders: Record<string, string>;
+  public readonly __fastBody: string | Uint8Array;
+  public readonly __securityHeadersApplied: boolean;
+  private readonly _rawText: string | undefined;
+
+  constructor(
+    status: number,
+    headers: Record<string, string>,
+    body: string | Uint8Array,
+    securityHeadersApplied = false,
+    rawText?: string,
+  ) {
+    this.status = status;
+    this.ok = status >= 200 && status < 300;
+    this.headers = createFastHeaders(headers);
+    this.__fastHeaders = headers;
+    this.__fastBody = body;
+    this.__securityHeadersApplied = securityHeadersApplied;
+    this._rawText = rawText;
+  }
+
+  text(): Promise<string> {
+    if (this._rawText !== undefined) return Promise.resolve(this._rawText);
+    const body = this.__fastBody;
+    return Promise.resolve(typeof body === "string" ? body : Buffer.from(body).toString("utf8"));
+  }
+
+  json(): Promise<unknown> {
+    const str =
+      this._rawText !== undefined
+        ? this._rawText
+        : typeof this.__fastBody === "string"
+          ? this.__fastBody
+          : Buffer.from(this.__fastBody).toString("utf8");
+    return Promise.resolve(JSON.parse(str));
+  }
+}
+
 export const STATIC_ENVELOPES = {
   SUCCESS_NULL: '{"success":true,"data":null}',
   SUCCESS_EMPTY_ARRAY: '{"success":true,"data":[]}',
@@ -92,15 +139,7 @@ function buildJsonResponse(
       };
 
   if ((event?.locals as { __isFastLane?: boolean } | undefined)?.__isFastLane === true) {
-    return {
-      status,
-      ok: status >= 200 && status < 300,
-      headers: createFastHeaders(headers),
-      __fastHeaders: headers,
-      __fastBody: serialized,
-      text: async () => serialized,
-      json: async () => JSON.parse(serialized),
-    } as unknown as Response;
+    return new FastLaneJsonResponse(status, headers, serialized) as unknown as Response;
   }
 
   const res = new Response(serialized, {
@@ -190,15 +229,7 @@ export function fastSuccessResponse(
       };
 
   if ((event?.locals as { __isFastLane?: boolean } | undefined)?.__isFastLane === true) {
-    return {
-      status,
-      ok: status >= 200 && status < 300,
-      headers: createFastHeaders(headers),
-      __fastHeaders: headers,
-      __fastBody: serialized,
-      text: async () => serialized,
-      json: async () => JSON.parse(serialized),
-    } as unknown as Response;
+    return new FastLaneJsonResponse(status, headers, serialized) as unknown as Response;
   }
 
   const res = new Response(serialized, {

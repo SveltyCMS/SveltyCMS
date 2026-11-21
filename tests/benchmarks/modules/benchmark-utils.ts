@@ -11,7 +11,12 @@ import os from "node:os";
 import { execSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { pushTableToMdx, appendSummaryToMdx } from "./benchmark-reporting";
-import { resolveServerMode, isModeContaminated, reportModeRefusal } from "./benchmark-history";
+import {
+  resolveServerMode,
+  isModeContaminated,
+  reportModeRefusal,
+  resolveBenchmarkRunMode,
+} from "./benchmark-history";
 import { logger } from "@utils/logger";
 import { takeProfileSpans } from "@src/utils/write-profiler";
 import type { DatabaseId } from "@src/content/types";
@@ -2024,7 +2029,7 @@ export async function exportResult(r: any) {
     }
   }
 
-  const runMode = process.env.BENCHMARK_MATRIX === "1" ? "matrix" : "standalone";
+  const runMode = resolveBenchmarkRunMode();
   const serverMode = resolveServerMode();
   const modeVerdict = isModeContaminated(runMode, serverMode);
   if (modeVerdict.contaminated) {

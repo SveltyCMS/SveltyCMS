@@ -513,7 +513,30 @@ export abstract class AdapterCore extends SqlAdapterCore {
       }
 
       this._db = drizzle(this.pool, { schema, mode: "default" });
-      await this.pool.query("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED");
+      const [verRows] = await this.pool
+        .query("SELECT VERSION() AS ver; SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED")
+        .catch(async () => {
+          const [v] = await this.pool!.query("SELECT VERSION() AS ver");
+          await this.pool!.query("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED");
+          return [v];
+        });
+      const verRow = Array.isArray(verRows)
+        ? Array.isArray(verRows[0])
+          ? verRows[0][0]
+          : verRows[0]
+        : verRows;
+      const verStr = String((verRow as { ver?: string } | undefined)?.ver ?? "");
+      const mariaMatch = /(\d+)\.(\d+)\.(\d+)/.exec(verStr);
+      const isMariaServer = /mariadb/i.test(verStr);
+      if (mariaMatch && process.env.SVELTY_ALLOW_LEGACY_DB !== "1") {
+        const major = Number(mariaMatch[1]);
+        const minor = Number(mariaMatch[2]);
+        if (!isMariaServer || major < 11 || (major === 11 && minor < 4)) {
+          throw new Error(
+            `Unsupported MariaDB/MySQL server version ("${verStr}"): SveltyCMS requires MariaDB 11.4+ (11.4 LTS – 13.2).`,
+          );
+        }
+      }
 
       this.connected = true;
       const poolMax = poolConfig.connectionLimit || 20;
@@ -836,7 +859,15 @@ export abstract class AdapterCore extends SqlAdapterCore {
   // Atomic Increment
   // --------------------------------------------------------------------------
 
-  private _returningSupported: boolean | null = null;
+  /** MariaDB 10.5+ supports INSERT ... RETURNING and REPLACE ... RETURNING. */
+  private _insertReturningSupported: boolean | null = null;
+  /**
+   * MariaDB 10.5–13.2 only supports RETURNING on INSERT, DELETE, and REPLACE
+   * (single-table UPDATE ... RETURNING is not supported and raises 1064).
+   * Keep false by default so `update()` uses the single-pass raw prepared
+   * `tpl.sqlSkip` + `rawFindById` path without wasting a round-trip syntax error.
+   */
+  private _updateReturningSupported: boolean | null = false;
 
   /**
    * Whether JSON path arguments (`$.field`) may be bound as `?` parameters in
@@ -929,7 +960,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
     data: EntityCreate<T>,
     options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<T>> {
-    if (this._returningSupported === false) {
+    if (this._insertReturningSupported === false) {
       return super.upsert(collection, query, data, options);
     }
     try {
@@ -1029,7 +1060,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
       const rows = (await this.raw.execute(sqlText, params)) as any[];
       mStmt?.();
       if (Array.isArray(rows) && rows.length > 0) {
-        this._returningSupported = true;
+        this._insertReturningSupported = true;
         return {
           success: true,
           data: convertDatesToISO(rows[0], {
@@ -1040,7 +1071,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
       }
       return super.upsert(collection, query, data, options);
     } catch (err: any) {
-      this._returningSupported = false;
+      this._insertReturningSupported = false;
       logger.debug(
         `MariaDB upsert RETURNING not supported, using base upsert path: ${err.message}`,
       );
@@ -1060,7 +1091,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
     values: Record<string, any>,
     _options: BaseQueryOptions,
   ): Promise<T | null> {
-    if (this._returningSupported === false) return null;
+    if (this._insertReturningSupported === false) return null;
     try {
       const tableName = getTableName(table);
       const cols = Object.keys(values);
@@ -1102,7 +1133,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
         }) as unknown as T;
       }
       if (Array.isArray(rows) && rows.length > 0) {
-        this._returningSupported = true;
+        this._insertReturningSupported = true;
         return convertDatesToISO(rows[0], {
           mariaDoubleParseJson: true,
           table: collection,
@@ -1111,7 +1142,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
       }
       return null;
     } catch {
-      this._returningSupported = false;
+      this._insertReturningSupported = false;
       return null;
     }
   }
@@ -1407,10 +1438,10 @@ export abstract class AdapterCore extends SqlAdapterCore {
   }
 
   /**
-   * MariaDB ≥10.5 supports UPDATE ... RETURNING natively, but Drizzle's mysql2
-   * dialect does not expose .returning(). The base update() would otherwise do
-   * UPDATE + separate findById (2 round trips). This raw path keeps one.
-   * Falls back to the base implementation when RETURNING is unsupported.
+   * MariaDB 10.5–13.2 only supports INSERT/DELETE/REPLACE ... RETURNING (no
+   * UPDATE ... RETURNING). Execute the cached prepared `tpl.sqlSkip` via
+   * `rawExec` and read back via the cached prepared `rawFindById` statement
+   * instead of falling back to two uncached Drizzle AST queries.
    */
   override async update<T extends BaseEntity>(
     collection: string,
@@ -1418,9 +1449,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
     data: EntityUpdate<T>,
     options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<T>> {
-    if (this._returningSupported === false) {
-      return super.update(collection, id, data, options);
-    }
+    const skipReturning = (options as any)?.skipReturning === true;
     // Inside an outer transaction WITHOUT a raw handle (a Drizzle tx from
     // another caller) the raw pool path would bypass the txn connection —
     // defer to the base Drizzle path. With the TransactionModule's raw
@@ -1470,9 +1499,6 @@ export abstract class AdapterCore extends SqlAdapterCore {
 
       const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "mysql");
 
-      // 🚀 NO-READ-BACK: full-document callers skip the RETURNING row read-back
-      // + JSON parse — the row is reconstructed from the prepared values.
-      const skipReturning = (options as any)?.skipReturning === true;
       // 🚀 TEMPLATE CACHE (parity with SQLite/PG): the SET list, WHERE clause and
       // both SQL variants depend only on the column ORDER (the key captures it),
       // tenant clause, merge mode and RETURNING choice — build once per shape.
@@ -1513,13 +1539,14 @@ export abstract class AdapterCore extends SqlAdapterCore {
         );
       }
 
-      const sqlText = skipReturning ? tpl.sqlSkip : tpl.sqlReturning;
+      const useReturning = !skipReturning && this._updateReturningSupported === true;
+      const sqlText = useReturning ? tpl.sqlReturning : tpl.sqlSkip;
       // 🔬 Parity with SQLite/PG's `db:upd:stmt` — without this mark MariaDB's writes
       // produced fewer statement spans than writes (measured N = 0.44), which made its
       // round-trip count uncountable. One mark per statement, so
       // N = Σ db:*:stmt ÷ ns:persist and per-statement latency compare across engines.
       const mStmt = PROFILE_WRITE_ENABLED ? profileMark("db:upd:stmt") : null;
-      const rows = (await rawExec(sqlText, [...params, String(id), ...tenantParams])) as any[];
+      const rows = (await rawExec(sqlText, [...params, String(id), ...tenantParams])) as any;
       mStmt?.();
 
       if (skipReturning) {
@@ -1540,8 +1567,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
         return this.okEnvelope(finalData, true);
       }
 
-      if (Array.isArray(rows) && rows.length > 0) {
-        this._returningSupported = true;
+      if (useReturning && Array.isArray(rows) && rows.length > 0) {
         const converted = convertDatesToISO(rows[0], {
           mariaDoubleParseJson: true,
           table: collection,
@@ -1554,11 +1580,41 @@ export abstract class AdapterCore extends SqlAdapterCore {
         this.metrics.queryCount++;
         return this.okEnvelope(finalData, true);
       }
+
+      // When UPDATE ... RETURNING is not used, `rows` is mysql2's ResultSetHeader.
+      // Check affectedRows and read back the updated row via cached rawFindById.
+      const affected = Number((rows as { affectedRows?: number } | undefined)?.affectedRows ?? -1);
+      if (affected === 0) {
+        return {
+          success: false,
+          message: `Record with id ${String(id)} not found in ${collection}`,
+          error: {
+            code: "UPDATE_NOT_FOUND",
+            message: `Record with id ${String(id)} not found in ${collection}`,
+          },
+        };
+      }
+      const rawFetched = await this.rawFindById<T>(table, collection, id, options);
+      if (rawFetched && typeof rawFetched === "object") {
+        const finalData =
+          this.hooks.length > 0
+            ? await this.runHooks("after", "update", collection, rawFetched, options)
+            : rawFetched;
+        this.metrics.queryCount++;
+        return this.okEnvelope(finalData as T, true);
+      }
+      const fetched = await this.findById<T>(collection, id, options);
+      if (fetched.success && fetched.data) {
+        const finalData =
+          this.hooks.length > 0
+            ? await this.runHooks("after", "update", collection, fetched.data, options)
+            : fetched.data;
+        this.metrics.queryCount++;
+        return this.okEnvelope(finalData as T, true);
+      }
     } catch (err: any) {
-      this._returningSupported = false;
-      logger.debug(
-        `MariaDB UPDATE...RETURNING not supported, using base update path: ${err.message}`,
-      );
+      this._updateReturningSupported = false;
+      logger.debug(`MariaDB raw update path fell back to base update path: ${err.message}`);
     }
     return super.update(collection, id, data, options);
   }
@@ -2042,7 +2098,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
           return { _id: idStr };
         }
 
-        if (this._returningSupported !== false) {
+        if (this._insertReturningSupported !== false) {
           try {
             // Prefer single-round-trip upsert with bound params when RETURNING is available.
             const upsertSql = fieldIsColumn
@@ -2061,14 +2117,14 @@ export abstract class AdapterCore extends SqlAdapterCore {
                   )) as any[])
                 : ((await this.raw.execute(upsertSql, upsertParams)) as any[]);
             if (Array.isArray(rows) && rows.length > 0) {
-              this._returningSupported = true;
+              this._insertReturningSupported = true;
               return convertDatesToISO(rows[0], {
                 mariaDoubleParseJson: true,
                 table: collection,
               }) as Record<string, unknown>;
             }
           } catch (err: any) {
-            this._returningSupported = false;
+            this._insertReturningSupported = false;
             logger.debug(
               `MariaDB INSERT...RETURNING not supported, using inline SELECT fallback: ${err.message}`,
             );
@@ -2242,41 +2298,45 @@ export abstract class AdapterCore extends SqlAdapterCore {
 
   private static readonly SORT_EXPR_FIELD_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
   private static readonly MAX_DYNAMIC_SORT_INDEXES = 64;
-  private _dynamicSortIndexes = new Map<string, "requested" | "done">();
+  private _dynamicSortIndexes = new Map<string, "requested" | "done" | "unsupported">();
 
   /**
-   * Schedule a lazy index for a dynamic JSON field sorted via `JSON_UNQUOTE(JSON_EXTRACT(data, '$.field'))`.
-   * Resolves the MariaDB W1 scale cliff (4.25 s at 1M rows down to index seeks).
-   * In MariaDB 10.6+ / 12.3+, this creates an expression index or generated virtual column index fire-and-forget.
+   * Schedule a lazy virtual generated column + B-tree index for a dynamic JSON field
+   * sorted via `JSON_UNQUOTE(JSON_EXTRACT(data, '$.field'))`.
+   * MariaDB does not support MySQL 8 double-paren `((expr))` functional indexes (MDEV-10717);
+   * instead, MariaDB 10.5–13.2 indexes JSON paths via a `GENERATED ALWAYS AS (...) VIRTUAL`
+   * column plus a standard B-tree index (`ADD COLUMN IF NOT EXISTS` + `CREATE INDEX IF NOT EXISTS`).
    */
   protected override onDynamicSort(collection: string, tableName: string, field: string): void {
     if (process.env.SVELTY_LAZY_SORT_INDEXES === "0") return;
     if (field.includes(".") || !AdapterCore.SORT_EXPR_FIELD_RE.test(field)) return;
     const table = this.getTable(collection);
-    // If field is already a physical column on the table, an expression index on data is unnecessary
+    // If field is already a physical column on the table, a generated column index on data is unnecessary
     if (table && this.getColumn(table, field)) return;
 
     const key = `${collection}\0${field}`;
     if (this._dynamicSortIndexes.has(key)) return;
+    if (this._dynamicSortIndexes.size >= AdapterCore.MAX_DYNAMIC_SORT_INDEXES) return;
     this._dynamicSortIndexes.set(key, "requested");
-    this.evictIfFull(this._dynamicSortIndexes, AdapterCore.MAX_DYNAMIC_SORT_INDEXES);
 
     const safeTable = assertSafeSqlIdentifier(tableName, "table");
+    const vcolName = assertSafeSqlIdentifier(boundedSqlIndexName(`_v_${field}`), "column");
     const rawIndexName = `${tableName}_${field}_expr_idx`;
     const indexName = assertSafeSqlIdentifier(boundedSqlIndexName(rawIndexName), "index");
 
     void (async () => {
       try {
-        // MariaDB 10.6+ supports expression indexes directly: CREATE INDEX ... ON table ((JSON_UNQUOTE(JSON_EXTRACT(data, '$.field'))))
         await this.raw.execute(
-          `CREATE INDEX IF NOT EXISTS \`${indexName}\` ON \`${safeTable}\` ((JSON_UNQUOTE(JSON_EXTRACT(\`data\`, '$.${field}'))))`,
+          `ALTER TABLE \`${safeTable}\` ADD COLUMN IF NOT EXISTS \`${vcolName}\` VARCHAR(255) GENERATED ALWAYS AS (LEFT(JSON_UNQUOTE(JSON_EXTRACT(\`data\`, '$.${field}')), 255)) VIRTUAL, ALGORITHM=INSTANT`,
+        );
+        await this.raw.execute(
+          `CREATE INDEX IF NOT EXISTS \`${indexName}\` ON \`${safeTable}\` (\`${vcolName}\`)`,
         );
         this._dynamicSortIndexes.set(key, "done");
       } catch (err: unknown) {
-        // Fallback: if functional index syntax is restricted or field extraction fails, unmark to allow retry or fallback scan
-        this._dynamicSortIndexes.delete(key);
+        this._dynamicSortIndexes.set(key, "unsupported");
         logger.debug(
-          `[MariaDB] onDynamicSort index failed for ${tableName}.${field}: ${err instanceof Error ? err.message : String(err)}`,
+          `[MariaDB] onDynamicSort virtual column index skipped for ${tableName}.${field}: ${err instanceof Error ? err.message : String(err)}`,
         );
       }
     })();

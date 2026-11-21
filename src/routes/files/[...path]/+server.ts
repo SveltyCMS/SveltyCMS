@@ -26,7 +26,7 @@
 
 import { createReadStream } from "node:fs";
 import type { Stats } from "node:fs";
-import { open, readFile, stat } from "node:fs/promises";
+import { open, readFile, realpath, stat } from "node:fs/promises";
 import { Readable } from "node:stream";
 import path from "node:path";
 import { getPublicSettingSync } from "@src/services/core/settings-service";
@@ -422,6 +422,25 @@ export const GET = apiHandler(async ({ params, request, locals }) => {
 
   filePath = filePath.replace(/^\/?files\//, "").replace(/^\/+/, "");
 
+  // Reject control characters, backslashes, and dot-dot / dot traversal segments before path resolution
+  let hasControlChar = false;
+  for (let i = 0; i < filePath.length; i++) {
+    const code = filePath.charCodeAt(i);
+    if (code <= 0x1f || code === 0x7f) {
+      hasControlChar = true;
+      break;
+    }
+  }
+  if (
+    !filePath ||
+    hasControlChar ||
+    filePath.includes("\\") ||
+    /(?:^|\/)\.\.?(?:\/|$)/.test(filePath)
+  ) {
+    logger.warn("Directory traversal or malformed file path blocked", { requested: filePath });
+    raise(403, "Access denied", "ACCESS_DENIED");
+  }
+
   const storageType = getPublicSettingSync("MEDIA_STORAGE_TYPE") || "local";
   const ifNoneMatch = request.headers.get("if-none-match");
   const ifModifiedSince = request.headers.get("if-modified-since");
@@ -434,14 +453,39 @@ export const GET = apiHandler(async ({ params, request, locals }) => {
 
   // Directory traversal guard (must run before cloud redirects too)
   const relative = path.relative(basePath, resolvedPath);
-  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+  if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
     logger.warn("Directory traversal attempt blocked", { requested: filePath });
     raise(403, "Access denied", "ACCESS_DENIED");
   }
 
-  // 🛡️ Tenant access control — extract tenant from file path
+  // Symlink escape guard for local filesystem storage
+  if (storageType === "local") {
+    try {
+      const [realBase, realTarget] = await Promise.all([
+        realpath(basePath),
+        realpath(resolvedPath),
+      ]);
+      const realRel = path.relative(realBase, realTarget);
+      if (realRel.startsWith("..") || path.isAbsolute(realRel)) {
+        logger.warn("Symlink traversal attempt blocked", { requested: filePath });
+        raise(403, "Access denied", "ACCESS_DENIED");
+      }
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code;
+      // ENOENT is handled downstream as 404; rethrow explicit 403s
+      if (code && code !== "ENOENT") {
+        raise(403, "Access denied", "ACCESS_DENIED");
+      }
+      if (!code) rethrow(err);
+    }
+  }
+
+  const normalizedRelative = relative.split(path.sep).join("/");
+  filePath = normalizedRelative;
+
+  // 🛡️ Tenant access control — extract tenant from normalized relative file path
   // Path format: {tenantId}/{hash}/original/file.jpg or global/{hash}/original/file.jpg
-  const pathTenant = filePath.split("/")[0];
+  const pathTenant = normalizedRelative.split("/")[0];
   if (isMultiTenantEnabled() && pathTenant && pathTenant !== "global") {
     const userTenantId = locals.tenantId;
     // Reject when: no tenantId (undefined/null), OR tenantId doesn't match path tenant and isn't "global" bypass

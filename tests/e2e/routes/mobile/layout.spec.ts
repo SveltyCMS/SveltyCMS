@@ -24,7 +24,13 @@ const ACTION_TIMEOUT = 20_000;
 const MIN_TOUCH_TARGET = 24;
 
 /** Routes that render a full admin layout (shell + content column). */
-const ROUTES = ["/dashboard", "/config", "/user", "/mediagallery"] as const;
+const ROUTES = [
+  "/dashboard",
+  "/config",
+  "/config/collectionbuilder",
+  "/user",
+  "/mediagallery",
+] as const;
 
 async function goto(page: Page, path: string): Promise<void> {
   await loginAsAdmin(page, path);
@@ -85,6 +91,37 @@ test.describe("mobile layout", () => {
         Math.min(box!.width, box!.height),
         `control ${(await control.getAttribute("aria-label")) ?? "?"} is ${box!.width}×${box!.height} CSS px`,
       ).toBeGreaterThanOrEqual(MIN_TOUCH_TARGET);
+    }
+  });
+
+  test("dashboard dropdown menus fit within the mobile viewport without horizontal overflow", async ({
+    page,
+  }) => {
+    await goto(page, "/dashboard");
+    const vp = page.viewportSize()!;
+
+    const presetsBtn = page.getByTestId("dashboard-presets-btn");
+    if (await presetsBtn.isVisible().catch(() => false)) {
+      await presetsBtn.click();
+      const presetsMenu = page.getByTestId("dashboard-presets-menu");
+      await expect(presetsMenu).toBeVisible({ timeout: ACTION_TIMEOUT });
+      const box = await presetsMenu.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(vp.width + 1);
+      await page.keyboard.press("Escape");
+    }
+
+    const addWidgetBtn = page.getByTestId("dashboard-add-widget");
+    if (await addWidgetBtn.isVisible().catch(() => false)) {
+      await addWidgetBtn.click();
+      const widgetMenu = page.getByTestId("dashboard-widget-menu");
+      await expect(widgetMenu).toBeVisible({ timeout: ACTION_TIMEOUT });
+      const box = await widgetMenu.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(vp.width + 1);
+      await page.keyboard.press("Escape");
     }
   });
 });

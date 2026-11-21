@@ -227,14 +227,24 @@ function getLaneCms(): LocalCMS | null {
 
 type CollectionHandlerModule = typeof import("@src/routes/api/[...path]/handlers/collections");
 let collectionHandlersPromise: Promise<CollectionHandlerModule> | null = null;
+let cachedCollectionHandlers: CollectionHandlerModule | null = null;
 function loadCollectionHandlers(): Promise<CollectionHandlerModule> {
-  collectionHandlersPromise ??= import("@src/routes/api/[...path]/handlers/collections");
+  collectionHandlersPromise ??= import("@src/routes/api/[...path]/handlers/collections").then(
+    (mod) => {
+      cachedCollectionHandlers = mod;
+      return mod;
+    },
+  );
   return collectionHandlersPromise;
 }
 
 let graphqlPostPromise: Promise<(event: RequestEvent) => Promise<Response>> | null = null;
+let cachedGraphqlPost: ((event: RequestEvent) => Promise<Response>) | null = null;
 function loadGraphqlPost(): Promise<(event: RequestEvent) => Promise<Response>> {
-  graphqlPostPromise ??= import("@src/routes/api/graphql/+server").then((mod) => mod.POST);
+  graphqlPostPromise ??= import("@src/routes/api/graphql/+server").then((mod) => {
+    cachedGraphqlPost = mod.POST;
+    return mod.POST;
+  });
   return graphqlPostPromise;
 }
 
@@ -285,7 +295,7 @@ function finishWarmWrite(
     applyAllSecurityHeaders(
       res.headers,
       event.url.protocol === "https:",
-      event.request.headers.get("Origin"),
+      event.request.headers.get("origin"),
       event.url.pathname,
     );
   }
@@ -299,13 +309,15 @@ function finishWarmWrite(
 function openWarmMutation(
   event: RequestEvent,
   turbo: NonNullable<ReturnType<typeof getTurboAuthContext>>,
+  prechecked?: { mfaVerified?: boolean; resolvedTenant?: DatabaseId | null },
 ): Promise<void> | void {
   const { request, url, cookies, locals } = event;
   // 🛡️ Role-level MFA: reject before the body is read so the request can still
   // be replayed by the full pipeline, which owns the step-up redirect/403.
   if (
-    turbo.mfaPolicyKnown !== true ||
-    !validateSessionMfaRequirement(turbo.user, turbo.roles, turbo.amr)
+    !prechecked?.mfaVerified &&
+    (turbo.mfaPolicyKnown !== true ||
+      !validateSessionMfaRequirement(turbo.user, turbo.roles, turbo.amr))
   ) {
     throw new AppError("Multi-factor authentication required", 403, "MFA_REQUIRED");
   }
@@ -337,10 +349,13 @@ function openWarmMutation(
   }
   locals.user = turbo.user;
   locals.roles = turbo.roles;
-  locals.tenantId = resolveRequestTenant(
-    request,
-    turbo.tenantId ?? (turbo.user?.tenantId as DatabaseId | undefined) ?? null,
-  );
+  locals.tenantId =
+    prechecked?.resolvedTenant !== undefined
+      ? prechecked.resolvedTenant
+      : resolveRequestTenant(
+          request,
+          turbo.tenantId ?? (turbo.user?.tenantId as DatabaseId | undefined) ?? null,
+        );
   locals.isAdmin = turbo.isAdmin;
   (locals as { __turboAuth?: boolean }).__turboAuth = true;
   locals.dbAdapter = dbAdapter as typeof locals.dbAdapter;
@@ -353,7 +368,7 @@ async function dispatchExtendedCollectionWrite(
   cms: LocalCMS,
   parts: string[],
 ): Promise<Response | null> {
-  const handlers = await loadCollectionHandlers();
+  const handlers = cachedCollectionHandlers ?? (await loadCollectionHandlers());
   const collectionId = parts[2];
   const entryId = parts[3];
   const subAction = parts[4];
@@ -421,6 +436,11 @@ export function isSimpleWriteLaneAuthorized(args: {
 async function executeWarmCollectionWrite(
   event: RequestEvent,
   turboContext?: NonNullable<ReturnType<typeof getTurboAuthContext>>,
+  prechecked?: {
+    mfaVerified?: boolean;
+    authVerified?: boolean;
+    resolvedTenant?: DatabaseId | null;
+  },
 ): Promise<Response | null> {
   const { request, url, cookies, locals } = event;
   const srvT0 = STAMP_SRV_DUR || STAMP_WRITE_SPLIT ? performance.now() : 0;
@@ -442,7 +462,7 @@ async function executeWarmCollectionWrite(
     return null;
   }
 
-  const mutP = openWarmMutation(event, turbo);
+  const mutP = openWarmMutation(event, turbo, prechecked);
   if (mutP) await mutP;
   marks?.set("security", performance.now() - t0);
 
@@ -452,11 +472,13 @@ async function executeWarmCollectionWrite(
   // Extended routes require admin on the fast lane; simple routes allow
   // collections:write (already authorized in tryCollectionWriteLane). Both
   // re-check here as defense-in-depth for a direct caller.
-  if (kind === "extended" && !turbo.isAdmin) {
-    throw new AppError("Forbidden: Insufficient permissions", 403, "FORBIDDEN");
-  }
-  if (kind === "simple" && !isSimpleWriteLaneAuthorized(turbo)) {
-    throw new AppError("Forbidden: Insufficient permissions", 403, "FORBIDDEN");
+  if (!prechecked?.authVerified) {
+    if (kind === "extended" && !turbo.isAdmin) {
+      throw new AppError("Forbidden: Insufficient permissions", 403, "FORBIDDEN");
+    }
+    if (kind === "simple" && !isSimpleWriteLaneAuthorized(turbo)) {
+      throw new AppError("Forbidden: Insufficient permissions", 403, "FORBIDDEN");
+    }
   }
 
   const pathname = url.pathname;
@@ -522,7 +544,7 @@ async function executeWarmCollectionWrite(
   // so both paths behave identically.
   const precompiledHeaders = getWriteHeaderTemplate(
     url.protocol === "https:",
-    request.headers.get("Origin"),
+    request.headers.get("origin"),
     false,
   );
   if (minimal) {
@@ -570,6 +592,11 @@ async function executeWarmCollectionWrite(
 export async function serveWarmCollectionWrite(
   event: RequestEvent,
   turbo: NonNullable<ReturnType<typeof getTurboAuthContext>>,
+  prechecked?: {
+    mfaVerified?: boolean;
+    authVerified?: boolean;
+    resolvedTenant?: DatabaseId | null;
+  },
 ): Promise<Response> {
   const start = performance.now();
   let statusCode = 500;
@@ -588,7 +615,7 @@ export async function serveWarmCollectionWrite(
     const res = await handleRateLimit({
       event,
       resolve: async () => {
-        const written = await executeWarmCollectionWrite(event, turbo);
+        const written = await executeWarmCollectionWrite(event, turbo, prechecked);
         // Unreachable while `turbo` is supplied and the adapter exists, but the
         // body may already be consumed here, so answer rather than fall through.
         if (written) return written;
@@ -642,6 +669,13 @@ export const tryGraphqlWriteLane: Handle = async ({ event, resolve }) => {
   if (!turbo.isAdmin) {
     return resolve(event);
   }
+  const resolvedTenant = resolveRequestTenant(
+    event.request,
+    turbo.tenantId ?? (turbo.user?.tenantId as DatabaseId | undefined) ?? null,
+  );
+  if (!resolvedTenant && isMultiTenantEnabled()) {
+    return resolve(event);
+  }
   const start = performance.now();
   const stamp = STAMP_SRV_DUR || STAMP_WRITE_SPLIT;
   const srvT0 = stamp ? start : 0;
@@ -656,15 +690,15 @@ export const tryGraphqlWriteLane: Handle = async ({ event, resolve }) => {
       event,
       resolve: async () => {
         const tSec = STAMP_WRITE_SPLIT ? performance.now() : 0;
-        const mutP = openWarmMutation(event, turbo);
+        const mutP = openWarmMutation(event, turbo, { mfaVerified: true, resolvedTenant });
         if (mutP) await mutP;
         marks?.set("security", performance.now() - tSec);
-        const post = await loadGraphqlPost();
+        const post = cachedGraphqlPost ?? (await loadGraphqlPost());
         (
           event.locals as { __graphqlSecurityHeaders?: Record<string, string> }
         ).__graphqlSecurityHeaders = getWriteHeaderTemplate(
           event.url.protocol === "https:",
-          event.request.headers.get("Origin"),
+          event.request.headers.get("origin"),
           true,
         );
         const res = await post(event);
@@ -683,8 +717,8 @@ export const tryGraphqlWriteLane: Handle = async ({ event, resolve }) => {
     }
     throw err;
   } finally {
-    const durationMs = (performance.now() - start).toFixed(1);
     if (!(event.locals as { __graphqlIsRead?: boolean }).__graphqlIsRead) {
+      const durationMs = (performance.now() - start).toFixed(1);
       recordAuditEntry(event, statusCode, durationMs, executionError);
     }
   }
@@ -731,5 +765,9 @@ export const tryCollectionWriteLane: Handle = async ({ event, resolve }) => {
   if (!resolvedWriteTenant && isMultiTenantEnabled()) {
     return resolve(event);
   }
-  return serveWarmCollectionWrite(event, turbo);
+  return serveWarmCollectionWrite(event, turbo, {
+    mfaVerified: true,
+    authVerified: true,
+    resolvedTenant: resolvedWriteTenant,
+  });
 };

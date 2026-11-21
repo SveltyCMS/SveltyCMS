@@ -98,14 +98,14 @@ export function isSessionRevoked(
   }
 
   // 1. Check system-wide global epoch
-  if (globalRevocationEpoch > 0 && issuedAtMs < globalRevocationEpoch) {
+  if (globalRevocationEpoch > 0 && issuedAtMs <= globalRevocationEpoch) {
     return true;
   }
 
   // 2. Check tenant epoch
   if (tenantId) {
     const tenantEpoch = tenantRevocationEpoch.get(tenantId);
-    if (tenantEpoch !== undefined && issuedAtMs < tenantEpoch) {
+    if (tenantEpoch !== undefined && issuedAtMs <= tenantEpoch) {
       return true;
     }
   }
@@ -113,7 +113,7 @@ export function isSessionRevoked(
   // 3. Check user epoch
   if (userId) {
     const userEpoch = userRevocationEpoch.get(userId);
-    if (userEpoch !== undefined && issuedAtMs < userEpoch) {
+    if (userEpoch !== undefined && issuedAtMs <= userEpoch) {
       return true;
     }
   }

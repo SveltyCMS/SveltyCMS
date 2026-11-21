@@ -42,8 +42,10 @@ Collection Builder: Input, Email, Markdown, and PhoneNumber widgets expose an **
 Stored value:
 
 ```
-v1:<base64url iv>:<base64url tag>:<base64url ciphertext>
+v2:<keyId>:<base64url iv>:<base64url tag>:<base64url ciphertext>
 ```
+
+Legacy `v1:<iv>:<tag>:<ciphertext>` envelopes stay readable. When `PQC_HYBRID_FIELDS=true` is enabled (requiring `PQC_KEM_PUBLIC_KEY` / `PQC_KEM_PRIVATE_KEY`, and optionally `PQC_X25519_PUBLIC_KEY` / `PQC_X25519_PRIVATE_KEY` for composite `v2:` X25519 + ML-KEM-768 envelopes), writes seal into a 9-part (`v1:`) or 10-part (`v2:`) hybrid KEM envelope and fail closed (`PQC_FIELD_ENCRYPTION_UNAVAILABLE`) if keys or runtime support are absent. Standard AES-256-GCM reads remain completely synchronous with zero microtask overhead; the read pipeline switches to async WebCrypto decryption only when a hybrid envelope is detected.
 
 - Algorithm: AES-256-GCM (`ENCRYPTION_CONFIG` in `@utils/security/crypto`)
 - IV: 16 random bytes per encryption (CSPRNG)

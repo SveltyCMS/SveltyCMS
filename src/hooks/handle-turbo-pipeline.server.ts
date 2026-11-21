@@ -23,7 +23,7 @@ import {
   getTestSecret,
 } from "@utils/server/setup-check";
 import { getOverallState, getSystemState, isSystemReady } from "@src/stores/system/state.svelte.ts";
-import { generateUUID } from "@utils/native-utils";
+import { generateUUID, timingSafeStringEqual } from "@utils/native-utils";
 import { isRedirect, isHttpError, type RequestEvent } from "@sveltejs/kit";
 import type { Handle } from "@sveltejs/kit/hooks";
 import type { DatabaseAdapter } from "@src/databases/db-interface";
@@ -248,11 +248,17 @@ async function getCorsHeadersInline(
 }
 
 // ✨ PERFORMANCE: Cache environment lookups to avoid process.env overhead on every request
+// 🛡️ PRODUCTION GUARD: Test mode is disabled in NODE_ENV === "production" unless an explicit
+// non-empty TEST_API_SECRET or ALLOW_TEST_MODE_IN_PROD=true is configured for the benchmark harness.
+const IS_PROD_ENV = typeof process !== "undefined" && process.env?.NODE_ENV === "production";
 const IS_TEST_MODE =
-  typeof globalThis !== "undefined" &&
-  (String((globalThis as any).process?.env?.TEST_MODE) === "true" ||
-    String((globalThis as any).process?.env?.VITE_TEST_MODE) === "true" ||
-    String((globalThis as any).process?.env?.PLAYWRIGHT_TEST) === "true");
+  typeof process !== "undefined" &&
+  (process.env?.TEST_MODE === "true" ||
+    process.env?.VITE_TEST_MODE === "true" ||
+    process.env?.PLAYWRIGHT_TEST === "true") &&
+  (!IS_PROD_ENV ||
+    Boolean(process.env?.TEST_API_SECRET) ||
+    process.env?.ALLOW_TEST_MODE_IN_PROD === "true");
 const DB_TYPE =
   typeof globalThis !== "undefined" ? (globalThis as any).process?.env?.DB_TYPE : "unknown";
 const IS_STRICT_SETUP_CHECK =
@@ -304,9 +310,9 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
   const testSecret = isTest ? event.request.headers.get("x-test-secret") : null;
 
   if (testSecret) {
-    const expected = process.env.TEST_API_SECRET || getTestSecret();
+    const expected = process.env.TEST_API_SECRET || (!IS_PROD_ENV ? getTestSecret() : null);
 
-    if (expected && testSecret === expected) {
+    if (expected && timingSafeStringEqual(testSecret, expected)) {
       // 🚀 TERMINAL BYPASS: Verified test secret receives full system access.
       // We explicitly skip ALL other middleware by calling the dispatcher or returning a direct response.
       if (
@@ -382,13 +388,15 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         // This prevents false positives in integration tests checking for 401/403.
         // Setup: only inject while install is incomplete — never after private.ts exists
         // (admin-takeover class if /api/setup/* still accepted a synthetic admin).
-        const setupIncomplete = pathname.includes("/api/setup") && !isSetupComplete();
+        const setupIncomplete =
+          (pathname === "/api/setup" || pathname.startsWith("/api/setup/")) && !isSetupComplete();
         const isManagement =
-          pathname.includes("/api/testing") ||
+          pathname === "/api/testing" ||
+          pathname.startsWith("/api/testing/") ||
           setupIncomplete ||
-          pathname.includes("/api/system/health") ||
-          pathname.includes("/health") ||
-          pathname.includes("/api/user/login"); // Allow login bypass to proceed
+          pathname === "/api/system/health" ||
+          pathname === "/health" ||
+          pathname === "/api/user/login"; // Allow login bypass to proceed
 
         if (isManagement) {
           (event.locals as any).user = {
@@ -583,8 +591,16 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         : undefined;
 
       const response = await resolve(event, resolveOptions);
-      if (dev) logRequest(event, performance.now() - requestStart, response.status);
-      return response;
+      const out = withMutableHeaders(response, (headers) => {
+        applyAllSecurityHeaders(
+          headers,
+          event.url.protocol === "https:",
+          event.request.headers.get("origin"),
+          pathname,
+        );
+      });
+      if (dev) logRequest(event, performance.now() - requestStart, out.status);
+      return out;
     }
 
     // ── 6. SYSTEM STATE GATE ────────────────────────────────────────────────

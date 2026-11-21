@@ -27,6 +27,7 @@ const FETCH_TIMEOUT_MS = 5000;
 const CACHE_PERMANENT_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 const licenseCache = new Map<string, { status: LicenseStatus; expiresAt: number }>();
+const MAX_LICENSE_CACHE_ENTRIES = 512;
 const inFlightRequests = new Map<string, Promise<LicenseStatus>>();
 
 let cachedInstallDate: Date | null = null;
@@ -52,6 +53,10 @@ function setCache(cacheKey: string, status: LicenseStatus): void {
     ttl = CACHE_PERMANENT_MS;
   }
 
+  if (licenseCache.size >= MAX_LICENSE_CACHE_ENTRIES && !licenseCache.has(cacheKey)) {
+    const oldestKey = licenseCache.keys().next().value;
+    if (oldestKey !== undefined) licenseCache.delete(oldestKey);
+  }
   licenseCache.set(cacheKey, { status, expiresAt: Date.now() + ttl });
 }
 

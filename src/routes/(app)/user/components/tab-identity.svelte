@@ -49,7 +49,6 @@ Features:
 		userpage_delete_failed,
 		userpage_edit_profile,
 		userpage_edit_user_body,
-		userpage_edit_usersetting,
 		userpage_editavatar,
 		userpage_help_email_aria,
 		userpage_help_id_aria,
@@ -393,7 +392,6 @@ Features:
 					variant="primary"
 					leadingIcon="bi:pencil-fill"
 					onclick={modalUserForm}
-					aria-label={userpage_edit_usersetting()}
 					disabled={!hydration.hydrated}
 					data-testid="edit-user-settings-btn"
 				>

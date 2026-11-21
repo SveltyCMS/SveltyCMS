@@ -410,6 +410,9 @@ function readGraphqlName(src: string, start: number): { name: string; next: numb
   return { name: src.slice(start, i), next: i };
 }
 
+const MAX_GRAPHQL_ROOT_COLLECTION_CACHE = 512;
+const graphqlRootCollectionCache = new Map<string, string | null>();
+
 /**
  * Extract the single top-level GraphQL collection root field when a query cleanly
  * touches only one root selection with flat field leaves.
@@ -421,6 +424,18 @@ function readGraphqlName(src: string, start: number): { name: string; next: numb
  */
 export function extractGraphqlRootCollection(query: string): string | null {
   if (!query) return null;
+  const cached = graphqlRootCollectionCache.get(query);
+  if (cached !== undefined) return cached;
+  const result = computeGraphqlRootCollection(query);
+  if (graphqlRootCollectionCache.size >= MAX_GRAPHQL_ROOT_COLLECTION_CACHE) {
+    const oldest = graphqlRootCollectionCache.keys().next().value;
+    if (oldest !== undefined) graphqlRootCollectionCache.delete(oldest);
+  }
+  graphqlRootCollectionCache.set(query, result);
+  return result;
+}
+
+function computeGraphqlRootCollection(query: string): string | null {
   const n = query.length;
   let i = skipGraphqlTrivia(query, 0);
   if (i >= n) return null;
@@ -563,6 +578,7 @@ export function extractGraphqlRootCollection(query: string): string | null {
 /** Clear the memo — used by tests and tenant-aware invalidation tooling. */
 export function clearGraphQLResponseKeyMemo(): void {
   graphqlResponseKeyMemo.clear();
+  graphqlRootCollectionCache.clear();
   graphqlResponseKeyMemoHits = 0;
   graphqlResponseKeyMemoMisses = 0;
 }
@@ -617,7 +633,9 @@ export function buildGraphQLResponseCacheKey(
   const rawVariables =
     typeof variables === "string"
       ? variables
-      : variables && typeof variables === "object" && variables !== null
+      : variables &&
+          typeof variables === "object" &&
+          hasAnyProperty(variables as Record<string, unknown>)
         ? JSON.stringify(variables)
         : "";
 
@@ -1640,6 +1658,7 @@ class ResponseCacheService {
     meta?: { collection: string; entryId: string },
     compressed?: Record<string, Uint8Array>,
     byteLength?: number,
+    buffer?: Uint8Array,
   ): void {
     if (!this.admitPointRead(key, tenantId)) return;
 
@@ -1649,6 +1668,7 @@ class ResponseCacheService {
       etag,
       expiresAt: Date.now() + ttlMs,
       stale: false,
+      ...(buffer ? { buffer } : {}),
       ...(compressed ? { compressed } : {}),
       ...(byteLength !== undefined ? { byteLength } : {}),
     };

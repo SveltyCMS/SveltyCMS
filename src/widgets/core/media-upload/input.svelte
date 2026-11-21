@@ -35,7 +35,8 @@
 	import Badge from '@components/ui/badge.svelte';
 	import { flip } from 'svelte/animate';
 	import { untrack } from 'svelte';
-	import { draggable, droppable } from '@thisux/sveltednd';
+	import { liftAndCarry } from '@utils/media/media-lift-drag';
+	import { droppable } from '@thisux/sveltednd';
 	import type { DragDropState } from '@thisux/sveltednd';
 	import { page } from '$app/state';
 	import type { FieldType } from './';
@@ -407,10 +408,10 @@
 				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 				<div
 					class="relative overflow-hidden border border-surface-500/30 dark:text-surface-50"
-					style="border-radius: var(--admin-radius-input, 0.25rem)"
+					style="border-radius: var(--admin-radius-input, 0.25rem); touch-action: pan-y;"
 					data-file-id={file._id}
 					animate:flip
-					use:draggable={{
+					use:liftAndCarry={{
 						container: 'media-grid',
 						dragData: file,
 						handle: '.media-drag-handle',
@@ -421,7 +422,7 @@
 				>
 					<button
 						type="button"
-						class="media-drag-handle absolute inset-s-1 top-1 z-10 flex h-5 w-5 items-center justify-center rounded-full border-none bg-surface-900/50 text-white transition-colors hover:bg-surface-900/75 cursor-grab active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+						class="media-drag-handle absolute inset-s-1 top-1 z-10 flex h-6 w-6 touch-none items-center justify-center rounded-full border-none bg-surface-900/50 text-white transition-colors hover:bg-surface-900/75 cursor-grab active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
 						aria-label={`Drag to reorder ${file.name}`}
 						title={common_drag_reorder()}
 					>
@@ -473,11 +474,11 @@
 								e.stopPropagation();
 								aspectPreviewFile = file;
 							}}
-							class="absolute inset-e-1 top-7 flex h-5 w-5 items-center justify-center rounded-full border-none bg-surface-900/50 text-white transition-colors hover:bg-surface-900/75"
+							class="absolute inset-e-1 top-8 flex h-6 w-6 items-center justify-center rounded-full border-none bg-surface-900/50 text-white transition-colors hover:bg-surface-900/75"
 							aria-label={`Preview aspect ratios for ${file.name}`}
 							title={widget_aspect_ratio_preview()}
 						>
-							<iconify-icon icon="mdi:aspect-ratio" width="12"></iconify-icon>
+							<iconify-icon icon="mdi:aspect-ratio" width="13"></iconify-icon>
 						</button>
 					{/if}
 					{#if file.type?.startsWith('image/')}
@@ -487,17 +488,17 @@
 								e.stopPropagation();
 								handleEditImage(file);
 							}}
-							class="absolute inset-s-1 top-7 flex h-5 w-5 items-center justify-center rounded-full border-none bg-surface-900/50 text-white transition-colors hover:bg-surface-900/75"
+							class="absolute inset-s-1 top-8 flex h-6 w-6 items-center justify-center rounded-full border-none bg-surface-900/50 text-white transition-colors hover:bg-surface-900/75"
 							aria-label={`Edit image ${file.name}`}
 							title="Edit image"
 						>
-							<iconify-icon icon="mdi:tune-variant" width="12"></iconify-icon>
+							<iconify-icon icon="mdi:tune-variant" width="13"></iconify-icon>
 						</button>
 					{/if}
 					<button
 						type="button"
 						onclick={() => removeFile(file._id)}
-						class="absolute inset-e-1 top-1 flex h-5 w-5 items-center justify-center rounded-full border-none bg-surface-900/50 text-white transition-colors hover:bg-surface-900/75"
+						class="absolute inset-e-1 top-1 flex h-6 w-6 items-center justify-center rounded-full border-none bg-surface-900/50 text-white transition-colors hover:bg-surface-900/75"
 						aria-label={builder_remove()}
 						title={builder_remove()}
 					>

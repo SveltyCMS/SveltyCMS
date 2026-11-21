@@ -164,5 +164,43 @@ describe("field-level AES-256-GCM encryption", () => {
       await decryptDocumentFields(doc, ["secretToken"], CTX);
       expect(doc.secretToken).toBe("pqc_token_789");
     });
+
+    it("accepts canonical PQC_KEM_PUBLIC_KEY / PQC_KEM_PRIVATE_KEY and composite X25519 keys", async () => {
+      const { generateCompositeKemKeyPair, isCompositeKemAvailable, isHybridEnvelope } =
+        await import("@utils/security/hybrid-kem");
+      if (!(await isCompositeKemAvailable())) return;
+
+      const keys = await generateCompositeKemKeyPair();
+      vi.stubEnv("PQC_HYBRID_FIELDS", "true");
+      vi.stubEnv("PQC_KEM_PUBLIC_KEY", keys.publicKey);
+      vi.stubEnv("PQC_KEM_PRIVATE_KEY", keys.privateKey);
+      vi.stubEnv("PQC_X25519_PUBLIC_KEY", keys.classicalPublicKey);
+      vi.stubEnv("PQC_X25519_PRIVATE_KEY", keys.classicalPrivateKey);
+
+      const envelope = await encryptFieldValue("composite-field-secret", CTX, "secretField");
+      expect(isHybridEnvelope(envelope)).toBe(true);
+      expect(envelope.startsWith("v2:")).toBe(true);
+      expect(envelope.split(":")).toHaveLength(10);
+
+      expect(await decryptFieldValue(envelope, CTX, "secretField")).toBe("composite-field-secret");
+    });
+
+    it("fails closed instead of silently downgrading when PQC_HYBRID_FIELDS=true without a KEM key", async () => {
+      vi.stubEnv("PQC_HYBRID_FIELDS", "true");
+      vi.stubEnv("PQC_KEM_PUBLIC_KEY", undefined);
+      vi.stubEnv("KEM_PUBLIC_KEY", undefined);
+
+      await expect(encryptFieldValue("must-not-downgrade", CTX, "ssn")).rejects.toSatisfy(
+        (err: unknown) =>
+          err instanceof AppError && err.code === "PQC_FIELD_ENCRYPTION_UNAVAILABLE",
+      );
+
+      const doc: Record<string, unknown> = { ssn: "must-not-downgrade" };
+      await expect(encryptDocumentFields(doc, ["ssn"], CTX)).rejects.toSatisfy(
+        (err: unknown) =>
+          err instanceof AppError && err.code === "PQC_FIELD_ENCRYPTION_UNAVAILABLE",
+      );
+      expect(doc.ssn).toBe("must-not-downgrade");
+    });
   });
 });

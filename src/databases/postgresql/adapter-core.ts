@@ -79,6 +79,14 @@ import {
   pgIdleTimeout,
   pgSafeIndexName,
 } from "./postgres-utils";
+import {
+  PG19_MAJOR_VERSION,
+  PG_MIN_SUPPORTED_MAJOR_VERSION,
+  PG_MIN_SUPPORTED_VERSION_NUM,
+  buildWaitForLsnSql,
+  isValidPgLsn,
+  parsePgMajorVersion,
+} from "./pg19-features";
 export { PG_TEXT_DATE_TYPES, pgConnectionParameters, pgIdleTimeout, pgSafeIndexName };
 
 export abstract class PostgresAdapterCore extends SqlAdapterCore {
@@ -125,6 +133,23 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   private replicaSqls = new Map<string, ReturnType<typeof postgres>>();
   private allReplicaSqls: ReturnType<typeof postgres>[] = [];
   protected _rawConnectionConfig?: { finalConnection: any; options: any };
+  /** Numeric PostgreSQL `server_version_num` captured at connect (e.g. `190000` for PG 19.0). */
+  protected _serverVersionNum = 0;
+
+  /** Numeric PostgreSQL server version (`server_version_num`, 0 if undetected). */
+  public get serverVersionNum(): number {
+    return this._serverVersionNum;
+  }
+
+  /** PostgreSQL major version (e.g. `19` for 19.0, `18` for 18.7, `0` if undetected). */
+  public get pgMajorVersion(): number {
+    return parsePgMajorVersion(this._serverVersionNum);
+  }
+
+  /** True when connected to PostgreSQL 19+ (native REPACK, WAIT FOR LSN, ON CONFLICT DO SELECT). */
+  public get supportsPg19Features(): boolean {
+    return this.pgMajorVersion >= PG19_MAJOR_VERSION;
+  }
 
   // --------------------------------------------------------------------------
   // Per-Tenant Connection Pools
@@ -1235,13 +1260,18 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     // If field is already a physical column on the table, an expression index on (data->>'field') is pure write amplification
     if (table && this.getColumn(table, field)) return;
 
+    // Only build lazy expression indexes for fields declared in the collection schema
+    // (or when no schema is registered in contentStore for unit-test harness tables).
+    const registeredSchemas = (globalThis as { __sveltySchemas?: Map<string, Set<string>> })
+      .__sveltySchemas;
+    const declaredForCollection =
+      registeredSchemas?.get(collection) ?? registeredSchemas?.get(tableName);
+    if (declaredForCollection && !declaredForCollection.has(field)) return;
+
     const key = `${collection}\0${field}`;
     if (this._dynamicSortIndexes.has(key)) return;
+    if (this._dynamicSortIndexes.size >= PostgresAdapterCore.MAX_DYNAMIC_SORT_INDEXES) return;
     this._dynamicSortIndexes.set(key, "requested");
-    if (this._dynamicSortIndexes.size > PostgresAdapterCore.MAX_DYNAMIC_SORT_INDEXES) {
-      const oldest = this._dynamicSortIndexes.keys().next().value;
-      if (oldest !== undefined) this._dynamicSortIndexes.delete(oldest);
-    }
 
     const safeTable = assertSafeSqlIdentifier(tableName, "table");
     const rawIndexName = `${tableName}_${field}_expr_idx`;
@@ -1550,6 +1580,8 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           max: 50,
           transform: { undefined: null },
           types: PG_TEXT_DATE_TYPES,
+          fetch_types: false,
+          infer: true,
           idle_timeout: pgIdleTimeout(),
           // postgres.js 3.4.x: pipelining is always enabled (`max_pipeline`
           // defaults to 100); TCP keepalive is `keep_alive` = initial delay in
@@ -1741,7 +1773,29 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     this.sql = postgres(finalConnection, options);
     this._rawConnectionConfig = { finalConnection, options };
     this._db = drizzle(this.sql, { schema });
-    await this.sql`SELECT 1`;
+    try {
+      // Single-round-trip connectivity probe + server_version_num capture so
+      // PostgreSQL 18–19 floor enforcement and PG 19+ capabilities (REPACK CONCURRENTLY,
+      // WAIT FOR LSN, ON CONFLICT DO SELECT) are known at boot without an extra query.
+      const probe =
+        await this.sql`SELECT current_setting('server_version_num')::int AS version_num`;
+      this._serverVersionNum = Number(probe?.[0]?.version_num) || 0;
+    } catch {
+      await this.sql`SELECT 1`;
+      this._serverVersionNum = 0;
+    }
+    if (
+      this._serverVersionNum > 0 &&
+      this._serverVersionNum < PG_MIN_SUPPORTED_VERSION_NUM &&
+      process.env.SVELTY_ALLOW_LEGACY_DB !== "1"
+    ) {
+      await this.sql.end().catch(() => {});
+      this.sql = null;
+      this._db = null;
+      throw new Error(
+        `Unsupported PostgreSQL version (${this.pgMajorVersion}): SveltyCMS requires PostgreSQL ${PG_MIN_SUPPORTED_MAJOR_VERSION}.0+ (18–19).`,
+      );
+    }
     this.connected = true;
     const poolMax = options.max || 20;
     const gateDisabled =
@@ -1755,8 +1809,56 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         enableWriteCoalescing: true,
       });
     }
-    logger.info("Connected to PostgreSQL");
+    logger.info(
+      this.pgMajorVersion > 0
+        ? `Connected to PostgreSQL ${this.pgMajorVersion}${this.supportsPg19Features ? " (PG19+ native features enabled)" : ""}`
+        : "Connected to PostgreSQL",
+    );
     return { success: true, data: undefined };
+  }
+
+  /**
+   * Returns the current primary WAL LSN (`pg_current_wal_lsn()`) for PG 19+
+   * replica Read-Your-Writes synchronization. Returns `null` when unavailable.
+   */
+  public async getCurrentWalLsn(): Promise<string | null> {
+    if (!this.sql) return null;
+    try {
+      const rows = await this.sql`SELECT pg_current_wal_lsn()::text AS lsn`;
+      const lsn = typeof rows?.[0]?.lsn === "string" ? rows[0].lsn : null;
+      return isValidPgLsn(lsn) ? lsn : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * PostgreSQL 19+ standby Read-Your-Writes synchronization (`WAIT FOR LSN`).
+   * Waits on a read replica until WAL replay reaches `lsn` (bounded by `timeoutMs`),
+   * returning `true` when synchronized or `false` on PG ≤ 18 / timeout / primary.
+   */
+  public async waitForReplicaLsn(
+    lsn: string,
+    timeoutMs = 2_000,
+    replicaClient?: ReturnType<typeof postgres> | null,
+  ): Promise<boolean> {
+    if (!this.supportsPg19Features || !isValidPgLsn(lsn)) return false;
+    const exec = replicaClient ?? this.getSql("read");
+    if (!exec || exec === this.sql) return false;
+    try {
+      const waitSql = buildWaitForLsnSql(lsn, timeoutMs, true);
+      const rows = (await exec.unsafe(waitSql)) as Array<{ status?: string }> | undefined;
+      const status = rows?.[0]?.status;
+      if (typeof status === "string" && status.toLowerCase() !== "success") {
+        return false;
+      }
+      return true;
+    } catch (err: unknown) {
+      logger.debug(
+        `[PostgreSQL] WAIT FOR LSN ${lsn} fell back: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      return false;
+    }
   }
 
   async disconnect(): Promise<DatabaseResult<void>> {

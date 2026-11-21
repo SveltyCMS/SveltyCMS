@@ -18,7 +18,21 @@ import type { RequestHandler } from "@sveltejs/kit";
 export const GET: RequestHandler = async ({ url, locals }) => {
   const targetPath = url.searchParams.get("path") || "/dashboard";
   const tenantId = (locals?.tenantId as string) || "global";
-  const user = (locals?.user as { _id?: unknown; id?: unknown } | null) ?? null;
+  const rawUser =
+    (locals?.user as {
+      _id?: unknown;
+      id?: unknown;
+      role?: string;
+      isAdmin?: boolean;
+    } | null) ?? null;
+  if (!rawUser || (!rawUser._id && !rawUser.id)) {
+    return Response.json({ error: "Authentication required" }, { status: 401 });
+  }
+  const user = {
+    ...rawUser,
+    isAdmin: Boolean(locals?.isAdmin ?? rawUser.isAdmin),
+    roles: Array.isArray(locals?.roles) ? locals.roles : [],
+  };
 
   // Hovered/target path: await LocalCMS fill so the following click can TURBO-HIT.
   await routeResourceStateMachine

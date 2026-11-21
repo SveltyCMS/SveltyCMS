@@ -19,9 +19,9 @@ tags:
 
 ## Overview
 
-SveltyCMS implements military-grade cryptography through the centralized `@utils/crypto` module, using **Argon2id** for password hashing and key derivation, and **AES-256-GCM** for data encryption. This provides enterprise-level security against current classical computing threats and maintains strong resistance against emerging quantum computing capabilities.
+SveltyCMS centralizes application cryptography under `src/utils/security/` (`crypto.ts`, `envelope.ts`, `field-encryption.ts`, `hybrid-kem.ts`, `checksum.ts`), using **Argon2id** for password hashing and **AES-256-GCM** (with optional opt-in **ML-KEM-768** / **X25519 + ML-KEM-768** envelopes) for data at rest. See [Quantum Security](../security/quantum-security.mdx) for the dated self-assessment of classical vs. post-quantum primitives and limits.
 
-**Module Location:** `src/utils/crypto.ts`
+**Module Locations:** `src/utils/security/crypto.ts`, `src/utils/security/envelope.ts`, `src/utils/security/field-encryption.ts`, `src/utils/security/hybrid-kem.ts`
 
 ### Understanding Classical vs. Quantum Cryptography
 
@@ -78,7 +78,7 @@ SveltyCMS uses a two-algorithm approach for maximum security:
 
 **Why AES-256-GCM?**
 
-- 🔐 **Military-grade** - Used by US government for TOP SECRET data
+- 🔐 **NIST-approved AEAD** — 256-bit key with 128-bit GCM authentication tag
 - ✅ **Authenticated encryption** - Built-in tamper detection
 - ⚡ **Hardware-accelerated** - Modern CPUs have AES-NI instructions
 - 🌍 **Industry standard** - NIST approved, widely audited

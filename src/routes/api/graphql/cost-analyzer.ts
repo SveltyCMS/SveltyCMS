@@ -71,6 +71,9 @@ export function matchSingleFieldQuery(
   return { field, selections };
 }
 
+const MAX_COLLECTION_QUERY_CACHE = 256;
+const collectionQueryCache = new Map<string, MatchedCollectionQuery | null>();
+
 /**
  * Detect a single collection query with optional pagination/limit/page arguments.
  * Rejects nested selections (relations) or complex directives so they fall through to Yoga.
@@ -79,18 +82,30 @@ export function matchCollectionQuery(
   rawQuery: string,
   variables?: Record<string, any>,
 ): MatchedCollectionQuery | null {
+  const cacheable = !rawQuery.includes("$");
+  if (cacheable) {
+    const cached = collectionQueryCache.get(rawQuery);
+    if (cached !== undefined) return cached;
+  }
+
   const normalized = normalizeQueryString(rawQuery);
   const match =
     /^(?:query(?:\s+[A-Za-z_][A-Za-z0-9_]*(?:\s*\([^)]*\))?)?)?\s*\{\s*([A-Za-z_][A-Za-z0-9_]*)(?:\s*\(([^)]*)\))?\s*(?:\{\s*([^}]*)\s*\})?\s*\}\s*$/.exec(
       normalized,
     );
-  if (!match) return null;
+  if (!match) {
+    if (cacheable) cacheCollectionQuery(rawQuery, null);
+    return null;
+  }
   const field = match[1];
   const rawArgs = (match[2] ?? "").trim();
   const inner = (match[3] ?? "").trim();
 
   // Nested sub-selections (relations) fall through to Yoga
-  if (inner.includes("{") || inner.includes("}")) return null;
+  if (inner.includes("{") || inner.includes("}")) {
+    if (cacheable) cacheCollectionQuery(rawQuery, null);
+    return null;
+  }
 
   const selections = inner ? inner.replace(/,/g, " ").split(/\s+/).filter(Boolean) : [];
   const result: MatchedCollectionQuery = { field, selections, limit: 50, page: 1 };
@@ -99,7 +114,16 @@ export function matchCollectionQuery(
     applyArgTokens(rawArgs, result, variables);
   }
 
+  if (cacheable) cacheCollectionQuery(rawQuery, result);
   return result;
+}
+
+function cacheCollectionQuery(rawQuery: string, value: MatchedCollectionQuery | null): void {
+  if (collectionQueryCache.size >= MAX_COLLECTION_QUERY_CACHE) {
+    const oldest = collectionQueryCache.keys().next().value;
+    if (oldest !== undefined) collectionQueryCache.delete(oldest);
+  }
+  collectionQueryCache.set(rawQuery, value);
 }
 
 /**

@@ -50,7 +50,7 @@ services:
       retries: 3
 
   postgres:
-    image: postgres:18
+    image: postgres:19
     restart: unless-stopped
     environment:
       POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}

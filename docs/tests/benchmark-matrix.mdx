@@ -6,7 +6,7 @@ order: 14
 icon: "📊"
 author: "SveltyCMS Team"
 created: "2026-07-04"
-updated: "2026-10-23"
+updated: "2026-11-21"
 tags:
   - "benchmarks"
   - "performance"
@@ -246,6 +246,8 @@ Runs automatically before `bun run benchmark` and `bun run benchmark:core`. Chec
 - Build exists with full testing harness (bench mode)
 - Live `config/private.ts` does not use test DB names (`benchmark_shared`, `sveltycms_test`)
 - Prints isolation boundaries: database, compiled root, media sandbox, external services status
+- Prints a **[latency-variance report](#bottleneck-attribution-on-site)** for the newest
+  `competitive-workload-replica` run, with automated bottleneck classification
 
 ```bash
 COMPILE_ALL_ADAPTERS=true bun run build
@@ -256,6 +258,9 @@ bun run benchmark:core --db=sqlite     # CI parity core suite
 bun run benchmark --db=sqlite --tier=competitive   # fastest: 1 replica test (10 workloads, ~15s)
 bun run benchmark --db=sqlite --tier=core          # 8 essential CI tests (~60s)
 bun run benchmark --db=sqlite --tier=full          # complete regression suite (default)
+
+# 🔬 Attribution run: phase decomposition + tail/contention leaderboard
+bun run benchmark --db=postgresql --tier=competitive --diagnose
 
 # Single benchmark (or a few) instead of the whole matrix — substring match on the
 # file name, comma-separated; repeated flags OR together:
@@ -504,6 +509,99 @@ Benchmarks run on **every** push and PR — there are no skipped bench placehold
 - `push` tier: `bench-core` runs on **every** `next`/`main` push, then the performance gate fails the run on a budget breach or a **confirmed** severe drift (two consecutive runs)
 - PR tier: `bench-core` runs on every PR; the gate warns instead of blocking review
 - `full` tier: runs complete bench matrix
+
+## Bottleneck Attribution (on site)
+
+The matrix answers _whether_ a run got slower. The attribution layer answers _where_ —
+before anyone opens a profiler.
+
+### Preflight latency-variance report
+
+`verify:benchmark-local` grades the **newest** `competitive-workload-replica` run per
+adapter from its recorded result JSON (ensemble median of the last 3 runs, minimum 100
+samples for a p99 claim) and prints one row per workload:
+
+```text
+Workload                                   N      Avg      P50      P95      P99   P99-P50  P99/P50  SLOW‰  Stability
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+listLarge (Warm Concurrent 8c)          3000   1.066   0.980   1.953   4.26    +3.28ms    4.35x    12.0  🔴 JITTER ALERT
+```
+
+| Column    | Meaning                                                                                        |
+| :-------- | :--------------------------------------------------------------------------------------------- |
+| `P99-P50` | **The verdict.** Absolute tail excess — what a caller actually feels, independent of row speed |
+| `P99/P50` | Context only. `ratio ≈ 1 + S/p50`, so a fixed stall punishes the fastest rows hardest          |
+| `SLOW‰`   | Slow-call rate per 1 000 — converges, unlike a p99 of a few hundred samples                    |
+| Stability | `EXCELLENT` ≤1 ms · `ACCEPTABLE` ≤2 ms · `WATCH` ≤4 ms · `HIGH_VARIANCE` beyond                |
+
+Rows without a recorded `p50`/`p99` (or with fewer than 100 samples) print `UNMEASURED`
+and fail `--strict`: an unmeasured row cannot be called stable.
+
+### Contention attribution
+
+The top five tail hotspots are classified automatically, each with the exact deep probe
+that isolates it:
+
+```text
+🔬 Automated Bottleneck & Contention Attribution
+  • listLarge (Warm Concurrent 8c) +3.28ms tail (P99 4.26ms, SLOW‰ 12.0 | 8c/1c P50: 3.05× (contention 3.05× on 16 cores for 8 workers))
+    ↳ Diagnosis: Concurrent list wire-stream payload serialization / socket backpressure (3.05× beyond 1× oversubscription floor)
+    ↳ Deep Probe: SVELTY_SRV_SPLIT=1 SVELTY_SRV_DUR=1 bun test tests/benchmarks/competitive-workload-replica.test.ts
+```
+
+The amplification factor is `8c P50 ÷ 1c P50` against the workload's own sequential
+twin. It is graded **net of the host's oversubscription floor** `max(1, 8 / usableCores)`:
+on a 4-core host the 8c stage waits for CPU even with zero shared state, so a raw ratio
+of `2.0×` there is no contention signal at all. The report prints the usable core count
+with every factor so the number is reproducible rather than mysterious.
+
+Classification thresholds (applied to the excess, not the raw ratio):
+
+| Workload prefix   | Threshold | Classification when exceeded                                             |
+| :---------------- | :-------- | :----------------------------------------------------------------------- |
+| `create`/`update` | 2.2×      | Write-lock / group-commit queueing amplification                         |
+| `graphql`         | 3.0×      | Concurrent parse/serialize + post-write cache-miss refill                |
+| `list*`           | 2.5×      | Concurrent wire-stream payload serialization / socket backpressure       |
+| `mixed`           | —         | Read/write cache-invalidation churn (always attributed; needs the probe) |
+
+A stale replica sample prints its age and the exact refresh command — a `--tier=core`
+run never refreshes the competitive replica table, so a table older than a day is called
+out instead of silently graded.
+
+### `--diagnose` (a.k.a. `--profile`, `BENCH_DIAGNOSE=1`)
+
+```bash
+bun run scripts/benchmark-matrix/index.ts --db=postgresql --tier=core --diagnose
+bun run scripts/benchmark-matrix/index.ts --db=sqlite --tier=competitive --diagnose
+```
+
+Diagnose mode turns on the server-side attribution switches and forwards them to every
+spawned server (`DIAGNOSTIC_KEYS` in the runner is the whitelist — a switch missing from
+that list never reaches the server):
+
+| Switch                  | Effect                                                             |
+| :---------------------- | :----------------------------------------------------------------- |
+| `SVELTY_SRV_SPLIT=1`    | `x-srv-split` phase marks on read, write **and GraphQL** responses |
+| `SVELTY_SRV_DUR=1`      | `x-srv-dur` total server time                                      |
+| `PROFILE_WRITE=1`       | `[WRITE-PROFILE]` span lines in the server log                     |
+| `BENCH_MIX_BREAKDOWN=1` | Mixed-workload read/write/graphql breakdown per iteration          |
+
+It also persists the server log to `tests/benchmarks/results/<db>/diagnostic-server.log`
+(the in-memory buffer is dropped on a successful run) and, after the run, prints:
+
+1. **Live Run Bottleneck & Tail Hotspot Leaderboard** — top 6 metrics by `P99 − P50` from
+   the run that just finished, annotated `[EL-lag]` / `[CPU %]` when the event loop or CPU
+   explains the tail.
+2. **Server-Side Span Attribution** — every `[WRITE-PROFILE]` span ranked by cumulative
+   time (`calls`, `avg`, `p95`, `total`), so the phase that owns the latency is named.
+
+> [!IMPORTANT]
+> **A diagnostic run is not a comparable run.** The switches change the configuration
+> under measurement, so the runner stamps those rows `run_mode='diagnostic'` and skips
+> the report pass entirely — no ledger MDX is written and no `run_mode='matrix'` trend
+> row is persisted. The samples still reach `history.jsonl`, because the live hotspot
+> leaderboard reads that file for the current `runId`. Report the numbers as an override
+> run, never as a baseline.
 
 ## Commands Reference
 

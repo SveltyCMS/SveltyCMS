@@ -102,12 +102,59 @@ class MaintenanceService {
   }
 
   /**
-   * Checks for database performance bottlenecks (Index Monitoring).
+   * Checks for database bloat / performance bottlenecks.
+   * On PostgreSQL: inspects `pg_stat_user_tables` for high dead-tuple bloat and,
+   * when `SVELTY_PG_AUTO_REPACK=1` is enabled on PostgreSQL 19+, runs non-blocking
+   * `REPACK (CONCURRENTLY)` on at most one table per cycle.
    */
   private async checkIndexHealth() {
-    // Placeholder for real DB index analysis
-    // In a production adapter, we would query pg_stat_user_indexes or slow query logs
-    logger.debug("Database index health verified (Operational).");
+    try {
+      const { getDb } = await loadDbModule();
+      const db = getDb() as unknown as {
+        type?: string;
+        supportsPg19Features?: boolean;
+        getBloatedTables?: () => Promise<{
+          success: boolean;
+          data?: Array<{ relname: string; n_dead_tup: number | string | bigint | null }>;
+        }>;
+        repackTable?: (
+          tableName: string,
+          opts?: { concurrently?: boolean },
+        ) => Promise<{ success: boolean; data?: { mode: string } }>;
+      } | null;
+
+      if (db?.type === "postgresql" && typeof db.getBloatedTables === "function") {
+        const res = await db.getBloatedTables();
+        const bloated = res.success && Array.isArray(res.data) ? res.data : [];
+        if (bloated.length > 0) {
+          const top = bloated[0];
+          logger.debug(
+            `[Maintenance] PostgreSQL bloat detected on ${bloated.length} table(s); largest: "${top.relname}" (${String(top.n_dead_tup ?? 0)} dead tuples).`,
+          );
+          if (
+            process.env.SVELTY_PG_AUTO_REPACK === "1" &&
+            db.supportsPg19Features &&
+            typeof db.repackTable === "function"
+          ) {
+            const repackRes = await db.repackTable(top.relname, { concurrently: true });
+            if (repackRes.success) {
+              logger.info(
+                `[Maintenance] PostgreSQL 19 online ${repackRes.data?.mode ?? "repack"} completed on "${top.relname}".`,
+              );
+              if (typeof metricsService?.recordMetric === "function") {
+                metricsService.recordMetric("maintenance:pg:repacked", 1);
+              }
+            }
+          }
+          return;
+        }
+      }
+      logger.debug("Database index health verified (Operational).");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("module runner has been closed")) return;
+      logger.debug("[Maintenance] Index/bloat health check skipped:", err);
+    }
   }
 
   public getMaintenanceReport() {

@@ -1341,6 +1341,32 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       this.applyPragmas(sqlite);
       this._statementCache.clear();
 
+      if (process.env.SVELTY_ALLOW_LEGACY_DB !== "1") {
+        try {
+          const verRow = (
+            sqlite.query
+              ? sqlite.query("SELECT sqlite_version() AS ver").get()
+              : sqlite.prepare?.("SELECT sqlite_version() AS ver")?.get()
+          ) as { ver?: string } | undefined;
+          const verStr = String(verRow?.ver ?? "");
+          const parts = verStr.split(".").map(Number);
+          if (
+            parts.length >= 2 &&
+            Number.isFinite(parts[0]) &&
+            Number.isFinite(parts[1]) &&
+            (parts[0] < 3 || (parts[0] === 3 && parts[1] < 51))
+          ) {
+            throw new Error(
+              `Unsupported SQLite engine version (${verStr}): SveltyCMS requires SQLite 3.51.0+ (3.51–3.54, bundled in Node 24.22+ / Bun 1.3.12+).`,
+            );
+          }
+        } catch (verErr) {
+          if (verErr instanceof Error && verErr.message.startsWith("Unsupported SQLite")) {
+            throw verErr;
+          }
+        }
+      }
+
       this.state = "connected";
       this.metrics.queryCount = 0;
       this.metrics.errorCount = 0;
@@ -1952,7 +1978,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   public capabilities: DatabaseCapabilities = {
     supportsTransactions: true,
     supportsIndexing: true,
-    supportsFullTextSearch: false,
+    supportsFullTextSearch: true,
     // The documented pipeline subset runs through `core/aggregation-translator.ts`;
     // stages SQL cannot express fail closed with `NOT_SUPPORTED`.
     supportsAggregation: true,

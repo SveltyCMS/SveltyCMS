@@ -10,21 +10,37 @@ import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 import { checkExtensionLicense } from "@src/utils/license-manager";
 import { cacheService } from "@src/databases/cache/cache-service";
+import { isAdmin } from "@src/databases/auth/constants";
+import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import { logger } from "@utils/logger";
 
 const ALLOWED_TYPES = ["widget", "plugin", "theme", "dashboard"] as const;
+const SAFE_EXTENSION_ID_RE = /^[A-Za-z0-9._-]{1,128}$/;
 
 export const GET: RequestHandler = async ({ url, locals }) => {
-  // 1. Guard authorization instantly
+  // 1. Guard authorization instantly (require authenticated user + system:read or admin)
   if (!locals.user) {
     return json({ active: false, reason: "Unauthorized" }, { status: 401 });
+  }
+  const roles = Array.isArray(locals.roles) ? locals.roles : [];
+  if (
+    !locals.isAdmin &&
+    !isAdmin(locals.user) &&
+    !hasPermissionWithRoles(locals.user as never, "system:read", roles)
+  ) {
+    return json({ active: false, reason: "Forbidden" }, { status: 403 });
   }
 
   const type = url.searchParams.get("type");
   const id = url.searchParams.get("id");
 
   // 2. Strict early validation with type narrowing
-  if (!id || !type || !(ALLOWED_TYPES as readonly string[]).includes(type)) {
+  if (
+    !id ||
+    !SAFE_EXTENSION_ID_RE.test(id) ||
+    !type ||
+    !(ALLOWED_TYPES as readonly string[]).includes(type)
+  ) {
     return json(
       { active: false, reason: "Missing or invalid type/id parameters" },
       { status: 400 },

@@ -65,6 +65,9 @@ const DIAGNOSTIC_KEYS = [
   "SVELTY_COALESCE_UPDATE_WINDOW_MS",
   "SVELTY_SRV_SPLIT",
   "SVELTY_SRV_DUR",
+  "PROFILE_DB",
+  "BENCH_MIX_BREAKDOWN",
+  "BENCH_PHASE_SPLIT",
   // Test-side knob (api-latency zstd transfer row) — forwarded so matrix runs can
   // re-measure the row at 8c instead of silently measuring the default 2.
   "BENCH_ZSTD_CONCURRENCY",
@@ -136,6 +139,26 @@ const discoveredTestFiles = fs.existsSync(benchmarksDir)
 //   --tier=competitive (or --replica, --competitive): Runs competitive-workload-replica only
 //   --tier=core (or --core): Runs the 8 CI core benchmark tests
 //   --tier=full (default): Runs the comprehensive regression suite
+// 🔬 --diagnose (or --profile): Enables server-side phase decomposition (SVELTY_SRV_SPLIT=1,
+//   SVELTY_SRV_DUR=1, PROFILE_WRITE=1, BENCH_MIX_BREAKDOWN=1) and prints a ranked
+//   Cross-Layer Bottleneck Leaderboard at the end of the run.
+const DIAGNOSE_MODE =
+  process.argv.includes("--diagnose") ||
+  process.argv.includes("--profile") ||
+  process.env.BENCH_DIAGNOSE === "1";
+if (DIAGNOSE_MODE) {
+  process.env.SVELTY_SRV_SPLIT = process.env.SVELTY_SRV_SPLIT || "1";
+  process.env.SVELTY_SRV_DUR = process.env.SVELTY_SRV_DUR || "1";
+  process.env.PROFILE_WRITE = process.env.PROFILE_WRITE || "1";
+  process.env.BENCH_MIX_BREAKDOWN = process.env.BENCH_MIX_BREAKDOWN || "1";
+  // 🏷️ Diagnostic rows are NOT comparable with default-config matrix rows. Stamp the
+  // run so the trend ledger (`run_mode = 'matrix'` reads) never sees them.
+  process.env.SVELTY_BENCHMARK_RUN_MODE = process.env.SVELTY_BENCHMARK_RUN_MODE || "diagnostic";
+  DIAGNOSTIC_ENV.SVELTY_SRV_SPLIT = process.env.SVELTY_SRV_SPLIT;
+  DIAGNOSTIC_ENV.SVELTY_SRV_DUR = process.env.SVELTY_SRV_DUR;
+  DIAGNOSTIC_ENV.PROFILE_WRITE = process.env.PROFILE_WRITE;
+}
+
 const tierArg = process.argv
   .find((a) => a.startsWith("--tier="))
   ?.slice("--tier=".length)
@@ -243,6 +266,7 @@ const GROUPS = [
     parallel: true,
     tests: [
       "local-api-performance",
+      "virtual-query-federation",
       "entry-edit-hydration",
       "widget-performance",
       "etag-hash",
@@ -489,6 +513,11 @@ function spawnTestProcess(
         API_BASE_URL: baseUrl,
         BENCHMARK_MATRIX: "1",
         BENCHMARK_RUN_ID: runId,
+        // 🏷️ Diagnostic invocations write `run_mode='diagnostic'` rows (see
+        // resolveBenchmarkRunMode) so they can never pollute the trend ledger.
+        ...(process.env.SVELTY_BENCHMARK_RUN_MODE
+          ? { SVELTY_BENCHMARK_RUN_MODE: process.env.SVELTY_BENCHMARK_RUN_MODE }
+          : {}),
         // 🏷️ Production-mode marker for the benchmark server (bun test overrides
         // NODE_ENV/TEST_MODE in child processes, so this survives as the signal)
         SVELTY_BENCHMARK_SERVER_MODE: serverEnv.NODE_ENV || "production",
@@ -631,13 +660,9 @@ async function run() {
     }
   }
 
-  // 🛡️ Only GROUPS drive execution — a benchmark file that exists in
-  // tests/benchmarks/ but is missing from GROUPS would silently never run (and
-  // `--only=<new-test>` would report 0 passed/0 failed). Append the leftovers as a
-  // final group so matrix coverage matches the directory.
   const ungroupedNames = testFiles
     .map((file) => getTestName(file))
-    .filter((name) => !allGroupedNames.has(name));
+    .filter((name) => !allGroupedNames.has(name) && !SKIP_IN_MATRIX.has(name));
   if (ungroupedNames.length > 0) {
     GROUPS.push({ name: "Ungrouped", parallel: false, tests: ungroupedNames });
     console.log(
@@ -1200,11 +1225,14 @@ async function run() {
     }
 
     // ── Phase 5: Evaluate report ──
+    // A diagnostic run never writes the ledger, so evaluating it would grade a
+    // previous run's content and print a misleading verdict.
+    const isDiagnosticRun = process.env.SVELTY_BENCHMARK_RUN_MODE === "diagnostic";
     let reportedRegressions = false;
     const reportPath = useRedis
       ? `docs/project/benchmarks/benchmark_${db}_redis.mdx`
       : `docs/project/benchmarks/benchmark_${db}.mdx`;
-    if (fs.existsSync(reportPath)) {
+    if (!isDiagnosticRun && fs.existsSync(reportPath)) {
       const content = fs.readFileSync(reportPath, "utf8");
       const regressions: string[] = [];
 
@@ -1227,15 +1255,135 @@ async function run() {
       }
     }
 
+    // ── Phase 5b: Live Bottleneck & Tail Hotspot Leaderboard for this run ──
+    try {
+      const historyJsonl = path.join(
+        process.cwd(),
+        "tests",
+        "benchmarks",
+        "results",
+        "history.jsonl",
+      );
+      if (fs.existsSync(historyJsonl)) {
+        const lines = fs.readFileSync(historyJsonl, "utf8").trim().split("\n").filter(Boolean);
+        const runRows = lines
+          .map((line) => {
+            try {
+              return JSON.parse(line) as Record<string, unknown>;
+            } catch {
+              return null;
+            }
+          })
+          .filter(
+            (row): row is Record<string, unknown> =>
+              row !== null && row.runId === BENCHMARK_RUN_ID && Number(row.p50Ms || 0) > 0,
+          );
+
+        if (runRows.length > 0) {
+          const ranked = [...runRows]
+            .map((r) => {
+              const p50 = Number(r.p50Ms || 0);
+              const p95 = Number(r.p95Ms || 0);
+              const p99 = Number(r.p99Ms || p95);
+              const avg = Number(r.avgMs || 0);
+              const tailExcess = Number((p99 - p50).toFixed(3));
+              const slowRate = Number(r.slowRatePer1000 || 0);
+              const elu =
+                typeof r.eventLoopUtilization === "number" ? r.eventLoopUtilization : null;
+              const lag = typeof r.eventLoopLagMs === "number" ? r.eventLoopLagMs : null;
+              return {
+                testFile: String(r.testFile || ""),
+                metric: String(r.metric || ""),
+                avg,
+                p50,
+                p95,
+                p99,
+                tailExcess,
+                slowRate,
+                elu,
+                lag,
+              };
+            })
+            .sort((a, b) => b.tailExcess - a.tailExcess || b.p95 - a.p95)
+            .slice(0, 6);
+
+          console.log(
+            `\n  🔬 Live Run Bottleneck & Tail Hotspot Leaderboard (${runRows.length} measured metrics)`,
+          );
+          console.log(`  ${"─".repeat(88)}`);
+          console.log(
+            `  ${"Metric".padEnd(36)} ${"Test".padEnd(20)} ${"P50".padStart(8)} ${"P95".padStart(8)} ${"P99-P50".padStart(9)} ${"SLOW‰".padStart(6)}`,
+          );
+          for (const row of ranked) {
+            const lagNote =
+              row.lag && row.lag > 2
+                ? ` [EL-lag ${row.lag.toFixed(1)}ms]`
+                : row.elu && row.elu > 0.85
+                  ? ` [CPU ${(row.elu * 100).toFixed(0)}%]`
+                  : "";
+            console.log(
+              `  ${row.metric.slice(0, 36).padEnd(36)} ${row.testFile.slice(0, 20).padEnd(20)} ${(row.p50.toFixed(2) + "ms").padStart(8)} ${(row.p95.toFixed(2) + "ms").padStart(8)} ${("+" + row.tailExcess.toFixed(2) + "ms").padStart(9)} ${row.slowRate.toFixed(1).padStart(6)}${lagNote}`,
+            );
+          }
+        }
+        if (DIAGNOSE_MODE && diagnosticLogPath && fs.existsSync(diagnosticLogPath)) {
+          const logText = fs.readFileSync(diagnosticLogPath, "utf8");
+          // Span labels carry their own colons (`db:ins:prepare-values`), so the label
+          // must be lazy up to the colon that precedes the numeric value — `[^:]+`
+          // matched only `db` and silently produced an empty attribution table.
+          const spanRegex = /^\[WRITE-PROFILE\]\s+(.+?):\s+([\d.]+)ms/gm;
+          const spanBuckets = new Map<string, number[]>();
+          let match: RegExpExecArray | null;
+          while ((match = spanRegex.exec(logText)) !== null) {
+            const label = match[1]!.trim();
+            const ms = Number(match[2]);
+            if (Number.isFinite(ms)) {
+              const arr = spanBuckets.get(label) ?? [];
+              arr.push(ms);
+              spanBuckets.set(label, arr);
+            }
+          }
+          if (spanBuckets.size > 0) {
+            const spanSummary = [...spanBuckets.entries()]
+              .map(([label, vals]) => {
+                const sorted = [...vals].sort((a, b) => a - b);
+                const sum = vals.reduce((a, b) => a + b, 0);
+                const avg = sum / vals.length;
+                const p95 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))]!;
+                return { label, count: vals.length, totalMs: sum, avgMs: avg, p95Ms: p95 };
+              })
+              .sort((a, b) => b.totalMs - a.totalMs)
+              .slice(0, 8);
+            console.log(
+              `\n  🔬 Server-Side Span Attribution ([WRITE-PROFILE] top cumulative spans)`,
+            );
+            console.log(`  ${"─".repeat(88)}`);
+            console.log(
+              `  ${"Span".padEnd(36)} ${"Calls".padStart(8)} ${"Avg".padStart(10)} ${"P95".padStart(10)} ${"Total".padStart(12)}`,
+            );
+            for (const s of spanSummary) {
+              console.log(
+                `  ${s.label.slice(0, 36).padEnd(36)} ${String(s.count).padStart(8)} ${(s.avgMs.toFixed(3) + "ms").padStart(10)} ${(s.p95Ms.toFixed(3) + "ms").padStart(10)} ${(s.totalMs.toFixed(1) + "ms").padStart(12)}`,
+              );
+            }
+          }
+        }
+      }
+    } catch {
+      /* best-effort leaderboard */
+    }
+
     // ── Summary ──
     console.log(`  ${"\u2500".repeat(55)}`);
     console.log(
       `  ${db.toUpperCase()}: ${passed} passed, ${failed} failed${skipped > 0 ? `, ${skipped} skipped` : ""} in ${elapsed}s`,
     );
-    if (fs.existsSync(reportPath)) {
+    if (!isDiagnosticRun && fs.existsSync(reportPath)) {
       const trend = reportedRegressions ? "Regressions found" : "All stable";
       const reportName = useRedis ? `benchmark_${db}_redis.mdx` : `benchmark_${db}.mdx`;
       console.log(`  Evaluated: ${reportName} \u2192 ${trend}`);
+    } else if (isDiagnosticRun) {
+      console.log(`  Ledger: untouched (diagnostic run \u2014 run_mode='diagnostic')`);
     }
 
     diagnosticLog?.end();

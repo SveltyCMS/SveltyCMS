@@ -11,6 +11,8 @@ import {
 import {
   assertEncryptedFieldsNotQueried,
   decryptReadResult,
+  decryptReadStream,
+  presentRead,
 } from "@src/services/sdk/namespaces/collections/read-pipeline";
 import { ensureSchemaHotFlags } from "@src/services/sdk/namespaces/collections/schema-store";
 import {
@@ -115,5 +117,67 @@ describe("field-encryption write/read pipeline", () => {
       success: true,
       data: [data],
     });
+  });
+
+  it("stays synchronous for standard AES-GCM envelopes and round-trips hybrid ML-KEM fields end-to-end", async () => {
+    const hot = ensureSchemaHotFlags({ ...schema } as Schema);
+
+    // 1. Standard AES-GCM stays synchronous (zero Promise overhead on hot read lane)
+    const aesStored = await encryptWritePayload({ title: "Ada", ssn: "111-22-3333" }, hot, CTX);
+    const syncRead = decryptReadResult({ success: true, data: [{ ...aesStored }] }, hot, CTX, {
+      clone: true,
+    });
+    expect(syncRead instanceof Promise).toBe(false);
+    expect(syncRead.data[0].ssn).toBe("111-22-3333");
+
+    // 2. Hybrid ML-KEM fields round-trip through encryptWritePayload -> decryptReadResult / presentRead / decryptReadStream
+    const { generateCompositeKemKeyPair, isCompositeKemAvailable, isHybridEnvelope } =
+      await import("@utils/security/hybrid-kem");
+    if (!(await isCompositeKemAvailable())) return;
+
+    const keys = await generateCompositeKemKeyPair();
+    vi.stubEnv("PQC_HYBRID_FIELDS", "true");
+    vi.stubEnv("PQC_KEM_PUBLIC_KEY", keys.publicKey);
+    vi.stubEnv("PQC_KEM_PRIVATE_KEY", keys.privateKey);
+    vi.stubEnv("PQC_X25519_PUBLIC_KEY", keys.classicalPublicKey);
+    vi.stubEnv("PQC_X25519_PRIVATE_KEY", keys.classicalPrivateKey);
+
+    const hybridStored = await encryptWritePayload(
+      { title: "Grace", ssn: "999-88-7777", notes: "pqc-protected" },
+      hot,
+      CTX,
+    );
+    expect(isHybridEnvelope(hybridStored.ssn)).toBe(true);
+    expect(isHybridEnvelope(hybridStored.notes)).toBe(true);
+
+    const cachedEnvelope = { success: true, data: [{ ...hybridStored }] };
+    const decrypted = await decryptReadResult(cachedEnvelope, hot, CTX, { clone: true });
+    expect(decrypted.data[0].ssn).toBe("999-88-7777");
+    expect(decrypted.data[0].notes).toBe("pqc-protected");
+    // Cache copy must remain ciphertext
+    expect(isHybridEnvelope(cachedEnvelope.data[0].ssn)).toBe(true);
+
+    // presentRead also unwraps hybrid envelopes cleanly
+    const presented = await presentRead(
+      cachedEnvelope,
+      schema,
+      hot,
+      CTX,
+      { _id: "admin", isAdmin: true } as any,
+      true,
+    );
+    expect(presented.data[0].ssn).toBe("999-88-7777");
+
+    // decryptReadStream yields decrypted hybrid documents
+    async function* streamSource() {
+      yield { ...hybridStored };
+    }
+    const streamed: Array<Record<string, unknown>> = [];
+    for await (const doc of decryptReadStream(streamSource(), hot, CTX)) {
+      streamed.push(doc);
+    }
+    expect(streamed).toHaveLength(1);
+    expect(streamed[0].ssn).toBe("999-88-7777");
+    expect(streamed[0].notes).toBe("pqc-protected");
   });
 });

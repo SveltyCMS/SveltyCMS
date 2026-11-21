@@ -843,4 +843,39 @@ describe("collection read lane threat scan", () => {
     expect(resolve).toHaveBeenCalledOnce();
     expect(findByIdMock).not.toHaveBeenCalled();
   });
+
+  it("disqualifies schemas with encrypted fields or row ownership from the wire plane", () => {
+    const encryptedSchema: any = {
+      _id: "secrets",
+      name: "Secrets",
+      fields: [{ name: "ssn", db_fieldName: "ssn", encrypted: true }],
+    };
+    const encMeta = computeCollectionWireMeta(encryptedSchema);
+    expect(encMeta?.hasEncryptedFields).toBe(true);
+
+    const mockEvent: any = {
+      request: new Request("http://localhost/api/collections/secrets"),
+      url: new URL("http://localhost/api/collections/secrets"),
+      cookies: { get: () => undefined },
+      locals: { isAdmin: true },
+    };
+    expect(isWirePlaneAdmissible(mockEvent, encMeta)).toBe(false);
+
+    const ownedSchema: any = {
+      _id: "notes",
+      name: "Notes",
+      ownership: { field: "authorId" },
+      fields: [{ name: "title", db_fieldName: "title" }],
+    };
+    const ownedMeta = computeCollectionWireMeta(ownedSchema);
+    expect(ownedMeta?.hasOwnership).toBe(true);
+
+    const nonAdminEvent: any = {
+      request: new Request("http://localhost/api/collections/notes"),
+      url: new URL("http://localhost/api/collections/notes"),
+      cookies: { get: () => undefined },
+      locals: { isAdmin: false },
+    };
+    expect(isWirePlaneAdmissible(nonAdminEvent, ownedMeta)).toBe(false);
+  });
 });

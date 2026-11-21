@@ -70,22 +70,30 @@ and rule-of-thirds grid overlay.
 		}
 	});
 
-	function handleMouseDown(e: MouseEvent) {
+	function handlePointerDown(e: PointerEvent) {
 		isDragging = true;
+		(e.currentTarget as HTMLElement | null)?.setPointerCapture?.(e.pointerId);
 		updateFocalPoint(e);
 	}
 
-	function handleMouseMove(e: MouseEvent) {
+	function handlePointerMove(e: PointerEvent) {
 		if (isDragging) {
 			updateFocalPoint(e);
 		}
 	}
 
-	function handleMouseUp() {
+	function handlePointerUp(e?: PointerEvent) {
+		if (e && isDragging) {
+			try {
+				(e.currentTarget as HTMLElement | null)?.releasePointerCapture?.(e.pointerId);
+			} catch {
+				// Ignore if not captured
+			}
+		}
 		isDragging = false;
 	}
 
-	function updateFocalPoint(e: MouseEvent) {
+	function updateFocalPoint(e: MouseEvent | PointerEvent) {
 		if (!containerRef) {
 			return;
 		}
@@ -214,11 +222,11 @@ and rule-of-thirds grid overlay.
 
 				<div
 					bind:this={containerRef}
-					class="relative cursor-crosshair select-none rounded overflow-hidden border-2 border-surface-500/30 dark:border-surface-600"
-					onmousedown={handleMouseDown}
-					onmousemove={handleMouseMove}
-					onmouseup={handleMouseUp}
-					onmouseleave={handleMouseUp}
+					class="relative cursor-crosshair touch-none select-none rounded overflow-hidden border-2 border-surface-500/30 dark:border-surface-600"
+					onpointerdown={handlePointerDown}
+					onpointermove={handlePointerMove}
+					onpointerup={handlePointerUp}
+					onpointercancel={handlePointerUp}
 					role="slider"
 					aria-valuemin={0}
 					aria-valuemax={100}

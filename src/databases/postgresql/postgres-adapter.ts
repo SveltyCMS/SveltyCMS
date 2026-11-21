@@ -22,6 +22,13 @@ import type {
   BaseEntity,
 } from "../db-interface";
 import { PostgresAdapterCore } from "./adapter-core";
+import {
+  buildBloatCandidatesSql,
+  buildRepackTableSql,
+  parsePgMajorVersion,
+  type BloatCandidateRow,
+  type BloatQueryOptions,
+} from "./pg19-features";
 import { createDatabaseError } from "../core/relational-utils";
 import { SqlQueryBuilder, POSTGRES_DIALECT } from "../core/sql-query-builder";
 import { PostgresFtsAdapter } from "./fts-adapter";
@@ -125,8 +132,90 @@ export class PostgreSQLAdapter extends PostgresAdapterCore implements IDBAdapter
       if (!this.sql) throw new Error("PostgreSQL client not available");
       const res = await this.sql`SELECT version() as version`;
       this._version = String(res[0].version);
+      if (this._serverVersionNum === 0) {
+        const major = parsePgMajorVersion(this._version);
+        if (major > 0) this._serverVersionNum = major * 10_000;
+      }
       return this._version;
     }, "GET_VERSION_FAILED");
+  }
+
+  /**
+   * Inspect `pg_stat_user_tables` for high dead-tuple bloat candidates.
+   */
+  public async getBloatedTables(
+    options: BloatQueryOptions = {},
+  ): Promise<DatabaseResult<BloatCandidateRow[]>> {
+    return this.wrap(async () => {
+      if (!this.sql) throw new Error("Not connected");
+      const rows = await this.sql.unsafe(buildBloatCandidatesSql(options));
+      return Array.isArray(rows) ? (rows as unknown as BloatCandidateRow[]) : [];
+    }, "GET_BLOATED_TABLES_FAILED");
+  }
+
+  /**
+   * Online table bloat reclamation:
+   * - PostgreSQL 19+: executes native `REPACK (CONCURRENTLY) "table"` without
+   *   blocking concurrent reads or writes (replaces `VACUUM FULL` / `pg_repack`).
+   * - PostgreSQL ≤ 18: falls back to non-blocking `VACUUM (ANALYZE) "table"`.
+   *
+   * Runs with `statement_timeout = 0` on a dedicated 1-connection client when
+   * pool config is available so long maintenance never starves serving workers.
+   */
+  public async repackTable(
+    tableName: string,
+    options: { concurrently?: boolean; analyze?: boolean; schema?: string } = {},
+  ): Promise<DatabaseResult<{ table: string; mode: "repack" | "vacuum-analyze"; sql: string }>> {
+    return this.wrap(
+      async () => {
+        if (!this.sql) throw new Error("Not connected");
+        if (this._serverVersionNum === 0) {
+          await this.getVersion().catch(() => {});
+        }
+        const plan = buildRepackTableSql(tableName, {
+          pgMajorVersion: this.pgMajorVersion,
+          concurrently: options.concurrently,
+          analyze: options.analyze,
+          schema: options.schema,
+        });
+
+        let client: ReturnType<typeof postgres> | null = null;
+        try {
+          if (this._rawConnectionConfig) {
+            const { onclose: _poolClose, ...maintOptions } =
+              this._rawConnectionConfig.options ?? {};
+            void _poolClose;
+            client = postgres(this._rawConnectionConfig.finalConnection, {
+              ...maintOptions,
+              max: 1,
+              idle_timeout: 10,
+            });
+          }
+          const exec = client ?? this.sql;
+          await exec.unsafe("SET statement_timeout = 0").catch(() => {});
+          try {
+            await exec.unsafe(plan.sql);
+            return { table: tableName, mode: plan.mode, sql: plan.sql };
+          } catch (repackErr) {
+            if (plan.mode === "repack") {
+              // Graceful fallback if table lacks a REPLICA IDENTITY / PK for REPACK CONCURRENTLY
+              const fallback = buildRepackTableSql(tableName, {
+                pgMajorVersion: 18,
+                schema: options.schema,
+              });
+              await exec.unsafe(fallback.sql);
+              return { table: tableName, mode: fallback.mode, sql: fallback.sql };
+            }
+            throw repackErr;
+          }
+        } finally {
+          if (client) await client.end().catch(() => {});
+        }
+      },
+      "REPACK_TABLE_FAILED",
+      undefined,
+      { isWrite: true },
+    );
   }
 
   getCapabilities(): import("../db-interface").DatabaseCapabilities {

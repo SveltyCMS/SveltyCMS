@@ -93,12 +93,30 @@ export function createEditor(
         },
       }),
       CharacterCount,
-      // Custom extension for the Tab key
+      // Custom extension for the Tab key — only indents inside lists/tables so
+      // keyboard users can Tab out of the editor (WCAG 2.1.2 No Keyboard Trap).
       Extension.create({
         name: "Tab",
         addKeyboardShortcuts() {
           return {
-            Tab: ({ editor: e }: { editor: any }) => e.commands.insertContent("\t"),
+            Tab: ({ editor: e }: { editor: Editor }) => {
+              if (e.isActive("bulletList") || e.isActive("orderedList")) {
+                return e.commands.sinkListItem("listItem");
+              }
+              if (e.isActive("table")) {
+                return e.commands.goToNextCell();
+              }
+              return false;
+            },
+            "Shift-Tab": ({ editor: e }: { editor: Editor }) => {
+              if (e.isActive("bulletList") || e.isActive("orderedList")) {
+                return e.commands.liftListItem("listItem");
+              }
+              if (e.isActive("table")) {
+                return e.commands.goToPreviousCell();
+              }
+              return false;
+            },
           };
         },
       }),

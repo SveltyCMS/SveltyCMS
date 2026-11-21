@@ -26,10 +26,23 @@ import {
   type StaleWindowPolicy,
 } from "@src/services/cache/stale-window";
 import { CACHEABLE_PREFIXES } from "./handle-request-classifier";
+import { ENDPOINT_PERMISSIONS } from "@src/routes/api/[...path]/endpoint-permissions";
 import { isSecureCookieContext, isAdmin } from "@src/databases/auth/constants";
 import { readSessionCookie } from "@utils/security/session-cookie";
-import { getRoleBitsetVersion } from "@src/databases/auth/permission-bitmask";
-import { validateSessionMfaRequirement } from "@src/databases/auth/permissions";
+import {
+  getRoleBitsetVersion,
+  hasPermissionBitmask,
+  isPermissionBitsetStale,
+} from "@src/databases/auth/permission-bitmask";
+import {
+  hasPermissionWithRoles,
+  validateSessionMfaRequirement,
+} from "@src/databases/auth/permissions";
+import { isSessionRevoked } from "@src/databases/auth/revocation-epoch";
+import {
+  isDistributedSessionRevokedSync,
+  registerTurboCacheEvictHooks,
+} from "@src/databases/auth/revocation-publish.server";
 import { isSurfaceStepUp, type SessionRiskAction } from "@src/databases/auth/session-user";
 import { resolveRequestTenant } from "./request-tenant";
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
@@ -46,6 +59,10 @@ export interface TurboAuthContext {
   roles: Role[];
   tenantId: DatabaseId | null;
   expiresAt: number;
+  /** Timestamp (ms) when this session snapshot was first minted into turboAuthCache. */
+  issuedAtMs: number;
+  /** Absolute maximum lifetime cap (ms) so sliding TTL cannot outlive periodic re-auth. */
+  maxExpiresAt: number;
   permMask?: bigint;
   /** IP captured with the session. Absent until the auth hook has seen the row. */
   boundIp?: string | null;
@@ -78,6 +95,8 @@ export interface TurboAuthContext {
   userId: string | null;
   userSegment: string;
   role?: string;
+  /** Pre-evaluated MFA satisfaction (`mfaPolicyKnown === true && validateSessionMfaRequirement(...)`). */
+  mfaSatisfied?: boolean;
 }
 
 const turboAuthCache = new Map<string, TurboAuthContext>();
@@ -89,6 +108,7 @@ const TURBO_AUTH_CACHE_MAX = 5000;
 // workload boundaries (each >60s apart) don't re-pay a cold session validation.
 const TURBO_AUTH_TTL_MS =
   typeof process !== "undefined" && process.env.BENCHMARK === "true" ? 15 * 60_000 : 60_000;
+const TURBO_AUTH_MAX_LIFETIME_MS = 15 * 60_000;
 
 export function setTurboAuthContext(
   sessionId: string,
@@ -114,21 +134,30 @@ export function setTurboAuthContext(
     typeof (user as { role?: unknown })?.role === "string"
       ? (user as { role: string }).role
       : undefined;
+  const now = Date.now();
+  const issuedAtMs = previous?.issuedAtMs ?? now;
+  const effectiveAmr = auth?.amr ?? previous?.amr;
+  const effectiveMfaPolicyKnown = auth?.mfaPolicyKnown ?? previous?.mfaPolicyKnown ?? true;
+  const mfaSatisfied =
+    effectiveMfaPolicyKnown === true && validateSessionMfaRequirement(user, roles, effectiveAmr);
 
   turboAuthCache.set(sessionId, {
     user,
     roles,
     tenantId,
-    expiresAt: Date.now() + TURBO_AUTH_TTL_MS,
+    expiresAt: now + TURBO_AUTH_TTL_MS,
+    issuedAtMs,
+    maxExpiresAt: issuedAtMs + TURBO_AUTH_MAX_LIFETIME_MS,
     permMask,
     permRev: permRev ?? getRoleBitsetVersion(),
-    amr: auth?.amr ?? previous?.amr,
+    amr: effectiveAmr,
     mfaVerifiedAt: auth?.mfaVerifiedAt ?? previous?.mfaVerifiedAt,
     // Callers that prime before the role policy is loaded (login / session
     // prime) pass `mfaPolicyKnown: false` explicitly. The authorization hook
     // passes true after loading the role list; an omitted marker (direct
     // low-level callers) assumes the policy is known.
-    mfaPolicyKnown: auth?.mfaPolicyKnown ?? previous?.mfaPolicyKnown ?? true,
+    mfaPolicyKnown: effectiveMfaPolicyKnown,
+    mfaSatisfied,
     boundIp: previous?.boundIp,
     boundUserAgent: previous?.boundUserAgent,
     isAdmin: userAdmin,
@@ -154,15 +183,19 @@ export function getTurboAuthContext(sessionId: string): TurboAuthContext | null 
   const ctx = turboAuthCache.get(sessionId);
   if (!ctx) return null;
 
-  if (Date.now() > ctx.expiresAt) {
+  const now = Date.now();
+  if (
+    now > ctx.expiresAt ||
+    now > ctx.maxExpiresAt ||
+    isSessionRevoked(ctx.issuedAtMs, ctx.userId ?? undefined, ctx.tenantId) ||
+    isDistributedSessionRevokedSync(ctx.issuedAtMs, ctx.userId, ctx.tenantId)
+  ) {
     turboAuthCache.delete(sessionId);
     return null;
   }
 
-  // Slide TTL on every hit so long write bursts (50k–100k seed) never
-  // 401 because the 60s window elapsed since login. Write lane used to
-  // read the Map without sliding, so a 64s create burst died at expiry.
-  ctx.expiresAt = Date.now() + TURBO_AUTH_TTL_MS;
+  // Slide TTL on every hit (capped by maxExpiresAt) so write bursts don't 401 mid-flight.
+  ctx.expiresAt = Math.min(ctx.maxExpiresAt, now + TURBO_AUTH_TTL_MS);
 
   if (turboAuthCache.size >= TURBO_AUTH_CACHE_MAX * 0.8) {
     turboAuthCache.delete(sessionId);
@@ -191,6 +224,21 @@ export function invalidateTurboAuthForUser(userId: string): void {
     }
   }
 }
+
+export function invalidateTurboAuthForTenant(tenantId: string): void {
+  if (!tenantId) return;
+  for (const [key, ctx] of turboAuthCache.entries()) {
+    if (ctx.tenantId === tenantId || ctx.user?.tenantId === tenantId) {
+      turboAuthCache.delete(key);
+    }
+  }
+}
+
+registerTurboCacheEvictHooks({
+  clear: clearTurboAuthCache,
+  evictUser: invalidateTurboAuthForUser,
+  evictTenant: invalidateTurboAuthForTenant,
+});
 
 function isCacheableApiPath(pathname: string): boolean {
   if (!pathname.startsWith("/api/")) return false;
@@ -227,15 +275,20 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
   // deleting the context) lets the full auth/authorization pipeline enforce
   // the redirect / 403 step-up.
   if (
-    turboCtx.mfaPolicyKnown !== true ||
-    !validateSessionMfaRequirement(turboCtx.user, turboCtx.roles, turboCtx.amr)
+    turboCtx.mfaSatisfied !== undefined
+      ? !turboCtx.mfaSatisfied
+      : turboCtx.mfaPolicyKnown !== true ||
+        !validateSessionMfaRequirement(turboCtx.user, turboCtx.roles, turboCtx.amr)
   ) {
     return resolve(event);
   }
 
   // 🛡️ Session-surface risk parity with the write lane: a different browser on
   // a live session must step up, so the cached response is not served.
-  if (isSurfaceStepUp(request.headers.get("user-agent"), turboCtx.boundUserAgent)) {
+  if (
+    turboCtx.boundUserAgent &&
+    isSurfaceStepUp(request.headers.get("user-agent"), turboCtx.boundUserAgent)
+  ) {
     return resolve(event);
   }
 
@@ -246,6 +299,29 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
   // full pipeline, which hydrates roles from the DB and re-primes the context.
   if (!turboCtx.isAdmin && (!Array.isArray(turboCtx.roles) || turboCtx.roles.length === 0)) {
     return resolve(event);
+  }
+  if (!turboCtx.isAdmin && isPermissionBitsetStale(turboCtx.permRev)) {
+    return resolve(event);
+  }
+  if (!turboCtx.isAdmin) {
+    const slash = url.pathname.indexOf("/", 5);
+    const ns = slash === -1 ? url.pathname.slice(5) : url.pathname.slice(5, slash);
+    const mapping = ENDPOINT_PERMISSIONS[ns];
+    if (mapping) {
+      const reqPerm = typeof mapping === "function" ? mapping(method) : mapping;
+      const mask = turboCtx.permMask ?? 0n;
+      const allowed =
+        (mask !== 0n &&
+          (hasPermissionBitmask(mask, reqPerm) ||
+            (reqPerm === "collections:read" && hasPermissionBitmask(mask, "collection:read")) ||
+            (reqPerm === "dashboard:read" && hasPermissionBitmask(mask, "system:dashboard")))) ||
+        hasPermissionWithRoles(turboCtx.user, reqPerm, turboCtx.roles) ||
+        (reqPerm === "collections:read" &&
+          hasPermissionWithRoles(turboCtx.user, "collection:read", turboCtx.roles)) ||
+        (reqPerm === "dashboard:read" &&
+          hasPermissionWithRoles(turboCtx.user, "system:dashboard", turboCtx.roles));
+      if (!allowed) return resolve(event);
+    }
   }
 
   locals.user = turboCtx.user;
@@ -280,12 +356,12 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
     pathKey = `${turboCtx.userSegment}:${url.pathname}${url.search}`;
   }
 
-  const ifNoneMatchEarly =
-    request.headers.get("If-None-Match") || request.headers.get("if-none-match");
+  const ifNoneMatchEarly = request.headers.get("if-none-match");
   const bypassEtag =
-    url.searchParams.get("refresh") === "true" ||
-    url.searchParams.get("nocache") === "true" ||
-    url.searchParams.get("bypassCache") === "true";
+    url.search.length > 0 &&
+    (url.searchParams.get("refresh") === "true" ||
+      url.searchParams.get("nocache") === "true" ||
+      url.searchParams.get("bypassCache") === "true");
   if (ifNoneMatchEarly && url.pathname.startsWith("/api/collections/") && !bypassEtag) {
     const notModified = tryCollectionNotModified({
       pathname: url.pathname,
@@ -298,7 +374,7 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
       applyAllSecurityHeaders(
         notModified.headers,
         url.protocol === "https:",
-        request.headers.get("Origin") || null,
+        request.headers.get("origin") || null,
         url.pathname,
       );
       return notModified;
@@ -380,50 +456,82 @@ function hitHeaderTemplate(
  * degraded on every warm turbo hit. Implement the surface consumers actually
  * use, with WHATWG semantics (lower-cased names, per-name value join).
  */
-export function createFastHeaders(record: Record<string, string | string[]>): Headers {
-  const value = (name: string): string => {
-    const v = record[name.toLowerCase()];
+class FastHeaders {
+  public readonly __backingRecord: Record<string, string | string[]>;
+
+  constructor(record: Record<string, string | string[]>) {
+    this.__backingRecord = record;
+  }
+
+  private _value(key: string): string {
+    const v = this.__backingRecord[key];
     return Array.isArray(v) ? v.join(", ") : (v ?? "");
-  };
-  const facade = {
-    get: (name: string) => {
-      const v = record[name.toLowerCase()];
-      return v === undefined ? null : Array.isArray(v) ? v.join(", ") : v;
-    },
-    set(name: string, v: string) {
-      record[name.toLowerCase()] = String(v);
-    },
-    append(name: string, v: string) {
-      const key = name.toLowerCase();
-      const current = record[key];
-      if (current === undefined) record[key] = v;
-      else if (Array.isArray(current)) current.push(v);
-      else record[key] = [current, v];
-    },
-    has(name: string) {
-      return record[name.toLowerCase()] !== undefined;
-    },
-    delete(name: string) {
-      delete record[name.toLowerCase()];
-    },
-    forEach(callback: (v: string, k: string) => void) {
-      for (const key of Object.keys(record)) callback(value(key), key);
-    },
-    *entries(): IterableIterator<[string, string]> {
-      for (const key of Object.keys(record)) yield [key, value(key)];
-    },
-    *keys(): IterableIterator<string> {
-      yield* Object.keys(record);
-    },
-    *values(): IterableIterator<string> {
-      for (const key of Object.keys(record)) yield value(key);
-    },
-    [Symbol.iterator](): IterableIterator<[string, string]> {
-      return facade.entries();
-    },
-    __backingRecord: record,
-  };
-  return facade as unknown as Headers;
+  }
+
+  get(name: string): string | null {
+    const rec = this.__backingRecord;
+    let v = rec[name];
+    if (v === undefined) v = rec[name.toLowerCase()];
+    return v === undefined ? null : Array.isArray(v) ? v.join(", ") : v;
+  }
+
+  set(name: string, v: string): void {
+    this.__backingRecord[name.toLowerCase()] = String(v);
+  }
+
+  append(name: string, v: string): void {
+    const rec = this.__backingRecord;
+    const key = name.toLowerCase();
+    const current = rec[key];
+    if (current === undefined) rec[key] = v;
+    else if (Array.isArray(current)) current.push(v);
+    else rec[key] = [current, v];
+  }
+
+  has(name: string): boolean {
+    const rec = this.__backingRecord;
+    return rec[name] !== undefined || rec[name.toLowerCase()] !== undefined;
+  }
+
+  delete(name: string): void {
+    delete this.__backingRecord[name.toLowerCase()];
+  }
+
+  forEach(callback: (v: string, k: string) => void): void {
+    const rec = this.__backingRecord;
+    for (const key in rec) {
+      if (Object.hasOwn(rec, key)) callback(this._value(key), key);
+    }
+  }
+
+  *entries(): IterableIterator<[string, string]> {
+    const rec = this.__backingRecord;
+    for (const key in rec) {
+      if (Object.hasOwn(rec, key)) yield [key, this._value(key)];
+    }
+  }
+
+  *keys(): IterableIterator<string> {
+    const rec = this.__backingRecord;
+    for (const key in rec) {
+      if (Object.hasOwn(rec, key)) yield key;
+    }
+  }
+
+  *values(): IterableIterator<string> {
+    const rec = this.__backingRecord;
+    for (const key in rec) {
+      if (Object.hasOwn(rec, key)) yield this._value(key);
+    }
+  }
+
+  [Symbol.iterator](): IterableIterator<[string, string]> {
+    return this.entries();
+  }
+}
+
+export function createFastHeaders(record: Record<string, string | string[]>): Headers {
+  return new FastHeaders(record) as unknown as Headers;
 }
 
 /**
@@ -440,7 +548,7 @@ export function serveTurboCacheEntry(
 ): Response {
   const { request, url } = event;
   const method = request.method;
-  const origin = request.headers.get("Origin") || request.headers.get("origin");
+  const origin = request.headers.get("origin");
   const tpl = hitHeaderTemplate(url.protocol === "https:", origin, url.pathname);
   const isFastLane =
     (event.locals as { __isFastLane?: boolean } | undefined)?.__isFastLane === true;
@@ -456,8 +564,7 @@ export function serveTurboCacheEntry(
 
     if (resEntry.etag) {
       fastRecord["etag"] = resEntry.etag;
-      const ifNoneMatch =
-        request.headers.get("If-None-Match") || request.headers.get("if-none-match");
+      const ifNoneMatch = request.headers.get("if-none-match");
       if (
         ifNoneMatch &&
         (ifNoneMatch === resEntry.etag ||
@@ -482,7 +589,7 @@ export function serveTurboCacheEntry(
         resEntry.byteLength ??
         (resEntry.buffer ? resEntry.buffer.byteLength : Buffer.byteLength(rawBody, "utf-8"));
       if (payloadSize > 1024) {
-        const acceptEncoding = request.headers.get("Accept-Encoding") || "";
+        const acceptEncoding = request.headers.get("accept-encoding") || "";
         const algo = negotiateEncoding(acceptEncoding, hasNativeCompression(), {
           contentLength: payloadSize,
         });
@@ -530,8 +637,7 @@ export function serveTurboCacheEntry(
 
   if (resEntry.etag) {
     responseHeaders.set("ETag", resEntry.etag);
-    const ifNoneMatch =
-      request.headers.get("If-None-Match") || request.headers.get("if-none-match");
+    const ifNoneMatch = request.headers.get("if-none-match");
     if (
       ifNoneMatch &&
       (ifNoneMatch === resEntry.etag ||
@@ -556,7 +662,7 @@ export function serveTurboCacheEntry(
       ? resEntry.buffer.byteLength
       : Buffer.byteLength(rawBody, "utf-8");
     if (payloadSize > 1024) {
-      const acceptEncoding = request.headers.get("Accept-Encoding") || "";
+      const acceptEncoding = request.headers.get("accept-encoding") || "";
       const algo = negotiateEncoding(acceptEncoding, hasNativeCompression(), {
         contentLength: payloadSize,
       });

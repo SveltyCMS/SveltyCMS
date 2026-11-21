@@ -213,7 +213,7 @@ test.describe("Dashboard accessibility audit", () => {
     // are pre-existing and unrelated to the responsive grid.
     const results = await new AxeBuilder({ page: page as never })
       .include('[data-testid="dashboard-main"]')
-      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
       .analyze();
 
     if (results.violations.length > 0) {

@@ -314,11 +314,35 @@ export class ContentSyncService {
     if (!existing) throw new Error(`Channel not found: ${channelId}`);
 
     const now = nowISODateString();
-    const merged = { ...existing, ...updates, updatedAt: now };
-
-    // Ensure nested objects are merged correctly
-    if (updates.source) merged.source = { ...existing.source, ...updates.source };
-    if (updates.target) merged.target = { ...existing.target, ...updates.target };
+    if (updates.collections) {
+      this.validateCollections(updates.collections);
+    }
+    const merged: ContentSyncChannel = {
+      ...existing,
+      ...(updates.label !== undefined ? { label: updates.label } : {}),
+      ...(updates.collections !== undefined ? { collections: updates.collections } : {}),
+      ...(updates.direction !== undefined ? { direction: updates.direction } : {}),
+      ...(updates.enabled !== undefined ? { enabled: updates.enabled } : {}),
+      ...(updates.anonymizeOnPull !== undefined
+        ? { anonymizeOnPull: updates.anonymizeOnPull }
+        : {}),
+      ...(updates.conflictStrategy !== undefined
+        ? { conflictStrategy: updates.conflictStrategy }
+        : {}),
+      source: updates.source
+        ? {
+            label: updates.source.label ?? existing.source.label,
+            tenantId: updates.source.tenantId ?? existing.source.tenantId,
+          }
+        : existing.source,
+      target: updates.target
+        ? {
+            label: updates.target.label ?? existing.target.label,
+            tenantId: updates.target.tenantId ?? existing.target.tenantId,
+          }
+        : existing.target,
+      updatedAt: now,
+    };
 
     const result = await adapter.crud.update(
       CHANNELS_COLLECTION,
@@ -631,7 +655,7 @@ export class ContentSyncService {
   /**
    * Returns the current status of a sync job.
    */
-  public async getJobStatus(jobId: string): Promise<SyncJobStatus | null> {
+  public async getJobStatus(jobId: string, tenantId?: string): Promise<SyncJobStatus | null> {
     const db = (await loadDbModule()).getDb();
     if (!db || !db.system?.jobs) return null;
 
@@ -641,6 +665,10 @@ export class ContentSyncService {
 
       const job = result.data;
       const payload = (job.payload as Record<string, unknown> | undefined) ?? {};
+      const jobTenant = (job.tenantId ?? payload.tenantId) as string | undefined;
+      if (tenantId && jobTenant && jobTenant !== tenantId && jobTenant !== "global") {
+        return null;
+      }
       const operations = payload.operations as unknown[] | undefined;
 
       return {

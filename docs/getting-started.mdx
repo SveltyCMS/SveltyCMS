@@ -67,7 +67,7 @@ Production build and start commands are in [Production deployment](./guides/depl
 
 The walkthrough is the [setup wizard walkthrough](./onboarding/setup-wizard.mdx). The six steps are:
 
-1. **Database.** SQLite, or host, port, name, and credentials for PostgreSQL, MariaDB, or MongoDB. Test the connection. Optionally enable Redis caching (and test it), and add regional read-replica connection strings under the advanced options.
+1. **Database.** SQLite (3.51+ / 3.54.1), or host, port, name, and credentials for PostgreSQL (18.0+ / 19.0), MariaDB (11.4 LTS+ / 13.2), or MongoDB (8.0+ / 9.0) — see the [Database Engine Compatibility Matrix](./reference/database/index.mdx#-supported-database-engine-versions-latest-optimizations-20262027). Test the connection. Optionally enable Redis caching (and test it), and add regional read-replica connection strings under the advanced options.
 2. **Admin account.** Username, email, and a password of at least 8 characters, using upper case, lower case, a number, and a symbol.
 3. **Project blueprint.** Pick one blueprint; **Website Starter** is the recommended default. **Country and prices** appears only when you pick the **E-commerce** blueprint — the country starts on Germany and fills currency, shop language, and a suggested tax rate you can edit.
 4. **System.** Site name, production URL, timezone, languages, media storage, the collapsible Cloudflare CDN purge fields, then infrastructure mode (multi-tenant, demo).

@@ -75,17 +75,30 @@ Store values are in percentage (0-100) range for consistency with UI controls.
 	});
 
 	// Hit testing
-	export function handleMouseDown(e: MouseEvent, width: number, height: number) {
+	export function handleMouseDown(
+		e: MouseEvent,
+		width: number,
+		height: number,
+		canvasX?: number,
+		canvasY?: number
+	) {
 		const { zoom, translateX, translateY, imageElement } = storeState;
 		if (!imageElement) {
 			return;
 		}
 
-		const rect = (
-			(e.currentTarget as HTMLElement) ?? (e.target as HTMLElement)
-		).getBoundingClientRect();
-		const offsetX = e.clientX - rect.left;
-		const offsetY = e.clientY - rect.top;
+		let offsetX: number;
+		let offsetY: number;
+		if (canvasX !== undefined && canvasY !== undefined) {
+			offsetX = canvasX;
+			offsetY = canvasY;
+		} else {
+			const target = (e.currentTarget as HTMLElement | null) ?? (e.target as HTMLElement | null);
+			if (!target) return;
+			const rect = target.getBoundingClientRect();
+			offsetX = e.clientX - rect.left;
+			offsetY = e.clientY - rect.top;
+		}
 
 		const centerX = width / 2 + translateX;
 		const centerY = height / 2 + translateY;
@@ -103,7 +116,13 @@ Store values are in percentage (0-100) range for consistency with UI controls.
 		}
 	}
 
-	export function handleMouseMove(e: MouseEvent, width: number, height: number) {
+	export function handleMouseMove(
+		e: MouseEvent,
+		width: number,
+		height: number,
+		canvasX?: number,
+		canvasY?: number
+	) {
 		if (!isDraggingFocal) {
 			return;
 		}
@@ -113,11 +132,18 @@ Store values are in percentage (0-100) range for consistency with UI controls.
 			return;
 		}
 
-		const rect = (
-			(e.currentTarget as HTMLElement) ?? (e.target as HTMLElement)
-		).getBoundingClientRect();
-		const offsetX = e.clientX - rect.left;
-		const offsetY = e.clientY - rect.top;
+		let offsetX: number;
+		let offsetY: number;
+		if (canvasX !== undefined && canvasY !== undefined) {
+			offsetX = canvasX;
+			offsetY = canvasY;
+		} else {
+			const target = (e.currentTarget as HTMLElement | null) ?? (e.target as HTMLElement | null);
+			if (!target) return;
+			const rect = target.getBoundingClientRect();
+			offsetX = e.clientX - rect.left;
+			offsetY = e.clientY - rect.top;
+		}
 		const centerX = width / 2 + translateX;
 		const centerY = height / 2 + translateY;
 

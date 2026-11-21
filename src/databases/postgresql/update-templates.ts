@@ -383,7 +383,12 @@ export async function executePostgresSingleUpdate<T extends BaseEntity>(
     for (let i = 0; i < columns.length; i++) {
       boundValues.push(bindPgParam(values[columns[i]], tpl.isJsonMap[i]));
     }
-    boundValues.push(String(id), ...tenantClause.params);
+    boundValues.push(String(id));
+    if (tenantClause.params.length > 0) {
+      for (let i = 0; i < tenantClause.params.length; i++) {
+        boundValues.push(tenantClause.params[i]);
+      }
+    }
 
     const skipReturning = (options as Record<string, unknown>)?.skipReturning === true;
 
@@ -399,7 +404,6 @@ export async function executePostgresSingleUpdate<T extends BaseEntity>(
     mStmt?.();
     if (Array.isArray(rows) && rows.length > 0) {
       return convertDatesToISO(rows[0] as Record<string, unknown>, {
-        ...ctx.convertDatesOptions,
         table: collection,
         inPlace: true,
       }) as T;

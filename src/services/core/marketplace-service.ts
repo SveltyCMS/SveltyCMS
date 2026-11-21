@@ -228,6 +228,16 @@ export class MarketplaceService {
         // Replace local stubs with rich remote items
         const remoteItems: MarketplaceItem[] = [];
         const remoteIds = new Set<string>();
+        // Local stubs carry contract metadata the remote payload may omit (the
+        // docs/preview links). Indexed by the prefix-stripped id so a remote
+        // item can inherit it instead of losing the link entirely.
+        const localTwinById = new Map<string, MarketplaceItem>();
+        for (const item of items) {
+          localTwinById.set(
+            item.id.toLowerCase().replace(/^(dashboard-widget-|widget-|plugin-|theme-)/, ""),
+            item,
+          );
+        }
 
         for (const p of remoteList as any[]) {
           const id = String(p.id || p.slug || p.name);
@@ -258,18 +268,21 @@ export class MarketplaceService {
 
           const normalizedType = p.type === "dashboard-widget" ? "dashboard" : p.type || "plugin";
 
+          const localTwin =
+            localTwinById.get(cleanId) ?? (cleanSlug ? localTwinById.get(cleanSlug) : undefined);
+
           remoteItems.push({
             id,
             name: String(name),
             description: String(description),
             version: p.version || "0.0.0",
             author: p.author || p.publisher || "SveltyCMS",
-            icon: p.icon || undefined,
+            icon: p.icon || localTwin?.icon || undefined,
             category: p.category || undefined,
             status: p.status || undefined,
             installed: isInstalled,
             installable: !isInstalled && p.installable !== false,
-            homepageUrl: p.homepageUrl || p.homepage,
+            homepageUrl: p.homepageUrl || p.homepage || localTwin?.homepageUrl,
             type: normalizedType as MarketplaceItem["type"],
             source: "remote",
             rating: typeof p.avgRating === "string" ? parseFloat(p.avgRating) : p.rating,

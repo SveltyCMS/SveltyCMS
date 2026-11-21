@@ -936,7 +936,6 @@ export const handle: Handle = async ({ event, resolve }) => {
       // (which the benchmark/probe harnesses already send).
       const internalDiagnosticsAllowed =
         process.env.NODE_ENV !== "production" ||
-        process.env.TEST_MODE === "true" ||
         process.env.BENCHMARK === "true" ||
         process.env.BENCHMARK_PROFILE !== undefined ||
         process.env.HEALTH_DIAGNOSTICS === "true" ||

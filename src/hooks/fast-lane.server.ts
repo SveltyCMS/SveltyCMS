@@ -65,8 +65,10 @@ export interface FastLaneInput {
   readBody?: () => Promise<Uint8Array>;
 }
 
-/** A lane returns `null` when the request is not its business. */
-export type FastLane = (input: FastLaneInput) => Promise<FastLaneResult | null>;
+/** A lane returns `null` when the request is not its business. May settle synchronously on L1 HITs / fast exits. */
+export type FastLane = (
+  input: FastLaneInput,
+) => FastLaneResult | null | Promise<FastLaneResult | null>;
 
 /** `globalThis` key the app publishes the dispatcher on; read by the server entry. */
 export const FAST_LANE_REGISTRY = "__SVELTY_FAST_LANES__";
@@ -124,15 +126,51 @@ export function resetFastLanesForTest(): void {
 
 /** Marks the lane's `resolve()` fall-through so it cannot be confused with a Response. */
 const FALL_THROUGH = Symbol("fast-lane-fall-through");
+const FALL_THROUGH_PROMISE = Promise.resolve(FALL_THROUGH as unknown as Response);
+const FALL_THROUGH_RESOLVE = () => FALL_THROUGH_PROMISE;
 
 const IS_BENCH_VERIFY_RAW = process.env.BENCH_VERIFY_RAW === "1";
 
-function headerLookup(headers: FastLaneInput["headers"]) {
-  return (name: string): string | null => {
-    const raw = headers[name] ?? headers[name.toLowerCase()];
+/** Prototype-based read-only request header bag (avoids per-request closure allocation). */
+class FastRequestHeaders {
+  private readonly _headers: FastLaneInput["headers"];
+
+  constructor(headers: FastLaneInput["headers"]) {
+    this._headers = headers;
+  }
+
+  get(name: string): string | null {
+    const headers = this._headers;
+    let raw = headers[name];
+    if (raw === undefined) raw = headers[name.toLowerCase()];
     if (raw === undefined) return null;
     return Array.isArray(raw) ? raw.join(", ") : String(raw);
-  };
+  }
+
+  has(name: string): boolean {
+    const headers = this._headers;
+    return headers[name] !== undefined || headers[name.toLowerCase()] !== undefined;
+  }
+
+  forEach(cb: (val: string, key: string) => void): void {
+    const headers = this._headers;
+    for (const key in headers) {
+      if (!Object.hasOwn(headers, key)) continue;
+      const v = headers[key];
+      if (v !== undefined) cb(Array.isArray(v) ? v.join(", ") : String(v), key);
+    }
+  }
+
+  *[Symbol.iterator](): IterableIterator<[string, string]> {
+    const headers = this._headers;
+    for (const key in headers) {
+      if (!Object.hasOwn(headers, key)) continue;
+      const v = headers[key];
+      if (v !== undefined) {
+        yield [key, Array.isArray(v) ? v.join(", ") : String(v)];
+      }
+    }
+  }
 }
 
 const EMPTY_COOKIE_JAR = { get: (_name: string): string | undefined => undefined };
@@ -172,44 +210,82 @@ function serializeCookie(name: string, value: string, opts: Record<string, unkno
 
 const EMPTY_SEARCH_PARAMS = new URLSearchParams();
 
-/**
- * Minimal URL facade for the lane — `new URL()` pays a full WHATWG parse
- * (~10-15µs) per request on the hot path, but the lane only ever reads
- * `pathname`, `search`, `searchParams`, `protocol` and `hostname`. All five
- * derive from the raw `req.url` + the entry's `origin` with plain string
- * slicing, so the facade is allocation-light and byte-identical in behaviour
- * for the lane's access surface (`handleApiError` also reads only
- * `event.url.pathname`).
- */
-function fastLaneUrl(input: FastLaneInput): URL {
-  const raw = input.url || "/";
-  const q = raw.indexOf("?");
-  const pathname = q >= 0 ? raw.slice(0, q) : raw;
-  const search = q >= 0 ? raw.slice(q) : "";
-  const schemeEnd = input.origin.indexOf("://");
-  const protocol = schemeEnd >= 0 ? input.origin.slice(0, schemeEnd + 1) : "http:";
-  const host = schemeEnd >= 0 ? input.origin.slice(schemeEnd + 3) : input.origin;
+interface ParsedOrigin {
+  origin: string;
+  protocol: string;
+  host: string;
+  hostname: string;
+  isSecure: boolean;
+}
+
+let lastParsedOrigin: ParsedOrigin = {
+  origin: "",
+  protocol: "http:",
+  host: "",
+  hostname: "",
+  isSecure: false,
+};
+
+function parseOriginCached(origin: string): ParsedOrigin {
+  if (origin === lastParsedOrigin.origin) return lastParsedOrigin;
+  const schemeEnd = origin.indexOf("://");
+  const protocol = schemeEnd >= 0 ? origin.slice(0, schemeEnd + 1) : "http:";
+  const host = schemeEnd >= 0 ? origin.slice(schemeEnd + 3) : origin;
   const colon = host.indexOf(":");
   const hostname = colon >= 0 ? host.slice(0, colon) : host;
-  let parsedParams: URLSearchParams | null = search ? null : EMPTY_SEARCH_PARAMS;
-  return {
-    pathname,
-    search,
-    get searchParams(): URLSearchParams {
-      if (!parsedParams) parsedParams = new URLSearchParams(search);
-      return parsedParams;
-    },
-    origin: input.origin,
-    get href(): string {
-      return `${input.origin}${raw}`;
-    },
+  lastParsedOrigin = {
+    origin,
     protocol,
     host,
     hostname,
-  } as unknown as URL;
+    isSecure: isSecureCookieContext(protocol, hostname),
+  };
+  return lastParsedOrigin;
+}
+
+/**
+ * Minimal prototype-based URL facade for the lane — avoids WHATWG `new URL()`
+ * (~10-15µs) and per-request getter property definitions while keeping a single
+ * monomorphic V8 hidden class across every fast-lane request.
+ */
+class FastLaneUrl {
+  public readonly pathname: string;
+  public readonly search: string;
+  public readonly origin: string;
+  public readonly protocol: string;
+  public readonly host: string;
+  public readonly hostname: string;
+  private readonly _raw: string;
+  private _parsedParams: URLSearchParams | null;
+
+  constructor(rawUrl: string, parsedOrigin: ParsedOrigin) {
+    const raw = rawUrl || "/";
+    const q = raw.indexOf("?");
+    this._raw = raw;
+    this.pathname = q >= 0 ? raw.slice(0, q) : raw;
+    this.search = q >= 0 ? raw.slice(q) : "";
+    this.origin = parsedOrigin.origin;
+    this.protocol = parsedOrigin.protocol;
+    this.host = parsedOrigin.host;
+    this.hostname = parsedOrigin.hostname;
+    this._parsedParams = this.search ? null : EMPTY_SEARCH_PARAMS;
+  }
+
+  get searchParams(): URLSearchParams {
+    if (!this._parsedParams) this._parsedParams = new URLSearchParams(this.search);
+    return this._parsedParams;
+  }
+
+  get href(): string {
+    return `${this.origin}${this._raw}`;
+  }
 }
 
 const utf8Decoder = new TextDecoder();
+
+function decodeUtf8Bytes(bytes: Uint8Array): string {
+  return Buffer.isBuffer(bytes) ? bytes.toString("utf8") : utf8Decoder.decode(bytes);
+}
 
 /**
  * Convert a pipeline `Response` into the entry's prebuilt shape.
@@ -286,21 +362,84 @@ function responseToLaneResult(
     .then((buf) => finalizeLaneResult(out.status, headers, new Uint8Array(buf)));
 }
 
+function parseUtf8Json(bytes: Uint8Array): unknown {
+  return JSON.parse(decodeUtf8Bytes(bytes));
+}
+
+/** Prototype-based lazy-body request facade for write/GraphQL fast lanes (avoids per-request closures). */
+class FastWriteRequest {
+  public readonly method: string;
+  public readonly headers: FastRequestHeaders;
+  public readonly url?: string;
+  private readonly _readBody: () => Promise<Uint8Array>;
+  private _bodyPromise: Promise<Uint8Array> | null = null;
+  public _bodyRead = false;
+
+  constructor(
+    method: string,
+    headers: FastRequestHeaders,
+    readBody: () => Promise<Uint8Array>,
+    url?: string,
+  ) {
+    this.method = method;
+    this.headers = headers;
+    this._readBody = readBody;
+    if (url !== undefined) this.url = url;
+  }
+
+  private _readBytes(): Promise<Uint8Array> {
+    this._bodyRead = true;
+    if (!this._bodyPromise) this._bodyPromise = this._readBody();
+    return this._bodyPromise;
+  }
+
+  text(): Promise<string> {
+    return this._readBytes().then(decodeUtf8Bytes);
+  }
+
+  json(): Promise<unknown> {
+    return this._readBytes().then(parseUtf8Json);
+  }
+}
+
+/** Prototype-based cookie facade for write/GraphQL fast lanes (captures Set-Cookie emissions). */
+class FastWriteCookies {
+  private readonly _jar: { get: (name: string) => string | undefined };
+  public readonly _setCookies: string[] = [];
+
+  constructor(jar: { get: (name: string) => string | undefined }) {
+    this._jar = jar;
+  }
+
+  get(name: string): string | undefined {
+    return this._jar.get(name);
+  }
+
+  set(name: string, value: string, opts?: Record<string, unknown>): void {
+    this._setCookies.push(serializeCookie(name, value, opts));
+  }
+}
+
 /**
  * Collection point-read/list lane. Byte-for-byte the SvelteKit lane: the same
  * `tryCollectionReadLane` decides, including its warm-turbo-session and admin
  * requirements and its `If-None-Match → 304` handling.
  */
-const collectionReadLane: FastLane = async (input) => {
-  const getHeader = headerLookup(input.headers);
-  const url = fastLaneUrl(input);
-  const rawCookie = getHeader("cookie");
-  const isSecure = isSecureCookieContext(url.protocol, url.hostname);
-  const turboSessionId = readSessionIdFromCookieHeader(rawCookie, isSecure);
+const collectionReadLane: FastLane = (input) => {
+  // Fast exit before any object allocation: avoids building URL/header/cookie
+  // facades on every POST/PATCH/PUT collection write and GraphQL request.
+  if (input.method !== "GET" && input.method !== "HEAD") return null;
+  if (!input.url.startsWith("/api/collections/")) return null;
+
+  const reqHeaders = new FastRequestHeaders(input.headers);
+  const parsedOrigin = parseOriginCached(input.origin);
+  const url = new FastLaneUrl(input.url, parsedOrigin) as unknown as URL;
+  const rawCookie = reqHeaders.get("cookie");
+  const turboSessionId = readSessionIdFromCookieHeader(rawCookie, parsedOrigin.isSecure);
   const cookies = cookieLookup(rawCookie);
   // The lane reads `request.method`, `request.headers.get`, `url` and `cookies`.
   // A real `Request` would mean paying the bridging cost this lane exists to avoid.
-  const request = { method: input.method, headers: { get: getHeader } } as unknown as Request;
+  const request = { method: input.method, headers: reqHeaders } as unknown as Request;
   const event = {
     url,
     request,
@@ -310,10 +449,16 @@ const collectionReadLane: FastLane = async (input) => {
 
   if (!isSimpleCollectionRead(event)) return null;
 
-  const out = await tryCollectionReadLane({
+  const out = tryCollectionReadLane({
     event,
-    resolve: async () => FALL_THROUGH as unknown as Response,
+    resolve: FALL_THROUGH_RESOLVE,
   });
+  if (out instanceof Promise) {
+    return out.then((res) => {
+      if (!res || (res as unknown) === FALL_THROUGH) return null;
+      return responseToLaneResult(res, undefined, RequestLane.API_READ);
+    });
+  }
   if (!out || (out as unknown) === FALL_THROUGH) return null;
   return responseToLaneResult(out, undefined, RequestLane.API_READ);
 };
@@ -340,55 +485,20 @@ async function runPostWriteLane(
   readTextToo = false,
 ): Promise<FastLaneResult | null> {
   if (!input.readBody) return null;
-  const getHeader = headerLookup(input.headers);
-  const url = fastLaneUrl(input);
-  const readBody = input.readBody;
-  let bodyPromise: Promise<Uint8Array> | null = null;
-  // Set the moment the body is touched. After this point the request can no
-  // longer fall through — the pipeline could not re-read a consumed stream.
-  let bodyRead = false;
-  const readBytes = () => {
-    bodyRead = true;
-    if (!bodyPromise) bodyPromise = readBody();
-    return bodyPromise;
-  };
-  const headerBag: Record<string, unknown> = readTextToo
-    ? {
-        get: getHeader,
-        has: (name: string) => getHeader(name) !== null,
-        forEach: (cb: (val: string, key: string) => void) => {
-          for (const [k, v] of Object.entries(input.headers)) {
-            if (v !== undefined) cb(Array.isArray(v) ? v.join(", ") : String(v), k);
-          }
-        },
-        *[Symbol.iterator]() {
-          for (const [k, v] of Object.entries(input.headers)) {
-            if (v !== undefined) {
-              yield [k, Array.isArray(v) ? v.join(", ") : String(v)] as [string, string];
-            }
-          }
-        },
-      }
-    : { get: getHeader };
-  const request = {
-    method: input.method,
-    ...(readTextToo ? { url: `${input.origin}${input.url}` } : {}),
-    headers: headerBag,
-    ...(readTextToo ? { text: async () => utf8Decoder.decode(await readBytes()) } : {}),
-    json: async () => JSON.parse(utf8Decoder.decode(await readBytes())),
-  } as unknown as Request;
+  const reqHeaders = new FastRequestHeaders(input.headers);
+  const parsedOrigin = parseOriginCached(input.origin);
+  const url = new FastLaneUrl(input.url, parsedOrigin) as unknown as URL;
+  const fastRequest = new FastWriteRequest(
+    input.method,
+    reqHeaders,
+    input.readBody,
+    readTextToo ? `${input.origin}${input.url}` : undefined,
+  );
+  const request = fastRequest as unknown as Request;
 
-  const rawCookie = getHeader("cookie");
-  const isSecure = isSecureCookieContext(url.protocol, url.hostname);
-  const turboSessionId = readSessionIdFromCookieHeader(rawCookie, isSecure);
-  const jar = cookieLookup(rawCookie);
-  const setCookies: string[] = [];
-  const cookies = {
-    get: (name: string) => jar.get(name),
-    set: (name: string, value: string, opts?: Record<string, unknown>) => {
-      setCookies.push(serializeCookie(name, value, opts));
-    },
-  };
+  const rawCookie = reqHeaders.get("cookie");
+  const turboSessionId = readSessionIdFromCookieHeader(rawCookie, parsedOrigin.isSecure);
+  const cookies = new FastWriteCookies(cookieLookup(rawCookie));
 
   const { clientAddress } = input;
   const event = {
@@ -410,16 +520,16 @@ async function runPostWriteLane(
   try {
     const out = await laneHandler({
       event,
-      resolve: async () => FALL_THROUGH as unknown as Response,
+      resolve: FALL_THROUGH_RESOLVE,
     });
     if (!out || (out as unknown) === FALL_THROUGH) return null;
-    const laneRes = responseToLaneResult(out, setCookies, RequestLane.API_WRITE);
+    const laneRes = responseToLaneResult(out, cookies._setCookies, RequestLane.API_WRITE);
     return laneRes instanceof Promise ? await laneRes : laneRes;
   } catch (err) {
-    // A consumed body cannot be replayed, so once `bodyRead` is set the lane must
+    // A consumed body cannot be replayed, so once `_bodyRead` is set the lane must
     // answer rather than hand a half-read stream to the pipeline. Before that the
     // request is untouched and may safely fall through.
-    if (!bodyRead) return null;
+    if (!fastRequest._bodyRead) return null;
     logger.error("[FastLane] write lane failed after consuming the body", err);
     return {
       status: 500,
@@ -429,17 +539,46 @@ async function runPostWriteLane(
   }
 }
 
-const collectionWriteLane: FastLane = async (input) => {
+const collectionWriteLane: FastLane = (input) => {
   if (input.method !== "POST" && input.method !== "PATCH" && input.method !== "PUT") return null;
   if (!input.url.startsWith("/api/collections/")) return null;
   return runPostWriteLane(input, tryCollectionWriteLane);
 };
 
-const graphqlWriteLane: FastLane = async (input) => {
+const graphqlWriteLane: FastLane = (input) => {
   if (input.method !== "POST") return null;
   if (!isGraphqlPostUrl(input.url)) return null;
   return runPostWriteLane(input, tryGraphqlWriteLane, true);
 };
+
+async function finishAsyncLanes(
+  pending: Promise<FastLaneResult | null>,
+  nextIdx: number,
+  input: FastLaneInput,
+): Promise<FastLaneResult | null> {
+  try {
+    const first = await pending;
+    if (first) return first;
+  } catch (err) {
+    logger.debug(
+      `[FastLane] lane declined after error: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+  for (let i = nextIdx; i < lanes.length; i++) {
+    try {
+      const raw = lanes[i]!(input);
+      const out = raw instanceof Promise ? await raw : raw;
+      if (out) return out;
+    } catch (err) {
+      logger.debug(
+        `[FastLane] lane declined after error: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+  return null;
+}
+
+const NULL_LANE_PROMISE: Promise<FastLaneResult | null> = Promise.resolve(null);
 
 /**
  * Publish the registry for the server entry.
@@ -463,16 +602,19 @@ export function installFastLanes(): void {
   const host = globalThis as typeof globalThis & {
     [FAST_LANE_REGISTRY]?: (input: FastLaneInput) => Promise<FastLaneResult | null>;
   };
-  host[FAST_LANE_REGISTRY] = async (input) => {
+  host[FAST_LANE_REGISTRY] = (input) => {
     // 🛡️ STATE GATE (fail-closed): lanes run before `handle-system-state`, so this
     // is where MAINTENANCE / RECOVERY / FAILED / SETUP traffic is turned away to
     // the pipeline. Checked here as well as inside each lane so a lane added
     // later cannot serve a state the operator took the instance out of.
-    if (!isLaneServingAllowed()) return null;
-    for (const lane of lanes) {
+    if (!isLaneServingAllowed()) return NULL_LANE_PROMISE;
+    for (let i = 0; i < lanes.length; i++) {
       try {
-        const out = await lane(input);
-        if (out) return out;
+        const raw = lanes[i]!(input);
+        if (raw instanceof Promise) {
+          return finishAsyncLanes(raw, i + 1, input);
+        }
+        if (raw) return Promise.resolve(raw);
       } catch (err) {
         // A lane failure is never the request's failure: fall back to the full
         // pipeline, which produces the properly rendered error response.
@@ -481,7 +623,7 @@ export function installFastLanes(): void {
         );
       }
     }
-    return null;
+    return NULL_LANE_PROMISE;
   };
   logger.info(`[FastLane] ${lanes.length} lane(s) registered`);
   // Deliberate stderr write: the external A/B harness forwards the spawned server's

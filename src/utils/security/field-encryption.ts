@@ -15,7 +15,7 @@
 
 import nodeCrypto from "node:crypto";
 import { logger } from "@utils/logger";
-import { AppError } from "@utils/error-handling";
+import { AppError, raise } from "@utils/error-handling";
 import { AES256_HKDF_INFO, ENCRYPTION_CONFIG, aesGcmDecryptWithKeys } from "@utils/security/crypto";
 import {
   encodeColonEnvelope,
@@ -55,6 +55,67 @@ function readEncryptionKeyRaw(): string | null {
   const raw = process.env.ENCRYPTION_KEY || process.env.SECRET_ENCRYPTION_KEY;
   if (!raw || raw.length < 32) return null;
   return raw;
+}
+
+function readKemPublicKey(): string | null {
+  if (typeof process === "undefined") return null;
+  const raw = process.env.PQC_KEM_PUBLIC_KEY || process.env.KEM_PUBLIC_KEY;
+  return raw && raw.trim().length > 0 ? raw.trim() : null;
+}
+
+function readKemPrivateKey(): string | null {
+  if (typeof process === "undefined") return null;
+  const raw = process.env.PQC_KEM_PRIVATE_KEY || process.env.KEM_PRIVATE_KEY;
+  return raw && raw.trim().length > 0 ? raw.trim() : null;
+}
+
+function readClassicalPublicKey(): string | undefined {
+  if (typeof process === "undefined") return undefined;
+  const raw = process.env.PQC_X25519_PUBLIC_KEY;
+  return raw && raw.trim().length > 0 ? raw.trim() : undefined;
+}
+
+function readClassicalPrivateKey(): string | undefined {
+  if (typeof process === "undefined") return undefined;
+  const raw = process.env.PQC_X25519_PRIVATE_KEY;
+  return raw && raw.trim().length > 0 ? raw.trim() : undefined;
+}
+
+/** True when any encrypted field on `doc` holds a `v1:`/`v2:` hybrid ML-KEM envelope. */
+export function hasHybridEnvelopeInDoc(doc: unknown, fieldNames: readonly string[]): boolean {
+  if (!doc || typeof doc !== "object" || fieldNames.length === 0) return false;
+  const rec = doc as Record<string, unknown>;
+  for (let i = 0; i < fieldNames.length; i++) {
+    const name = fieldNames[i];
+    if (Object.hasOwn(rec, name) && isHybridEnvelope(rec[name])) return true;
+  }
+  return false;
+}
+
+/**
+ * True when an SDK `{ success, data }` envelope, array, or bare document contains
+ * at least one hybrid ML-KEM field envelope requiring async WebCrypto decryption.
+ */
+export function hasHybridEnvelopeInResult(result: unknown, fieldNames: readonly string[]): boolean {
+  if (!result || typeof result !== "object" || fieldNames.length === 0) return false;
+  if ("success" in result && "data" in result) {
+    const data = (result as { data: unknown }).data;
+    if (data == null) return false;
+    if (Array.isArray(data)) {
+      for (let i = 0; i < data.length; i++) {
+        if (hasHybridEnvelopeInDoc(data[i], fieldNames)) return true;
+      }
+      return false;
+    }
+    return hasHybridEnvelopeInDoc(data, fieldNames);
+  }
+  if (Array.isArray(result)) {
+    for (let i = 0; i < result.length; i++) {
+      if (hasHybridEnvelopeInDoc(result[i], fieldNames)) return true;
+    }
+    return false;
+  }
+  return hasHybridEnvelopeInDoc(result, fieldNames);
 }
 
 /**
@@ -153,9 +214,12 @@ export function encryptFieldValueSync(
 
 /**
  * Encrypt a JSON-serializable value into an envelope.
- * When `PQC_HYBRID_FIELDS=true` and `KEM_PUBLIC_KEY` is present, seals into
- * a post-quantum hybrid envelope (ML-KEM-768 + AES-256-GCM).
+ * When `PQC_HYBRID_FIELDS=true`, seals into a post-quantum envelope
+ * (`v1:` ML-KEM-768 + AES-256-GCM, or `v2:` X25519 + ML-KEM-768 + AES-256-GCM when
+ * `PQC_X25519_PUBLIC_KEY` is also set). Fails closed if keys or runtime ML-KEM support
+ * are unavailable — never silently downgrades to classical encryption.
  * Otherwise seals into a standard `v2:<keyId>:iv:tag:ciphertext` envelope.
+ * @throws AppError PQC_FIELD_ENCRYPTION_UNAVAILABLE when PQC_HYBRID_FIELDS is enabled without keys/runtime
  * @throws AppError FIELD_ENCRYPTION_UNAVAILABLE when ENCRYPTION_KEY is missing
  * @throws AppError FIELD_ENCRYPTION_FAILED on cipher errors
  */
@@ -166,16 +230,33 @@ export async function encryptFieldValue(
 ): Promise<string> {
   if (isFieldEncryptionEnvelope(value)) return value;
   if (process.env.PQC_HYBRID_FIELDS === "true") {
-    const kemPublicKey = process.env.KEM_PUBLIC_KEY;
-    if (kemPublicKey && (await isMlKemAvailable())) {
-      const plaintext = new TextEncoder().encode(JSON.stringify(value));
-      const aad = buildAad(context, fieldName);
-      try {
-        return await hybridSeal(plaintext, { publicKey: kemPublicKey, aad });
-      } finally {
-        // Ephemeral plaintext must not outlive the seal call in the V8 heap.
-        plaintext.fill(0);
-      }
+    const kemPublicKey = readKemPublicKey();
+    if (!kemPublicKey) {
+      raise(
+        503,
+        "PQC_HYBRID_FIELDS=true requires PQC_KEM_PUBLIC_KEY (or KEM_PUBLIC_KEY).",
+        "PQC_FIELD_ENCRYPTION_UNAVAILABLE",
+      );
+    }
+    if (!(await isMlKemAvailable())) {
+      raise(
+        503,
+        "PQC_HYBRID_FIELDS=true requires a runtime with ML-KEM-768 WebCrypto support.",
+        "PQC_FIELD_ENCRYPTION_UNAVAILABLE",
+      );
+    }
+    const plaintext = new TextEncoder().encode(JSON.stringify(value));
+    const aad = buildAad(context, fieldName);
+    const classicalPublicKey = readClassicalPublicKey();
+    try {
+      return await hybridSeal(plaintext, {
+        publicKey: kemPublicKey,
+        classicalPublicKey,
+        aad,
+      });
+    } finally {
+      // Ephemeral plaintext must not outlive the seal call in the V8 heap.
+      plaintext.fill(0);
     }
   }
   return encryptFieldValueSync(value, context, fieldName);
@@ -213,9 +294,9 @@ export function decryptFieldValueSync(
     }
     const selection = keysForEnvelope(keys, parsed);
     if (selection.unknownKeyId && parsed.keyId?.startsWith("kms.")) {
-      const kmsDek = cloudKms.getActiveDekSync();
-      if (kmsDek && kmsDek.keyId === parsed.keyId) {
-        selection.keys = [kmsDek.plaintext];
+      const cachedDek = cloudKms.getCachedDekSync(parsed.keyId);
+      if (cachedDek) {
+        selection.keys = [cachedDek];
         selection.unknownKeyId = false;
       }
     }
@@ -265,10 +346,10 @@ export async function decryptFieldValue(
 ): Promise<unknown> {
   if (!isFieldEncryptionEnvelope(stored)) return stored;
   if (isHybridEnvelope(stored)) {
-    const kemPrivateKey = process.env.KEM_PRIVATE_KEY;
+    const kemPrivateKey = readKemPrivateKey();
     if (!kemPrivateKey) {
       logger.error(
-        "[FieldEncryption] Hybrid PQC envelope detected but KEM_PRIVATE_KEY is missing",
+        "[FieldEncryption] Hybrid PQC envelope detected but PQC_KEM_PRIVATE_KEY / KEM_PRIVATE_KEY is missing",
         {
           fieldName,
         },
@@ -277,7 +358,12 @@ export async function decryptFieldValue(
     }
     try {
       const aad = buildAad(context, fieldName);
-      const plaintextBytes = await hybridOpen(stored, { privateKey: kemPrivateKey, aad });
+      const classicalPrivateKey = readClassicalPrivateKey();
+      const plaintextBytes = await hybridOpen(stored, {
+        privateKey: kemPrivateKey,
+        classicalPrivateKey,
+        aad,
+      });
       try {
         return JSON.parse(new TextDecoder().decode(plaintextBytes));
       } finally {
@@ -319,7 +405,8 @@ export function encryptDocumentFieldsSync(
 
 /**
  * Encrypt flagged fields in place. Skips missing/empty values and envelopes.
- * When `PQC_HYBRID_FIELDS=true`, applies ML-KEM-768 hybrid envelopes asynchronously.
+ * When `PQC_HYBRID_FIELDS=true`, applies ML-KEM-768 (or composite X25519+ML-KEM-768)
+ * envelopes asynchronously and fails closed if keys are missing.
  */
 export async function encryptDocumentFields(
   doc: Record<string, unknown>,
@@ -327,7 +414,7 @@ export async function encryptDocumentFields(
   context: FieldEncryptionContext,
 ): Promise<Record<string, unknown>> {
   if (!doc || fieldNames.length === 0) return doc;
-  if (process.env.PQC_HYBRID_FIELDS === "true" && process.env.KEM_PUBLIC_KEY) {
+  if (process.env.PQC_HYBRID_FIELDS === "true") {
     for (let i = 0; i < fieldNames.length; i++) {
       const name = fieldNames[i];
       if (!Object.hasOwn(doc, name)) continue;

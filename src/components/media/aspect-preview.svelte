@@ -146,10 +146,12 @@ aspect-preview plugin and Drupal's focal point preview.
 				<div
 					class="relative w-full overflow-hidden rounded-t-lg bg-surface-200 dark:bg-surface-900"
 					class:cursor-crosshair={interactive}
+					class:touch-none={interactive}
 					style="aspect-ratio: {ratio.width} / {ratio.height};"
 					onpointerdown={handlePointerDown}
 					onpointermove={handlePointerMove}
 					onpointerup={handlePointerUp}
+					onpointercancel={handlePointerUp}
 					role={interactive ? 'slider' : 'img'}
 					aria-label="{ratio.label} aspect ratio preview"
 					aria-valuemin={interactive ? 0 : undefined}

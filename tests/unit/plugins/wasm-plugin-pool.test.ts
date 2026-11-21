@@ -185,6 +185,20 @@ describe("WASM Micro-Sandbox — Pool Lifecycle and Pre-warming", () => {
     expect(result.success).toBe(true);
     expect(result.data).toEqual(payload);
   });
+
+  it("zeroes guest linear memory when destroying the pool", async () => {
+    // Access the underlying pooled instance's linear memory to seed non-zero bytes
+    const internalInstances = (
+      pool as unknown as { instances: Array<{ memory: WebAssembly.Memory }> }
+    ).instances;
+    expect(internalInstances.length).toBeGreaterThan(0);
+    const view = new Uint8Array(internalInstances[0].memory.buffer);
+    view.fill(0xab, 0, 64);
+    expect(view[0]).toBe(0xab);
+
+    pool.destroy();
+    expect(view.subarray(0, 64).every((b) => b === 0)).toBe(true);
+  });
 });
 
 describe("WASM Host ABI — Security Boundaries and Capability Enforcement", () => {

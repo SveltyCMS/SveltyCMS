@@ -1,12 +1,14 @@
 /**
  * @file src/plugins/wasm/wasm-plugin-pool.ts
- * @description Pre-warmed WebAssembly instance pool with execution watchdogs, memory isolation, and performance metrics.
+ * @description Pre-warmed WebAssembly instance pool with duration watchdogs, memory isolation, and performance metrics.
  *
  * Features:
  * - One-time Ahead-Of-Time (AOT) module compilation at plugin activation
  * - Fixed ring of warm instances eliminating cold-start JIT overhead (< 0.15ms invocations)
- * - Watchdog timeouts terminating hung execution (default 50ms limit)
- * - Safe instance recycling and linear memory reset on trap or fault
+ * - Pool-acquisition & post-call execution duration enforcement (default 50ms budget);
+ *   note that synchronous WebAssembly exports on the main V8 thread cannot be preempted
+ *   mid-instruction — untrusted CPU-bound guests require a dedicated Worker or fuel metering
+ * - Linear-memory zeroing on instance recycle/destroy and safe replacement after trap or budget overrun
  * - High-resolution telemetry: avg/p95 latency, pool saturation, query counters
  */
 
@@ -154,6 +156,14 @@ export class WasmPluginPool {
     });
   }
 
+  private zeroLinearMemory(instance: PooledInstance): void {
+    try {
+      new Uint8Array(instance.memory.buffer).fill(0);
+    } catch (err) {
+      logger.debug(`[WasmPool:${this.manifest.id}] Failed to zero linear memory:`, err);
+    }
+  }
+
   /**
    * Returns a borrowed instance back to the pool, recycling if necessary.
    */
@@ -161,8 +171,9 @@ export class WasmPluginPool {
     instance.setContext(null);
     instance.totalExecutions++;
 
-    // Recycle instance if a trap occurred or execution threshold reached
+    // Recycle instance if a trap/overrun occurred or execution threshold reached
     if (trapOccurred || instance.totalExecutions >= RECYCLE_AFTER_EXECUTIONS) {
+      this.zeroLinearMemory(instance);
       try {
         const replacement = await this.createInstance(instance.id);
         const idx = this.instances.findIndex((i) => i.id === instance.id);
@@ -177,13 +188,13 @@ export class WasmPluginPool {
         );
       }
     } else {
-      // Fast clean: zero out guest memory scratch space if exported reset exists
+      // Fast clean: invoke guest reset hook if exported
       const exports = instance.instance.exports as Record<string, unknown>;
       if (typeof exports.wasm_reset === "function") {
         try {
           (exports.wasm_reset as () => void)();
-        } catch {
-          // ignore reset errors
+        } catch (err) {
+          logger.debug(`[WasmPool:${this.manifest.id}] Guest wasm_reset threw:`, err);
         }
       }
     }
@@ -202,7 +213,7 @@ export class WasmPluginPool {
   }
 
   /**
-   * Executes a synchronous lifecycle hook with strict timeout and error boundaries.
+   * Executes a lifecycle hook with duration budget enforcement and error boundaries.
    */
   async executeHook<TIn = unknown, TOut = unknown>(
     hookName: string,
@@ -215,6 +226,7 @@ export class WasmPluginPool {
 
     let pooled: PooledInstance | null = null;
     let trapOccurred = false;
+    let watchdogTimer: ReturnType<typeof setTimeout> | undefined;
 
     try {
       pooled = await this.acquireInstance(timeoutMs);
@@ -254,13 +266,14 @@ export class WasmPluginPool {
         pooled.bridge.writeString(inPtr, inLen + 1, serialized);
       }
 
-      // Execution with watchdog timer
+      // Execution with watchdog timer (cleared in finally so fast hooks leak zero timers)
+      const execStart = performance.now();
       const executionPromise = Promise.resolve().then(() => {
         return (exportFn as (...args: number[]) => number)(inPtr, inLen);
       });
 
       const timeoutPromise = new Promise<never>((_, reject) => {
-        const timer = setTimeout(() => {
+        watchdogTimer = setTimeout(() => {
           this.timeoutsTotal++;
           reject(
             new Error(
@@ -268,10 +281,19 @@ export class WasmPluginPool {
             ),
           );
         }, timeoutMs);
-        timer.unref?.();
+        watchdogTimer.unref?.();
       });
 
       const outPtr = await Promise.race([executionPromise, timeoutPromise]);
+      const execElapsed = performance.now() - execStart;
+      if (execElapsed > timeoutMs) {
+        // A synchronous WASM export that exceeded the budget before returning to the
+        // event loop still violates the timeout contract — reject and recycle the instance.
+        this.timeoutsTotal++;
+        throw new Error(
+          `[WasmPool:${this.manifest.id}] Hook "${hookName}" timed out after ${execElapsed.toFixed(2)}ms (budget ${timeoutMs}ms)`,
+        );
+      }
 
       // Read output if guest returned a valid pointer
       let outData: TOut = payload as unknown as TOut;
@@ -324,6 +346,10 @@ export class WasmPluginPool {
         error: (err as Error).message,
         timedOut: isTimeout,
       };
+    } finally {
+      if (watchdogTimer !== undefined) {
+        clearTimeout(watchdogTimer);
+      }
     }
   }
 
@@ -374,13 +400,17 @@ export class WasmPluginPool {
   }
 
   /**
-   * Cleanly destroys the pool and cancels any queued requests.
+   * Cleanly destroys the pool, zeroes all guest linear memories, and cancels queued requests.
    */
   destroy(): void {
     while (this.waitQueue.length > 0) {
       const item = this.waitQueue.shift()!;
       clearTimeout(item.timer);
       item.reject(new Error(`[WasmPool:${this.manifest.id}] Pool destroyed`));
+    }
+    for (const inst of this.instances) {
+      inst.setContext(null);
+      this.zeroLinearMemory(inst);
     }
     this.instances = [];
     this.compiledModule = null;

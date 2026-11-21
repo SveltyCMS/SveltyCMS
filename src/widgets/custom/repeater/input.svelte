@@ -24,7 +24,8 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 	import { getFieldName } from '@utils/schema/field-utils';
 	import { flip } from 'svelte/animate';
 	import { untrack } from 'svelte';
-	import { draggable, droppable } from '@thisux/sveltednd';
+	import { liftAndCarry } from '@utils/media/media-lift-drag';
+	import { droppable } from '@thisux/sveltednd';
 	import type { DragDropState } from '@thisux/sveltednd';
 	import { generateUUID } from '@utils/native-utils';
 	const uuidv4 = () => generateUUID();
@@ -125,6 +126,16 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 		updateValue();
 	}
 
+	function moveItem(index: number, direction: -1 | 1) {
+		const targetIndex = index + direction;
+		if (targetIndex < 0 || targetIndex >= items.length) return;
+		const copy = [...items];
+		const [movedItem] = copy.splice(index, 1);
+		copy.splice(targetIndex, 0, movedItem);
+		items = copy;
+		updateValue();
+	}
+
 	// Helper specific to formatting labels for collapsed items (e.g. show first field)
 	function getItemLabel(itemData: Record<string, any>, index: number) {
 		const fields = (field as any).fields;
@@ -168,8 +179,9 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 			<div
 				class="rounded-lg border border-surface-500/30 bg-surface-500/10 dark:border-surface-500/40 dark:bg-surface-800"
+				style="touch-action: pan-y;"
 				animate:flip={{ duration: 300 }}
-				use:draggable={{
+				use:liftAndCarry={{
 					container: 'repeater',
 					dragData: item,
 					keyboard: true,
@@ -187,7 +199,7 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 						<!-- Drag Handle -->
 						<button
 							type="button"
-							class="repeater-drag-handle cursor-grab active:cursor-grabbing p-1 inline-flex items-center justify-center text-surface-400 hover:text-primary-500 dark:hover:text-primary-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
+							class="repeater-drag-handle min-h-6 min-w-6 cursor-grab touch-none active:cursor-grabbing p-1 inline-flex items-center justify-center text-surface-400 hover:text-primary-500 dark:hover:text-primary-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
 							aria-label={common_drag_reorder()}
 							title={common_drag_reorder()}
 						>
@@ -207,15 +219,39 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 						</Button>
 					</div>
 
-					<Button
-						variant="ghost"
-						onclick={() => removeItem(item.id)}
-						class="text-error-500 hover:text-error-600 p-1"
-						aria-label={widget_repeater_remove_item()}
-						title={widget_repeater_remove_item()}
-					>
-						<iconify-icon icon="mdi:delete" width="18"></iconify-icon>
-					</Button>
+					<div class="flex items-center gap-1">
+						{#if items.length > 1}
+							<Button
+								variant="ghost"
+								onclick={() => moveItem(index, -1)}
+								disabled={index === 0}
+								class="min-h-6 min-w-6 p-1 text-surface-500 hover:text-primary-500 disabled:opacity-30"
+								aria-label="Move item up"
+								title="Move item up"
+							>
+								<iconify-icon icon="mdi:arrow-up" width="16"></iconify-icon>
+							</Button>
+							<Button
+								variant="ghost"
+								onclick={() => moveItem(index, 1)}
+								disabled={index === items.length - 1}
+								class="min-h-6 min-w-6 p-1 text-surface-500 hover:text-primary-500 disabled:opacity-30"
+								aria-label="Move item down"
+								title="Move item down"
+							>
+								<iconify-icon icon="mdi:arrow-down" width="16"></iconify-icon>
+							</Button>
+						{/if}
+						<Button
+							variant="ghost"
+							onclick={() => removeItem(item.id)}
+							class="min-h-6 min-w-6 text-error-500 hover:text-error-600 p-1"
+							aria-label={widget_repeater_remove_item()}
+							title={widget_repeater_remove_item()}
+						>
+							<iconify-icon icon="mdi:delete" width="18"></iconify-icon>
+						</Button>
+					</div>
 				</header>
 
 				<!-- Body -->

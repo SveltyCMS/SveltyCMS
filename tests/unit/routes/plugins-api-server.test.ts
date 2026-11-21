@@ -39,6 +39,12 @@ vi.mock("@src/databases/auth/permissions", () => ({
   hasPermissionWithRoles: vi.fn(),
 }));
 
+// The dispatcher validates the double-submit CSRF token before RBAC; these tests
+// target the dispatcher's own contract, so the token check is stubbed as valid.
+vi.mock("@utils/security/csrf-utils", () => ({
+  validateCsrfForRequest: vi.fn(() => ({ isValid: true })),
+}));
+
 import { pluginRegistry } from "@src/plugins/registry";
 import { pluginServerRegistry } from "@src/plugins/plugin-server-registry";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";

@@ -1132,7 +1132,7 @@ export class CollectionsNamespace {
     const m3 = PROFILE_WRITE_ENABLED ? profileMark("ns:persist") : null;
     const result = await persistWithOutbox(
       "create",
-      async (txOpts) =>
+      (txOpts) =>
         this._dbAdapter.crud.insert(collectionName, finalData, {
           tenantId: tenantId as DatabaseId,
           ...txOpts,
@@ -1153,10 +1153,12 @@ export class CollectionsNamespace {
     markWritePhase(options, "dbwrite", tDb);
 
     const tPost = writePhaseT0(options);
-    const decryptedCreate =
+    const rawDecryptedCreate =
       options.skipReturning || !plan.hasEncryption
         ? result
         : decryptReadResult(result, hot, encCtx, DECRYPT_CLONE_OPTIONS);
+    const decryptedCreate =
+      rawDecryptedCreate instanceof Promise ? await rawDecryptedCreate : rawDecryptedCreate;
 
     // 🔗 Persist the junction edges for this row. Idempotent (deterministic edge
     // ids), so a retry after a partial failure converges.
@@ -1498,81 +1500,86 @@ export class CollectionsNamespace {
     };
     const result = await persistWithOutbox(
       "update",
-      async (txOpts) => {
+      (txOpts) => {
         if (casRowVersion === null) {
           return this._dbAdapter.crud.update(
-            this.getCollectionName(schema._id as string),
+            tableName,
             entryId as DatabaseId,
             finalData,
-            { ...writeOptions, ...txOpts },
+            transaction ? { ...writeOptions, ...txOpts } : writeOptions,
           );
         }
-        // 🔒 Compare-and-set: one `UPDATE … WHERE _id = ? AND updatedAt = ?`.
-        // Zero matched rows means another writer won the race after the fast
-        // pre-check, so this is a genuine conflict, not a missing row.
-        //
-        // The SDK hands `updatedAt` back as an ISO string. MariaDB/MySQL cannot
-        // parse the trailing `Z` in a comparison and MongoDB stores a real Date,
-        // so the raw token matched zero rows on those engines even when nothing
-        // had changed. Try the Date first, then the raw value, and only then call
-        // it a conflict — both attempts use the version the caller loaded.
-        const casCandidates = casVersionCandidates(casRowVersion);
-        let cas = await this._dbAdapter.crud.updateMany(
-          tableName,
-          { _id: entryId, updatedAt: casCandidates[0] } as any,
-          finalData as any,
-          { ...writeOptions, ...txOpts },
-        );
-        for (const candidate of casCandidates.slice(1)) {
-          if (cas.success && (cas.data?.modifiedCount ?? 0) > 0) break;
-          cas = await this._dbAdapter.crud.updateMany(
+        return (async () => {
+          // 🔒 Compare-and-set: one `UPDATE … WHERE _id = ? AND updatedAt = ?`.
+          // Zero matched rows means another writer won the race after the fast
+          // pre-check, so this is a genuine conflict, not a missing row.
+          //
+          // The SDK hands `updatedAt` back as an ISO string. MariaDB/MySQL cannot
+          // parse the trailing `Z` in a comparison and MongoDB stores a real Date,
+          // so the raw token matched zero rows on those engines even when nothing
+          // had changed. Try the Date first, then the raw value, and only then call
+          // it a conflict — both attempts use the version the caller loaded.
+          const casCandidates = casVersionCandidates(casRowVersion);
+          let cas = await this._dbAdapter.crud.updateMany(
             tableName,
-            { _id: entryId, updatedAt: candidate } as any,
+            { _id: entryId, updatedAt: casCandidates[0] } as any,
             finalData as any,
             { ...writeOptions, ...txOpts },
           );
-        }
-        if (!cas.success) return cas;
-        if ((cas.data?.modifiedCount ?? 0) === 0) {
-          const current = await this._dbAdapter.crud.findOne(tableName, { _id: entryId } as any, {
-            tenantId: tenantId as DatabaseId,
-            bypassCache: true,
-          });
-          const currentVersion = current.success
-            ? ((current.data as unknown as Record<string, unknown> | null)?.updatedAt ?? null)
-            : null;
-          // The CAS filter carries a timestamp column in an engine-specific
-          // representation; MariaDB/MongoDB can reject an unchanged row even when
-          // no writer intervened (the filter binds nothing). Re-verify against the
-          // version the caller loaded and, if it is still current, write without
-          // the compare-and-set instead of reporting a false conflict.
-          if (current.success && current.data && matchesVersion(currentVersion, expectedVersion)) {
-            const plain = await this._dbAdapter.crud.update(
+          for (const candidate of casCandidates.slice(1)) {
+            if (cas.success && (cas.data?.modifiedCount ?? 0) > 0) break;
+            cas = await this._dbAdapter.crud.updateMany(
               tableName,
-              entryId as DatabaseId,
-              finalData,
+              { _id: entryId, updatedAt: candidate } as any,
+              finalData as any,
               { ...writeOptions, ...txOpts },
             );
-            if (!plain.success) return plain;
-            return this._dbAdapter.crud.findOne(tableName, { _id: entryId } as any, {
-              tenantId: tenantId as DatabaseId,
-              ...txOpts,
-            });
           }
-          raise(
-            409,
-            "This entry was changed by someone else. Reload it and apply your changes again.",
-            "VERSION_CONFLICT",
-            { currentVersion },
-          );
-        }
-        // `updateMany` reports a count, not the row — read it once for the
-        // response and the post-write side effects.
-        return this._dbAdapter.crud.findOne(
-          this.getCollectionName(schema._id as string),
-          { _id: entryId } as any,
-          { tenantId: tenantId as DatabaseId, ...txOpts },
-        );
+          if (!cas.success) return cas;
+          if ((cas.data?.modifiedCount ?? 0) === 0) {
+            const current = await this._dbAdapter.crud.findOne(tableName, { _id: entryId } as any, {
+              tenantId: tenantId as DatabaseId,
+              bypassCache: true,
+            });
+            const currentVersion = current.success
+              ? ((current.data as unknown as Record<string, unknown> | null)?.updatedAt ?? null)
+              : null;
+            // The CAS filter carries a timestamp column in an engine-specific
+            // representation; MariaDB/MongoDB can reject an unchanged row even when
+            // no writer intervened (the filter binds nothing). Re-verify against the
+            // version the caller loaded and, if it is still current, write without
+            // the compare-and-set instead of reporting a false conflict.
+            if (
+              current.success &&
+              current.data &&
+              matchesVersion(currentVersion, expectedVersion)
+            ) {
+              const plain = await this._dbAdapter.crud.update(
+                tableName,
+                entryId as DatabaseId,
+                finalData,
+                { ...writeOptions, ...txOpts },
+              );
+              if (!plain.success) return plain;
+              return this._dbAdapter.crud.findOne(tableName, { _id: entryId } as any, {
+                tenantId: tenantId as DatabaseId,
+                ...txOpts,
+              });
+            }
+            raise(
+              409,
+              "This entry was changed by someone else. Reload it and apply your changes again.",
+              "VERSION_CONFLICT",
+              { currentVersion },
+            );
+          }
+          // `updateMany` reports a count, not the row — read it once for the
+          // response and the post-write side effects.
+          return this._dbAdapter.crud.findOne(tableName, { _id: entryId } as any, {
+            tenantId: tenantId as DatabaseId,
+            ...txOpts,
+          });
+        })();
       },
       schema,
       tenantId,
@@ -1589,10 +1596,12 @@ export class CollectionsNamespace {
     markWritePhase(options, "dbwrite", tDb);
 
     const tPost = writePhaseT0(options);
-    const decryptedUpdate =
+    const rawDecryptedUpdate =
       options.skipReturning || !plan.hasEncryption
         ? result
         : decryptReadResult(result, hot, encCtx, DECRYPT_CLONE_OPTIONS);
+    const decryptedUpdate =
+      rawDecryptedUpdate instanceof Promise ? await rawDecryptedUpdate : rawDecryptedUpdate;
 
     // 🔗 Sync the junction edges the request supplied.
     if (junction.present.length > 0 && result?.success) {

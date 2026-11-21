@@ -173,10 +173,9 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
   const { request, url } = event;
   const forceSecurity = request.headers.get("x-test-security") === "true";
   const flags = (event.locals as any).__flags;
-  // Only bootstrap/system routes skip security checks.
-  // Public and static routes (files, login, share) still go through
-  // firewall, bot blocking, honeypot detection, and heap protection.
-  if (flags?.isBootstrap && !forceSecurity) return resolve(event);
+  // Only static asset bootstrap routes skip Layer-0 WAF checks.
+  // Auth/login/setup/system routes still run WAF inspection before proceeding.
+  if (flags?.isBootstrap && flags?.isStatic && !forceSecurity) return resolve(event);
 
   const clientIp = getClientIp(event);
   const isLocal =
@@ -306,6 +305,14 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
       let queryText: string | undefined;
 
       if (request.method === "POST") {
+        const declaredLength = Number(request.headers.get("content-length") ?? 0);
+        if (Number.isFinite(declaredLength) && declaredLength > MAX_GRAPHQL_QUERY_LENGTH) {
+          metricsService.incrementSecurityViolations(tenantId);
+          return handleApiError(
+            new AppError("GraphQL Query exceeds maximum allowed length", 400),
+            event,
+          );
+        }
         const bodyText = await request
           .clone()
           .text()
@@ -324,10 +331,13 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
         let body: Record<string, unknown> = {};
         try {
           const parsed = JSON.parse(bodyText);
-          body =
-            parsed && typeof parsed === "object" && !Array.isArray(parsed)
-              ? (parsed as Record<string, unknown>)
-              : {};
+          if (Array.isArray(parsed)) {
+            return handleApiError(
+              new AppError("Batch GraphQL array payloads are not supported", 400),
+              event,
+            );
+          }
+          body = parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
         } catch {
           body = {};
         }

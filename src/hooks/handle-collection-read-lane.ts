@@ -33,6 +33,8 @@ import { wafGuard } from "./handle-waf-guard";
 import { isAiOrScannerBot } from "@src/services/security/threat-scan";
 import { isSecureCookieContext } from "@src/databases/auth/constants";
 import { readSessionCookie } from "@utils/security/session-cookie";
+import { validateSessionMfaRequirement } from "@src/databases/auth/permissions";
+import { isSurfaceStepUp } from "@src/databases/auth/session-user";
 import {
   hasPermissionBitmask,
   isPermissionBitsetStale,
@@ -41,6 +43,7 @@ import {
   getAllowedFieldSet,
   hasGuardedFields,
 } from "@src/services/security/field-permission-service";
+import { getAccessRuleConfig } from "@src/services/security/access-rule-service";
 import { getTurboAuthContext, serveTurboCacheEntry } from "./handle-turbo-get";
 import { parseCacheControlStalePolicy } from "@src/services/cache/stale-window";
 import {
@@ -57,6 +60,7 @@ import {
 } from "./handle-compression";
 import { isLaneServingAllowed } from "./lane-state-gate";
 import { resolveRequestTenant } from "./request-tenant";
+import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { dbAdapter } from "@src/databases/db";
 import { LocalCMS } from "@src/services/sdk";
 import { applyAdapterTenantContext } from "@src/databases/tenant-adapter";
@@ -124,10 +128,21 @@ function requestedPublication(
   return raw === "publish" ? "published" : raw;
 }
 
+/**
+ * Precomputed constant null-envelope payload, ETag, and UTF-8 buffer for
+ * definitive `findMissing` point-read misses — avoids re-hashing the constant
+ * JSON string and re-encoding it to UTF-8 on every negative lookup.
+ */
+const STATIC_NULL_BODY = STATIC_ENVELOPES.SUCCESS_NULL;
+const STATIC_NULL_ETAG = generateContentEtag(STATIC_NULL_BODY);
+const STATIC_NULL_BUFFER = Buffer.from(STATIC_NULL_BODY, "utf8");
+const STATIC_NULL_BYTE_LENGTH = STATIC_NULL_BUFFER.byteLength;
+
 interface CoalescedCollectionRead {
   body: string;
   etag: string;
   buffer?: Buffer | Uint8Array;
+  byteLength?: number;
   /** Leader of a miss. Waiters omit this and are served as turbo hits. */
   miss?: boolean;
   response?: Response;
@@ -310,6 +325,10 @@ export interface CollectionWireMeta {
   hasAfterReadHooks: boolean;
   /** True if schema contains guarded fields subject to FLAC */
   hasGuardedFields: boolean;
+  /** True if schema defines encrypted fields that require domain-plane decryption */
+  hasEncryptedFields: boolean;
+  /** True if schema defines row-level ownership filtering */
+  hasOwnership: boolean;
   /** Compiled default sort field & direction (e.g. "createdAt:desc") */
   defaultSort?: string;
   /** Compiled default limit (e.g. 25) */
@@ -373,6 +392,20 @@ export function computeCollectionWireMeta(
     (schema as { _hasGuardedFields?: boolean })._hasGuardedFields ??
     (Array.isArray(schema.fields) ? hasGuardedFields(schema.fields as never) : false);
 
+  const hasEncryptedFields = Boolean(
+    (schema as { _hasEncryptedFields?: boolean })._hasEncryptedFields ??
+    (Array.isArray(schema.fields) &&
+      schema.fields.some((f) => (f as { encrypted?: boolean })?.encrypted === true)),
+  );
+
+  const ownership = (schema as { ownership?: { field?: unknown } }).ownership;
+  const hasOwnership = Boolean(
+    ownership &&
+    typeof ownership === "object" &&
+    typeof ownership.field === "string" &&
+    ownership.field,
+  );
+
   // Compile published fields from schema definition
   const publishedFields = new Set<string>(["_id", "createdAt", "updatedAt", "status"]);
 
@@ -419,6 +452,8 @@ export function computeCollectionWireMeta(
     publishedFields,
     hasAfterReadHooks,
     hasGuardedFields: hasGuarded,
+    hasEncryptedFields,
+    hasOwnership,
     defaultSort,
     // `defaultLimit` mirrors the schema's defaultLimit or the query parser's fallback (50).
     defaultLimit: (schema as unknown as { defaultLimit?: number })?.defaultLimit ?? 50,
@@ -488,6 +523,15 @@ export function isWirePlaneAdmissible(
 ): boolean {
   // Fail closed: Missing collection metadata defaults strictly to Domain Plane
   if (!collectionMeta) return false;
+  if (
+    collectionMeta.hasAfterReadHooks ||
+    collectionMeta.hasEncryptedFields ||
+    (!event.locals?.isAdmin &&
+      (collectionMeta.hasOwnership ||
+        getAccessRuleConfig()?.[collectionMeta.collectionId] !== undefined))
+  ) {
+    return false;
+  }
 
   if (!isSimpleCollectionRead(event)) return false;
 
@@ -723,15 +767,35 @@ function roleOf(user: unknown): string | undefined {
   return typeof role === "string" ? role : undefined;
 }
 
-async function executeWarmCollectionRead(
+function executeWarmCollectionRead(
   event: RequestEvent,
   turbo: NonNullable<ReturnType<typeof getTurboAuthContext>>,
-): Promise<Response | null> {
+): Response | null | Promise<Response | null> {
   const { url, locals } = event;
+
+  if (
+    turbo.mfaSatisfied !== undefined
+      ? !turbo.mfaSatisfied
+      : turbo.mfaPolicyKnown !== true ||
+        !validateSessionMfaRequirement(turbo.user, turbo.roles, turbo.amr)
+  ) {
+    return null;
+  }
+  if (
+    turbo.boundUserAgent &&
+    isSurfaceStepUp(event.request.headers.get("user-agent"), turbo.boundUserAgent)
+  ) {
+    return null;
+  }
+
+  const resolvedTenant = resolveRequestTenant(event.request, turbo.tenantId);
+  if (!resolvedTenant && isMultiTenantEnabled()) {
+    return null;
+  }
 
   locals.user = turbo.user;
   locals.roles = turbo.roles;
-  locals.tenantId = resolveRequestTenant(event.request, turbo.tenantId);
+  locals.tenantId = resolvedTenant;
   locals.isAdmin = turbo.isAdmin;
   (locals as { __turboAuth?: boolean }).__turboAuth = true;
   locals.dbAdapter = dbAdapter as typeof locals.dbAdapter;
@@ -851,6 +915,31 @@ async function executeWarmCollectionRead(
     return res;
   }
 
+  return finishWarmCollectionReadMiss(
+    event,
+    pathKey,
+    cacheTenant,
+    collectionId,
+    entryId,
+    rawSearch,
+    maybeBypass,
+    srvT0,
+    marks,
+  );
+}
+
+async function finishWarmCollectionReadMiss(
+  event: RequestEvent,
+  pathKey: string,
+  cacheTenant: string | null,
+  collectionId: string,
+  entryId: string | null,
+  rawSearch: string,
+  maybeBypass: boolean,
+  srvT0: number,
+  marks: Map<string, number> | null,
+): Promise<Response | null> {
+  const { url, locals } = event;
   // 🚀 Fast-path cache miss: sync DB adapter tenant context only when touching the database.
   const tenantP = applyAdapterTenantContext(dbAdapter, locals.tenantId ?? null);
   if (tenantP) await tenantP;
@@ -895,7 +984,7 @@ async function executeWarmCollectionRead(
     // and are labelled as hits. Both use the prebuilt security headers.
     const res = rebuilt.response ?? serveTurboCacheEntry(event, rebuilt);
     marks?.set("serve", performance.now() - srvT0);
-    if (rebuilt.miss) res.headers.set("X-Cache", bypass ? "BYPASS" : "MISS");
+    if (rebuilt.miss) res.headers.set("x-cache", bypass ? "BYPASS" : "MISS");
     stampSrvDur(res.headers, srvT0);
     if (marks) stampSrvSplit(res.headers, marks);
     return res;
@@ -1017,31 +1106,50 @@ async function rebuildWarmCollectionRead(
       }
       if (wireRes && wireRes.success === false && wireRes.error?.code === "RECORD_NOT_FOUND") {
         // The wire SELECT ran and definitively found no servable row (id absent
-        // or publication-clamped away). Build the SAME `200 {success:true,data:null}`
-        // envelope the Domain-Plane fallback below would produce — skipping its
-        // redundant re-query. Byte-identity with the findById path: that path
-        // stringifies `{ success: true, data: envelope.data }` where `data` is
-        // null, and hashes the same etag. Only the admitted wire-plane case can
-        // reach here (see isWirePlaneAdmissible), so the verdict is authoritative.
-        const apiBody = STATIC_ENVELOPES.SUCCESS_NULL;
-        const etag = generateContentEtag(apiBody);
-        (locals as { apiBody?: string }).apiBody = apiBody;
+        // or publication-clamped away). Reuse precomputed envelope, ETag, and
+        // UTF-8 Buffer — byte-identical with the Domain-Plane fallback below
+        // while avoiding per-miss FNV-1a hashing and UTF-8 re-encoding.
+        (locals as { apiBody?: string }).apiBody = STATIC_NULL_BODY;
         marks?.set("db", performance.now() - dbT0);
         marks?.set("build", 0);
         const cacheT0 = marks ? performance.now() : 0;
         if (entryId) {
-          responseCache.setPointDirect(pathKey, apiBody, etag, 300_000, cacheTenant, {
-            collection: collectionId,
-            entryId,
-          });
+          responseCache.setPointDirect(
+            pathKey,
+            STATIC_NULL_BODY,
+            STATIC_NULL_ETAG,
+            300_000,
+            cacheTenant,
+            { collection: collectionId, entryId },
+            undefined,
+            STATIC_NULL_BYTE_LENGTH,
+            STATIC_NULL_BUFFER,
+          );
         } else {
-          responseCache.set(pathKey, { body: apiBody, etag }, 300_000, cacheTenant, {
-            skipSharedL1: true,
-            point: false,
-          });
+          responseCache.set(
+            pathKey,
+            {
+              body: STATIC_NULL_BODY,
+              etag: STATIC_NULL_ETAG,
+              buffer: STATIC_NULL_BUFFER,
+              byteLength: STATIC_NULL_BYTE_LENGTH,
+            },
+            300_000,
+            cacheTenant,
+            {
+              skipSharedL1: true,
+              point: false,
+            },
+          );
         }
         marks?.set("cachewrite", performance.now() - cacheT0);
-        return { body: apiBody, etag, miss: true };
+        return {
+          body: STATIC_NULL_BODY,
+          etag: STATIC_NULL_ETAG,
+          buffer: STATIC_NULL_BUFFER,
+          byteLength: STATIC_NULL_BYTE_LENGTH,
+          miss: true,
+        };
       }
     }
   }
@@ -1238,6 +1346,14 @@ async function rebuildWarmCollectionRead(
  * session is cold, the caller is not admin, or the path is not a simple GET.
  */
 function laneHostIsLocal(hostname: string): boolean {
+  if (
+    hostname === "127.0.0.1" ||
+    hostname === "localhost" ||
+    hostname === "::1" ||
+    hostname === "[::1]"
+  ) {
+    return true;
+  }
   const host = hostname.toLowerCase();
   return host === "localhost" || host === "127.0.0.1" || host === "::1" || host === "[::1]";
 }
@@ -1266,7 +1382,7 @@ function laneThreatResponse(event: RequestEvent): Response | null {
   return handleApiError(new AppError(wafCheck.reason ?? "Security Policy Violation", 400), event);
 }
 
-export const tryCollectionReadLane: Handle = async ({ event, resolve }) => {
+export const tryCollectionReadLane: Handle = ({ event, resolve }) => {
   if (!isSimpleCollectionRead(event) || !dbAdapter || !isLaneServingAllowed()) {
     return resolve(event);
   }
@@ -1277,7 +1393,15 @@ export const tryCollectionReadLane: Handle = async ({ event, resolve }) => {
   const turbo = getTurboAuthContext(sessionId);
   if (!turbo) return resolve(event);
   try {
-    const served = await executeWarmCollectionRead(event, turbo);
+    const served = executeWarmCollectionRead(event, turbo);
+    if (served instanceof Promise) {
+      return served
+        .then((res) => res ?? resolve(event))
+        .catch((err) => {
+          if (event.url.pathname.startsWith("/api/")) return handleApiError(err, event);
+          throw err;
+        });
+    }
     return served ?? resolve(event);
   } catch (err) {
     if (event.url.pathname.startsWith("/api/")) return handleApiError(err, event);

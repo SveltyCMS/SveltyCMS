@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:database"
 author: "SveltyCMS Team"
 created: "2026-01-06"
-updated: "2026-09-22"
+updated: "2026-11-21"
 tags:
   - "database"
   - "mariadb"
@@ -24,15 +24,18 @@ This guide covers the **MariaDB-specific** implementation in SveltyCMS using Dri
 
 ## 🎯 Implementation Status
 
-**MariaDB Version**: 10.5+ (latest stable recommended)  
+**MariaDB Version**: 11.4 LTS – 13.2 (boot-enforced 11.4+ floor; 13.2 recommended)  
 **ORM**: Drizzle ORM 0.45+  
-**Driver**: mysql2 3.16+  
+**Driver**: mysql2 3.24+  
 **Implementation Status**: **Production-ready** (shares `SqlAdapterCore` with SQLite/PostgreSQL)
 
 ### Current Status
 
 > [!NOTE]
 > The MariaDB adapter is **production-ready** and runs in the CI DB matrix (Docker `mariadb:latest`). It shares the `SqlAdapterCore` CRUD core with SQLite/PostgreSQL and adds MariaDB-specific fast paths documented below.
+
+> [!NOTE]
+> **Version window.** The boot floor is MariaDB **11.4**; the supported window is **11.4–13.2**. `INSERT`/`REPLACE`/`DELETE ... RETURNING` exists on 10.5+, but single-table `UPDATE ... RETURNING` only arrived in **13.0** — 11.4–12.x uses the 2-round-trip update fallback. Oracle MySQL 8 is rejected at boot (MariaDB-specific `RETURNING` and `CREATE INDEX IF NOT EXISTS` DDL).
 
 ✅ **Implemented Components**:
 
@@ -52,7 +55,7 @@ This guide covers the **MariaDB-specific** implementation in SveltyCMS using Dri
 - Multi-tenant CRUD (tenants: create, getById, update, delete, list)
 - TTL cleanup (cleanupExpiredData: expired sessions and consumed tokens)
 - **Atomic Versioning**: Native `getVersion` and `incrementVersion` support
-- **Raw `UPDATE…RETURNING` fast path**: MariaDB ≥10.5 supports `RETURNING`, but Drizzle's mysql2 dialect does not expose `.returning()` — the adapter probes `_returningSupported` and runs a raw prepared `UPDATE…RETURNING *` for `update()` and `_id`-lookup `upsert()`, halving round trips vs the old UPDATE + findById re-read
+- **Raw `UPDATE…RETURNING` fast path (13.0+)**: MariaDB 10.5+ supports `INSERT`/`REPLACE`/`DELETE ... RETURNING`, but `UPDATE ... RETURNING` only arrived in **13.0**. The adapter probes two independent flags — `_insertReturningSupported` and `_updateReturningSupported` — and runs a raw prepared `UPDATE ... RETURNING *` for `update()` / `_id`-lookup `upsert()` only on 13.0+, halving round trips vs the old UPDATE + findById re-read. On 11.4–12.x the update path falls back to `INSERT ... RETURNING` + `skipReturning` or the base update, without disabling the insert fast path
 - **Raw `INSERT` without read-back (`skipReturning: true`)**: For bulk and seed workflows, raw INSERT executes using a dedicated cached template without `RETURNING *`, avoiding unnecessary server read-back serialization overhead
 - **Insert coalescing (`SVELTY_WRITE_COALESCING`)**: concurrent single-row inserts for one collection join one multi-VALUES statement (default on). `SVELTY_WRITE_COALESCING=0` restores one statement per insert. A one-row wave does not block the next wave.
 - **Update flag propagation**: MariaDB `update()` calls shared `prepareUpdateValues()` (`isUpdate: true`) so `createdAt` never enters the SQL `SET` clause and empty `data={}` blobs are omitted on partial updates
@@ -109,9 +112,9 @@ MariaDB/MySQL packages are included as `optionalDependencies`:
 ```
 {
   "optionalDependencies": {
-    "mysql2": "^3.16.0",
+    "mysql2": "^3.24.6",
     "mariadb": "^3.4.5",
-    "drizzle-orm": "^0.45.1"
+    "drizzle-orm": "^0.45.4"
   }
 }
 ```

@@ -41,7 +41,14 @@ const ACTIVE_LICENSE = {
   hasLicense: true,
 };
 
-const DEFAULT_LOCALS = { user: { _id: "user-1", email: "admin@test.com" }, tenantId: TENANT };
+// The route requires `system:read` (or admin). The default fixture is an admin so the
+// success/failure-path cases below exercise the license logic rather than the guard.
+const DEFAULT_LOCALS = {
+  user: { _id: "user-1", email: "admin@test.com", isAdmin: true },
+  isAdmin: true,
+  roles: [],
+  tenantId: TENANT,
+};
 
 function makeEvent(search: string, locals: Record<string, unknown> = DEFAULT_LOCALS): LicenseEvent {
   return {
@@ -72,6 +79,22 @@ describe("/api/system/license-status", () => {
     expect(response.status).toBe(401);
     expect(body.active).toBe(false);
     expect(body.reason).toBe("Unauthorized");
+    expect(mockGetOrSetSWR).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 when an authenticated user lacks system:read", async () => {
+    const response = await GET(
+      makeEvent("?type=plugin&id=demo", {
+        user: { _id: "user-2", email: "editor@test.com" },
+        roles: [],
+        tenantId: TENANT,
+      }),
+    );
+    const body = (await response.json()) as { active: boolean; reason: string };
+
+    expect(response.status).toBe(403);
+    expect(body.active).toBe(false);
+    expect(body.reason).toBe("Forbidden");
     expect(mockGetOrSetSWR).not.toHaveBeenCalled();
   });
 

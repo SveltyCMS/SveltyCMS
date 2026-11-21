@@ -6,7 +6,7 @@ order: 13
 icon: "mdi:database-sync"
 author: "SveltyCMS Team"
 created: "2026-10-09"
-updated: "2026-10-09"
+updated: "2026-11-21"
 tags:
   - "database"
   - "scaling"
@@ -77,16 +77,33 @@ Wiring details:
 
 ## Routing Semantics
 
-| Operation                                                             | Route                                                  |
-| :-------------------------------------------------------------------- | :----------------------------------------------------- |
-| `crud.insert` / `update` / `delete` / batch writes                    | Primary, always                                        |
-| `crud.find*` / `count` / `aggregate`                                  | Replica pool (round-robin by default)                  |
-| Reads inside a transaction                                            | Pinned to primary                                      |
-| Reads with `consistency: "strong"` or `readPreference: "primary"`     | Primary                                                |
-| Reads from a client with a recent write (`clientId` / `sessionToken`) | Primary for `readYourWritesWindowMs` (default 2000 ms) |
-| Replica failure or unhealthy pool                                     | Transparent primary fallback                           |
+| Operation                                                              | Route                                                                                                                     |
+| :--------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------ |
+| `crud.insert` / `update` / `delete` / batch writes                     | Primary, always                                                                                                           |
+| `crud.find*` / `count` / `aggregate`                                   | Replica pool (round-robin by default)                                                                                     |
+| Reads inside a transaction                                             | Pinned to primary                                                                                                         |
+| Reads with `consistency: "strong"` or `readPreference: "primary"`      | Primary                                                                                                                   |
+| Reads from a client with a recent write, PostgreSQL 19+                | Wait for the write's WAL LSN on a replica (`WAIT FOR LSN`), serve from that replica when synchronized; primary on timeout |
+| Reads from a client with a recent write, PostgreSQL 18 / other engines | Primary for `readYourWritesWindowMs` (default 2000 ms)                                                                    |
+| Replica failure or unhealthy pool                                      | Transparent primary fallback                                                                                              |
 
 The circuit breaker (3 consecutive errors, 10 s cooldown by default) and the per-`(tenantId, clientId)` Read-Your-Writes watermark are implemented in `core/replica-router.ts` and covered by `tests/unit/databases/replica-router.test.ts`.
+
+### PostgreSQL 19+ Read-Your-Writes via `WAIT FOR LSN`
+
+On PostgreSQL 19+, `ReplicaRouterAdapter` replaces the time-window primary pin with a replica-side LSN wait:
+
+1. After a successful primary write, the router records the primary's current WAL LSN per `(tenantId, clientId)` (`getCurrentWalLsn()`).
+2. A read within `readYourWritesWindowMs` selects a replica and calls `waitForReplicaLsn(lsn, readYourWritesWindowMs)`.
+3. If the standby replayed to that LSN, the read is served from **that same replica**; otherwise the router falls back to the primary.
+
+Notes:
+
+- Strong reads (`consistency: "strong"`, `readPreference: "primary"`), reads inside a transaction, and explicitly pinned reads bypass the wait and go to the primary.
+- `WAIT FOR LSN` is a PostgreSQL 19 feature. On PostgreSQL 18 the router keeps the time-window primary pin.
+- The wait is bounded by `readYourWritesWindowMs` (default 2000 ms). Lower it if the wait tail dominates; the read falls back to the primary on timeout.
+- LSN capture targets the primary's WAL position after the write returns. For deployments running with `synchronous_commit=off`, the flush position can trail the commit record; keep `synchronous_commit=on` (the default) for RYW workloads, or use `consistency: "strong"` when the read must observe the write immediately.
+- Multi-statement transactional writes should capture the LSN at commit. Until that boundary is wired, use `consistency: "strong"` for a read that must observe a just-committed transaction.
 
 Boot wiring is covered by `tests/unit/databases/replica-router-boot.test.ts` (env parsing, adapter construction, connection options, fail-open behavior, exposure).
 
@@ -103,15 +120,15 @@ Provision one primary and two streaming replicas:
 ```bash
 # Primary
 docker run -d --name pg-primary -p 5432:5432 \
-  -e POSTGRES_PASSWORD=cms -e POSTGRES_DB=sveltycms postgres:16
+  -e POSTGRES_PASSWORD=cms -e POSTGRES_DB=sveltycms postgres:19
 
 # Replica 1 (after enabling wal_level=replica + a replication slot on the primary)
 docker run -d --name pg-replica-a -p 5433:5432 \
-  -e PG_REPLICATE_FROM=pg-primary -e POSTGRES_PASSWORD=cms postgres:16
+  -e PG_REPLICATE_FROM=pg-primary -e POSTGRES_PASSWORD=cms postgres:19
 
 # Replica 2
 docker run -d --name pg-replica-b -p 5434:5432 \
-  -e PG_REPLICATE_FROM=pg-primary -e POSTGRES_PASSWORD=cms postgres:16
+  -e PG_REPLICATE_FROM=pg-primary -e POSTGRES_PASSWORD=cms postgres:19
 ```
 
 Start the CMS with the replica list:

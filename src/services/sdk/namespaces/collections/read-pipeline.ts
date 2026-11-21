@@ -30,7 +30,10 @@ import { serializeQueryShape } from "@utils/fast-json";
 import { FastLRU } from "@utils/native-utils";
 import { AppError } from "@utils/error-handling";
 import {
+  decryptDocumentFields,
   decryptDocumentFieldsSync,
+  hasHybridEnvelopeInDoc,
+  hasHybridEnvelopeInResult,
   type FieldEncryptionContext,
 } from "@utils/security/field-encryption";
 import type { SchemaHotFlags } from "./schema-store";
@@ -39,6 +42,10 @@ import type { FieldInstance, Schema, CollectionEntry } from "@src/content/types"
 import { isAdmin } from "@src/databases/auth/constants";
 import { redactReadEnvelope } from "@utils/field-access";
 import { stripUnownedRows } from "./access-filter";
+import {
+  getReadConstraint,
+  rowMatchesConstraint,
+} from "@src/services/security/access-rule-service";
 import type { LocalApiOptions } from "../types";
 import { collectionTableName } from "@src/databases/core/collection-name";
 import { getHotCollections } from "@src/services/intelligence/behavioral-learner";
@@ -548,16 +555,59 @@ function decryptOneDoc(
   context: FieldEncryptionContext,
 ): void {
   if (!doc || typeof doc !== "object") return;
-  // Sync decrypt: decryptDocumentFields is a thin async wrapper around
-  // decryptDocumentFieldsSync, so the await only added a promise + microtask
-  // per document. Errors still surface as rejections — callers are async.
   decryptDocumentFieldsSync(doc as Record<string, unknown>, fieldNames, context);
+}
+
+async function decryptOneDocAsync(
+  doc: unknown,
+  fieldNames: readonly string[],
+  context: FieldEncryptionContext,
+): Promise<void> {
+  if (!doc || typeof doc !== "object") return;
+  await decryptDocumentFields(doc as Record<string, unknown>, fieldNames, context);
+}
+
+async function decryptReadResultAsync(
+  result: unknown,
+  fieldNames: readonly string[],
+  context: FieldEncryptionContext,
+  clone: boolean,
+): Promise<unknown> {
+  if (result && typeof result === "object" && "success" in result && "data" in result) {
+    const envelope = result as { data: unknown };
+    if (envelope.data == null) return result;
+    if (Array.isArray(envelope.data)) {
+      const data = clone ? envelope.data.map(shallowCloneDoc) : envelope.data;
+      for (let i = 0; i < data.length; i++) {
+        await decryptOneDocAsync(data[i], fieldNames, context);
+      }
+      return clone ? { ...envelope, data } : result;
+    }
+    const doc = clone ? shallowCloneDoc(envelope.data) : envelope.data;
+    await decryptOneDocAsync(doc, fieldNames, context);
+    return clone ? { ...envelope, data: doc } : result;
+  }
+
+  if (Array.isArray(result)) {
+    const out = clone ? result.map(shallowCloneDoc) : result;
+    for (let i = 0; i < out.length; i++) {
+      await decryptOneDocAsync(out[i], fieldNames, context);
+    }
+    return out;
+  }
+  const doc = clone ? shallowCloneDoc(result) : result;
+  await decryptOneDocAsync(doc, fieldNames, context);
+  return doc;
 }
 
 /**
  * Decrypt `encrypt: true` fields on an SDK `{ success, data }` envelope (or a
  * bare document / array). When `clone` is true (default), the source is not
  * mutated — required so L1/L2 caches keep ciphertext.
+ *
+ * Stays synchronous (zero Promise/microtask overhead) for standard AES-256-GCM
+ * fields, and transparently switches to async WebCrypto decryption when any
+ * field holds a hybrid ML-KEM (`v1:`/`v2:`) envelope.
  */
 export function decryptReadResult(
   result: any,
@@ -571,8 +621,12 @@ export function decryptReadResult(
   const fieldNames = hot._encryptedFieldNames;
   const clone = opts?.clone !== false;
 
-  // Inlined (previously an async closure): every branch decrypts synchronously,
-  // so no per-document promise/microtask is created on the hot read lane.
+  if (hasHybridEnvelopeInResult(result, fieldNames)) {
+    return decryptReadResultAsync(result, fieldNames, context, clone);
+  }
+
+  // Fast sync path: no hybrid envelopes present, so no per-document promise/microtask
+  // is created on the hot read lane.
   if (typeof result === "object" && "success" in result && "data" in result) {
     if (result.data == null) return result;
     if (Array.isArray(result.data)) {
@@ -687,7 +741,11 @@ export async function* decryptReadStream(
   const fieldNames = hot._encryptedFieldNames;
   for await (const doc of source) {
     const clone = shallowCloneDoc(doc);
-    decryptOneDoc(clone, fieldNames, context);
+    if (hasHybridEnvelopeInDoc(clone, fieldNames)) {
+      await decryptOneDocAsync(clone, fieldNames, context);
+    } else {
+      decryptOneDoc(clone, fieldNames, context);
+    }
     yield clone;
   }
 }
@@ -739,10 +797,50 @@ export function readerMaySeeGuardedFields(
   return user._id === "system" || isAdmin(user);
 }
 
+function finalizePresentRead(
+  decoded: unknown,
+  schema: Schema,
+  hot: SchemaHotFlags,
+  encCtx: FieldEncryptionContext,
+  user: LocalApiOptions["user"],
+  system?: boolean,
+): unknown {
+  const permitted =
+    !hot._hasGuardedFields || readerMaySeeGuardedFields(user, system)
+      ? decoded
+      : redactReadEnvelope(decoded, schema.fields as FieldInstance[], user);
+  if (system || isAdmin(user)) return permitted;
+
+  let scoped = permitted;
+  const ownership = (schema as { ownership?: { field?: unknown } }).ownership;
+  const ownerField = ownership && typeof ownership === "object" ? ownership.field : undefined;
+  if (typeof ownerField === "string" && ownerField) {
+    scoped = stripUnownedRows(scoped, ownerField, user);
+  }
+
+  const constraint = getReadConstraint(String(schema._id || schema.name || ""), {
+    user: user as { _id?: unknown; role?: unknown } | null | undefined,
+    tenantId: encCtx.tenantId || null,
+  });
+  if (constraint && scoped && typeof scoped === "object") {
+    const record = scoped as { data?: unknown };
+    if (Array.isArray(record.data)) {
+      const filtered = record.data.filter((row) => rowMatchesConstraint(row, constraint));
+      if (filtered.length !== record.data.length) {
+        scoped = { ...record, data: filtered };
+      }
+    } else if (record.data && !rowMatchesConstraint(record.data, constraint)) {
+      scoped = { ...record, data: null };
+    }
+  }
+  return scoped;
+}
+
 /**
  * Decrypt, then drop fields the caller may not read. The cache keeps the full
  * row; this runs on the way out. Unguarded schemas and admins return the
- * decrypt result unchanged.
+ * decrypt result unchanged. Stays synchronous unless hybrid ML-KEM fields
+ * require async WebCrypto decryption.
  */
 export function presentRead(
   result: unknown,
@@ -753,12 +851,10 @@ export function presentRead(
   system?: boolean,
 ): any {
   const decoded = decryptReadResult(result, hot, encCtx, DECRYPT_CLONE_OPTIONS);
-  const permitted =
-    !hot._hasGuardedFields || readerMaySeeGuardedFields(user, system)
-      ? decoded
-      : redactReadEnvelope(decoded, schema.fields as FieldInstance[], user);
-  const ownership = (schema as { ownership?: { field?: unknown } }).ownership;
-  const ownerField = ownership && typeof ownership === "object" ? ownership.field : undefined;
-  if (typeof ownerField !== "string" || !ownerField || system || isAdmin(user)) return permitted;
-  return stripUnownedRows(permitted, ownerField, user);
+  if (decoded instanceof Promise) {
+    return decoded.then((resolved) =>
+      finalizePresentRead(resolved, schema, hot, encCtx, user, system),
+    );
+  }
+  return finalizePresentRead(decoded, schema, hot, encCtx, user, system);
 }

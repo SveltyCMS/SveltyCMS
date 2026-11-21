@@ -832,6 +832,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
       const {
         _id: _,
         createdAt: __,
+        tenantId: _tenantId,
         ...updateData
       } = {
         ...data,

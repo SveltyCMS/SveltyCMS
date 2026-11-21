@@ -346,13 +346,28 @@ Watermark tool with full text and image watermark support.
 	});
 
 	// Mouse handlers for selecting/dragging watermarks
-	export function handleMouseDown(e: MouseEvent, width: number, height: number) {
+	export function handleMouseDown(
+		e: MouseEvent,
+		width: number,
+		height: number,
+		canvasX?: number,
+		canvasY?: number
+	) {
 		const { zoom, translateX, translateY, imageElement } = storeState;
 		if (!imageElement) return;
 
-		const rect = (e.target as HTMLElement).getBoundingClientRect();
-		const offsetX = e.clientX - rect.left;
-		const offsetY = e.clientY - rect.top;
+		let offsetX: number;
+		let offsetY: number;
+		if (canvasX !== undefined && canvasY !== undefined) {
+			offsetX = canvasX;
+			offsetY = canvasY;
+		} else {
+			const target = (e.currentTarget as HTMLElement | null) ?? (e.target as HTMLElement | null);
+			if (!target) return;
+			const rect = target.getBoundingClientRect();
+			offsetX = e.clientX - rect.left;
+			offsetY = e.clientY - rect.top;
+		}
 
 		const centerX = width / 2 + translateX;
 		const centerY = height / 2 + translateY;
@@ -382,15 +397,30 @@ Watermark tool with full text and image watermark support.
 	let isDragging = $state(false);
 	let dragOffset = { x: 0, y: 0 };
 
-	export function handleMouseMove(e: MouseEvent, width: number, height: number) {
+	export function handleMouseMove(
+		e: MouseEvent,
+		width: number,
+		height: number,
+		canvasX?: number,
+		canvasY?: number
+	) {
 		if (!selectedId || !selectedWatermark) return;
 
 		const { zoom, translateX, translateY, imageElement } = storeState;
 		if (!imageElement) return;
 
-		const rect = (e.target as HTMLElement).getBoundingClientRect();
-		const offsetX = e.clientX - rect.left;
-		const offsetY = e.clientY - rect.top;
+		let offsetX: number;
+		let offsetY: number;
+		if (canvasX !== undefined && canvasY !== undefined) {
+			offsetX = canvasX;
+			offsetY = canvasY;
+		} else {
+			const target = (e.currentTarget as HTMLElement | null) ?? (e.target as HTMLElement | null);
+			if (!target) return;
+			const rect = target.getBoundingClientRect();
+			offsetX = e.clientX - rect.left;
+			offsetY = e.clientY - rect.top;
+		}
 
 		const centerX = width / 2 + translateX;
 		const centerY = height / 2 + translateY;

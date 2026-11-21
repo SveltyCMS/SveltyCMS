@@ -1,26 +1,35 @@
 /**
  * @file src/utils/security/hybrid-kem.ts
- * @description Dependency-free hybrid at-rest envelope using ML-KEM-768 key
- * encapsulation (KEM) and AES-256-GCM data encryption (DEM).
+ * @description Dependency-free post-quantum at-rest envelopes using ML-KEM-768
+ * (and optional X25519 + ML-KEM-768 composite KEM) with AES-256-GCM data encryption (DEM).
  *
  * Features:
  * - Fresh random 32-byte DEK per message; the KEM secret never encrypts data directly
- * - HKDF-SHA-256(sharedKey, random 32-byte salt, `sveltycms-hybrid-kem-v1`) → 32-byte KEK
+ * - `v1:` envelope — ML-KEM-768 + HKDF-SHA-256 → 32-byte KEK (9 colon-separated fields)
+ * - `v2:` envelope — X25519 + ML-KEM-768 composite KEM + HKDF-SHA-256 → 32-byte KEK
+ *   (10 colon-separated fields; holds if either classical X25519 or ML-KEM-768 holds)
  * - Separate AES-256-GCM layers for the payload and the wrapped DEK, optional caller AAD
- * - Strict versioned `v1:` envelope parsing; failures never echo key material or plaintext
- * - Cached, non-throwing ML-KEM-768 runtime probe (Node 24 and Bun)
+ * - Ephemeral DEK/KEK/shared-secret/private-key byte zeroing in `finally` blocks
+ * - Strict versioned envelope parsing; failures never echo key material or plaintext
+ * - Cached, non-throwing ML-KEM-768 and composite KEM runtime probes (Node 24 and Bun)
  */
 
 const KEM_ALGORITHM = "ML-KEM-768";
-const ENVELOPE_VERSION = "v1";
-const ENVELOPE_FIELD_COUNT = 9;
-const HKDF_INFO = "sveltycms-hybrid-kem-v1";
+const CLASSICAL_KEM_ALGORITHM = "X25519";
+const ENVELOPE_VERSION_V1 = "v1";
+const ENVELOPE_VERSION_V2 = "v2";
+const ENVELOPE_FIELD_COUNT_V1 = 9;
+const ENVELOPE_FIELD_COUNT_V2 = 10;
+const HKDF_INFO_V1 = "sveltycms-hybrid-kem-v1";
+const HKDF_INFO_V2 = "sveltycms-hybrid-kem-v2";
 const DEK_LENGTH = 32;
 const KEK_LENGTH = 32;
 const SALT_LENGTH = 32;
 const IV_LENGTH = 12;
 const TAG_LENGTH = 16;
 const ML_KEM_768_CIPHERTEXT_LENGTH = 1088;
+const X25519_PUBLIC_KEY_LENGTH = 32;
+const X25519_SHARED_SECRET_BITS = 256;
 const AES_GCM_TAG_BITS = 128;
 
 const SEAL_ERROR = "Hybrid KEM envelope sealing failed.";
@@ -39,13 +48,24 @@ export interface KemKeyPair {
   privateKey: string;
 }
 
+export interface CompositeKemKeyPair extends KemKeyPair {
+  /** Base64 SPKI-encoded X25519 public key for classical+PQ composite envelopes (`v2:`). */
+  classicalPublicKey: string;
+  /** Base64 PKCS8-encoded X25519 private key. Treat as a secret. */
+  classicalPrivateKey: string;
+}
+
 export interface HybridSealOptions {
   publicKey: string;
+  /** Optional base64 SPKI-encoded X25519 public key to produce a `v2:` X25519+ML-KEM-768 envelope. */
+  classicalPublicKey?: string;
   aad?: Uint8Array;
 }
 
 export interface HybridOpenOptions {
   privateKey: string;
+  /** Required to open `v2:` X25519+ML-KEM-768 composite envelopes (base64 PKCS8-encoded X25519 private key). */
+  classicalPrivateKey?: string;
   aad?: Uint8Array;
 }
 
@@ -71,8 +91,13 @@ interface HkdfParams {
   info: Uint8Array;
 }
 
+interface EcdhKeyDeriveParams {
+  name: string;
+  public: SubtleKey;
+}
+
 /**
- * Minimal structural view of `SubtleCrypto` including the ML-KEM extensions.
+ * Minimal structural view of `SubtleCrypto` including the ML-KEM and X25519 extensions.
  * The DOM lib does not type `encapsulateBits`/`decapsulateBits` yet, so the
  * runtime object is narrowed through this interface instead of using `any`.
  */
@@ -82,7 +107,7 @@ interface HybridSubtle {
     extractable: boolean,
     keyUsages: readonly string[],
   ): Promise<{ publicKey: SubtleKey; privateKey: SubtleKey }>;
-  exportKey(format: "spki" | "pkcs8", key: SubtleKey): Promise<ArrayBuffer>;
+  exportKey(format: "spki" | "pkcs8" | "raw", key: SubtleKey): Promise<ArrayBuffer>;
   importKey(
     format: "spki" | "pkcs8" | "raw",
     keyData: Uint8Array,
@@ -99,13 +124,19 @@ interface HybridSubtle {
     key: SubtleKey,
     ciphertext: Uint8Array,
   ): Promise<ArrayBuffer>;
-  deriveBits(algorithm: HkdfParams, baseKey: SubtleKey, length: number): Promise<ArrayBuffer>;
+  deriveBits(
+    algorithm: HkdfParams | EcdhKeyDeriveParams,
+    baseKey: SubtleKey,
+    length: number,
+  ): Promise<ArrayBuffer>;
   encrypt(algorithm: GcmParams, key: SubtleKey, data: Uint8Array): Promise<ArrayBuffer>;
   decrypt(algorithm: GcmParams, key: SubtleKey, data: Uint8Array): Promise<ArrayBuffer>;
 }
 
 interface ParsedEnvelope {
+  version: "v1" | "v2";
   kemCiphertext: Uint8Array;
+  x25519EphemeralPub?: Uint8Array;
   hkdfSalt: Uint8Array;
   dekIv: Uint8Array;
   dekTag: Uint8Array;
@@ -122,6 +153,7 @@ interface SealedLayer {
 }
 
 let availabilityProbe: Promise<boolean> | undefined;
+let compositeAvailabilityProbe: Promise<boolean> | undefined;
 
 function resolveSubtle(): HybridSubtle | null {
   const runtime = globalThis as { crypto?: { subtle?: unknown } };
@@ -195,20 +227,18 @@ function splitTag(sealed: Uint8Array): { ciphertext: Uint8Array; tag: Uint8Array
 
 async function deriveKek(
   subtle: HybridSubtle,
-  sharedKey: ArrayBuffer,
+  ikm: Uint8Array,
   salt: Uint8Array,
+  info: string,
 ): Promise<Uint8Array> {
-  const sharedKeyBytes = new Uint8Array(sharedKey);
   try {
-    const baseKey = await subtle.importKey("raw", sharedKeyBytes, { name: "HKDF" }, false, [
-      "deriveBits",
-    ]);
+    const baseKey = await subtle.importKey("raw", ikm, { name: "HKDF" }, false, ["deriveBits"]);
     const bits = await subtle.deriveBits(
       {
         name: "HKDF",
         hash: "SHA-256",
         salt,
-        info: new TextEncoder().encode(HKDF_INFO),
+        info: new TextEncoder().encode(info),
       },
       baseKey,
       KEK_LENGTH * 8,
@@ -217,8 +247,20 @@ async function deriveKek(
     if (kek.byteLength !== KEK_LENGTH) throw new Error(SEAL_ERROR);
     return kek;
   } finally {
-    sharedKeyBytes.fill(0);
+    ikm.fill(0);
   }
+}
+
+function concatAllBytes(...chunks: readonly Uint8Array[]): Uint8Array {
+  let total = 0;
+  for (let i = 0; i < chunks.length; i++) total += chunks[i].byteLength;
+  const combined = new Uint8Array(total);
+  let offset = 0;
+  for (let i = 0; i < chunks.length; i++) {
+    combined.set(chunks[i], offset);
+    offset += chunks[i].byteLength;
+  }
+  return combined;
 }
 
 async function sealLayer(
@@ -250,29 +292,57 @@ async function openLayer(
 function parseEnvelope(envelope: string): ParsedEnvelope {
   if (typeof envelope !== "string") throw new Error(OPEN_ERROR);
   const parts = envelope.split(":");
-  if (parts.length !== ENVELOPE_FIELD_COUNT) throw new Error(OPEN_ERROR);
-  if (parts[0] !== ENVELOPE_VERSION) throw new Error(OPEN_ERROR);
+  const version = parts[0];
 
-  const parsed: ParsedEnvelope = {
-    kemCiphertext: decodeBase64Url(parts[1]),
-    hkdfSalt: decodeBase64Url(parts[2]),
-    dekIv: decodeBase64Url(parts[3]),
-    dekTag: decodeBase64Url(parts[4]),
-    wrappedDek: decodeBase64Url(parts[5]),
-    payloadIv: decodeBase64Url(parts[6]),
-    payloadTag: decodeBase64Url(parts[7]),
-    payloadCiphertext: decodeBase64Url(parts[8]),
-  };
+  if (version === ENVELOPE_VERSION_V1 && parts.length === ENVELOPE_FIELD_COUNT_V1) {
+    const parsed: ParsedEnvelope = {
+      version: "v1",
+      kemCiphertext: decodeBase64Url(parts[1]),
+      hkdfSalt: decodeBase64Url(parts[2]),
+      dekIv: decodeBase64Url(parts[3]),
+      dekTag: decodeBase64Url(parts[4]),
+      wrappedDek: decodeBase64Url(parts[5]),
+      payloadIv: decodeBase64Url(parts[6]),
+      payloadTag: decodeBase64Url(parts[7]),
+      payloadCiphertext: decodeBase64Url(parts[8]),
+    };
 
-  assertLength(parsed.kemCiphertext, ML_KEM_768_CIPHERTEXT_LENGTH);
-  assertLength(parsed.hkdfSalt, SALT_LENGTH);
-  assertLength(parsed.dekIv, IV_LENGTH);
-  assertLength(parsed.dekTag, TAG_LENGTH);
-  assertLength(parsed.wrappedDek, DEK_LENGTH);
-  assertLength(parsed.payloadIv, IV_LENGTH);
-  assertLength(parsed.payloadTag, TAG_LENGTH);
+    assertLength(parsed.kemCiphertext, ML_KEM_768_CIPHERTEXT_LENGTH);
+    assertLength(parsed.hkdfSalt, SALT_LENGTH);
+    assertLength(parsed.dekIv, IV_LENGTH);
+    assertLength(parsed.dekTag, TAG_LENGTH);
+    assertLength(parsed.wrappedDek, DEK_LENGTH);
+    assertLength(parsed.payloadIv, IV_LENGTH);
+    assertLength(parsed.payloadTag, TAG_LENGTH);
+    return parsed;
+  }
 
-  return parsed;
+  if (version === ENVELOPE_VERSION_V2 && parts.length === ENVELOPE_FIELD_COUNT_V2) {
+    const parsed: ParsedEnvelope = {
+      version: "v2",
+      kemCiphertext: decodeBase64Url(parts[1]),
+      x25519EphemeralPub: decodeBase64Url(parts[2]),
+      hkdfSalt: decodeBase64Url(parts[3]),
+      dekIv: decodeBase64Url(parts[4]),
+      dekTag: decodeBase64Url(parts[5]),
+      wrappedDek: decodeBase64Url(parts[6]),
+      payloadIv: decodeBase64Url(parts[7]),
+      payloadTag: decodeBase64Url(parts[8]),
+      payloadCiphertext: decodeBase64Url(parts[9]),
+    };
+
+    assertLength(parsed.kemCiphertext, ML_KEM_768_CIPHERTEXT_LENGTH);
+    assertLength(parsed.x25519EphemeralPub!, X25519_PUBLIC_KEY_LENGTH);
+    assertLength(parsed.hkdfSalt, SALT_LENGTH);
+    assertLength(parsed.dekIv, IV_LENGTH);
+    assertLength(parsed.dekTag, TAG_LENGTH);
+    assertLength(parsed.wrappedDek, DEK_LENGTH);
+    assertLength(parsed.payloadIv, IV_LENGTH);
+    assertLength(parsed.payloadTag, TAG_LENGTH);
+    return parsed;
+  }
+
+  throw new Error(OPEN_ERROR);
 }
 
 async function probeMlKem(): Promise<boolean> {
@@ -295,6 +365,24 @@ async function probeMlKem(): Promise<boolean> {
   }
 }
 
+async function probeCompositeKem(): Promise<boolean> {
+  if (!(await isMlKemAvailable())) return false;
+  const subtle = resolveSubtle();
+  if (!subtle) return false;
+  try {
+    const a = await subtle.generateKey({ name: CLASSICAL_KEM_ALGORITHM }, true, ["deriveBits"]);
+    const b = await subtle.generateKey({ name: CLASSICAL_KEM_ALGORITHM }, true, ["deriveBits"]);
+    const shared = await subtle.deriveBits(
+      { name: CLASSICAL_KEM_ALGORITHM, public: b.publicKey },
+      a.privateKey,
+      X25519_SHARED_SECRET_BITS,
+    );
+    return new Uint8Array(shared).byteLength === X25519_PUBLIC_KEY_LENGTH;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Probe once whether the runtime exposes ML-KEM-768 through WebCrypto.
  * Never throws; the result (including failures) is cached for the process.
@@ -302,6 +390,15 @@ async function probeMlKem(): Promise<boolean> {
 export async function isMlKemAvailable(): Promise<boolean> {
   availabilityProbe ??= probeMlKem();
   return availabilityProbe;
+}
+
+/**
+ * Probe once whether the runtime exposes both ML-KEM-768 and X25519 through WebCrypto
+ * (required for `v2:` classical+PQ composite envelopes). Never throws.
+ */
+export async function isCompositeKemAvailable(): Promise<boolean> {
+  compositeAvailabilityProbe ??= probeCompositeKem();
+  return compositeAvailabilityProbe;
 }
 
 /**
@@ -329,9 +426,34 @@ export async function generateKemKeyPair(): Promise<KemKeyPair> {
 }
 
 /**
- * Seal `plaintext` into a self-contained `v1:` envelope.
- * Layout: version : kemCiphertext : hkdfSalt : dekIv : dekTag : wrappedDek :
- *         payloadIv : payloadTag : payloadCiphertext (all binary fields base64url).
+ * Generate a composite ML-KEM-768 + X25519 key pair for `v2:` classical+PQ envelopes.
+ * Both private keys are secret material; keep them in `config/private.ts` or a secret manager.
+ */
+export async function generateCompositeKemKeyPair(): Promise<CompositeKemKeyPair> {
+  const subtle = requireSubtle();
+  try {
+    const [kemPair, x25519Pair] = await Promise.all([
+      generateKemKeyPair(),
+      subtle.generateKey({ name: CLASSICAL_KEM_ALGORITHM }, true, ["deriveBits"]),
+    ]);
+    const [x25519Spki, x25519Pkcs8] = await Promise.all([
+      subtle.exportKey("spki", x25519Pair.publicKey),
+      subtle.exportKey("pkcs8", x25519Pair.privateKey),
+    ]);
+    return {
+      ...kemPair,
+      classicalPublicKey: encodeBase64(new Uint8Array(x25519Spki)),
+      classicalPrivateKey: encodeBase64(new Uint8Array(x25519Pkcs8)),
+    };
+  } catch {
+    throw new Error("Failed to generate a composite X25519 + ML-KEM-768 key pair.");
+  }
+}
+
+/**
+ * Seal `plaintext` into a self-contained envelope:
+ * - `v1:` (9 fields, ML-KEM-768 + AES-256-GCM) when `classicalPublicKey` is omitted.
+ * - `v2:` (10 fields, X25519 + ML-KEM-768 composite + AES-256-GCM) when `classicalPublicKey` is provided.
  */
 export async function hybridSeal(
   plaintext: Uint8Array,
@@ -339,6 +461,8 @@ export async function hybridSeal(
 ): Promise<string> {
   let dek: Uint8Array | undefined;
   let kek: Uint8Array | undefined;
+  let mlKemShared: Uint8Array | undefined;
+  let x25519Shared: Uint8Array | undefined;
   try {
     const subtle = requireSubtle();
     const publicKey = await subtle.importKey(
@@ -351,8 +475,44 @@ export async function hybridSeal(
 
     dek = randomBytes(DEK_LENGTH);
     const encapsulated = await subtle.encapsulateBits({ name: KEM_ALGORITHM }, publicKey);
+    const kemCiphertext = new Uint8Array(encapsulated.ciphertext);
+    mlKemShared = new Uint8Array(encapsulated.sharedKey);
     const salt = randomBytes(SALT_LENGTH);
-    kek = await deriveKek(subtle, encapsulated.sharedKey, salt);
+
+    let x25519EphemeralPub: Uint8Array | undefined;
+    if (options.classicalPublicKey) {
+      const recipientX25519 = await subtle.importKey(
+        "spki",
+        decodeBase64(options.classicalPublicKey),
+        { name: CLASSICAL_KEM_ALGORITHM },
+        true,
+        [],
+      );
+      const ephemeral = await subtle.generateKey({ name: CLASSICAL_KEM_ALGORITHM }, true, [
+        "deriveBits",
+      ]);
+      const [rawPubBuf, sharedBuf] = await Promise.all([
+        subtle.exportKey("raw", ephemeral.publicKey),
+        subtle.deriveBits(
+          { name: CLASSICAL_KEM_ALGORITHM, public: recipientX25519 },
+          ephemeral.privateKey,
+          X25519_SHARED_SECRET_BITS,
+        ),
+      ]);
+      x25519EphemeralPub = new Uint8Array(rawPubBuf);
+      assertLength(x25519EphemeralPub, X25519_PUBLIC_KEY_LENGTH);
+      x25519Shared = new Uint8Array(sharedBuf);
+      // Bind both shared secrets and both KEM ciphertexts (dual-PRF combiner).
+      const compositeIkm = concatAllBytes(
+        mlKemShared,
+        x25519Shared,
+        kemCiphertext,
+        x25519EphemeralPub,
+      );
+      kek = await deriveKek(subtle, compositeIkm, salt, HKDF_INFO_V2);
+    } else {
+      kek = await deriveKek(subtle, mlKemShared, salt, HKDF_INFO_V1);
+    }
 
     const payloadIv = randomBytes(IV_LENGTH);
     const payload = await sealLayer(subtle, dek, payloadIv, plaintext, options.aad);
@@ -360,9 +520,24 @@ export async function hybridSeal(
     const dekIv = randomBytes(IV_LENGTH);
     const wrapped = await sealLayer(subtle, kek, dekIv, dek, options.aad);
 
+    if (x25519EphemeralPub) {
+      return [
+        ENVELOPE_VERSION_V2,
+        encodeBase64Url(kemCiphertext),
+        encodeBase64Url(x25519EphemeralPub),
+        encodeBase64Url(salt),
+        encodeBase64Url(wrapped.iv),
+        encodeBase64Url(wrapped.tag),
+        encodeBase64Url(wrapped.ciphertext),
+        encodeBase64Url(payload.iv),
+        encodeBase64Url(payload.tag),
+        encodeBase64Url(payload.ciphertext),
+      ].join(":");
+    }
+
     return [
-      ENVELOPE_VERSION,
-      encodeBase64Url(new Uint8Array(encapsulated.ciphertext)),
+      ENVELOPE_VERSION_V1,
+      encodeBase64Url(kemCiphertext),
       encodeBase64Url(salt),
       encodeBase64Url(wrapped.iv),
       encodeBase64Url(wrapped.tag),
@@ -376,11 +551,13 @@ export async function hybridSeal(
   } finally {
     dek?.fill(0);
     kek?.fill(0);
+    mlKemShared?.fill(0);
+    x25519Shared?.fill(0);
   }
 }
 
 /**
- * Open a `v1:` envelope produced by {@link hybridSeal}.
+ * Open a `v1:` or `v2:` envelope produced by {@link hybridSeal}.
  * Any parse, decapsulation, key-unwrap, AAD, or authentication failure throws
  * the same generic error and never includes key material or plaintext.
  */
@@ -390,12 +567,17 @@ export async function hybridOpen(
 ): Promise<Uint8Array> {
   let dek: Uint8Array | undefined;
   let kek: Uint8Array | undefined;
+  let mlKemShared: Uint8Array | undefined;
+  let x25519Shared: Uint8Array | undefined;
+  let privateKeyBytes: Uint8Array | undefined;
+  let classicalPrivateKeyBytes: Uint8Array | undefined;
   try {
     const parsed = parseEnvelope(envelope);
     const subtle = requireSubtle();
+    privateKeyBytes = decodeBase64(options.privateKey);
     const privateKey = await subtle.importKey(
       "pkcs8",
-      decodeBase64(options.privateKey),
+      privateKeyBytes,
       { name: KEM_ALGORITHM },
       false,
       ["decapsulateBits"],
@@ -406,7 +588,46 @@ export async function hybridOpen(
       privateKey,
       parsed.kemCiphertext,
     );
-    kek = await deriveKek(subtle, sharedKey, parsed.hkdfSalt);
+    mlKemShared = new Uint8Array(sharedKey);
+
+    if (parsed.version === "v2") {
+      if (!options.classicalPrivateKey || !parsed.x25519EphemeralPub) {
+        throw new Error(OPEN_ERROR);
+      }
+      classicalPrivateKeyBytes = decodeBase64(options.classicalPrivateKey);
+      const [classicalPrivateKey, ephemeralPubKey] = await Promise.all([
+        subtle.importKey(
+          "pkcs8",
+          classicalPrivateKeyBytes,
+          { name: CLASSICAL_KEM_ALGORITHM },
+          false,
+          ["deriveBits"],
+        ),
+        subtle.importKey(
+          "raw",
+          parsed.x25519EphemeralPub,
+          { name: CLASSICAL_KEM_ALGORITHM },
+          true,
+          [],
+        ),
+      ]);
+      const sharedBuf = await subtle.deriveBits(
+        { name: CLASSICAL_KEM_ALGORITHM, public: ephemeralPubKey },
+        classicalPrivateKey,
+        X25519_SHARED_SECRET_BITS,
+      );
+      x25519Shared = new Uint8Array(sharedBuf);
+      const compositeIkm = concatAllBytes(
+        mlKemShared,
+        x25519Shared,
+        parsed.kemCiphertext,
+        parsed.x25519EphemeralPub,
+      );
+      kek = await deriveKek(subtle, compositeIkm, parsed.hkdfSalt, HKDF_INFO_V2);
+    } else {
+      kek = await deriveKek(subtle, mlKemShared, parsed.hkdfSalt, HKDF_INFO_V1);
+    }
+
     dek = await openLayer(subtle, kek, parsed.dekIv, parsed.wrappedDek, parsed.dekTag, options.aad);
     assertLength(dek, DEK_LENGTH);
 
@@ -423,12 +644,19 @@ export async function hybridOpen(
   } finally {
     dek?.fill(0);
     kek?.fill(0);
+    mlKemShared?.fill(0);
+    x25519Shared?.fill(0);
+    privateKeyBytes?.fill(0);
+    classicalPrivateKeyBytes?.fill(0);
   }
 }
 
-/** Check if a value is a valid hybrid ML-KEM envelope (v1:...). */
+/** Check if a value is a hybrid ML-KEM (`v1:`) or composite X25519+ML-KEM (`v2:`) envelope. */
 export function isHybridEnvelope(value: unknown): value is string {
   if (typeof value !== "string") return false;
   const parts = value.split(":");
-  return parts.length === ENVELOPE_FIELD_COUNT && parts[0] === ENVELOPE_VERSION;
+  return (
+    (parts[0] === ENVELOPE_VERSION_V1 && parts.length === ENVELOPE_FIELD_COUNT_V1) ||
+    (parts[0] === ENVELOPE_VERSION_V2 && parts.length === ENVELOPE_FIELD_COUNT_V2)
+  );
 }

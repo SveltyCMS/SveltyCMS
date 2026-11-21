@@ -73,8 +73,8 @@
 	// Every size keeps a 2px inset: track width − thumb width − 2 × inset = on position.
 	const sizes = {
 		sm: {
-			track: 'h-5 w-9 min-w-9',
-			thumb: 'h-4 w-4',
+			track: 'h-6 w-10 min-w-10',
+			thumb: 'h-5 w-5',
 			translateOn: 'translate-x-[18px]',
 			translateOff: 'translate-x-[2px]',
 			icon: '12'
@@ -110,6 +110,8 @@
 			aria-label={ariaLabel || label || 'Toggle switch'}
 			type="checkbox"
 			class="peer sr-only"
+			tabindex="-1"
+			aria-hidden="true"
 			bind:checked={value}
 			{disabled}
 			{id}

@@ -20,8 +20,10 @@ import {
   isModeContaminated,
   loadHistory,
   loadDistinctTestIds,
+  loadPrimaryMetricForTest,
   persistRun,
   reportModeRefusal,
+  resolveBenchmarkRunMode,
   resolveServerMode,
   type BenchmarkServerMode,
   type HistoryEntry,
@@ -105,7 +107,18 @@ function getDbType(): string {
 }
 
 /** Gates all MDX mutations — console-only unless recording. */
+/**
+ * Whether this invocation is allowed to write results anywhere (SQLite trend store,
+ * ledger MDX, summary slots).
+ *
+ * `diagnostic` is a hard no: `--diagnose` changes the configuration under measurement,
+ * so recording it would publish numbers no baseline can be compared against (and would
+ * overwrite the ledger's Current Run Summary with override-config values). The child
+ * test processes receive `SVELTY_BENCHMARK_RUN_MODE=diagnostic` from the matrix runner,
+ * so this gate also covers the per-test `pushTableToMdx()` write.
+ */
 export function shouldRecord(): boolean {
+  if (resolveBenchmarkRunMode() === "diagnostic") return false;
   return (
     process.env.BENCHMARK_RECORD === "1" ||
     process.env.BENCHMARK_MATRIX === "1" ||
@@ -172,7 +185,7 @@ export async function reportBenchmark(
     (result.status === "SUCCESS" || result.status === undefined) && (result.errorCount || 0) === 0;
 
   if (isPassing && options.mode !== "none") {
-    const runMode = isMatrixRun() ? "matrix" : "standalone";
+    const runMode = resolveBenchmarkRunMode();
     const serverMode = resolveServerMode();
     const modeVerdict = isModeContaminated(runMode, serverMode);
     if (modeVerdict.contaminated) {
@@ -480,7 +493,21 @@ export function buildHistoryArchiveTable(dbLabel?: string): string {
 
   for (const testId of testIds) {
     for (const phase of ["warm", "cold", "mixed"] as const) {
-      const history = loadHistory(testId, dbType, redisEnabled, phase, undefined, modeFilter);
+      const primaryMetric = loadPrimaryMetricForTest(
+        testId,
+        dbType,
+        redisEnabled,
+        phase,
+        modeFilter,
+      );
+      const history = loadHistory(
+        testId,
+        dbType,
+        redisEnabled,
+        phase,
+        primaryMetric ?? undefined,
+        modeFilter,
+      );
       if (history.length === 0) continue;
 
       const samples = history.map((h) => h.avgMs);
@@ -696,6 +723,19 @@ export async function finalizeReport(
   runId: string,
   options: FinalizeReportOptions = {},
 ): Promise<void> {
+  // 🔬 A `--diagnose` invocation changes the configuration it measures (phase marks,
+  // write profiler, mix breakdown), so its numbers are not comparable with a
+  // default-config matrix run. Rows still reach `history.jsonl` (the runner's live
+  // hotspot leaderboard reads that file for this runId), but nothing is written to
+  // the published ledgers or to the `run_mode='matrix'` trend store.
+  if (isMatrixRun() && resolveBenchmarkRunMode() === "diagnostic") {
+    console.log(
+      "\n  🔬 Diagnostic run — published ledgers and the trend store left untouched " +
+        "(run_mode='diagnostic' rows are console-only).",
+    );
+    return;
+  }
+
   if (isMatrixRun()) {
     try {
       const { generateFinalReport } =

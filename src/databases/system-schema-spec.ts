@@ -231,8 +231,17 @@ export const SYSTEM_SCHEMA: SchemaItem[] = [
   // ── postgresql bootstrap ───────────────────────────────────────────────────
   {
     kind: "raw",
-    comment: { postgresql: ["Ensure pgcrypto extension for gen_random_uuid()"] },
-    sql: { postgresql: [`CREATE EXTENSION IF NOT EXISTS "pgcrypto"`] },
+    comment: {
+      postgresql: [
+        "Ensure pgcrypto extension for gen_random_uuid() and pg_trgm for media filename trigram search",
+      ],
+    },
+    sql: {
+      postgresql: [
+        `CREATE EXTENSION IF NOT EXISTS "pgcrypto"`,
+        `CREATE EXTENSION IF NOT EXISTS "pg_trgm"`,
+      ],
+    },
   },
 
   // ── Auth Users ─────────────────────────────────────────────────────────────
@@ -1236,6 +1245,8 @@ export const SYSTEM_SCHEMA: SchemaItem[] = [
         "CREATE INDEX IF NOT EXISTS content_nodes_data_gin ON content_nodes USING gin (data)",
         "CREATE INDEX IF NOT EXISTS content_nodes_metadata_gin ON content_nodes USING gin (metadata)",
         "CREATE INDEX IF NOT EXISTS media_items_metadata_gin ON media_items USING gin (metadata)",
+        "CREATE INDEX IF NOT EXISTS media_items_filename_trgm_idx ON media_items USING gin (filename gin_trgm_ops)",
+        'CREATE INDEX IF NOT EXISTS media_items_original_filename_trgm_idx ON media_items USING gin ("originalFilename" gin_trgm_ops)',
         "CREATE INDEX IF NOT EXISTS roles_permissions_gin ON roles USING gin (permissions)",
         'CREATE INDEX IF NOT EXISTS auth_users_roleIds_gin ON auth_users USING gin ("roleIds")',
       ],

@@ -10,7 +10,7 @@
  */
 
 // Fail-closed mapping of namespaces/methods to core SveltyCMS permission IDs
-const isReadMethod = (m: string) => m === "GET" || m === "OPTIONS";
+const isReadMethod = (m: string) => m === "GET" || m === "HEAD";
 
 export const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)> = {
   collections: (method: string) =>
@@ -71,19 +71,15 @@ export const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => 
   remoteVideo: "collection:read",
 
   // Data Operations permissions
-  config: (method: string) => (method === "POST" ? "config:write" : "config:read"),
-  "content-export": (method: string) => (method === "POST" ? "content:export" : "content:read"),
-  "content-import": (method: string) => (method === "POST" ? "content:import" : "content:read"),
-  migrations: (method: string) => (method === "POST" ? "migration:apply" : "migration:read"),
-  importers: (method: string) => (method === "POST" ? "content:import" : "content:read"),
-  backups: (method: string) => {
-    if (method === "OPTIONS" || method === "GET") return "backup:read";
-    if (method === "POST") return "backup:create";
-    return "backup:read";
-  },
-  "content-sync": (method: string) => (method === "POST" ? "content:sync" : "content:read"),
-  config_sync: (method: string) => (method === "POST" ? "config:write" : "config:read"),
-  "config-sync": (method: string) => (method === "POST" ? "config:write" : "config:read"),
+  config: (method: string) => (isReadMethod(method) ? "config:read" : "config:write"),
+  "content-export": (method: string) => (isReadMethod(method) ? "content:read" : "content:export"),
+  "content-import": (method: string) => (isReadMethod(method) ? "content:read" : "content:import"),
+  migrations: (method: string) => (isReadMethod(method) ? "migration:read" : "migration:apply"),
+  importers: (method: string) => (isReadMethod(method) ? "content:read" : "content:import"),
+  backups: (method: string) => (isReadMethod(method) ? "backup:read" : "backup:create"),
+  "content-sync": (method: string) => (isReadMethod(method) ? "content:read" : "content:sync"),
+  config_sync: (method: string) => (isReadMethod(method) ? "config:read" : "config:write"),
+  "config-sync": (method: string) => (isReadMethod(method) ? "config:read" : "config:write"),
 
   // Plugin Settings (encrypted per-tenant settings, gated behind plugin:settings:manage)
   "plugin-settings": "plugin:settings:manage",

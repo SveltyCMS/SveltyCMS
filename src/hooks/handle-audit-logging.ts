@@ -124,7 +124,15 @@ export function recordAuditEntry(
   if ((event.locals as any)?.__testBypass) return;
 
   // Sync fast path for benchmarks/tests and DB-driven enterprise UI toggles
-  if (isAuditDisabledByEnv() || process.env.TEST_MODE === "true") return;
+  if (
+    isAuditDisabledByEnv() ||
+    (process.env.TEST_MODE === "true" &&
+      (process.env.NODE_ENV !== "production" ||
+        Boolean(process.env.TEST_API_SECRET) ||
+        process.env.ALLOW_TEST_MODE_IN_PROD === "true"))
+  ) {
+    return;
+  }
   const flags = getAuditFlagsSync();
   if (flags.disabled) return;
 
@@ -161,7 +169,15 @@ export const handleAuditLogging: Handle = async ({ event, resolve }) => {
   if ((event.locals as any)?.__testBypass) return resolve(event);
 
   // Sync fast path for benchmarks/tests and DB-driven enterprise UI toggles
-  if (isAuditDisabledByEnv() || process.env.TEST_MODE === "true") return resolve(event);
+  if (
+    isAuditDisabledByEnv() ||
+    (process.env.TEST_MODE === "true" &&
+      (process.env.NODE_ENV !== "production" ||
+        Boolean(process.env.TEST_API_SECRET) ||
+        process.env.ALLOW_TEST_MODE_IN_PROD === "true"))
+  ) {
+    return resolve(event);
+  }
   const flags = getAuditFlagsSync();
   if (flags.disabled) return resolve(event);
 

@@ -158,11 +158,13 @@
 
 	function openSchedule(): void {
 		showScheduleModal({
-			onSchedule: (date: Date) => {
+			initialAction: currentEntry?.status === StatusTypes.publish ? 'publish' : 'unpublish',
+			onSchedule: (date: Date, action: string) => {
 				setCollectionValue({
 					...currentEntry!,
 					status: StatusTypes.schedule,
-					_scheduled: date.getTime()
+					_scheduled: date.getTime(),
+					_scheduledAction: action
 				});
 			}
 		});

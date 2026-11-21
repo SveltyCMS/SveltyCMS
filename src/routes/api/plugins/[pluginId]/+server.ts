@@ -19,8 +19,11 @@
 import { json } from "@sveltejs/kit";
 import { pluginRegistry } from "@src/plugins/registry";
 import { pluginServerRegistry } from "@src/plugins/plugin-server-registry";
+import { isSecureCookieContext } from "@src/databases/auth/constants";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
-import { AppError, handleApiError, getErrorMessage } from "@utils/error-handling";
+import { validateCsrfForRequest } from "@utils/security/csrf-utils";
+import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
+import { AppError, handleApiError, getErrorMessage, raise } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import type { RequestHandler } from "./$types";
 
@@ -60,13 +63,29 @@ async function getCachedPluginState(pluginId: string, tenantId: string) {
   }
 }
 
-export const POST: RequestHandler = async ({ params, request: originalRequest, locals }) => {
+export const POST: RequestHandler = async ({
+  params,
+  request: originalRequest,
+  locals,
+  cookies,
+  url,
+}) => {
   try {
     const { pluginId } = params;
     const user = locals.user;
 
     if (!user) {
       throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+    }
+
+    if (!locals.tenantId && isMultiTenantEnabled()) {
+      raise(403, "Tenant context is required", "TENANT_REQUIRED");
+    }
+
+    const isSecure = isSecureCookieContext(url.protocol, url.hostname);
+    const csrfResult = validateCsrfForRequest(cookies, originalRequest, isSecure);
+    if (!csrfResult.isValid) {
+      raise(403, `Security violation: ${csrfResult.error}`, "CSRF_VIOLATION");
     }
 
     // ── Plugin Resolution ──────────────────────────────────────────
@@ -161,8 +180,10 @@ export const POST: RequestHandler = async ({ params, request: originalRequest, l
     }
 
     // ── Dispatch with pre-parsed body ──────────────────────────────
-    const handler = pluginActions[actionName];
-    if (!handler) {
+    const handler = Object.hasOwn(pluginActions, actionName)
+      ? pluginActions[actionName]
+      : undefined;
+    if (typeof handler !== "function") {
       throw new AppError(`Unknown action: ${actionName}`, 404, "NOT_FOUND");
     }
 

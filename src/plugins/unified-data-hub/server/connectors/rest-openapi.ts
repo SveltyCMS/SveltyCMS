@@ -99,11 +99,15 @@ export class RestOpenApiConnector extends BaseConnector {
       // 🛡️ SSRF: connector baseUrl/allowedHosts are admin-configured connectors.
       // Allow private/loopback targets (e.g. test fixtures and internal services)
       // while still blocking metadata/link-local ranges.
+      const allowPrivate =
+        Boolean((connector.config as { allowPrivate?: boolean } | undefined)?.allowPrivate) ||
+        process.env.TEST_MODE === "true" ||
+        process.env.PLAYWRIGHT_TEST === "true";
       const targetUrl = url.toString();
-      await validateEgressUrl(targetUrl, { allowHttp: true, allowPrivate: true });
+      await validateEgressUrl(targetUrl, { allowHttp: true, allowPrivate });
       const response = await safeFetch(targetUrl, {
         allowHttp: true,
-        allowPrivate: true,
+        allowPrivate,
         method: "GET",
         headers,
         timeoutMs: FETCH_TIMEOUT_MS,
@@ -252,11 +256,15 @@ export class RestOpenApiConnector extends BaseConnector {
     try {
       const url = buildRestUrl(baseUrl, "/", allowedHosts);
       const targetUrl = url.toString();
+      const allowPrivate =
+        Boolean((connector.config as { allowPrivate?: boolean } | undefined)?.allowPrivate) ||
+        process.env.TEST_MODE === "true" ||
+        process.env.PLAYWRIGHT_TEST === "true";
       // 🛡️ SSRF: same admin-input boundary as the read path.
-      await validateEgressUrl(targetUrl, { allowHttp: true, allowPrivate: true });
+      await validateEgressUrl(targetUrl, { allowHttp: true, allowPrivate });
       const res = await safeFetch(targetUrl, {
         allowHttp: true,
-        allowPrivate: true,
+        allowPrivate,
         method: "HEAD",
         timeoutMs: HEALTH_TIMEOUT_MS,
         maxSizeBytes: MAX_HEALTH_RESPONSE_BYTES,

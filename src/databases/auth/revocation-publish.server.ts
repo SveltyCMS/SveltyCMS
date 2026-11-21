@@ -46,6 +46,19 @@ interface DistributedRevocationMemoEntry {
  */
 const distributedRevocationMemo = new Map<string, DistributedRevocationMemoEntry>();
 
+type TurboCacheEvictHooks = {
+  clear: () => void;
+  evictUser: (userId: string) => void;
+  evictTenant: (tenantId: string) => void;
+};
+
+let turboCacheEvictHooks: TurboCacheEvictHooks | null = null;
+
+/** Registered by `handle-turbo-get.ts` at module load to avoid a circular import. */
+export function registerTurboCacheEvictHooks(hooks: TurboCacheEvictHooks): void {
+  turboCacheEvictHooks = hooks;
+}
+
 /**
  * Mark every session issued for `userId` before "now" as revoked.
  * Returns the epoch so callers can log/trace the exact value.
@@ -55,6 +68,7 @@ export async function publishUserRevocation(
   tenantId?: string | null,
 ): Promise<number> {
   const epoch = revokeUserSessions(userId);
+  turboCacheEvictHooks?.evictUser(userId);
   try {
     await cacheService.set(
       `${USER_REVOCATION_CACHE_PREFIX}${userId}`,
@@ -76,6 +90,7 @@ export async function publishUserRevocation(
  */
 export async function publishGlobalRevocation(): Promise<number> {
   const epoch = revokeAllSessions();
+  turboCacheEvictHooks?.clear();
   try {
     await cacheService.set(
       GLOBAL_REVOCATION_CACHE_KEY,
@@ -99,6 +114,7 @@ export async function publishGlobalRevocation(): Promise<number> {
  */
 export async function publishTenantRevocation(tenantId: string): Promise<number> {
   const epoch = revokeTenantSessions(tenantId);
+  turboCacheEvictHooks?.evictTenant(tenantId);
   if (epoch === 0) return 0;
   try {
     await cacheService.set(
@@ -134,6 +150,38 @@ function resolveMarker(
         ? { key: `${USER_REVOCATION_CACHE_PREFIX}${id}`, tenantId: tenantId ?? undefined }
         : null;
   }
+}
+
+/**
+ * Synchronous check against the memoized distributed revocation markers, triggering
+ * an asynchronous refresh when the 5s window expires. Allows synchronous fast lanes
+ * (`getTurboAuthContext`) to honour distributed revocations without blocking.
+ */
+export function isDistributedSessionRevokedSync(
+  issuedAtMs?: number,
+  userId?: string | null,
+  tenantId?: string | null,
+): boolean {
+  if (!issuedAtMs || typeof issuedAtMs !== "number") return false;
+  const now = Date.now();
+  const scopes: Array<[RevocationScope, string | null | undefined]> = [
+    ["global", undefined],
+    ["tenant", tenantId],
+    ["user", userId],
+  ];
+  for (const [scope, id] of scopes) {
+    const marker = resolveMarker(scope, id, tenantId);
+    if (!marker) continue;
+    const memoKey = `${marker.tenantId ?? "default"}|${marker.key}`;
+    const memo = distributedRevocationMemo.get(memoKey);
+    if (!memo || now - memo.checkedAt >= DISTRIBUTED_REVOKE_MEMO_MS) {
+      void getDistributedRevocationEpoch(scope, id, tenantId);
+    }
+    if (memo && memo.epoch > 0 && issuedAtMs <= memo.epoch) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**

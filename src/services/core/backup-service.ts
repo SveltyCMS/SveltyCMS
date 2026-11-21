@@ -159,11 +159,17 @@ const BACKUP_AES_ALGORITHM = "aes-256-gcm";
 const BACKUP_IV_LENGTH = 12; // NIST SP 800-38D recommended GCM nonce
 const BACKUP_AUTH_TAG_LENGTH = 16;
 const HYBRID_BACKUP_MAGIC = Buffer.from("SCHP1", "ascii");
+/** AAD-bound hybrid PQC backup envelope (`"SCHP2"` + ML-KEM-768 / X25519+ML-KEM-768). */
+const HYBRID_BACKUP_MAGIC_V2 = Buffer.from("SCHP2", "ascii");
 const HYBRID_BACKUP_AAD = Buffer.from("sveltycms-backup-v1", "utf8");
 /** AAD-bound v3 envelope: `"SCHB3"[kidLen][kid][iv][ciphertext][tag]`. */
 const BACKUP_V3_MAGIC = Buffer.from("SCHB3", "ascii");
 const BACKUP_AAD_PREFIX = "svelty-backup:v2";
 const BACKUP_KEY_ID_RE = /^[A-Za-z0-9._-]{1,64}$/;
+
+function hybridBackupArtifactAad(aad: string): Buffer {
+  return Buffer.from(`sveltycms-backup-v2:${aad}`, "utf8");
+}
 
 /**
  * AAD that binds a backup blob to its relative artifact path. Encrypt and
@@ -375,11 +381,14 @@ export async function encryptBackupData(
     if (!(await isMlKemAvailable())) {
       throw new Error("PQC_HYBRID_BACKUPS requires a runtime with ML-KEM-768 WebCrypto support");
     }
+    const classicalPublicKey = process.env.PQC_X25519_PUBLIC_KEY?.trim() || undefined;
     const envelope = await hybridSeal(Buffer.from(data, "utf8"), {
       publicKey,
-      aad: HYBRID_BACKUP_AAD,
+      classicalPublicKey,
+      aad: aad ? hybridBackupArtifactAad(aad) : HYBRID_BACKUP_AAD,
     });
-    return Buffer.concat([HYBRID_BACKUP_MAGIC, Buffer.from(envelope, "utf8")]);
+    const magic = aad ? HYBRID_BACKUP_MAGIC_V2 : HYBRID_BACKUP_MAGIC;
+    return Buffer.concat([magic, Buffer.from(envelope, "utf8")]);
   }
 
   const ring = backupKeyRing(encryptionKey);
@@ -399,17 +408,45 @@ export async function encryptBackupData(
 }
 
 /**
- * Decrypts backup data encrypted with AES-256-GCM.
+ * Decrypts backup data encrypted with AES-256-GCM or hybrid ML-KEM (`SCHP1`/`SCHP2`).
  *
- * v3 requires the same AAD used on write; v2 (`SCHB2`) and the oldest
- * `[iv][ciphertext][tag]` layout remain readable without AAD so archives
- * written before this change can still be restored.
+ * `SCHP2` and `SCHB3` require the same per-artifact AAD used on write; legacy
+ * `SCHP1`, `SCHB2`, and the oldest `[iv][ciphertext][tag]` layout remain readable
+ * without AAD so archives written before this change can still be restored.
  */
 export async function decryptBackupData(
   encrypted: Buffer,
   encryptionKey: string,
   aad?: string,
 ): Promise<string> {
+  if (
+    encrypted.length >= HYBRID_BACKUP_MAGIC_V2.length &&
+    encrypted.subarray(0, HYBRID_BACKUP_MAGIC_V2.length).equals(HYBRID_BACKUP_MAGIC_V2)
+  ) {
+    if (!aad) {
+      logger.error("[BackupService] SCHP2 hybrid backup envelope requires an AAD");
+      backupDecryptionError();
+    }
+    const privateKey = process.env.PQC_KEM_PRIVATE_KEY;
+    if (!privateKey) {
+      throw new Error("Hybrid backup requires PQC_KEM_PRIVATE_KEY");
+    }
+    const classicalPrivateKey = process.env.PQC_X25519_PRIVATE_KEY?.trim() || undefined;
+    try {
+      const plaintext = await hybridOpen(
+        encrypted.subarray(HYBRID_BACKUP_MAGIC_V2.length).toString("utf8"),
+        { privateKey, classicalPrivateKey, aad: hybridBackupArtifactAad(aad) },
+      );
+      try {
+        return Buffer.from(plaintext).toString("utf8");
+      } finally {
+        plaintext.fill(0);
+      }
+    } catch {
+      backupDecryptionError();
+    }
+  }
+
   if (
     encrypted.length >= HYBRID_BACKUP_MAGIC.length &&
     encrypted.subarray(0, HYBRID_BACKUP_MAGIC.length).equals(HYBRID_BACKUP_MAGIC)
@@ -418,11 +455,20 @@ export async function decryptBackupData(
     if (!privateKey) {
       throw new Error("Hybrid backup requires PQC_KEM_PRIVATE_KEY");
     }
-    const plaintext = await hybridOpen(
-      encrypted.subarray(HYBRID_BACKUP_MAGIC.length).toString("utf8"),
-      { privateKey, aad: HYBRID_BACKUP_AAD },
-    );
-    return Buffer.from(plaintext).toString("utf8");
+    const classicalPrivateKey = process.env.PQC_X25519_PRIVATE_KEY?.trim() || undefined;
+    try {
+      const plaintext = await hybridOpen(
+        encrypted.subarray(HYBRID_BACKUP_MAGIC.length).toString("utf8"),
+        { privateKey, classicalPrivateKey, aad: HYBRID_BACKUP_AAD },
+      );
+      try {
+        return Buffer.from(plaintext).toString("utf8");
+      } finally {
+        plaintext.fill(0);
+      }
+    } catch {
+      backupDecryptionError();
+    }
   }
 
   const ring = backupKeyRing(encryptionKey);
@@ -700,9 +746,12 @@ export class BackupService {
     const storageDir = options.storageDir ?? path.resolve(process.cwd(), "storage", "backups");
     const now = nowISODateString();
     const label = options.label ?? `backup_${tenantId}_${Date.now()}`;
-    // 🛡️ PATH TRAVERSAL: label feeds path.join(storageDir, label). Reject separators
-    // and `..` so an API-supplied label cannot write outside the backups dir.
-    if (options.label !== undefined && !/^[A-Za-z0-9._-]+$/.test(options.label)) {
+    // 🛡️ PATH TRAVERSAL: label feeds path.join(storageDir, label). Reject separators,
+    // leading dots, and `..` so an API-supplied label cannot write outside the backups dir.
+    if (
+      options.label !== undefined &&
+      (!/^[A-Za-z0-9_-][A-Za-z0-9._-]*$/.test(options.label) || options.label.includes(".."))
+    ) {
       return {
         success: false,
         message:
@@ -1886,7 +1935,7 @@ export class BackupService {
   /**
    * Returns the current status of a running backup or restore job.
    */
-  public async getJobStatus(jobId: string): Promise<BackupJobStatus | null> {
+  public async getJobStatus(jobId: string, tenantId?: string): Promise<BackupJobStatus | null> {
     const db = (await loadDbModule()).getDb();
     if (!db || !db.system?.jobs) {
       return null;
@@ -1900,6 +1949,10 @@ export class BackupService {
 
       const job = result.data;
       const jobPayload = job.payload as Record<string, unknown>;
+      const jobTenant = (job.tenantId ?? jobPayload?.tenantId) as string | undefined;
+      if (tenantId && jobTenant && jobTenant !== tenantId && jobTenant !== "global") {
+        return null;
+      }
       const jobManifest = jobPayload?.manifest as Record<string, unknown> | undefined;
       const jobResources = jobManifest?.resources as Record<string, number> | undefined;
       const totalEntries = jobResources?.entries ?? 0;

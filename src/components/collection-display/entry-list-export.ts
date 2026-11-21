@@ -25,6 +25,15 @@ export interface ExportEntriesOptions {
 /**
  * Serializes collection entries to a CSV file and prompts a browser download.
  */
+function escapeCsvCell(raw: string): string {
+  const escaped = raw.replace(/"/g, '""');
+  // Neutralize spreadsheet formula injection (=, +, -, @, tab, CR)
+  if (/^[=+\-@\t\r]/.test(escaped)) {
+    return `"'${escaped}"`;
+  }
+  return `"${escaped}"`;
+}
+
 export function exportEntriesToCsv({
   items,
   visibleHeaders,
@@ -37,9 +46,7 @@ export function exportEntriesToCsv({
   }
 
   const headersToUse = visibleHeaders.length > 0 ? visibleHeaders : fallbackHeaders;
-  const headerLabels = headersToUse.map(
-    (h) => `"${(h.label || h.name || "").replace(/"/g, '""')}"`,
-  );
+  const headerLabels = headersToUse.map((h) => escapeCsvCell(h.label || h.name || ""));
   const headerKeys = headersToUse.map((h) => h.name || h.id || "");
 
   const rowsCsv = items.map((item) => {
@@ -48,8 +55,8 @@ export function exportEntriesToCsv({
       .map((k) => {
         const val = rowRecord[k];
         if (val == null) return '""';
-        if (typeof val === "object") return `"${JSON.stringify(val).replace(/"/g, '""')}"`;
-        return `"${String(val).replace(/"/g, '""')}"`;
+        if (typeof val === "object") return escapeCsvCell(JSON.stringify(val));
+        return escapeCsvCell(String(val));
       })
       .join(",");
   });

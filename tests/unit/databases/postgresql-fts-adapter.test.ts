@@ -5,6 +5,8 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { PostgresFtsAdapter } from "@src/databases/postgresql/fts-adapter";
+import { MariaDBFtsAdapter } from "@src/databases/mariadb/fts-adapter";
+import { SQLiteFtsAdapter } from "@src/databases/sqlite/fts-adapter";
 
 describe("PostgresFtsAdapter", () => {
   it("returns empty result immediately for empty or whitespace query without executing SQL", async () => {
@@ -241,5 +243,59 @@ describe("PostgresFtsAdapter", () => {
     }
     const ilikeSql = executedSqls.find((s) => s.includes("ILIKE"));
     expect(ilikeSql).toBeUndefined();
+  });
+});
+
+describe("MariaDBFtsAdapter & SQLiteFtsAdapter SQL escaping and integer clamping", () => {
+  it("escapes backslashes/quotes and clamps limit/offset integers across MariaDB and SQLite FTS", async () => {
+    const mariaQueries: string[] = [];
+    const mariaMock: any = {
+      crud: {
+        find: async (_col: string, _filter: unknown, opts?: { sql?: string }) => {
+          if (opts?.sql) mariaQueries.push(opts.sql);
+          return { success: true, data: [] };
+        },
+      },
+    };
+    const mariaFts = new MariaDBFtsAdapter(mariaMock);
+    await mariaFts.search("posts", "test\\' OR 1=1--", {
+      columns: [{ name: "title" }],
+      limit: Number.NaN,
+      offset: -50,
+      filters: { author: "bob\\' OR 1=1--" },
+    });
+    expect(mariaQueries.length).toBeGreaterThan(0);
+    for (const q of mariaQueries) {
+      expect(q).not.toContain("LIMIT NaN");
+      expect(q).toContain("\\\\''");
+    }
+    expect(mariaQueries[0]).toContain("LIMIT 50 OFFSET 0");
+
+    let sqliteAttempts = 0;
+    const sqliteQueries: string[] = [];
+    const sqliteMock: any = {
+      crud: {
+        find: async (_col: string, _filter: unknown, opts?: { sql?: string }) => {
+          sqliteAttempts++;
+          if (sqliteAttempts <= 2) {
+            throw new Error("no such table: posts_fts");
+          }
+          if (opts?.sql) sqliteQueries.push(opts.sql);
+          return { success: true, data: [] };
+        },
+      },
+    };
+    const sqliteFts = new SQLiteFtsAdapter(sqliteMock);
+    await sqliteFts.search("posts", "100%_test'x", {
+      columns: [{ name: "title" }],
+      limit: 999999,
+      offset: -10,
+      filters: { tag: "t'1" },
+    });
+    expect(sqliteQueries.length).toBeGreaterThan(0);
+    const likeQuery = sqliteQueries.find((q) => q.includes("LIKE"));
+    expect(likeQuery).toBeDefined();
+    expect(likeQuery).toContain("ESCAPE '\\'");
+    expect(likeQuery).toContain("LIMIT 1000 OFFSET 0");
   });
 });

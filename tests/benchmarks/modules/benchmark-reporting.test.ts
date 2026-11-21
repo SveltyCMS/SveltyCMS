@@ -328,6 +328,30 @@ test("partial MDX update preserves unrelated sections", () => {
   expect(typeof writeTrendAndInsight).toBe("function");
 });
 
+test("resolveBenchmarkRunMode isolates --diagnose rows from the trend ledger", () => {
+  const { resolveBenchmarkRunMode } = require("./benchmark-history");
+  const prevMatrix = process.env.BENCHMARK_MATRIX;
+  const prevRunMode = process.env.SVELTY_BENCHMARK_RUN_MODE;
+  try {
+    delete process.env.BENCHMARK_MATRIX;
+    delete process.env.SVELTY_BENCHMARK_RUN_MODE;
+    expect(resolveBenchmarkRunMode()).toBe("standalone");
+
+    process.env.BENCHMARK_MATRIX = "1";
+    expect(resolveBenchmarkRunMode()).toBe("matrix");
+
+    // A diagnostic run changes the measured configuration — its rows must never be
+    // picked up by the `run_mode='matrix'` trend readers.
+    process.env.SVELTY_BENCHMARK_RUN_MODE = "diagnostic";
+    expect(resolveBenchmarkRunMode()).toBe("diagnostic");
+  } finally {
+    if (prevMatrix === undefined) delete process.env.BENCHMARK_MATRIX;
+    else process.env.BENCHMARK_MATRIX = prevMatrix;
+    if (prevRunMode === undefined) delete process.env.SVELTY_BENCHMARK_RUN_MODE;
+    else process.env.SVELTY_BENCHMARK_RUN_MODE = prevRunMode;
+  }
+});
+
 // Clean up after all tests
 test("cleanup", () => {
   cleanTestArtifacts();

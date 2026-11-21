@@ -108,7 +108,7 @@ export function parseDbReplicasEnv(raw: string | null | undefined): DbReplicaTar
 // ============================================================================
 
 export class ReadYourWritesTracker {
-  private readonly watermarks = new Map<string, number>();
+  private readonly watermarks = new Map<string, { timestamp: number; lsn?: string | null }>();
   private readonly maxEntries: number;
 
   constructor(maxEntries = 10_000) {
@@ -121,15 +121,35 @@ export class ReadYourWritesTracker {
     return `${t}:${c}`;
   }
 
-  public recordWrite(tenantId?: string | null, clientId?: string | null): void {
+  public recordWrite(
+    tenantId?: string | null,
+    clientId?: string | null,
+    lsn?: string | null,
+  ): void {
     if (!clientId) return; // 🚀 RYW Affinity requires client or session identifier
     const key = this.buildKey(tenantId, clientId);
-    this.watermarks.set(key, performance.now());
+    this.watermarks.set(key, { timestamp: performance.now(), ...(lsn ? { lsn } : {}) });
 
     // Prevent unbounded memory growth in long-running services
     if (this.watermarks.size > this.maxEntries) {
       this.prune(5_000);
     }
+  }
+
+  public getRecentWriteLsn(
+    tenantId?: string | null,
+    clientId?: string | null,
+    windowMs = 2000,
+  ): string | null {
+    if (!clientId) return null;
+    const key = this.buildKey(tenantId, clientId);
+    const entry = this.watermarks.get(key);
+    if (!entry) return null;
+    if (performance.now() - entry.timestamp <= windowMs) {
+      return entry.lsn ?? null;
+    }
+    this.watermarks.delete(key);
+    return null;
   }
 
   public hasRecentWrite(
@@ -139,10 +159,10 @@ export class ReadYourWritesTracker {
   ): boolean {
     if (!clientId) return false; // Anonymous reads without client identifier are not pinned
     const key = this.buildKey(tenantId, clientId);
-    const writeTime = this.watermarks.get(key);
-    if (!writeTime) return false;
+    const entry = this.watermarks.get(key);
+    if (!entry) return false;
 
-    const diff = performance.now() - writeTime;
+    const diff = performance.now() - entry.timestamp;
     if (diff <= windowMs) {
       return true;
     }
@@ -153,8 +173,8 @@ export class ReadYourWritesTracker {
 
   public prune(maxAgeMs = 5_000): void {
     const now = performance.now();
-    for (const [k, timestamp] of this.watermarks.entries()) {
-      if (now - timestamp > maxAgeMs) {
+    for (const [k, entry] of this.watermarks.entries()) {
+      if (now - entry.timestamp > maxAgeMs) {
         this.watermarks.delete(k);
       }
     }
@@ -389,6 +409,49 @@ export class ReplicaRouterAdapter implements IDBAdapter {
     const forcePrimary = this.shouldReadPrimary(options);
 
     if (forcePrimary) {
+      // 🚀 PostgreSQL 19+ Standby WAIT FOR LSN: when the primary captured a WAL LSN
+      // for this client's recent write and the selected replica supports `waitForReplicaLsn`,
+      // wait on the replica until WAL replay reaches that LSN instead of pinning to primary.
+      const ctx = replicaStorage.getStore();
+      const isPinnedOrStrong =
+        Boolean(ctx?.pinnedToPrimary || options?.transaction) ||
+        (options as Record<string, unknown> | undefined)?.consistency === "strong" ||
+        (options as Record<string, unknown> | undefined)?.readPreference === "primary";
+      const clientId =
+        options?.clientId || ctx?.clientId || (options?.sessionToken as string | undefined);
+      const tenantId = (options?.tenantId as string | undefined) ?? null;
+      const writeLsn = !isPinnedOrStrong
+        ? this.tracker.getRecentWriteLsn(tenantId, clientId, this.config.readYourWritesWindowMs)
+        : null;
+
+      if (writeLsn) {
+        const lsnReplica = this.pool.selectReplica();
+        const waitFn = (
+          lsnReplica?.adapter as unknown as {
+            waitForReplicaLsn?: (lsn: string, timeoutMs?: number) => Promise<boolean>;
+          }
+        )?.waitForReplicaLsn;
+        if (lsnReplica && typeof waitFn === "function") {
+          const synced = await waitFn
+            .call(lsnReplica.adapter, writeLsn, this.config.readYourWritesWindowMs)
+            .catch(() => false);
+          if (synced) {
+            lsnReplica.activeQueries++;
+            try {
+              const result = await executeFn(lsnReplica.adapter);
+              lsnReplica.activeQueries--;
+              if (result.success) {
+                lsnReplica.recordSuccess();
+                this._replicaReads++;
+                return result;
+              }
+            } catch {
+              lsnReplica.activeQueries--;
+            }
+          }
+        }
+      }
+
       this._primaryReads++;
       return executeFn(this.primary);
     }
@@ -441,7 +504,19 @@ export class ReplicaRouterAdapter implements IDBAdapter {
       const clientId =
         options?.clientId || ctx?.clientId || (options?.sessionToken as string | undefined);
       const tenantId = (options?.tenantId as string | undefined) ?? null;
-      this.tracker.recordWrite(tenantId, clientId);
+      let lsn: string | null = null;
+      const primaryWithLsn = this.primary as unknown as {
+        supportsPg19Features?: boolean;
+        getCurrentWalLsn?: () => Promise<string | null>;
+      };
+      if (
+        clientId &&
+        primaryWithLsn.supportsPg19Features === true &&
+        typeof primaryWithLsn.getCurrentWalLsn === "function"
+      ) {
+        lsn = await primaryWithLsn.getCurrentWalLsn().catch(() => null);
+      }
+      this.tracker.recordWrite(tenantId, clientId, lsn);
     }
     return res;
   }

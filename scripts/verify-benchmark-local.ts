@@ -15,6 +15,7 @@
  */
 
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { availableParallelism } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import {
@@ -113,6 +114,52 @@ const MIN_SAMPLES_FOR_P99 = 100;
 
 /** The workload replica whose recorded run this report grades. */
 const REPLICA_TEST_FILE = "competitive-workload-replica";
+
+/**
+ * Concurrency stages in `competitive-workload-replica`: the 1c stage is the serial
+ * baseline, the 8c stage is the amplification probe.
+ */
+const CONCURRENCY_WORKERS = 8;
+
+/**
+ * Contention thresholds for the amplification **in excess of** the host's own
+ * oversubscription floor.
+ *
+ * The raw `8c P50 ÷ 1c P50` ratio cannot separate "our writes serialise" from "this
+ * host has four usable cores and eight workers waited for CPU". On a host with
+ * `c < 8` usable cores the ratio has a floor of `8 / c` even with zero shared state,
+ * so the graded value is `amp ÷ max(1, 8 / c)`. The thresholds below stay at the
+ * values calibrated against the original unnormalised ratio and now apply to the
+ * excess only.
+ */
+const CONTENTION_THRESHOLDS = { write: 2.2, graphql: 3.0, list: 2.5 } as const;
+
+/** Usable cores for this process — the divisor of the oversubscription floor. */
+const usableCores: number = (() => {
+  try {
+    const n = availableParallelism();
+    return Number.isFinite(n) && n > 0 ? n : CONCURRENCY_WORKERS;
+  } catch {
+    // catch-allow: a restricted container without CPU affinity info — assume no
+    // oversubscription rather than suppressing the amplification factor entirely.
+    return CONCURRENCY_WORKERS;
+  }
+})();
+
+/**
+ * `8c P50 ÷ 1c P50` for a concurrent row whose sequential twin exists; `null` when the
+ * twin is missing (a ratio against nothing is not a measurement).
+ */
+function concurrencyAmplification(
+  concurrent: LatencyVarianceItem,
+  sequential: LatencyVarianceItem | undefined,
+  isConcurrent: boolean,
+): number | null {
+  if (!isConcurrent) return null;
+  if (!sequential || !sequential.p50Ms || sequential.p50Ms <= 0) return null;
+  if (!concurrent.p50Ms || concurrent.p50Ms <= 0) return null;
+  return Number((concurrent.p50Ms / sequential.p50Ms).toFixed(2));
+}
 
 /**
  * The `--strict` verdict. Exported so the gate rule (a 🔴 tail or an unmeasured row
@@ -601,10 +648,82 @@ export function printLatencyVarianceReport(db: string = "sqlite", dbDir?: string
       `🔴 ${summary.highVarianceCount} | ⚪ ${summary.unmeasuredCount} unmeasured | ` +
       `Peak Tail Ratio: ${summary.maxTailRatio}x (${summary.worstWorkload})`,
   );
+  const seqByBase = new Map<string, LatencyVarianceItem>();
+  for (const item of items) {
+    if (/\bSequential\b/i.test(item.workload)) {
+      const base = item.workload.replace(/\s*\([^)]*Sequential[^)]*\)/i, "").trim();
+      seqByBase.set(base, item);
+    }
+  }
+
+  const hotspots = items
+    .filter(
+      (item) =>
+        item.status === "HIGH_VARIANCE" ||
+        item.status === "WATCH" ||
+        (item.tailExcessMs ?? 0) > 1.0,
+    )
+    .sort((a, b) => (b.tailExcessMs ?? 0) - (a.tailExcessMs ?? 0))
+    .slice(0, 5);
+
+  if (hotspots.length > 0) {
+    console.log("\n🔬 Automated Bottleneck & Contention Attribution");
+    console.log("─".repeat(112));
+    for (const h of hotspots) {
+      const base = h.workload.replace(/\s*\([^)]*\)/g, "").trim();
+      const seqTwin = seqByBase.get(base);
+      const isCon = /\bConcurrent\b/i.test(h.workload);
+      const amp = concurrencyAmplification(h, seqTwin, isCon);
+      // ⚖️ Oversubscription is not contention: on a host with fewer than the worker
+      // count of usable cores the 8c stage waits for CPU even with zero shared state,
+      // so the measured ratio has a floor of `workers / usableCores`. Grade the excess
+      // over that floor, and say so in the output.
+      const expectedFloor = Number(Math.max(1, CONCURRENCY_WORKERS / usableCores).toFixed(2));
+      const contentionAmp = amp === null ? null : Number((amp / expectedFloor).toFixed(2));
+      let classification = "Tail jitter (GC / OS scheduling spike)";
+      let probeCmd = `SVELTY_SRV_SPLIT=1 SVELTY_SRV_DUR=1 bun test tests/benchmarks/competitive-workload-replica.test.ts`;
+      if (/^(create|update)\b/i.test(base)) {
+        classification =
+          contentionAmp && contentionAmp > CONTENTION_THRESHOLDS.write
+            ? `Write-lock / group-commit queueing amplification (${contentionAmp}× beyond ${expectedFloor}× oversubscription floor)`
+            : "Write-lane persistence + fsync / WAL tail";
+        probeCmd = `PROFILE_WRITE=1 SVELTY_SRV_SPLIT=1 SVELTY_SRV_DUR=1 bun test tests/benchmarks/probe-write-split.test.ts`;
+      } else if (/^graphql\b/i.test(base)) {
+        classification =
+          contentionAmp && contentionAmp > CONTENTION_THRESHOLDS.graphql
+            ? `GraphQL concurrent parse/serialize + post-write cache-miss refill (${contentionAmp}× beyond ${expectedFloor}× oversubscription floor)`
+            : "GraphQL response framing / L1 cache refill tail";
+      } else if (/^mixed\b/i.test(base)) {
+        classification =
+          "Mixed read/write cache-invalidation churn (writes evicting L1 list/GraphQL cache)";
+        probeCmd = `BENCH_MIX_BREAKDOWN=1 SVELTY_SRV_SPLIT=1 SVELTY_SRV_DUR=1 bun test tests/benchmarks/competitive-workload-replica.test.ts`;
+      } else if (/^list/i.test(base)) {
+        classification =
+          contentionAmp && contentionAmp > CONTENTION_THRESHOLDS.list
+            ? `Concurrent list wire-stream payload serialization / socket backpressure (${contentionAmp}× beyond ${expectedFloor}× oversubscription floor)`
+            : "List wire-stream / response-cache rebuild tail";
+      }
+      const ampLabel =
+        amp === null
+          ? ""
+          : ` | 8c/1c P50: ${amp}×${contentionAmp === null ? "" : ` (contention ${contentionAmp}× on ${usableCores} cores for ${CONCURRENCY_WORKERS} workers)`}`;
+      console.log(
+        `  • ${h.workload.padEnd(34)} +${(h.tailExcessMs ?? 0).toFixed(2)}ms tail (P99 ${h.p99Ms}ms, SLOW‰ ${(h.slowRatePer1000 ?? 0).toFixed(1)}${ampLabel})`,
+      );
+      console.log(`    ↳ Diagnosis: ${classification}`);
+      console.log(`    ↳ Deep Probe: ${probeCmd}`);
+    }
+  }
+
   if (summary.oldestSampleDays !== null) {
     const age = summary.oldestSampleDays;
     console.log(
       `  Sampled ${age}d ago` +
+        (age > 1
+          ? "  💡 Tip: `--tier=core` does not refresh this replica table — run `bun scripts/benchmark-matrix/index.ts --tier=competitive --db=" +
+            db +
+            "` to re-sample."
+          : "") +
         (age > 7
           ? "  ⚠ stale — re-run competitive-workload-replica before trusting these verdicts"
           : ""),

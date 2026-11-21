@@ -13,6 +13,7 @@
  * - Provides 'saveCollection' and 'deleteCollections' actions for persistence.
  */
 
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 // Collections
@@ -432,7 +433,7 @@ export const actions: Actions = {
         };
       }
 
-      const imports = await goThrough(fields, fieldsData);
+      const { imports, widgetTokens } = await goThrough(fields, fieldsData);
 
       // Generate collection file using AST transformation
       const content = await generateCollectionFileWithAST({
@@ -444,6 +445,7 @@ export const actions: Actions = {
         collectionSlug,
         fields,
         imports,
+        widgetTokens,
         tenantId,
         entriesPerPage,
         defaultSortField,
@@ -538,11 +540,19 @@ export const actions: Actions = {
   },
 };
 
+const SAFE_IMPORT_BINDINGS_RE = /^[A-Za-z_$][A-Za-z0-9_$,\s]*$/;
+
 // Recursively goes through a collection's fields
 // Accepts the ordered builder list (array) as well as a legacy field map —
 // `for..in` walks array indices in order, so the widget order is preserved.
-async function goThrough(object: OrderedWidgetList | FieldsData, fields: string): Promise<string> {
+async function goThrough(
+  object: OrderedWidgetList | FieldsData,
+  fields: string,
+): Promise<{ imports: string; widgetTokens: Map<string, string> }> {
   const imports = new Set<string>();
+  const widgetTokens = new Map<string, string>();
+  const tokenNonce = crypto.randomUUID().replace(/-/g, "");
+  let tokenSeq = 0;
 
   // 🚀 Parse fields payload once outside the recursive loop instead of O(N) times per field
   let parsedFieldsMap: Record<string, any> = {};
@@ -579,7 +589,11 @@ async function goThrough(object: OrderedWidgetList | FieldsData, fields: string)
 
       // Get widget definition — only registered, identifier-safe names
       const widgetName = fieldWithWidget.widget.Name;
-      if (typeof widgetName !== "string" || !WIDGET_NAME_RE.test(widgetName)) {
+      if (
+        typeof widgetName !== "string" ||
+        !WIDGET_NAME_RE.test(widgetName) ||
+        !Object.hasOwn(widgets.widgetFunctions, widgetName)
+      ) {
         continue;
       }
       const widget = widgets.widgetFunctions[widgetName] as unknown as WidgetDefinition;
@@ -587,7 +601,7 @@ async function goThrough(object: OrderedWidgetList | FieldsData, fields: string)
         continue;
       }
 
-      // Process widget imports
+      // Process widget imports with strict identifier validation
       for (const importKey in widget.GuiSchema) {
         if (!Object.hasOwn(widget.GuiSchema, importKey)) {
           continue;
@@ -609,15 +623,25 @@ async function goThrough(object: OrderedWidgetList | FieldsData, fields: string)
           )
             .replace(/🗑️/g, "")
             .trim();
+          if (replacement && !SAFE_IMPORT_BINDINGS_RE.test(replacement)) {
+            throw new Error(`Invalid widget import identifier for "${importKey}"`);
+          }
           imports.add(IMPORT.replace(`{${importKey}}`, replacement));
         }
       }
 
-      // Convert widget to string representation
-      const widgetFnName =
+      // Validate widget function identifier strictly against WIDGET_NAME_RE and registered widgets
+      const candidateFnName =
         fieldWithWidget.widget.key ||
         fieldWithWidget.widget.Name ||
         fieldWithWidget.widget.widgetId;
+      const widgetFnName =
+        typeof candidateFnName === "string" &&
+        WIDGET_NAME_RE.test(candidateFnName) &&
+        Object.hasOwn(widgets.widgetFunctions, candidateFnName)
+          ? candidateFnName
+          : widgetName;
+
       const widgetConfig: Record<string, unknown> = {};
       for (const guiKey of Object.keys(widget.GuiSchema || {})) {
         if (guiKey === "permissions") {
@@ -627,33 +651,25 @@ async function goThrough(object: OrderedWidgetList | FieldsData, fields: string)
           widgetConfig[guiKey] = fieldWithWidget[guiKey];
         }
       }
-      const widgetCall = `🗑️widgets.${widgetFnName}(${JSON.stringify(widgetConfig, (_k, value) =>
-        typeof value === "string" ? String(value.replace(/\s*🗑️\s*/g, "🗑️").trim()) : value,
-      )})🗑️`;
-
-      field[key] = widgetCall as unknown as FieldWithWidget;
-
-      // Add permissions if present (reusing pre-parsed fields map)
       if (parsedFieldsMap[key]?.permissions) {
-        const subWidget = widgetCall.split("}");
-        const permissions = removeFalseValues(parsedFieldsMap[key].permissions);
-        const permissionStr = `,"permissions":${JSON.stringify(permissions)}}`;
-        const newWidget = subWidget[0] + permissionStr + subWidget[1];
-        field[key] = newWidget as unknown as FieldWithWidget;
+        widgetConfig.permissions = removeFalseValues(parsedFieldsMap[key].permissions);
       }
+
+      const widgetCallExpr = `widgets.${widgetFnName}(${JSON.stringify(widgetConfig)})`;
+      const token = `__SVELTY_WIDGET_TOKEN_${tokenNonce}_${tokenSeq++}__`;
+      widgetTokens.set(token, widgetCallExpr);
+      field[key] = token as unknown as FieldWithWidget;
     }
   }
 
   try {
     await processField(object as Record<string, unknown>);
-    return Array.from(imports).join("\n");
+    return { imports: Array.from(imports).join("\n"), widgetTokens };
   } catch (err) {
     const message = `Error in goThrough function: ${err instanceof Error ? err.message : String(err)}`;
     logger.error(message);
     throw error(500, message);
   }
-
-  // Asynchronously processes a field recursively
 }
 
 // Check if permissions are present and append them
@@ -685,6 +701,7 @@ interface CollectionData {
   contentName: string;
   fields: OrderedWidgetList | FieldsData;
   imports: string;
+  widgetTokens?: Map<string, string>;
   tenantId?: string | null | null;
   entriesPerPage?: number;
   defaultSortField?: string;
@@ -700,12 +717,14 @@ interface CollectionData {
 async function generateCollectionFileWithAST(data: CollectionData): Promise<string> {
   const displayPath = getCollectionDisplayPath(data.contentName, data.tenantId);
 
-  // Serialize fields array on a single line so persistedFieldsLiteral regex matches cleanly
-  const rawFieldsJson = JSON.stringify(data.fields);
-  const fieldsCode = rawFieldsJson
-    .replace(/["']🗑️|🗑️["']/g, "")
-    .replace(/🗑️/g, "")
-    .replace(/\\"/g, '"');
+  // Serialize fields array on a single line so persistedFieldsLiteral regex matches cleanly.
+  // Replace only server-minted opaque widget tokens (never globally unescape `\"`).
+  let fieldsCode = JSON.stringify(data.fields);
+  if (data.widgetTokens && data.widgetTokens.size > 0) {
+    for (const [token, expr] of data.widgetTokens) {
+      fieldsCode = fieldsCode.replaceAll(JSON.stringify(token), () => expr);
+    }
+  }
 
   const optionalProps: string[] = [];
   if (data.entriesPerPage && data.entriesPerPage !== 20) {

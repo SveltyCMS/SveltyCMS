@@ -17,7 +17,7 @@ describe("GET /api/system/prewarm-route", () => {
     const event = {
       url: mockUrl,
       request: new Request(mockUrl),
-      locals: {},
+      locals: authedLocals(),
     } as any;
 
     const response = await GET(event);
@@ -29,7 +29,12 @@ describe("GET /api/system/prewarm-route", () => {
     expect(data.lane).toBe("dashboard");
     expect(Array.isArray(data.requiredCacheCategories)).toBe(true);
 
-    expect(prewarmSpy).toHaveBeenCalledWith("/dashboard", "http://localhost:5173", "global", null);
+    expect(prewarmSpy).toHaveBeenCalledWith(
+      "/dashboard",
+      "http://localhost:5173",
+      "global",
+      expect.objectContaining({ _id: "user-1" }),
+    );
 
     prewarmSpy.mockRestore();
   });
@@ -43,7 +48,7 @@ describe("GET /api/system/prewarm-route", () => {
     const event = {
       url: mockUrl,
       request: new Request(mockUrl),
-      locals: {},
+      locals: authedLocals(),
     } as any;
 
     const response = await GET(event);
@@ -57,13 +62,22 @@ describe("GET /api/system/prewarm-route", () => {
   });
 });
 
+/**
+ * The endpoint now requires an authenticated caller (it warms per-tenant caches on
+ * behalf of a user), so every event carries a minimal authenticated `locals`.
+ * `tenantId` is intentionally absent → the route resolves the `global` scope.
+ */
+function authedLocals(): Record<string, unknown> {
+  return { user: { _id: "user-1", id: "user-1" } };
+}
+
 type PrewarmEvent = Parameters<typeof GET>[0];
 
 function makeEvent(targetPath: string): PrewarmEvent {
   const url = new URL(
     `http://localhost:5173/api/system/prewarm-route?path=${encodeURIComponent(targetPath)}`,
   );
-  return { url, request: new Request(url), locals: {} } as unknown as PrewarmEvent;
+  return { url, request: new Request(url), locals: authedLocals() } as unknown as PrewarmEvent;
 }
 
 describe("GET /api/system/prewarm-route — failure path", () => {
@@ -92,7 +106,7 @@ describe("GET /api/system/prewarm-route — failure path", () => {
       "/config/collectionbuilder",
       "http://localhost:5173",
       "global",
-      null,
+      expect.objectContaining({ _id: "user-1" }),
     );
     expect(speculativeSpy).toHaveBeenCalledTimes(1);
 
@@ -123,12 +137,17 @@ describe("GET /api/system/prewarm-route — concurrency", () => {
     expect(firstBody.path).toBe("/dashboard");
     expect(secondBody.path).toBe("/config/collectionbuilder");
     expect(prewarmSpy).toHaveBeenCalledTimes(2);
-    expect(prewarmSpy).toHaveBeenCalledWith("/dashboard", "http://localhost:5173", "global", null);
+    expect(prewarmSpy).toHaveBeenCalledWith(
+      "/dashboard",
+      "http://localhost:5173",
+      "global",
+      expect.objectContaining({ _id: "user-1" }),
+    );
     expect(prewarmSpy).toHaveBeenCalledWith(
       "/config/collectionbuilder",
       "http://localhost:5173",
       "global",
-      null,
+      expect.objectContaining({ _id: "user-1" }),
     );
 
     prewarmSpy.mockRestore();

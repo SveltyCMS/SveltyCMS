@@ -13,6 +13,7 @@ import { sanitizeObject } from "@utils/security/input-sanitizer";
 import { deepCopy, copyDataWithFreshRowIds } from "@utils/data-utils";
 import { desugarFieldType } from "@src/widgets/desugar-field";
 import { TokenRegistry } from "@src/services/token/engine";
+import { prepareWritePayload } from "@src/services/sdk/namespaces/collections/write-pipeline";
 
 describe("Prototype Pollution Defense", () => {
   beforeEach(() => {
@@ -126,5 +127,31 @@ describe("Prototype Pollution Defense", () => {
 
     expect((Object.prototype as any).polluted).toBeUndefined();
     expect((Object.prototype as any).isAdmin).toBeUndefined();
+  });
+
+  it("prepareWritePayload strips tenantId on update and strips prototype pollution keys even when _hasSanitizableFields is false", () => {
+    const schema: any = {
+      _id: "posts",
+      name: "Posts",
+      fields: [{ name: "count", db_fieldName: "count" }],
+    };
+    const hot: any = {
+      _hasSanitizableFields: false,
+      _hasConstrainedFields: false,
+      _hasFieldValidators: false,
+      _hasNumberFields: false,
+    };
+    const payload = JSON.parse(
+      '{"count":42,"tenantId":"hijacked-tenant","createdBy":"spoofed","constructor":{"prototype":{"polluted":true}}}',
+    );
+    const prepared = prepareWritePayload(payload, schema, hot, {
+      operation: "update",
+      tenantId: "tenant-orig" as any,
+      user: { _id: "user-1", role: "admin", isAdmin: true },
+    });
+    expect(prepared.tenantId).toBeUndefined();
+    expect(prepared.createdBy).toBeUndefined();
+    expect(Object.hasOwn(prepared, "constructor")).toBe(false);
+    expect(prepared.count).toBe(42);
   });
 });

@@ -51,9 +51,7 @@ This page is a **self-assessment of application cryptography**, dated **2026-10-
   bare-hex values keep verifying as SHA-256. The append-only audit chain stays SHA-256.
 - **Session model**: the session cookie is an **opaque server-side ID**, not a JWT.
   CSRF and trusted-device proofs are HMAC-SHA-256 tokens. Revocation is server-side.
-- **No ML-DSA / SLH-DSA** in application code. **ML-KEM-768** is available through the
-  dependency-free `hybrid-kem` module and the opt-in `PQC_HYBRID_BACKUPS=true` backup
-  envelope; it is **not** the default at-rest path.
+- **No ML-DSA / SLH-DSA** in application code. **ML-KEM-768** (and optional composite **X25519 + ML-KEM-768** `v2:` envelopes via `PQC_X25519_PUBLIC_KEY` / `PQC_X25519_PRIVATE_KEY`) is available through the dependency-free `hybrid-kem` module. It is opt-in for backups (`PQC_HYBRID_BACKUPS=true`, producing per-artifact AAD-bound `SCHP2` archives; legacy `SCHP1` stays readable) and for `encrypt: true` collection fields (`PQC_HYBRID_FIELDS=true`, failing closed if keys or runtime ML-KEM support are absent); standard AES-256-GCM with key IDs remains the default at-rest path.
 
 ## 2. What is not quantum-safe today
 
@@ -162,25 +160,30 @@ backup keys) separately from the ciphertext and from the backups.
 
 ## 6. Application-level PQC (shipped primitive, opt-in)
 
-The hybrid construction below is **implemented** in `src/utils/security/hybrid-kem.ts` and
+The envelope construction below is **implemented** in `src/utils/security/hybrid-kem.ts` and
 verified by `tests/unit/security/hybrid-kem.test.ts`; it works on Node 24 and Bun through
-WebCrypto (`ML-KEM-768`). It is wired into **backups only**, behind
-`PQC_HYBRID_BACKUPS=true` plus `PQC_KEM_PUBLIC_KEY` / `PQC_KEM_PRIVATE_KEY`; it is not the
-default path for fields, settings or TOTP (those remain AES-256-GCM with key IDs).
+WebCrypto (`ML-KEM-768`, plus optional `X25519` for `v2:` classical+PQ composite envelopes).
+It is wired into **backups** (`PQC_HYBRID_BACKUPS=true`, `SCHP2` with per-artifact AAD;
+legacy `SCHP1` stays readable) and **`encrypt: true` collection fields**
+(`PQC_HYBRID_FIELDS=true`, failing closed when keys/runtime are absent; non-hybrid reads
+stay synchronous with zero microtask overhead), using `PQC_KEM_PUBLIC_KEY` /
+`PQC_KEM_PRIVATE_KEY` (and optional `PQC_X25519_PUBLIC_KEY` / `PQC_X25519_PRIVATE_KEY`).
+Plugin settings and TOTP remain AES-256-GCM with key IDs.
 
-A sound construction for long-lived at-rest data is a hybrid envelope, not “AES-GCM with
-ML-KEM sprinkled on top”:
+A sound construction for long-lived at-rest data is a KEM+DEM envelope (and optionally a
+composite classical+PQ KEM so security holds if either `X25519` or `ML-KEM-768` holds):
 
 1. Generate a random 256-bit **DEK** per object.
-2. Encapsulate to a recipient/KEK with **ML-KEM-768** (FIPS 203); run the shared secret
-   through HKDF-SHA-256 with a domain-separated `info` string.
+2. Encapsulate to a recipient/KEK with **ML-KEM-768** (FIPS 203) — and, when `PQC_X25519_*`
+   keys are configured (`v2:`), also perform ephemeral **X25519** ECDH — then run the combined
+   shared secret(s) and ciphertexts through HKDF-SHA-256 with a domain-separated `info` string.
 3. Encrypt the payload with **AES-256-GCM** under the DEK.
 4. Store `v1:<kemCiphertext>:<salt>:<dekIv>:<dekTag>:<wrappedDek>:<payloadIv>:<payloadTag>:<payloadCiphertext>`
-   and bind context as AAD.
+   (or `v2:<kemCiphertext>:<x25519EphemeralPub>:<salt>:...`) and bind context as AAD.
 
-Remaining work before calling the whole data plane hybrid: wire the same envelope into field
-encryption, plugin settings and TOTP (all async paths), add cross-adapter parity tests, and
-document a re-wrap/rollback procedure. The primitive itself does not need a new dependency.
+Remaining work before calling the whole data plane hybrid: wire the same envelope into plugin
+settings and TOTP (async paths), add cross-adapter parity tests, and document a re-wrap/rollback
+procedure. The primitive itself does not need a new dependency.
 
 ## 7. Verify these claims
 
@@ -239,13 +242,13 @@ openssl s_client -connect example.com:443 -groups X25519MLKEM768 </dev/null 2>/d
 
 ## 9. Application PQC roadmap (honest)
 
-| Window                                  | Intent                                                          | Status in this repo                                                  |
-| :-------------------------------------- | :-------------------------------------------------------------- | :------------------------------------------------------------------- |
-| 2026                                    | Symmetric + Argon2id; HMAC-SHA-256; TLS hybrid at the edge      | **Current**                                                          |
-| Key-ID envelopes                        | `v2` + configured decrypt ring (rotation without a code change) | **Shipped**                                                          |
-| Hybrid at-rest                          | AES-256-GCM payload under a DEK wrapped with ML-KEM-768 + HKDF  | **Shipped for backups (opt-in)**; fields/settings/TOTP pending       |
-| When WebAuthn/IdPs ship PQC algs        | Offer ML-DSA (or successor) in `pubKeyCredParams`               | **Blocked on authenticators / IdPs**                                 |
-| CNSA 2.0 / ASD-style “new gear by 2030” | SHA-384/512 option for new checksums; AES-256 already           | **Shipped helper** (`CHECKSUM_ALGORITHM`); audit chain stays SHA-256 |
+| Window                                  | Intent                                                                                          | Status in this repo                                                          |
+| :-------------------------------------- | :---------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------- |
+| 2026                                    | Symmetric + Argon2id; HMAC-SHA-256; TLS hybrid at the edge                                      | **Current**                                                                  |
+| Key-ID envelopes                        | `v2` + configured decrypt ring (rotation without a code change)                                 | **Shipped**                                                                  |
+| Hybrid at-rest                          | AES-256-GCM payload under a DEK wrapped with ML-KEM-768 (or composite X25519+ML-KEM-768) + HKDF | **Shipped for backups (`SCHP2`) and fields (opt-in)**; settings/TOTP pending |
+| When WebAuthn/IdPs ship PQC algs        | Offer ML-DSA (or successor) in `pubKeyCredParams`                                               | **Blocked on authenticators / IdPs**                                         |
+| CNSA 2.0 / ASD-style “new gear by 2030” | SHA-384/512 option for new checksums; AES-256 already                                           | **Shipped helper** (`CHECKSUM_ALGORITHM`); audit chain stays SHA-256         |
 
 No date here is a promise that a CRQC exists or does not exist.
 

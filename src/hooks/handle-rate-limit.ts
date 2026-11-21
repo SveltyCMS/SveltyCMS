@@ -52,7 +52,7 @@ import {
 } from "@utils/rate-limit/system-pressure";
 import { resolveUserTier } from "@utils/rate-limit/adaptive";
 import { getTenantPlanScale } from "@utils/rate-limit/tenant-plan";
-import { initRateLimiter, rateLimit, resetRateLimitStores } from "@utils/rate-limit";
+import { initRateLimiter, rateLimitSyncOrAsync, resetRateLimitStores } from "@utils/rate-limit";
 import {
   getSessionCookieName,
   isAdmin,
@@ -213,10 +213,20 @@ const TIER_CAP_MULTIPLIER: Record<string, number> = {
   anonymous: 1,
 };
 
+const ADAPTIVE_TIERS: Record<string, AdaptiveUserTier> = {
+  admin: Object.freeze({ role: "admin", multiplier: 10 }),
+  staff: Object.freeze({ role: "staff", multiplier: 2 }),
+  guest: Object.freeze({ role: "guest", multiplier: 2 }),
+  anonymous: Object.freeze({ role: "anonymous", multiplier: 1 }),
+};
+
+const EMPTY_ADAPTIVE_CONTEXT = Object.freeze({});
+
 export function resolveAdaptiveUserTier(event: RequestEvent): AdaptiveUserTier {
-  const localUser = (event.locals as { user?: { role?: string; isAdmin?: boolean } } | undefined)
-    ?.user;
-  const peeked = (): { role?: string; isAdmin?: boolean } | null => {
+  let user: { role?: string; isAdmin?: boolean } | null | undefined = (
+    event.locals as { user?: { role?: string; isAdmin?: boolean } } | undefined
+  )?.user;
+  if (!user) {
     try {
       const isSecure = isSecureCookieContext(event.url.protocol, event.url.hostname);
       const cookieName = getSessionCookieName(isSecure);
@@ -225,20 +235,19 @@ export function resolveAdaptiveUserTier(event: RequestEvent): AdaptiveUserTier {
       const sessionId = isSecure
         ? event.cookies.get(cookieName)
         : event.cookies.get(cookieName) || event.cookies.get(SESSION_COOKIE_NAME);
-      return sessionId
+      user = sessionId
         ? peekSessionUserSync(sessionId, event.locals.tenantId as string | undefined)
         : null;
     } catch {
-      return null;
+      user = null;
     }
-  };
-  const user = localUser ?? peeked();
+  }
   const tier = resolveUserTier({
     role: user?.role,
     isAdmin: user ? isAdmin(user) : false,
     userId: user ? "session" : null,
   });
-  return { role: tier, multiplier: TIER_CAP_MULTIPLIER[tier] ?? 1 };
+  return ADAPTIVE_TIERS[tier] ?? { role: tier, multiplier: TIER_CAP_MULTIPLIER[tier] ?? 1 };
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -256,34 +265,12 @@ function hashClientKeySync(input: string): string {
   return (h >>> 0).toString(16);
 }
 
-/**
- * Bucket key from platform-resolved client IP + tenant host.
- * Uses getClientIp (getClientAddress) — never raw X-Forwarded-For.
- */
-function getClientKey(event: RequestEvent, lane: RateLimitLane): string {
-  const rawIp = getClientIp(event);
-  const tenant = getTenantIdFromHostname(event.url.hostname, isMultiTenantEnabled()) || "global";
-  return hashClientKeySync(`${rawIp || "unknown"}:${tenant}:${lane}`);
-}
-
-/**
- * Derive the tenant key for per-tenant rate limit bucketing.
- * Returns null when multi-tenancy is disabled or the request isn't bound to a
- * tenant — a single shared "global" aggregate bucket would let concurrent
- * users exhaust ONE bucket and 429 the entire site (site-wide lockout DoS).
- */
-function getTenantKey(event: RequestEvent, lane: RateLimitLane): string | null {
-  if (!isMultiTenantEnabled()) return null;
-  const tenant = getTenantIdFromHostname(event.url.hostname, true);
-  return tenant && tenant !== "global" ? `${tenant}:${lane}` : null;
-}
-
 function withSecurityHeaders(response: Response, event: RequestEvent): Response {
   return withMutableHeaders(response, (headers) => {
     applyAllSecurityHeaders(
       headers,
       event.url.protocol === "https:",
-      event.request.headers.get("Origin"),
+      event.request.headers.get("origin"),
       event.url.pathname,
     );
   });
@@ -410,8 +397,11 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
 
   const lane = getRateLimitLane(pathname);
   const now = Date.now();
-
-  const clientKey = getClientKey(event, lane);
+  const multiTenant = isMultiTenantEnabled();
+  const resolvedTenant = multiTenant ? getTenantIdFromHostname(event.url.hostname, true) : null;
+  const clientKey = hashClientKeySync(
+    `${clientIp || "unknown"}:${resolvedTenant || "global"}:${lane}`,
+  );
   // 🚀 LANE-LEAN RATE LIMIT: the warm collection write lane sets this flag —
   // the in-memory bucket enforces synchronously and the Redis ledger gets the
   // spend propagated after the response (see rateLimit({ asyncRemote })).
@@ -421,9 +411,7 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
 
   // 🚀 ADAPTIVE THROTTLING: dynamic bucket capacity scaled by user profile/role
   const userTier = resolveAdaptiveUserTier(event);
-  const tenantId = isMultiTenantEnabled()
-    ? getTenantIdFromHostname(event.url.hostname, true)
-    : null;
+  const tenantId = resolvedTenant;
   const pressureScale = getPressureScale(
     userTier.role === "admin"
       ? "admin"
@@ -469,8 +457,8 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
 
   const windowMs = getWindowMs();
   const refillPerSecond = maxRequests / (windowMs / 1000);
-  const ipDecision = await rateLimit({
-    context: {},
+  const ipDecisionOrP = rateLimitSyncOrAsync({
+    context: EMPTY_ADAPTIVE_CONTEXT,
     namespace: `ip:${clientKey}`,
     cost,
     record: true,
@@ -482,22 +470,17 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
       windowMs,
     },
   });
-  const ipResult = {
-    allowed: ipDecision.allowed,
-    remaining: ipDecision.remaining,
-    retryAfterSeconds: ipDecision.retryAfterSeconds,
-    resetTime: ipDecision.retryAfterSeconds,
-  };
+  const ipDecision = ipDecisionOrP instanceof Promise ? await ipDecisionOrP : ipDecisionOrP;
 
   // Per-IP rate limit exceeded
-  if (!ipResult.allowed) {
+  if (!ipDecision.allowed) {
     logger.warn(
-      `[RateLimit] ${clientKey} exceeded limit (${ipResult.remaining}/${maxRequests}, pressure ${pressureScale}, role: ${userTier.role})`,
+      `[RateLimit] ${clientKey} exceeded limit (${ipDecision.remaining}/${maxRequests}, pressure ${pressureScale}, role: ${userTier.role})`,
       { pathname, method },
     );
     return withSecurityHeaders(
       buildRateLimitResponse(event, {
-        retryAfterSeconds: ipResult.retryAfterSeconds,
+        retryAfterSeconds: ipDecision.retryAfterSeconds,
         limit: maxRequests,
         reason: "Too Many Requests",
         scope: "ip",
@@ -513,42 +496,41 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
   // Skipped entirely when multi-tenancy is off: a single shared aggregate
   // bucket is a site-wide 429 DoS vector, not a protection.
 
-  const tenantKey = getTenantKey(event, lane);
+  const tenantKey =
+    multiTenant && resolvedTenant && resolvedTenant !== "global"
+      ? `${resolvedTenant}:${lane}`
+      : null;
   let tenantRemaining = maxRequests;
 
   if (tenantKey) {
     const baseTenantMax = getTenantMaxRequests(lane);
     const tenantMaxRequests = Math.max(1, Math.round(baseTenantMax * pressureScale * planScale));
-    const tenantWindowMs = getWindowMs();
-    const tenantDecision = await rateLimit({
-      context: {},
+    const tenantDecisionOrP = rateLimitSyncOrAsync({
+      context: EMPTY_ADAPTIVE_CONTEXT,
       namespace: `tenant:${tenantKey}`,
       cost,
       record: false,
       asyncRemote,
       base: {
         capacity: tenantMaxRequests,
-        refillPerSecond: tenantMaxRequests / (tenantWindowMs / 1000),
+        refillPerSecond: tenantMaxRequests / (windowMs / 1000),
         maxRequests: tenantMaxRequests,
-        windowMs: tenantWindowMs,
+        windowMs,
       },
     });
-    const tenantResult = {
-      allowed: tenantDecision.allowed,
-      remaining: tenantDecision.remaining,
-      retryAfterSeconds: tenantDecision.retryAfterSeconds,
-    };
+    const tenantDecision =
+      tenantDecisionOrP instanceof Promise ? await tenantDecisionOrP : tenantDecisionOrP;
 
-    tenantRemaining = tenantResult.remaining;
+    tenantRemaining = tenantDecision.remaining;
 
-    if (!tenantResult.allowed) {
+    if (!tenantDecision.allowed) {
       logger.warn(
-        `[RateLimit] Tenant ${tenantKey} exceeded limit (${tenantResult.remaining}/${tenantMaxRequests}, pressure ${pressureScale})`,
+        `[RateLimit] Tenant ${tenantKey} exceeded limit (${tenantDecision.remaining}/${tenantMaxRequests}, pressure ${pressureScale})`,
         { pathname, method, tenant: tenantKey },
       );
       return withSecurityHeaders(
         buildRateLimitResponse(event, {
-          retryAfterSeconds: tenantResult.retryAfterSeconds,
+          retryAfterSeconds: tenantDecision.retryAfterSeconds,
           limit: tenantMaxRequests,
           reason: "Too Many Requests — tenant limit reached",
           scope: "tenant",
@@ -563,13 +545,13 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
 
   // Clone headers — resolve() Responses are often immutable
   return withMutableHeaders(response, (headers) => {
-    headers.set("X-RateLimit-Limit", String(maxRequests));
-    headers.set("X-RateLimit-Remaining", String(ipResult.remaining));
-    headers.set("X-RateLimit-Reset", String(ipResult.resetTime));
-    headers.set("X-RateLimit-Lane", lane);
+    headers.set("x-ratelimit-limit", String(maxRequests));
+    headers.set("x-ratelimit-remaining", String(ipDecision.remaining));
+    headers.set("x-ratelimit-reset", String(ipDecision.retryAfterSeconds));
+    headers.set("x-ratelimit-lane", lane);
     // Tenant telemetry only meaningful when a tenant bucket actually exists.
     if (tenantKey) {
-      headers.set("X-RateLimit-Tenant-Remaining", String(tenantRemaining));
+      headers.set("x-ratelimit-tenant-remaining", String(tenantRemaining));
     }
   });
 };

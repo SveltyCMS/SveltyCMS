@@ -21,6 +21,9 @@ import { validateId } from "@src/databases/core/query-primitives";
 import { lazyModule } from "@utils/lazy-module";
 import { trimPointReadEnvelope } from "@utils/point-read-payload";
 import { logger } from "@utils/logger";
+import { isAdmin } from "@src/databases/auth/constants";
+import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
+import type { Role } from "@src/databases/auth/types";
 import {
   responseCache,
   buildUserResponseCacheKey,
@@ -58,6 +61,18 @@ export interface PrewarmUser {
   id?: unknown;
   isAdmin?: boolean;
   role?: string;
+  roles?: Role[];
+}
+
+function prewarmHasPermission(user: PrewarmUser | null | undefined, perm: string): boolean {
+  if (!user) return false;
+  if (user.isAdmin === true || isAdmin(user)) return true;
+  const roles = Array.isArray(user.roles) ? user.roles : [];
+  if (roles.length === 0) return false;
+  return (
+    hasPermissionWithRoles(user as never, perm, roles) ||
+    (perm === "collections:read" && hasPermissionWithRoles(user as never, "collection:read", roles))
+  );
 }
 
 export interface ParsedCollectionRoute {
@@ -338,6 +353,7 @@ export class RouteResourceStateMachine {
       const opts = { tenantId: tenantId as DatabaseId, user };
 
       if (parsed) {
+        if (!prewarmHasPermission(user, "collections:read")) return false;
         if (parsed.entryId) {
           const result = await cms.collections.findById(parsed.collectionId, parsed.entryId, opts);
           if (!result?.success || result.data == null) return false;
@@ -370,6 +386,7 @@ export class RouteResourceStateMachine {
       // 🚀 Speculatively pre-warm predicted non-collection routes (/mediagallery, /dashboard)
       const cleanPath = path.split("?")[0] || "";
       if (cleanPath.endsWith("/mediagallery") || cleanPath === "/mediagallery") {
+        if (!prewarmHasPermission(user, "media:read")) return false;
         const folders = await adapter.system?.virtualFolder?.getAll?.({
           tenantId: tenantId as DatabaseId,
         });

@@ -102,7 +102,21 @@
 	let showSlashMenu = $state(false);
 	let showSource = $state(false); // Source View Toggle
 	let activeDropdown = $state<string | null>(null);
+	let activeDropdownLeft = $state(8);
+	let toolbarRootEl: HTMLDivElement | undefined = $state();
 	let colorInput: HTMLInputElement = $state()!;
+
+	const activeDropdownBtn = $derived.by(() => {
+		if (!activeDropdown) return null;
+		for (const group of toolbarGroups) {
+			for (const btn of group.buttons) {
+				if (btn.type === 'dropdown' && btn.label === activeDropdown) {
+					return btn;
+				}
+			}
+		}
+		return null;
+	});
 
 	// Table Picker State
 	let hoverRows = $state(0);
@@ -110,7 +124,20 @@
 
 	function toggleDropdown(label: string, event: MouseEvent) {
 		event.stopPropagation();
-		activeDropdown = activeDropdown === label ? null : label;
+		if (activeDropdown === label) {
+			activeDropdown = null;
+		} else {
+			activeDropdown = label;
+			const trigger = event.currentTarget as HTMLElement | null;
+			if (trigger && toolbarRootEl) {
+				const triggerRect = trigger.getBoundingClientRect();
+				const rootRect = toolbarRootEl.getBoundingClientRect();
+				const rawLeft = triggerRect.left - rootRect.left;
+				activeDropdownLeft = Math.max(8, Math.min(rawLeft, Math.max(8, rootRect.width - 264)));
+			} else {
+				activeDropdownLeft = 8;
+			}
+		}
 		// Reset popover states when switching
 		if (activeDropdown !== 'Link' && activeDropdown !== 'Video') {
 			linkUrl = '';
@@ -577,7 +604,7 @@
 </script>
 
 <div
-	class="my-2 relative overflow-hidden bg-white dark:bg-surface-900 dark:text-surface-50 {error
+	class="my-2 relative bg-white dark:bg-surface-900 dark:text-surface-50 {error
 		? 'border-error-500 bg-error-500-10'
 		: ''}"
 	style="border-radius: var(--admin-radius-input, 0.25rem); border: var(--admin-border-width, 1px) solid {error
@@ -586,7 +613,8 @@
 >
 	<!-- Toolbar -->
 	<div
-		class="border-b border-surface-500/30 bg-surface-500/10 dark:border-surface-500/40 dark:bg-surface-800/40"
+		bind:this={toolbarRootEl}
+		class="relative border-b border-surface-500/30 bg-surface-500/10 dark:border-surface-500/40 dark:bg-surface-800/40"
 	>
 		<div class="flex w-full flex-nowrap items-center gap-1 overflow-x-auto px-2 py-1.5">
 			{#each toolbarGroups as group, groupIdx (groupIdx)}
@@ -625,195 +653,6 @@
 											></iconify-icon>
 										</Button>
 									</SystemTooltip>
-									{#if activeDropdown === btn.label}
-										<div
-											class="absolute top-full inset-s-0 mt-1 min-w-45 rounded border border-surface-500/30 bg-white p-1 shadow-xl dark:border-surface-500/40 dark:bg-surface-800 dark:text-white z-60 ring-1 ring-black/5"
-										>
-											{#if btn.label === 'Table'}
-												<div class="p-2 w-48">
-													<div
-														class="mb-2 text-xs font-medium text-(--admin-text-muted) text-center"
-													>
-														{hoverRows || 1}
-														x {hoverCols || 1}
-													</div>
-													<div
-														class="grid grid-cols-5 gap-1"
-														onmouseleave={() => {
-															hoverRows = 0;
-															hoverCols = 0;
-														}}
-														role="grid"
-														tabindex="0"
-													>
-														{#each new Array(5) as _, r (r)}
-															{#each new Array(5) as _, c (c)}
-																<button
-																	class="w-8 h-8 rounded-sm border transition-colors {r <
-																		hoverRows && c < hoverCols
-																		? 'bg-tertiary-500/10 border-tertiary-500 dark:bg-tertiary-600 dark:border-tertiary-400'
-																		: 'bg-surface-500/10 border-surface-500/30 dark:bg-surface-700 dark:border-surface-600'}"
-																	aria-label={widget_rt_table_dimensions({
-																		rows: r + 1,
-																		cols: c + 1
-																	})}
-																	onmouseover={() => {
-																		hoverRows = r + 1;
-																		hoverCols = c + 1;
-																	}}
-																	onfocus={() => {
-																		hoverRows = r + 1;
-																		hoverCols = c + 1;
-																	}}
-																	onclick={(e) => {
-																		e.stopPropagation();
-																		editor
-																			?.chain()
-																			.focus()
-																			.insertTable({
-																				rows: r + 1,
-																				cols: c + 1,
-																				withHeaderRow: true
-																			})
-																			.run();
-																		closeDropdowns();
-																	}}
-																></button>
-															{/each}
-														{/each}
-													</div>
-												</div>
-											{:else if btn.label === 'Color'}
-												<div class="p-2 w-48">
-													<button
-														class="mb-2 flex w-full items-center gap-2 rounded px-2 py-1.5 text-start text-sm hover:bg-surface-500/10 dark:hover:bg-surface-700/50 transition text-surface-600 dark:text-white"
-														onclick={() => {
-															editor?.chain().focus().unsetColor().run();
-															closeDropdowns();
-														}}
-														aria-label={widget_rt_reset_color_aria()}
-													>
-														<iconify-icon icon="mdi:format-color-clear" width="18"></iconify-icon>
-														{widget_rt_reset_color()}
-													</button>
-
-													<div class="mb-2 grid grid-cols-5 gap-1">
-														{#each ['#000000', '#4b5563', '#9ca3af', '#ffffff', '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7'] as color (color)}
-															<button
-																class="w-8 h-8 rounded-full border border-surface-500/30 dark:border-surface-600 transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
-																style="background-color: {color};"
-																onclick={(e) => {
-																	e.stopPropagation();
-																	editor?.chain().focus().setColor(color).run();
-																	closeDropdowns();
-																}}
-																aria-label={widget_rt_color_label({ color })}
-																title={color}
-															></button>
-														{/each}
-													</div>
-
-													<div
-														class="relative pt-2 border-t border-surface-500/30 dark:border-surface-500/40"
-													>
-														<div class="relative w-full h-8 group overflow-hidden rounded">
-															<div
-																class="absolute inset-0 flex items-center justify-center bg-linear-to-r from-error-500 via-success-500 to-tertiary-500 opacity-90 group-hover:opacity-100 transition-opacity"
-															>
-																<iconify-icon
-																	icon="mdi:palette"
-																	class="text-white drop-shadow-md"
-																	width="18"
-																></iconify-icon>
-															</div>
-															<input
-																aria-label={widget_rt_link_url()}
-																type="color"
-																class="absolute inset-0 w-full h-full opacity-0"
-																onchange={handleColorChange}
-																onclick={(e) => e.stopPropagation()}
-																title={widget_rt_custom_color()}
-															/>
-														</div>
-													</div>
-												</div>
-											{:else if btn.label === 'Link'}
-												<div class="p-2 w-64">
-													<div class="flex flex-col gap-2">
-														<Input
-															type="url"
-															aria-label={widget_rt_link_url()}
-															bind:value={linkUrl}
-															placeholder={widget_rt_example_url()}
-															class="w-full space-y-0"
-															inputClass="h-8 w-full text-sm"
-															onkeydown={(e) => e.key === 'Enter' && setLink()}
-														/>
-														<div class="flex justify-end gap-2">
-															<Button
-																variant="secondary"
-																size="sm"
-																onclick={closeDropdowns}
-																aria-label={widget_rt_cancel_link_aria()}>{button_cancel()}</Button
-															>
-															<Button
-																variant="primary"
-																size="sm"
-																onclick={setLink}
-																aria-label={widget_rt_set_link_aria()}
-																>{widget_rt_set_link()}</Button
-															>
-														</div>
-													</div>
-												</div>
-											{:else if btn.label === 'Video'}
-												<div class="p-2 w-64">
-													<div class="flex flex-col gap-2">
-														<Input
-															type="url"
-															aria-label={widget_rt_video_url()}
-															bind:value={videoUrl}
-															placeholder={widget_rt_youtube_url()}
-															class="w-full space-y-0"
-															inputClass="h-8 w-full text-sm"
-															onkeydown={(e) => e.key === 'Enter' && setVideo()}
-														/>
-														<div class="flex justify-end gap-2">
-															<Button
-																variant="secondary"
-																size="sm"
-																onclick={closeDropdowns}
-																aria-label={widget_rt_cancel_video_aria()}>{button_cancel()}</Button
-															>
-															<Button
-																variant="primary"
-																size="sm"
-																onclick={setVideo}
-																aria-label={widget_rt_embed_video_aria()}
-																>{widget_rt_embed()}</Button
-															>
-														</div>
-													</div>
-												</div>
-											{:else if btn.items}
-												{#each btn.items as item (item.label)}
-													<button
-														class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-start text-sm hover:bg-surface-500/10 dark:hover:bg-surface-700/50 transition {item.active()
-															? 'text-tertiary-500 dark:text-primary-500 bg-primary-500/10 dark:bg-primary-900/20'
-															: 'text-surface-600 dark:text-white'}"
-														aria-label={item.label}
-														onclick={(e) => {
-															e.stopPropagation();
-															item.cmd();
-															closeDropdowns();
-														}}
-													>
-														{item.label}
-													</button>
-												{/each}
-											{/if}
-										</div>
-									{/if}
 								</div>
 							{:else}
 								<SystemTooltip title={btn.label}>
@@ -839,6 +678,191 @@
 				{/if}
 			{/each}
 		</div>
+
+		{#if activeDropdownBtn}
+			<!-- svelte-ignore a11y_click_events_have_key_events -->
+			<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<div
+				class="absolute top-full z-60 mt-1 min-w-45 max-w-[calc(100vw-2rem)] rounded border border-surface-500/30 bg-white p-1 shadow-xl ring-1 ring-black/5 dark:border-surface-500/40 dark:bg-surface-800 dark:text-white"
+				style="inset-inline-start: {activeDropdownLeft}px;"
+				onclick={(e: MouseEvent) => e.stopPropagation()}
+			>
+				{#if activeDropdownBtn.label === 'Table'}
+					<div class="p-2 w-48">
+						<div class="mb-2 text-xs font-medium text-(--admin-text-muted) text-center">
+							{hoverRows || 1}
+							x {hoverCols || 1}
+						</div>
+						<div
+							class="grid grid-cols-5 gap-1"
+							onmouseleave={() => {
+								hoverRows = 0;
+								hoverCols = 0;
+							}}
+							role="grid"
+							tabindex="0"
+						>
+							{#each new Array(5) as _, r (r)}
+								{#each new Array(5) as _, c (c)}
+									<button
+										class="w-8 h-8 rounded-sm border transition-colors {r < hoverRows &&
+										c < hoverCols
+											? 'bg-tertiary-500/10 border-tertiary-500 dark:bg-tertiary-600 dark:border-tertiary-400'
+											: 'bg-surface-500/10 border-surface-500/30 dark:bg-surface-700 dark:border-surface-600'}"
+										aria-label={widget_rt_table_dimensions({
+											rows: r + 1,
+											cols: c + 1
+										})}
+										onmouseover={() => {
+											hoverRows = r + 1;
+											hoverCols = c + 1;
+										}}
+										onfocus={() => {
+											hoverRows = r + 1;
+											hoverCols = c + 1;
+										}}
+										onclick={(e) => {
+											e.stopPropagation();
+											editor
+												?.chain()
+												.focus()
+												.insertTable({
+													rows: r + 1,
+													cols: c + 1,
+													withHeaderRow: true
+												})
+												.run();
+											closeDropdowns();
+										}}
+									></button>
+								{/each}
+							{/each}
+						</div>
+					</div>
+				{:else if activeDropdownBtn.label === 'Color'}
+					<div class="p-2 w-48">
+						<button
+							class="mb-2 flex w-full items-center gap-2 rounded px-2 py-1.5 text-start text-sm hover:bg-surface-500/10 dark:hover:bg-surface-700/50 transition text-surface-600 dark:text-white"
+							onclick={() => {
+								editor?.chain().focus().unsetColor().run();
+								closeDropdowns();
+							}}
+							aria-label={widget_rt_reset_color_aria()}
+						>
+							<iconify-icon icon="mdi:format-color-clear" width="18"></iconify-icon>
+							{widget_rt_reset_color()}
+						</button>
+
+						<div class="mb-2 grid grid-cols-5 gap-1">
+							{#each ['#000000', '#4b5563', '#9ca3af', '#ffffff', '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7'] as color (color)}
+								<button
+									class="w-8 h-8 rounded-full border border-surface-500/30 dark:border-surface-600 transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+									style="background-color: {color};"
+									onclick={(e) => {
+										e.stopPropagation();
+										editor?.chain().focus().setColor(color).run();
+										closeDropdowns();
+									}}
+									aria-label={widget_rt_color_label({ color })}
+									title={color}
+								></button>
+							{/each}
+						</div>
+
+						<div class="relative pt-2 border-t border-surface-500/30 dark:border-surface-500/40">
+							<div class="relative w-full h-8 group overflow-hidden rounded">
+								<div
+									class="absolute inset-0 flex items-center justify-center bg-linear-to-r from-error-500 via-success-500 to-tertiary-500 opacity-90 group-hover:opacity-100 transition-opacity"
+								>
+									<iconify-icon icon="mdi:palette" class="text-white drop-shadow-md" width="18"
+									></iconify-icon>
+								</div>
+								<input
+									aria-label={widget_rt_link_url()}
+									type="color"
+									class="absolute inset-0 w-full h-full opacity-0"
+									onchange={handleColorChange}
+									onclick={(e) => e.stopPropagation()}
+									title={widget_rt_custom_color()}
+								/>
+							</div>
+						</div>
+					</div>
+				{:else if activeDropdownBtn.label === 'Link'}
+					<div class="p-2 w-64">
+						<div class="flex flex-col gap-2">
+							<Input
+								type="url"
+								aria-label={widget_rt_link_url()}
+								bind:value={linkUrl}
+								placeholder={widget_rt_example_url()}
+								class="w-full space-y-0"
+								inputClass="h-8 w-full text-sm"
+								onkeydown={(e) => e.key === 'Enter' && setLink()}
+							/>
+							<div class="flex justify-end gap-2">
+								<Button
+									variant="secondary"
+									size="sm"
+									onclick={closeDropdowns}
+									aria-label={widget_rt_cancel_link_aria()}>{button_cancel()}</Button
+								>
+								<Button
+									variant="primary"
+									size="sm"
+									onclick={setLink}
+									aria-label={widget_rt_set_link_aria()}>{widget_rt_set_link()}</Button
+								>
+							</div>
+						</div>
+					</div>
+				{:else if activeDropdownBtn.label === 'Video'}
+					<div class="p-2 w-64">
+						<div class="flex flex-col gap-2">
+							<Input
+								type="url"
+								aria-label={widget_rt_video_url()}
+								bind:value={videoUrl}
+								placeholder={widget_rt_youtube_url()}
+								class="w-full space-y-0"
+								inputClass="h-8 w-full text-sm"
+								onkeydown={(e) => e.key === 'Enter' && setVideo()}
+							/>
+							<div class="flex justify-end gap-2">
+								<Button
+									variant="secondary"
+									size="sm"
+									onclick={closeDropdowns}
+									aria-label={widget_rt_cancel_video_aria()}>{button_cancel()}</Button
+								>
+								<Button
+									variant="primary"
+									size="sm"
+									onclick={setVideo}
+									aria-label={widget_rt_embed_video_aria()}>{widget_rt_embed()}</Button
+								>
+							</div>
+						</div>
+					</div>
+				{:else if activeDropdownBtn.items}
+					{#each activeDropdownBtn.items as item (item.label)}
+						<button
+							class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-start text-sm hover:bg-surface-500/10 dark:hover:bg-surface-700/50 transition {item.active()
+								? 'text-tertiary-500 dark:text-primary-500 bg-primary-500/10 dark:bg-primary-900/20'
+								: 'text-surface-600 dark:text-white'}"
+							aria-label={item.label}
+							onclick={(e) => {
+								e.stopPropagation();
+								item.cmd();
+								closeDropdowns();
+							}}
+						>
+							{item.label}
+						</button>
+					{/each}
+				{/if}
+			</div>
+		{/if}
 	</div>
 
 	<!-- Editor -->

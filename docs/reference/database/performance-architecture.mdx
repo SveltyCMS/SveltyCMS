@@ -764,7 +764,7 @@ In real production workloads, traffic is rarely uniform — bursts and quiet per
 - **PostgreSQL (`postgres` driver)**: `idle_timeout: 0` by default. Sockets remain connected and warm. Configurable via `DATABASE_IDLE_TIMEOUT` (in seconds).
 - **MariaDB (`mysql2/promise` pool)**: `idleTimeout: 0` by default. Configurable via `MARIADB_IDLE_TIMEOUT` (in milliseconds).
 - **MongoDB (`mongodb` driver)**: `maxIdleTimeMS: 0` by default. Sockets remain alive and ready. Configurable via `MONGODB_IDLE_TIMEOUT_MS`.
-- **SQLite (`bun:sqlite` / `better-sqlite3`)**: Single-file direct memory engine; zero connection pool overhead, no TCP sockets, zero connection storm risk.
+- **SQLite (`bun:sqlite` / `node:sqlite`)**: Single-file direct memory engine; zero connection pool overhead, no TCP sockets, zero connection storm risk.
 
 > [!NOTE]
 > For serverless or short-lived container environments (e.g. AWS Lambda) where holding open idle connections could exhaust external database connection limits, operators can set `DATABASE_IDLE_TIMEOUT=30` or `MARIADB_IDLE_TIMEOUT=30000` via environment variables.

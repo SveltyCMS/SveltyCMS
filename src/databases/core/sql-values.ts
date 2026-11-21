@@ -331,11 +331,11 @@ export function prepareSqlValues(
     }
   }
 
-  if (id && !isUpdate) {
+  if (id && !isUpdate && !(schemaCols && schemaCols["_id"])) {
     const idCol = schemaCols
-      ? schemaCols["_id"] || schemaCols["id"]
+      ? schemaCols["id"]
       : ctx.getColumn(table, "_id") || ctx.getColumn(table, "id");
-    if (idCol) {
+    if (idCol && idCol.name !== "_id") {
       values[idCol.name] = id;
     }
   }

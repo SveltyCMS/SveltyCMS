@@ -194,7 +194,7 @@ test.describe("Universal Accessibility Audits", () => {
 
     // Run Axe audit
     const results = await new AxeBuilder({ page: page as never })
-      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
       .analyze();
 
     // Log violations to console for developer debugging
@@ -257,7 +257,7 @@ test.describe("Universal Accessibility Audits", () => {
 
     // 4. Run accessibility audit against the RTL layout
     const results = await new AxeBuilder({ page: page as never })
-      .withTags(["wcag2a", "wcag2aa"])
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
       .analyze();
 
     if (results.violations.length > 0) {

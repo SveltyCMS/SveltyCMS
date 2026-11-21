@@ -270,7 +270,7 @@ export async function executeFindById(
     const cachedEntry = getRequestCache(cacheKey);
     if (cachedEntry !== undefined) {
       const hot = ensureSchemaHotFlags(schema);
-      const result = presentRead(
+      const rawResult = presentRead(
         cachedEntry,
         schema,
         hot,
@@ -278,6 +278,7 @@ export async function executeFindById(
         options.user,
         options.system,
       );
+      const result = rawResult instanceof Promise ? await rawResult : rawResult;
       warmRelations(result);
       return result;
     }
@@ -293,7 +294,7 @@ export async function executeFindById(
     if (syncCached !== undefined && syncCached !== null) {
       setRequestCache(cacheKey, syncCached, schema._id as string, tenantId);
       const hot = ensureSchemaHotFlags(schema);
-      const result = presentRead(
+      const rawResult = presentRead(
         syncCached,
         schema,
         hot,
@@ -301,6 +302,7 @@ export async function executeFindById(
         options.user,
         options.system,
       );
+      const result = rawResult instanceof Promise ? await rawResult : rawResult;
       warmRelations(result);
       return result;
     }

@@ -421,11 +421,18 @@ export const _handler = async (event: RequestEvent) => {
 
   // Support tenantId override for super-admins
   if (url.searchParams.has("tenantId")) {
-    if (user?.role === "super-admin") {
-      tenantId = url.searchParams.get("tenantId")!;
-    } else {
-      throw new AppError("Forbidden: Cannot override tenantId", 403, "FORBIDDEN");
+    const candidateTenant = url.searchParams.get("tenantId")!;
+    if (user?.role !== "super-admin" || !/^[A-Za-z0-9_-]{1,64}$/.test(candidateTenant)) {
+      throw new AppError(
+        user?.role !== "super-admin"
+          ? "Forbidden: Cannot override tenantId"
+          : "Invalid tenantId format",
+        user?.role !== "super-admin" ? 403 : 400,
+        user?.role !== "super-admin" ? "FORBIDDEN" : "INVALID_TENANT_ID",
+      );
     }
+    tenantId = candidateTenant as DatabaseId;
+    locals.tenantId = candidateTenant as DatabaseId;
   }
 
   if (!namespace) return new Response("Not Found", { status: 404 });
@@ -574,12 +581,18 @@ export const _handler = async (event: RequestEvent) => {
   const commerceMutation =
     namespace === "commerce" && MUTATION_HTTP_METHODS.has(request.method.toUpperCase());
   const stripeWebhook = namespace === "stripe" && segments[1] === "webhook";
+  const isVerifiedTestMode =
+    typeof process !== "undefined" &&
+    process.env?.TEST_MODE === "true" &&
+    (process.env?.NODE_ENV !== "production" ||
+      Boolean(process.env?.TEST_API_SECRET) ||
+      process.env?.ALLOW_TEST_MODE_IN_PROD === "true");
   if (
     (!isPublic || commerceMutation) &&
     !stripeWebhook &&
     !pluginRoutePublic &&
     !(locals as any).__testBypass &&
-    (globalThis as any).process?.env?.TEST_MODE !== "true" &&
+    !isVerifiedTestMode &&
     !(user as any)?.isApiKey &&
     !(user as any)?.isApiToken &&
     MUTATION_HTTP_METHODS.has(request.method.toUpperCase())

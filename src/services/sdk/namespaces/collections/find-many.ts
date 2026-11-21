@@ -524,14 +524,17 @@ export async function executeSearch(
       );
 
       if (result.success && result.data) {
-        const decrypted = presentRead(
+        const rawDecrypted = presentRead(
           { success: true, data: result.data },
           collection,
           hot,
           readEncryptionContext(collection, tenantId, hot),
           user,
           options.system,
-        ) as { data?: unknown };
+        );
+        const decrypted = (rawDecrypted instanceof Promise ? await rawDecrypted : rawDecrypted) as {
+          data?: unknown;
+        };
         let items = Array.isArray(decrypted.data) ? decrypted.data : [];
         if (query) {
           const lowerQuery = query.toLowerCase();

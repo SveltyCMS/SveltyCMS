@@ -253,9 +253,13 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
     // Apply text search
     if (this.searchQuery) {
       if (this.searchQuery.fields && this.searchQuery.fields.length > 0) {
-        // Field-specific search using regex
+        // Field-specific search using regex (escape metacharacters to prevent ReDoS)
+        const escapedQuery = String(this.searchQuery.query ?? "").replace(
+          /[.*+?^${}()|[\]\\]/g,
+          "\\$&",
+        );
         const searchConditions = this.searchQuery.fields.map((field) => ({
-          [field as string]: { $regex: this.searchQuery?.query, $options: "i" },
+          [field as string]: { $regex: escapedQuery, $options: "i" },
         }));
         finalQuery.$or = searchConditions;
       } else {

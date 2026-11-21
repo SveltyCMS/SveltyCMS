@@ -91,7 +91,21 @@ export async function handleSystemRoutes(
         const targetPath = event.url.searchParams.get("path") || "/dashboard";
         const { routeResourceStateMachine } =
           await import("@src/services/core/route-resource-state-machine");
-        const prewarmUser = (event.locals?.user as { _id?: unknown; id?: unknown } | null) ?? null;
+        const rawUser =
+          (event.locals?.user as {
+            _id?: unknown;
+            id?: unknown;
+            role?: string;
+            isAdmin?: boolean;
+          } | null) ?? null;
+        if (!rawUser || (!rawUser._id && !rawUser.id)) {
+          throw new AppError("Authentication required", 401);
+        }
+        const prewarmUser = {
+          ...rawUser,
+          isAdmin: Boolean(event.locals?.isAdmin ?? rawUser.isAdmin),
+          roles: Array.isArray(event.locals?.roles) ? event.locals.roles : [],
+        };
         routeResourceStateMachine
           .prewarmRouteResources(targetPath, event.url.origin, tenantId ?? "global", prewarmUser)
           .catch(() => {});

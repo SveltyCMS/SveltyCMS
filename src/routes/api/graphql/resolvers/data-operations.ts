@@ -375,7 +375,7 @@ export function dataOperationsQueryResolvers(_dbAdapter: IDBAdapter, tenantId?: 
 
   return {
     configStatus: async (_: unknown, args: { tenantId?: string }, ctx: GraphQLContext) => {
-      if (!ctx.user) throw new Error("Authentication required");
+      if (!ctx.user?.isAdmin) throw new Error("Admin access required");
       const { configService } = await loadConfigServiceModule();
       const status = await configService.getStatus(resolveGraphQLTenant(args.tenantId, tid, ctx));
       return {
@@ -556,7 +556,7 @@ export function dataOperationsMutationResolvers(_dbAdapter: IDBAdapter, tenantId
       args: { collections: string[]; tenantId?: string },
       ctx: GraphQLContext,
     ) => {
-      if (!ctx.user) throw new Error("Authentication required");
+      if (!ctx.user?.isAdmin) throw new Error("Admin access required");
       const { contentPackageService } = await loadContentPackageServiceModule();
       const result = await contentPackageService.validateExport({
         collections: args.collections,
@@ -575,7 +575,7 @@ export function dataOperationsMutationResolvers(_dbAdapter: IDBAdapter, tenantId
       args: { collections: string[]; tenantId?: string },
       ctx: GraphQLContext,
     ) => {
-      if (!ctx.user) throw new Error("Authentication required");
+      if (!ctx.user?.isAdmin) throw new Error("Admin access required");
       const { contentPackageService } = await loadContentPackageServiceModule();
       try {
         const pkg = await contentPackageService.runExport({
@@ -601,7 +601,7 @@ export function dataOperationsMutationResolvers(_dbAdapter: IDBAdapter, tenantId
       args: { package: unknown; tenantId?: string },
       ctx: GraphQLContext,
     ) => {
-      if (!ctx.user) throw new Error("Authentication required");
+      if (!ctx.user?.isAdmin) throw new Error("Admin access required");
       const { contentPackageService } = await loadContentPackageServiceModule();
       const result = await contentPackageService.validateImport(args.package as any, {
         tenantId: resolveGraphQLTenant(args.tenantId, tid, ctx),

@@ -98,6 +98,7 @@ class PreviewService {
   public validateToken(
     token: string,
     entryId?: string,
+    expectedAudience?: string,
   ): { valid: boolean; userId: string; tenantId: string; entryId: string } {
     try {
       const secret = getPrivateSettingSync("PREVIEW_SECRET") as string;
@@ -131,6 +132,16 @@ class PreviewService {
 
       // Check entry ID binding (if provided)
       if (entryId && payload.entryId !== entryId) {
+        return { valid: false, userId: "", tenantId: "", entryId: "" };
+      }
+
+      // Check audience binding (if provided)
+      if (
+        expectedAudience &&
+        payload.aud &&
+        payload.aud !== expectedAudience &&
+        payload.aud !== this.getAudience(expectedAudience)
+      ) {
         return { valid: false, userId: "", tenantId: "", entryId: "" };
       }
 
@@ -198,6 +209,33 @@ class PreviewService {
     }
 
     if (resolvedPath.startsWith("http://") || resolvedPath.startsWith("https://")) {
+      try {
+        const parsedTarget = new URL(resolvedPath);
+        const allowedBaseOrigins = new Set<string>();
+        for (const candidate of [
+          baseUrl,
+          getPublicSettingSync("PREVIEW_BASE_URL"),
+          getPublicSettingSync("HOST_PROD"),
+          getPublicSettingSync("HOST_DEV"),
+          process.env.PUBLIC_SITE_URL,
+        ]) {
+          if (typeof candidate === "string" && candidate.trim()) {
+            try {
+              allowedBaseOrigins.add(new URL(candidate).origin);
+            } catch {
+              /* ignore invalid candidate */
+            }
+          }
+        }
+        if (allowedBaseOrigins.size > 0 && !allowedBaseOrigins.has(parsedTarget.origin)) {
+          logger.warn(
+            `[PreviewService] Blocked external preview URL origin: ${parsedTarget.origin}`,
+          );
+          return "";
+        }
+      } catch {
+        return "";
+      }
       return resolvedPath;
     }
 

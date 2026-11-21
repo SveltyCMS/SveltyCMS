@@ -218,6 +218,7 @@ export type { RawPointWireStreamResult, RawListWireStreamResult };
 export { RAW_DECLINED, type RawFindResult };
 
 const LIST_INDEX_FIELD = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const DEFAULT_CONVERT_DATES_OPTIONS = Object.freeze({ inPlace: true });
 
 /**
  * Index plan for a paginated list order. Only a same-direction `(column, _id)`
@@ -592,7 +593,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
 
   /** Options bag passed to convertDatesToISO / convertArrayDatesToISO. */
   public get convertDatesOptions(): Record<string, any> {
-    return { inPlace: true };
+    return DEFAULT_CONVERT_DATES_OPTIONS;
   }
 
   /**

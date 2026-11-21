@@ -17,7 +17,7 @@ import {
   decryptBackupData,
   encryptBackupData,
 } from "@src/services/core/backup-service";
-import { generateKemKeyPair } from "@utils/security/hybrid-kem";
+import { generateCompositeKemKeyPair, generateKemKeyPair } from "@utils/security/hybrid-kem";
 
 const PASSPHRASE = "backup-passphrase-must-be-32-chars!!";
 const SETTINGS_AAD = backupArtifactAad("database/settings.json");
@@ -66,16 +66,48 @@ describe("backup AES-256-GCM", () => {
     );
   });
 
-  it("uses the opt-in hybrid ML-KEM envelope when enabled", async () => {
+  it("uses the opt-in hybrid ML-KEM envelope when enabled (legacy SCHP1 without AAD and AAD-bound SCHP2)", async () => {
     const pair = await generateKemKeyPair();
     vi.stubEnv("PQC_HYBRID_BACKUPS", "true");
     vi.stubEnv("PQC_KEM_PUBLIC_KEY", pair.publicKey);
     vi.stubEnv("PQC_KEM_PRIVATE_KEY", pair.privateKey);
 
     try {
-      const encrypted = await encryptBackupData("hybrid payload", PASSPHRASE);
-      expect(encrypted.subarray(0, 5).toString("ascii")).toBe("SCHP1");
-      await expect(decryptBackupData(encrypted, PASSPHRASE)).resolves.toBe("hybrid payload");
+      // Without AAD: backward-compatible SCHP1
+      const legacyHybrid = await encryptBackupData("hybrid payload", PASSPHRASE);
+      expect(legacyHybrid.subarray(0, 5).toString("ascii")).toBe("SCHP1");
+      await expect(decryptBackupData(legacyHybrid, PASSPHRASE)).resolves.toBe("hybrid payload");
+
+      // With per-artifact AAD: SCHP2 rejects missing or mismatched artifact paths
+      const boundHybrid = await encryptBackupData("settings secret", PASSPHRASE, SETTINGS_AAD);
+      expect(boundHybrid.subarray(0, 5).toString("ascii")).toBe("SCHP2");
+      await expect(decryptBackupData(boundHybrid, PASSPHRASE, SETTINGS_AAD)).resolves.toBe(
+        "settings secret",
+      );
+      await expect(decryptBackupData(boundHybrid, PASSPHRASE)).rejects.toThrow(/decryption failed/);
+      await expect(decryptBackupData(boundHybrid, PASSPHRASE, ROLES_AAD)).rejects.toThrow(
+        /decryption failed/,
+      );
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("supports composite X25519 + ML-KEM-768 hybrid backups (SCHP2 with v2: envelope)", async () => {
+    const pair = await generateCompositeKemKeyPair();
+    vi.stubEnv("PQC_HYBRID_BACKUPS", "true");
+    vi.stubEnv("PQC_KEM_PUBLIC_KEY", pair.publicKey);
+    vi.stubEnv("PQC_KEM_PRIVATE_KEY", pair.privateKey);
+    vi.stubEnv("PQC_X25519_PUBLIC_KEY", pair.classicalPublicKey);
+    vi.stubEnv("PQC_X25519_PRIVATE_KEY", pair.classicalPrivateKey);
+
+    try {
+      const encrypted = await encryptBackupData("composite backup", PASSPHRASE, SETTINGS_AAD);
+      expect(encrypted.subarray(0, 5).toString("ascii")).toBe("SCHP2");
+      expect(encrypted.subarray(5, 8).toString("ascii")).toBe("v2:");
+      await expect(decryptBackupData(encrypted, PASSPHRASE, SETTINGS_AAD)).resolves.toBe(
+        "composite backup",
+      );
     } finally {
       vi.unstubAllEnvs();
     }

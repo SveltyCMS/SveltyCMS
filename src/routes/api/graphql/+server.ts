@@ -29,7 +29,7 @@ import { createYoga, createSchema, renderGraphiQL, type GraphiQLOptions } from "
 import { GraphQLError, NoSchemaIntrospectionCustomRule, type DocumentNode } from "graphql";
 import { useGraphQlJit } from "@envelop/graphql-jit";
 import { BoundedJITCache } from "./jit-cache";
-import { createFastHeaders } from "@src/hooks/handle-turbo-get";
+import { FastLaneJsonResponse } from "@src/routes/api/[...path]/handlers/base";
 import {
   responseCache,
   buildGraphQLResponseCacheKey,
@@ -169,14 +169,25 @@ function projectGraphqlFields(
 }
 
 let graphqlResolverRegistered = false;
+const MAX_GRAPHQL_FIELD_MAP_CACHE = 256;
+const graphqlFieldToSchemaIdCache = new Map<string, string>();
 
 function resolveGraphqlTargetCollection(
   fieldName: string,
   tenantId?: string | null,
 ): Schema | undefined {
-  let targetCollection: Schema | undefined =
-    peekReadySchema(tenantId as DatabaseId, fieldName) ||
-    peekReadySchema(tenantId as DatabaseId, fieldName.toLowerCase());
+  let targetCollection: Schema | undefined = peekReadySchema(tenantId as DatabaseId, fieldName);
+  if (targetCollection) return targetCollection;
+
+  const mapKey = `${tenantId || "global"}:${fieldName}`;
+  const mappedId = graphqlFieldToSchemaIdCache.get(mapKey);
+  if (mappedId) {
+    targetCollection = peekReadySchema(tenantId as DatabaseId, mappedId);
+    if (targetCollection) return targetCollection;
+    graphqlFieldToSchemaIdCache.delete(mapKey);
+  }
+
+  targetCollection = peekReadySchema(tenantId as DatabaseId, fieldName.toLowerCase());
 
   if (!targetCollection) {
     const collections = contentStore.getCollections(tenantId);
@@ -201,6 +212,14 @@ function resolveGraphqlTargetCollection(
         }
       }
     }
+  }
+
+  if (targetCollection?._id) {
+    if (graphqlFieldToSchemaIdCache.size >= MAX_GRAPHQL_FIELD_MAP_CACHE) {
+      const oldest = graphqlFieldToSchemaIdCache.keys().next().value;
+      if (oldest !== undefined) graphqlFieldToSchemaIdCache.delete(oldest);
+    }
+    graphqlFieldToSchemaIdCache.set(mapKey, String(targetCollection._id));
   }
   return targetCollection;
 }
@@ -403,17 +422,17 @@ const securityValidationPlugin = {
     // the standard error envelope instead of masking it as a 500.
     const query = params?.source || params?.query;
     if (typeof query === "string") {
-      const preParsed = context?.parsedDocument;
-      if (preParsed && typeof setParsedDocument === "function") {
-        setParsedDocument(preParsed);
-        endParse();
-        return;
-      }
       const analysis = analyzeQueryCost(query);
       if (!analysis.allowed) {
         throw new GraphQLError(formatCostError(analysis.cost, 1000), {
           extensions: { code: "QUERY_TOO_EXPENSIVE" },
         });
+      }
+      const preParsed = context?.parsedDocument;
+      if (preParsed && typeof setParsedDocument === "function") {
+        setParsedDocument(preParsed);
+        endParse();
+        return;
       }
       try {
         const doc = analysis.document ?? getOrParseDocument(query);
@@ -486,10 +505,27 @@ const executeSpanPlugin = {
  */
 function isReadOnlyQuery(query: string): boolean {
   if (!query) return false;
-  const trimmed = query.trim().toLowerCase();
-
+  const len = query.length;
+  let i = 0;
+  while (i < len) {
+    const ch = query.charCodeAt(i);
+    if (ch <= 32 || ch === 44 /* ',' */ || ch === 0xfeff) {
+      i++;
+      continue;
+    }
+    if (ch === 35 /* '#' */) {
+      while (i < len && query.charCodeAt(i) !== 10 && query.charCodeAt(i) !== 13) i++;
+      continue;
+    }
+    break;
+  }
+  if (i >= len) return false;
+  const first = query.charCodeAt(i) | 32;
   // Explicit operation types must not be cached
-  if (trimmed.startsWith("mutation") || trimmed.startsWith("subscription")) {
+  if (first === 109 /* 'm' */ && query.slice(i, i + 8).toLowerCase() === "mutation") {
+    return false;
+  }
+  if (first === 115 /* 's' */ && query.slice(i, i + 12).toLowerCase() === "subscription") {
     return false;
   }
   // Standard queries start with 'query' or directly with a selection set '{'
@@ -854,39 +890,55 @@ interface CoalescedGraphqlRead {
 const inflightGraphqlReads = new Map<string, Promise<CoalescedGraphqlRead | null>>();
 const MAX_INFLIGHT_GRAPHQL_READS = 64;
 
-function buildGraphqlResponse(
+const STAMP_GQL_DUR = process.env.SVELTY_SRV_DUR === "1";
+const STAMP_GQL_SPLIT = process.env.SVELTY_SRV_SPLIT === "1";
+
+function stampGraphqlHeaders(
+  headers: Record<string, string> | Headers,
+  started: number,
+  marks?: ReadonlyMap<string, number>,
+): void {
+  if (STAMP_GQL_DUR && started > 0) {
+    const dur = (performance.now() - started).toFixed(2);
+    if (headers instanceof Headers) headers.set("x-srv-dur", dur);
+    else headers["x-srv-dur"] = dur;
+  }
+  if (STAMP_GQL_SPLIT && marks && marks.size > 0) {
+    const parts: string[] = [];
+    marks.forEach((ms, label) => parts.push(`${label}=${ms.toFixed(2)}`));
+    const split = parts.join(";");
+    if (headers instanceof Headers) headers.set("x-srv-split", split);
+    else headers["x-srv-split"] = split;
+  }
+}
+
+function finalizeGraphqlResponse(
   body: string | Uint8Array,
-  extraHeaders: Record<string, string>,
+  headersRecord: Record<string, string>,
+  preapplied: boolean,
   locals?: App.Locals,
   rawText?: string,
+  knownByteLength?: number,
 ): Response {
-  const preapplied = (locals as { __graphqlSecurityHeaders?: Record<string, string> } | undefined)
-    ?.__graphqlSecurityHeaders;
-  const headersRecord: Record<string, string> = preapplied
-    ? { ...preapplied, ...extraHeaders }
-    : { ...extraHeaders };
   const isFastLane = (locals as { __isFastLane?: boolean } | undefined)?.__isFastLane === true;
 
   if (isFastLane) {
     if (!headersRecord["content-length"]) {
-      headersRecord["content-length"] = String(
-        typeof body === "string" ? Buffer.byteLength(body, "utf8") : body.byteLength,
-      );
+      const byteLen =
+        knownByteLength !== undefined
+          ? knownByteLength
+          : typeof body === "string"
+            ? Buffer.byteLength(body, "utf8")
+            : body.byteLength;
+      headersRecord["content-length"] = String(byteLen);
     }
-    return {
-      status: 200,
-      ok: true,
-      headers: createFastHeaders(headersRecord),
-      __fastHeaders: headersRecord,
-      __fastBody: body,
-      __securityHeadersApplied: Boolean(preapplied),
-      text: async () =>
-        rawText ?? (typeof body === "string" ? body : Buffer.from(body).toString("utf8")),
-      json: async () =>
-        JSON.parse(
-          rawText ?? (typeof body === "string" ? body : Buffer.from(body).toString("utf8")),
-        ),
-    } as unknown as Response;
+    return new FastLaneJsonResponse(
+      200,
+      headersRecord,
+      body,
+      preapplied,
+      rawText,
+    ) as unknown as Response;
   }
 
   const res = new Response(body as BodyInit, {
@@ -901,43 +953,84 @@ function buildGraphqlResponse(
   return res;
 }
 
+function buildGraphqlResponse(
+  body: string | Uint8Array,
+  extraHeaders: Record<string, string>,
+  locals?: App.Locals,
+  rawText?: string,
+): Response {
+  const preapplied = (locals as { __graphqlSecurityHeaders?: Record<string, string> } | undefined)
+    ?.__graphqlSecurityHeaders;
+  const headersRecord: Record<string, string> = preapplied
+    ? { ...preapplied, ...extraHeaders }
+    : { ...extraHeaders };
+  return finalizeGraphqlResponse(body, headersRecord, Boolean(preapplied), locals, rawText);
+}
+
 function serveGraphqlCached(
   request: Request,
   cached: CachedResponseEntry,
   locals?: App.Locals,
   stalePolicy?: StaleWindowPolicy | null,
 ): Response {
-  const acceptEncoding = request.headers.get("Accept-Encoding") || "";
   const rawBody = cached.body;
-  const payloadSize = cached.buffer
-    ? cached.buffer.byteLength
-    : Buffer.byteLength(rawBody, "utf-8");
-
-  const headers: Record<string, string> = {
-    "content-type": "application/json",
-    etag: cached.etag,
-    "x-cache": cached.stale ? "STALE" : "HIT",
-    "cache-control": "private, no-store",
-    vary: "Accept-Encoding, Cookie",
-  };
+  const preapplied = (locals as { __graphqlSecurityHeaders?: Record<string, string> } | undefined)
+    ?.__graphqlSecurityHeaders;
+  const headers: Record<string, string> = preapplied
+    ? {
+        ...preapplied,
+        "content-type": "application/json",
+        etag: cached.etag,
+        "x-cache": cached.stale ? "STALE" : "HIT",
+        "cache-control": "private, no-store",
+        vary: "Accept-Encoding, Cookie",
+      }
+    : {
+        "content-type": "application/json",
+        etag: cached.etag,
+        "x-cache": cached.stale ? "STALE" : "HIT",
+        "cache-control": "private, no-store",
+        vary: "Accept-Encoding, Cookie",
+      };
   if (cached.stale && stalePolicy) {
     const staleHdr = staleResponseHeader(true, stalePolicy);
     if (staleHdr) headers["x-cache-stale"] = staleHdr;
   }
 
-  if (cached.compressed && payloadSize > 1024) {
-    if (acceptEncoding.includes("br") && cached.compressed.br) {
-      headers["content-encoding"] = "br";
-      return buildGraphqlResponse(cached.compressed.br, headers, locals, rawBody);
-    }
-    if (acceptEncoding.includes("gzip") && cached.compressed.gzip) {
-      headers["content-encoding"] = "gzip";
-      return buildGraphqlResponse(cached.compressed.gzip, headers, locals, rawBody);
+  if (cached.compressed) {
+    const payloadSize = cached.buffer
+      ? cached.buffer.byteLength
+      : (cached.byteLength ?? Buffer.byteLength(rawBody, "utf-8"));
+    if (payloadSize > 1024) {
+      const acceptEncoding = request.headers.get("accept-encoding") || "";
+      if (acceptEncoding.includes("br") && cached.compressed.br) {
+        headers["content-encoding"] = "br";
+        return finalizeGraphqlResponse(
+          cached.compressed.br,
+          headers,
+          Boolean(preapplied),
+          locals,
+          rawBody,
+          cached.compressed.br.byteLength,
+        );
+      }
+      if (acceptEncoding.includes("gzip") && cached.compressed.gzip) {
+        headers["content-encoding"] = "gzip";
+        return finalizeGraphqlResponse(
+          cached.compressed.gzip,
+          headers,
+          Boolean(preapplied),
+          locals,
+          rawBody,
+          cached.compressed.gzip.byteLength,
+        );
+      }
     }
   }
 
   const payload = cached.buffer || rawBody;
-  return buildGraphqlResponse(payload, headers, locals, rawBody);
+  const knownLen = cached.buffer ? cached.buffer.byteLength : cached.byteLength;
+  return finalizeGraphqlResponse(payload, headers, Boolean(preapplied), locals, rawBody, knownLen);
 }
 
 /** Constant-time check that `apqHash` is the SHA-256 digest of `query`. */
@@ -950,6 +1043,8 @@ function apqHashMatchesQuery(apqHash: string, query: string): boolean {
 }
 
 async function handleRequest(event: RequestEvent): Promise<Response> {
+  const started = STAMP_GQL_DUR || STAMP_GQL_SPLIT ? performance.now() : 0;
+  const splitMarks = STAMP_GQL_SPLIT ? new Map<string, number>() : undefined;
   const request = event.request;
   const locals = event.locals;
   const url = event.url;
@@ -979,7 +1074,8 @@ async function handleRequest(event: RequestEvent): Promise<Response> {
     }
   }
 
-  const publicationFilterParam = url.searchParams.get("publicationFilter");
+  const hasSearch = url.search.length > 0;
+  const publicationFilterParam = hasSearch ? url.searchParams.get("publicationFilter") : null;
   const publicationFilterHeader = request.headers.get("x-publication-filter");
   const publicationFilter = resolvePublicationFilter(
     { user: locals.user, system: (locals as any).isSystem },
@@ -987,7 +1083,7 @@ async function handleRequest(event: RequestEvent): Promise<Response> {
   );
 
   let query = "";
-  let variables: any = {};
+  let variables: any = undefined;
   let bodyText = "";
   let apqHash: string | null = null;
   let parsedBody: Record<string, any> | null = null;
@@ -1003,12 +1099,12 @@ async function handleRequest(event: RequestEvent): Promise<Response> {
     if (parsedFromSecurity && typeof parsedFromSecurity === "object") {
       parsedBody = parsedFromSecurity;
       query = parsedFromSecurity?.query || "";
-      variables = parsedFromSecurity?.variables || {};
+      variables = parsedFromSecurity?.variables;
     } else {
       try {
         parsedBody = JSON.parse(bodyText);
         query = parsedBody?.query || "";
-        variables = parsedBody?.variables || {};
+        variables = parsedBody?.variables;
       } catch (error) {
         logger.debug("[+server] suppressed error", error);
       }
@@ -1092,7 +1188,7 @@ async function handleRequest(event: RequestEvent): Promise<Response> {
       request.headers.get("x-idempotency-key") || request.headers.get("x-mutation-id");
     if (idempotencyKey) {
       const replayPayload = `${idempotencyKey}:${query}`;
-      if (!markMutationExecuted(replayPayload, variables)) {
+      if (!markMutationExecuted(replayPayload, variables ?? {})) {
         return new Response(
           JSON.stringify({
             errors: [{ message: "Mutation replay detected. Duplicate execution blocked." }],
@@ -1122,9 +1218,10 @@ async function handleRequest(event: RequestEvent): Promise<Response> {
   const ccHeader = request.headers.get("cache-control");
   const stalePolicy = ccHeader ? parseCacheControlStalePolicy(ccHeader) : null;
   const bypassGraphqlCache =
-    url.searchParams.get("refresh") === "true" ||
-    url.searchParams.get("nocache") === "true" ||
-    url.searchParams.get("bypassCache") === "true";
+    hasSearch &&
+    (url.searchParams.get("refresh") === "true" ||
+      url.searchParams.get("nocache") === "true" ||
+      url.searchParams.get("bypassCache") === "true");
   if (cacheKey && !bypassGraphqlCache) {
     const cached = responseCache.get(
       cacheKey,
@@ -1158,7 +1255,15 @@ async function handleRequest(event: RequestEvent): Promise<Response> {
           .finally(() => responseCache.releaseSwrRefresh?.(cacheKey, cacheTenant));
       }
       metricsService.recordGraphqlResponseHit(cacheTenant);
-      return serveGraphqlCached(request, cached, locals, stalePolicy);
+      if (splitMarks) splitMarks.set("cachehit", performance.now() - started);
+      const res = serveGraphqlCached(request, cached, locals, stalePolicy);
+      if (started > 0) {
+        const fastHeaders = (res as unknown as { __fastHeaders?: Record<string, string> })
+          .__fastHeaders;
+        if (fastHeaders) stampGraphqlHeaders(fastHeaders, started, splitMarks);
+        else stampGraphqlHeaders(res.headers, started, splitMarks);
+      }
+      return res;
     }
   }
 
@@ -1198,6 +1303,7 @@ async function handleRequest(event: RequestEvent): Promise<Response> {
       }
     }
 
+    const tFast0 = STAMP_GQL_SPLIT ? performance.now() : 0;
     const fast = await tryGraphqlFastPath(
       query,
       {
@@ -1209,25 +1315,25 @@ async function handleRequest(event: RequestEvent): Promise<Response> {
       variables,
     );
     if (fast) {
+      if (splitMarks) splitMarks.set("fastpath", performance.now() - tFast0);
       const tenant = locals.tenantId as string;
       if (cacheKey) {
         // Sync L1 so coalesced waiters and the next same-tick request HIT.
         // SHA-256 of the already-stringified fast-path body is cheaper than
         // 8 workers re-running find() after every write invalidates res:graphql.
+        const tCache0 = STAMP_GQL_SPLIT ? performance.now() : 0;
         const etag = generateContentEtag(fast);
         responseCache.set(cacheKey, { body: fast, etag }, 60_000, tenant);
+        if (splitMarks) splitMarks.set("cachewrite", performance.now() - tCache0);
         published = { body: fast, etag };
         metricsService.recordGraphqlResponseMiss(tenant);
       }
-      return buildGraphqlResponse(
-        fast,
-        {
-          "content-type": "application/json",
-          "x-cache": "MISS",
-        },
-        locals,
-        fast,
-      );
+      const extraHeaders: Record<string, string> = {
+        "content-type": "application/json",
+        "x-cache": "MISS",
+      };
+      if (started > 0) stampGraphqlHeaders(extraHeaders, started, splitMarks);
+      return buildGraphqlResponse(fast, extraHeaders, locals, fast);
     }
 
     let adapter = locals.dbAdapter;
@@ -1276,7 +1382,9 @@ async function handleRequest(event: RequestEvent): Promise<Response> {
       // 🚀 SKIP REQUEST CLONING: Pass the original request for GET, create minimal
       // Request only for POST (Yoga needs the body, but we already have bodyText)
       const yogaBody =
-        bodyText && bodyText.includes('"query"') ? bodyText : JSON.stringify({ query, variables });
+        bodyText && bodyText.includes('"query"')
+          ? bodyText
+          : JSON.stringify({ query, variables: variables ?? {} });
 
       const yogaRequest =
         request.method === "POST"
@@ -1284,6 +1392,10 @@ async function handleRequest(event: RequestEvent): Promise<Response> {
           : request;
 
       const handleYogaRequest = () => yogaApp.handleRequest(yogaRequest, yogaCtx);
+      // Phase mark must be a *delta*: `yoga` is one phase in a chain that already
+      // spent time on cache lookup / body parse, so anchoring it at `started` would
+      // report those phases twice and swamp the split table.
+      const tYoga0 = STAMP_GQL_SPLIT ? performance.now() : 0;
       const yogaResponse = PROFILE_WRITE_ENABLED
         ? await profileSpan("gql:yoga.handleRequest", handleYogaRequest)
         : await handleYogaRequest();
@@ -1298,12 +1410,14 @@ async function handleRequest(event: RequestEvent): Promise<Response> {
       if (cacheKey && yogaResponse.status === 200 && !skipResponseCache) {
         const tenant = locals.tenantId as string;
         if (ownsFlight) {
+          const tCache0 = STAMP_GQL_SPLIT ? performance.now() : 0;
           const responseBody = await yogaResponse.clone().text();
           if (!responseBody.includes('"errors":[') && !responseBody.includes(":[]")) {
             const etag = generateContentEtag(responseBody);
             responseCache.set(cacheKey, { body: responseBody, etag }, 60_000, tenant);
             published = { body: responseBody, etag };
           }
+          if (splitMarks) splitMarks.set("cachewrite", performance.now() - tCache0);
         } else {
           const cloned = yogaResponse.clone();
           queueMicrotask(() => {
@@ -1331,6 +1445,10 @@ async function handleRequest(event: RequestEvent): Promise<Response> {
       const responseHeaders = new Headers(yogaResponse.headers);
       if (cacheKey) responseHeaders.set("X-Cache", "MISS");
       if (cacheControl) responseHeaders.set("Cache-Control", cacheControl);
+      if (started > 0) {
+        if (splitMarks) splitMarks.set("yoga", performance.now() - tYoga0);
+        stampGraphqlHeaders(responseHeaders, started, splitMarks);
+      }
       return new Response(yogaResponse.body, {
         status: yogaResponse.status,
         statusText: yogaResponse.statusText,

@@ -68,15 +68,181 @@ export function getPinnedDnsResolution(hostname: string): DnsPinEntry | null {
 let pinnedFetchPromise: Promise<PinnedFetch | undefined> | null = null;
 
 interface PinnedFetch {
-  dispatcher: unknown;
+  dispatcher?: unknown;
   fetch: typeof globalThis.fetch;
+}
+
+const NULL_BODY_STATUSES = new Set([101, 103, 204, 205, 304]);
+
+function pinnedLookup(
+  hostname: string,
+  opts: { all?: boolean } | undefined,
+  cb: (
+    err: Error | null,
+    address: string | Array<{ address: string; family: number }>,
+    family?: number,
+  ) => void,
+): void {
+  const pinned = getPinnedDnsResolution(hostname);
+  if (pinned) {
+    if (opts?.all) {
+      cb(null, [{ address: pinned.address, family: pinned.family }], 0);
+    } else {
+      cb(null, pinned.address, pinned.family);
+    }
+    return;
+  }
+  dnsCallbackLookup(
+    hostname,
+    opts as never,
+    (
+      err: NodeJS.ErrnoException | null,
+      address: string | Array<{ address: string; family: number }>,
+      family?: number,
+    ) => {
+      if (err) {
+        cb(err, "", 4);
+        return;
+      }
+      cb(null, address, family);
+    },
+  );
+}
+
+function normalizeRequestHeaders(headersInit: RequestInit["headers"]): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!headersInit) return out;
+  if (headersInit instanceof Headers) {
+    headersInit.forEach((value, key) => {
+      out[key] = value;
+    });
+    return out;
+  }
+  if (Array.isArray(headersInit)) {
+    for (const [key, value] of headersInit) {
+      out[key] = value;
+    }
+    return out;
+  }
+  for (const [key, value] of Object.entries(headersInit)) {
+    if (value !== undefined) out[key] = String(value);
+  }
+  return out;
+}
+
+async function normalizeRequestBody(body: RequestInit["body"]): Promise<Buffer | null> {
+  if (body == null) return null;
+  if (typeof body === "string") return Buffer.from(body, "utf8");
+  if (body instanceof Uint8Array) return Buffer.from(body.buffer, body.byteOffset, body.byteLength);
+  if (body instanceof ArrayBuffer) return Buffer.from(body);
+  if (ArrayBuffer.isView(body)) {
+    return Buffer.from(body.buffer, body.byteOffset, body.byteLength);
+  }
+  if (body instanceof URLSearchParams) return Buffer.from(body.toString(), "utf8");
+  if (typeof Blob !== "undefined" && body instanceof Blob) {
+    return Buffer.from(await body.arrayBuffer());
+  }
+  return Buffer.from(String(body), "utf8");
+}
+
+/**
+ * Dependency-free Node.js `http`/`https` fetch wrapper that enforces pinned DNS
+ * resolution at socket connect time (preserving TLS SNI & Host header).
+ * Used automatically when the optional `undici` npm package is absent.
+ */
+export async function createNodePinnedFetch(): Promise<typeof globalThis.fetch> {
+  const [httpMod, httpsMod] = await Promise.all([import("node:http"), import("node:https")]);
+
+  return (async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    const rawUrl =
+      typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+    const url = new URL(rawUrl);
+    const isHttps = url.protocol === "https:";
+    const headers = normalizeRequestHeaders(init?.headers);
+    const bodyBuf = await normalizeRequestBody(init?.body);
+    if (bodyBuf && !Object.keys(headers).some((k) => k.toLowerCase() === "content-length")) {
+      headers["content-length"] = String(bodyBuf.byteLength);
+    }
+
+    return new Promise<Response>((resolve, reject) => {
+      const transport = isHttps ? httpsMod : httpMod;
+      const req = transport.request(
+        {
+          protocol: url.protocol,
+          hostname: url.hostname,
+          port: url.port || (isHttps ? 443 : 80),
+          path: `${url.pathname}${url.search}`,
+          method: init?.method || "GET",
+          headers,
+          lookup: pinnedLookup as never,
+          ...(isHttps ? { servername: url.hostname } : {}),
+        },
+        (res) => {
+          const status = res.statusCode ?? 502;
+          const resHeaders = new Headers();
+          for (const [k, v] of Object.entries(res.headers)) {
+            if (Array.isArray(v)) {
+              for (const item of v) resHeaders.append(k, item);
+            } else if (v !== undefined) {
+              resHeaders.set(k, v);
+            }
+          }
+
+          if (NULL_BODY_STATUSES.has(status)) {
+            res.resume();
+            resolve(
+              new Response(null, { status, statusText: res.statusMessage, headers: resHeaders }),
+            );
+            return;
+          }
+
+          const stream = new ReadableStream<Uint8Array>({
+            start(controller) {
+              res.on("data", (chunk: Buffer) => {
+                controller.enqueue(
+                  new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength),
+                );
+              });
+              res.on("end", () => controller.close());
+              res.on("error", (err) => controller.error(err));
+            },
+            cancel() {
+              res.destroy();
+            },
+          });
+
+          resolve(
+            new Response(stream, { status, statusText: res.statusMessage, headers: resHeaders }),
+          );
+        },
+      );
+
+      const signal = init?.signal;
+      const onAbort = () => {
+        req.destroy(signal?.reason instanceof Error ? signal.reason : new Error("Request aborted"));
+      };
+      if (signal) {
+        if (signal.aborted) {
+          onAbort();
+          return;
+        }
+        signal.addEventListener("abort", onAbort, { once: true });
+        req.once("close", () => signal.removeEventListener("abort", onAbort));
+      }
+
+      req.on("error", reject);
+      if (bodyBuf) req.write(bodyBuf);
+      req.end();
+    });
+  }) as typeof globalThis.fetch;
 }
 
 /**
  * Node's built-in `fetch` uses its own bundled undici instance, which rejects a
  * dispatcher created by the npm `undici` package (`invalid onRequestStart method`).
- * Pair the pinned Agent with the matching undici `fetch`; on Bun (or when the
- * optional dependency is absent) fall back to the global fetch without pinning.
+ * Pair the pinned Agent with the matching undici `fetch`; when the optional `undici`
+ * package is absent on Node, fall back to the zero-dependency `node:http`/`node:https`
+ * pinned client so DNS-rebinding pinning stays active without external packages.
  */
 async function getPinnedFetch(): Promise<PinnedFetch | undefined> {
   if (
@@ -91,40 +257,7 @@ async function getPinnedFetch(): Promise<PinnedFetch | undefined> {
         const { Agent, fetch: undiciFetch } = await import("undici");
         const dispatcher = new Agent({
           connect: {
-            lookup: ((
-              hostname: string,
-              opts: { all?: boolean } | undefined,
-              cb: (
-                err: Error | null,
-                address: string | Array<{ address: string; family: number }>,
-                family?: number,
-              ) => void,
-            ) => {
-              const pinned = getPinnedDnsResolution(hostname);
-              if (pinned) {
-                if (opts?.all) {
-                  cb(null, [{ address: pinned.address, family: pinned.family }], 0);
-                } else {
-                  cb(null, pinned.address, pinned.family);
-                }
-                return;
-              }
-              dnsCallbackLookup(
-                hostname,
-                opts as never,
-                (
-                  err: NodeJS.ErrnoException | null,
-                  address: string | Array<{ address: string; family: number }>,
-                  family?: number,
-                ) => {
-                  if (err) {
-                    cb(err, "", 4);
-                    return;
-                  }
-                  cb(null, address, family);
-                },
-              );
-            }) as never,
+            lookup: pinnedLookup as never,
           },
         });
         return {
@@ -132,11 +265,20 @@ async function getPinnedFetch(): Promise<PinnedFetch | undefined> {
           fetch: undiciFetch as unknown as typeof globalThis.fetch,
         };
       } catch (err) {
-        logger.warn(
-          "[EgressGuard] DNS pinning disabled: the optional `undici` package is unavailable or incompatible.",
+        logger.debug(
+          "[EgressGuard] Optional `undici` unavailable — using built-in node:http/https pinned client.",
           err,
         );
-        return undefined;
+        try {
+          const nodeFetch = await createNodePinnedFetch();
+          return { fetch: nodeFetch };
+        } catch (fallbackErr) {
+          logger.warn(
+            "[EgressGuard] DNS pinning disabled: failed to initialize built-in pinned HTTP client.",
+            fallbackErr,
+          );
+          return undefined;
+        }
       }
     })();
   }
@@ -150,12 +292,16 @@ const BLOCKED_IP_RANGES = [
   /^192\.168\./, // Private Class C
   /^169\.254\./, // Link-local
   /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./, // CGNAT / shared address space (100.64.0.0/10)
-  /^0\.0\.0\.0/, // Unspecified
+  /^0\./, // 0.0.0.0/8 ("This" network / unspecified)
   /^::1$/, // IPv6 loopback
+  /^::$/, // IPv6 unspecified
   /^fe80:/i, // IPv6 link-local
   /^f[cd][0-9a-f]{2}:/i, // IPv6 unique local (fc00::/7 — covers fc00: … fdff:)
   /^fec0:/i, // IPv6 site-local (deprecated)
   /^::ffff:/i, // IPv4-mapped IPv6
+  /^64:ff9b:/i, // NAT64 well-known prefix (64:ff9b::/96)
+  /^2002:/i, // 6to4 (2002::/16)
+  /^2001:0?000:/i, // Teredo (2001:0000::/32)
 ];
 
 const BLOCKED_HOSTS = new Set(["localhost", "metadata.google.internal", "169.254.169.254"]);
@@ -170,7 +316,8 @@ const ALWAYS_BLOCKED_IP_RANGES = [
   /^169\.254\./, // Link-local (includes the 169.254.169.254 metadata endpoint)
   /^fe80:/i, // IPv6 link-local
   /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./, // CGNAT / shared address space
-  /^0\.0\.0\.0/, // Unspecified
+  /^0\./, // 0.0.0.0/8 unspecified
+  /^::$/, // IPv6 unspecified
 ];
 
 // ─── Test-only egress allowlist ───────────────────────────────────────────────
@@ -337,16 +484,11 @@ export async function validateEgressUrl(url: string, options: EgressOptions = {}
   if (ALWAYS_BLOCKED_HOSTS.has(hostname)) {
     throw new EgressError(`Blocked internal host: ${hostname}`);
   }
-  if (allowPrivate && BLOCKED_HOSTS.has(hostname)) {
-    // Only `localhost` remains here (metadata hosts are always blocked above).
-    // It is a loopback alias, so skip DNS — minimal containers may not resolve it.
-    return parsed;
-  }
-  if (BLOCKED_HOSTS.has(hostname)) {
+  if (!allowPrivate && BLOCKED_HOSTS.has(hostname)) {
     throw new EgressError(`Blocked internal host: ${hostname}`);
   }
 
-  // Scope constraints: allowedOrigins, allowedHosts, urlScope
+  // Scope constraints: allowedOrigins, allowedHosts, urlScope (enforced even when allowPrivate=true)
   if (options.allowedOrigins) {
     const originMatched =
       options.allowedOrigins instanceof Set
@@ -374,6 +516,12 @@ export async function validateEgressUrl(url: string, options: EgressOptions = {}
 
   if (options.urlScope && !options.urlScope(parsed)) {
     throw new EgressError(`URL does not satisfy urlScope predicate: ${parsed.href}`);
+  }
+
+  if (allowPrivate && BLOCKED_HOSTS.has(hostname)) {
+    // Only `localhost` remains here (metadata hosts are always blocked above).
+    // It is a loopback alias, so skip DNS — minimal containers may not resolve it.
+    return parsed;
   }
 
   // If it's already an IP, check it directly and pin the literal so the
@@ -465,6 +613,7 @@ export async function safeFetch(
     let redirectsCount = 0;
     let response: Response | null = null;
     let initialProtocol: string | null = null;
+    let initialOrigin: string | null = null;
 
     let redirecting = true;
     // Manual redirect loop: re-validate each hop against SSRF rules & scopes
@@ -473,6 +622,7 @@ export async function safeFetch(
 
       if (!initialProtocol) {
         initialProtocol = validatedUrl.protocol;
+        initialOrigin = validatedUrl.origin;
       } else if (
         disallowProtocolDowngrade &&
         initialProtocol === "https:" &&
@@ -483,12 +633,36 @@ export async function safeFetch(
 
       const pinned = fetchImpl ? undefined : await getPinnedFetch();
       const fetchToUse = fetchImpl ?? pinned?.fetch ?? fetch;
+      const isBunRuntime =
+        typeof process !== "undefined" &&
+        Boolean((process as { versions?: { bun?: string } }).versions?.bun);
+      if (!pinned && !fetchImpl && isBunRuntime && !net.isIP(validatedUrl.hostname)) {
+        // Re-verify DNS pin immediately before socket dispatch under Bun to narrow
+        // the DNS-rebinding window when undici's custom lookup Agent is unavailable.
+        const freshPin = getPinnedDnsResolution(validatedUrl.hostname);
+        if (freshPin && isBlockedIP(freshPin.address, Boolean(allowPrivate))) {
+          throw new EgressError(
+            `Pinned address is blocked (${freshPin.address}): ${validatedUrl.hostname}`,
+          );
+        }
+      }
+      let hopHeaders = fetchOptions.headers;
+      if (initialOrigin && validatedUrl.origin !== initialOrigin && hopHeaders) {
+        // Strip sensitive credentials when redirecting cross-origin
+        const sanitized = new Headers(hopHeaders as HeadersInit);
+        sanitized.delete("authorization");
+        sanitized.delete("cookie");
+        sanitized.delete("x-api-key");
+        sanitized.delete("x-internal-key");
+        hopHeaders = sanitized;
+      }
       const fetchInit: RequestInit & { dispatcher?: unknown } = {
         ...fetchOptions,
+        headers: hopHeaders,
         signal: controller.signal,
         redirect: "manual",
       };
-      if (pinned) {
+      if (pinned?.dispatcher) {
         fetchInit.dispatcher = pinned.dispatcher;
       }
 

@@ -64,7 +64,6 @@ export interface PrepareWritePayloadOptions {
 const SYSTEM_WRITABLE_FIELDS = new Set([
   "_id",
   "id",
-  "tenantId",
   "status",
   "createdAt",
   "updatedAt",
@@ -274,6 +273,16 @@ export function prepareWritePayload(
   const mSan = PROFILE_WRITE_ENABLED ? profileMark("ns:prep:sanitize") : null;
   if (hot._hasSanitizableFields !== false) {
     entryData = sanitizeObject(entryData);
+  } else if (
+    entryData &&
+    typeof entryData === "object" &&
+    (Object.hasOwn(entryData, "__proto__") ||
+      Object.hasOwn(entryData, "constructor") ||
+      Object.hasOwn(entryData, "prototype"))
+  ) {
+    delete entryData.__proto__;
+    delete entryData.constructor;
+    delete entryData.prototype;
   }
   mSan?.();
 
@@ -294,6 +303,8 @@ export function prepareWritePayload(
     }
     // Client display names must not overwrite the id stamped at create.
     if ("createdBy" in entryData) delete entryData.createdBy;
+    // Tenant ownership is immutable across updates on all database engines.
+    if ("tenantId" in entryData) delete entryData.tenantId;
     // The scheduler refuses a publish that has no actor. Trust only this stamp.
     if ("_scheduledBy" in entryData) delete entryData._scheduledBy;
     if (entryData.status === "schedule") {
@@ -347,7 +358,9 @@ export function prepareWritePayload(
   // Server-side validation via AOT Compiled Validation Plan (Valibot schemas + numeric bounds).
   // Compiled once per schema in WeakMap with zero array allocation on the valid hot path.
   const validationPlan = getOrCompileValidationPlan(schema, hot);
+  let ranFullValidation = false;
   if (!system && !opts.skipValidation) {
+    ranFullValidation = true;
     const validationErrors = validationPlan(entryData);
     if (validationErrors && validationErrors.length > 0) {
       throw fieldValidationError(validationErrors);
@@ -408,7 +421,7 @@ export function prepareWritePayload(
     });
   }
 
-  if (hot._hasNumberFields && hot._numberFields) {
+  if (!ranFullValidation && hot._hasNumberFields && hot._numberFields) {
     const rangeErrors = validationPlan(entryData, { skipFieldValidators: true });
     if (rangeErrors && rangeErrors.length > 0) {
       throw fieldValidationError(rangeErrors);

@@ -47,6 +47,18 @@ export async function handleContentSyncRoutes(
   const action = segments[1]; // e.g., "channels", "plan", "push", "pull", "jobs"
   const user = event.locals.user as Record<string, any> | undefined;
   const userId = (user?._id ?? user?.id ?? "system") as string;
+  const isGlobalSuperAdmin = event.locals.isAdmin === true && (!tenantId || tenantId === "global");
+  const callerTenant = (tenantId as string) || "global";
+
+  const assertChannelTenantAccess = (
+    channel: {
+      source?: { tenantId?: string };
+      target?: { tenantId?: string };
+    } | null,
+  ) => {
+    if (!channel || isGlobalSuperAdmin) return true;
+    return channel.source?.tenantId === callerTenant && channel.target?.tenantId === callerTenant;
+  };
 
   // ─────────────────────────────────────────────────────────────────────────
   // Channel Management
@@ -78,6 +90,18 @@ export async function handleContentSyncRoutes(
         "label, source, target, and collections are required to create a channel.",
         400,
         "MISSING_PARAM",
+      );
+    }
+
+    if (
+      !isGlobalSuperAdmin &&
+      (body.source?.tenantId !== callerTenant || body.target?.tenantId !== callerTenant)
+    ) {
+      return errorResponse(
+        event,
+        "Forbidden: cross-tenant sync channels require global administrator privileges.",
+        403,
+        "TENANT_MISMATCH",
       );
     }
 
@@ -116,6 +140,23 @@ export async function handleContentSyncRoutes(
 
     try {
       const { contentSyncService } = await loadContentSyncServiceModule();
+      const existing = await contentSyncService.getChannel(channelId);
+      if (!existing) {
+        return errorResponse(event, `Channel not found: ${channelId}`, 404, "NOT_FOUND");
+      }
+      if (
+        !assertChannelTenantAccess(existing) ||
+        (!isGlobalSuperAdmin &&
+          ((body.source?.tenantId && body.source.tenantId !== callerTenant) ||
+            (body.target?.tenantId && body.target.tenantId !== callerTenant)))
+      ) {
+        return errorResponse(
+          event,
+          "Forbidden: cross-tenant channel update is not permitted.",
+          403,
+          "TENANT_MISMATCH",
+        );
+      }
       const channel = await contentSyncService.updateChannel(channelId, body);
       return successResponse(event, channel);
     } catch (err) {
@@ -139,6 +180,18 @@ export async function handleContentSyncRoutes(
 
     try {
       const { contentSyncService } = await loadContentSyncServiceModule();
+      const existing = await contentSyncService.getChannel(channelId);
+      if (!existing) {
+        return errorResponse(event, `Channel not found: ${channelId}`, 404, "NOT_FOUND");
+      }
+      if (!assertChannelTenantAccess(existing)) {
+        return errorResponse(
+          event,
+          "Forbidden: cannot delete channel belonging to another tenant.",
+          403,
+          "TENANT_MISMATCH",
+        );
+      }
       await contentSyncService.deleteChannel(channelId);
       return successResponse(event, { message: "Channel deleted." });
     } catch (err) {
@@ -162,6 +215,15 @@ export async function handleContentSyncRoutes(
 
     try {
       const { contentSyncService } = await loadContentSyncServiceModule();
+      const existing = await contentSyncService.getChannel(body.channelId);
+      if (existing && !assertChannelTenantAccess(existing)) {
+        return errorResponse(
+          event,
+          "Forbidden: cannot plan sync for another tenant's channel.",
+          403,
+          "TENANT_MISMATCH",
+        );
+      }
       const plan = await contentSyncService.createSyncPlan(body.channelId, {
         locale: body.locale,
         relationDepth: body.relationDepth,
@@ -191,6 +253,15 @@ export async function handleContentSyncRoutes(
 
     try {
       const { contentSyncService } = await loadContentSyncServiceModule();
+      const existing = await contentSyncService.getChannel(body.channelId);
+      if (existing && !assertChannelTenantAccess(existing)) {
+        return errorResponse(
+          event,
+          "Forbidden: cannot push sync for another tenant's channel.",
+          403,
+          "TENANT_MISMATCH",
+        );
+      }
       const result = await contentSyncService.pushContent(body.channelId, {
         adminConfirmation: body.adminConfirmation ?? body.confirmed,
         userId,
@@ -223,6 +294,15 @@ export async function handleContentSyncRoutes(
 
     try {
       const { contentSyncService } = await loadContentSyncServiceModule();
+      const existing = await contentSyncService.getChannel(body.channelId);
+      if (existing && !assertChannelTenantAccess(existing)) {
+        return errorResponse(
+          event,
+          "Forbidden: cannot pull sync for another tenant's channel.",
+          403,
+          "TENANT_MISMATCH",
+        );
+      }
       const result = await contentSyncService.pullContent(body.channelId, {
         anonymize: body.anonymize,
         userId,
@@ -254,7 +334,10 @@ export async function handleContentSyncRoutes(
 
     try {
       const { contentSyncService } = await loadContentSyncServiceModule();
-      const status = await contentSyncService.getJobStatus(jobId);
+      const status = await contentSyncService.getJobStatus(
+        jobId,
+        isGlobalSuperAdmin ? undefined : callerTenant,
+      );
 
       if (!status) {
         return errorResponse(event, `Job "${jobId}" not found.`, 404, "JOB_NOT_FOUND");

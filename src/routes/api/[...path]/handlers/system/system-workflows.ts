@@ -28,8 +28,9 @@ export async function handleWorkflowRoutes(
 ) {
   const { request, url } = event;
 
-  // 🛡️ SECURITY: Admin for mutations; authenticated for GET (401 before 403).
-  const user = ["GET", "OPTIONS"].includes(request.method)
+  // 🛡️ SECURITY: Admin for definition CRUD (POST/DELETE); authenticated for GET/PATCH
+  // (PATCH transitions/assignments enforce role transitions in workflowService.transition).
+  const user = ["GET", "OPTIONS", "PATCH"].includes(request.method)
     ? requireAuthenticatedUser(event)
     : requireAdminUser(event, "Admin access required for workflow management");
 
@@ -45,7 +46,11 @@ export async function handleWorkflowRoutes(
     if (!entryId) {
       throw new AppError("entryId is required", 400);
     }
-    const roles = Array.isArray((user as any)?.roles) ? (user as any).roles : [];
+    const roles = Array.isArray(event.locals.roles)
+      ? event.locals.roles
+      : Array.isArray((user as any)?.roles)
+        ? (user as any).roles
+        : [];
 
     // Assignee handoff: PATCH with assigneeId and no targetStateId.
     if (body.assigneeId && !targetStateId) {

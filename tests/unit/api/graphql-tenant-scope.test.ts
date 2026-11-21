@@ -5,9 +5,9 @@
  * WHY: the REST routes reject a `?tenantId=` that differs from the session tenant for
  * everyone but a super-admin (handlers/system/system-shared.ts:68-83). The GraphQL
  * resolvers resolved `args.tenantId ?? tid`, so `contentExportRun(tenantId: "other")`
- * ran against another tenant for any authenticated user — `contentExportRun` checked
- * only `ctx.user`, not even `isAdmin`. These tests pin the gate so the two surfaces
- * cannot drift apart again.
+ * ran against another tenant for any authenticated user. The resolver now gates the
+ * export on admin in addition to the tenant check; these tests pin both gates so the
+ * GraphQL and REST surfaces cannot drift apart again.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -58,13 +58,25 @@ describe("GraphQL data operations — tenant scope", () => {
     expect(mocks.getStatus).not.toHaveBeenCalled();
   });
 
-  it("rejects a foreign tenantId for a plain user on contentExportRun (was the open hole)", async () => {
+  it("rejects a plain user on contentExportRun regardless of tenant (admin-only)", async () => {
     const m = dataOperationsMutationResolvers(adapter, "tenant-a");
     await expect(
       m.contentExportRun(
         {},
         { collections: ["Articles"], tenantId: "tenant-b" },
         editorCtx as never,
+      ),
+    ).rejects.toThrow(/Admin access required/);
+    expect(mocks.runExport).not.toHaveBeenCalled();
+  });
+
+  it("rejects a foreign tenantId for a tenant admin on contentExportRun", async () => {
+    const m = dataOperationsMutationResolvers(adapter, "tenant-a");
+    await expect(
+      m.contentExportRun(
+        {},
+        { collections: ["Articles"], tenantId: "tenant-b" },
+        adminCtx as never,
       ),
     ).rejects.toThrow(/Cannot access other tenants/);
     expect(mocks.runExport).not.toHaveBeenCalled();
@@ -87,7 +99,7 @@ describe("GraphQL data operations — tenant scope", () => {
     await m.contentExportRun(
       {},
       { collections: ["Articles"], tenantId: "tenant-a" },
-      editorCtx as never,
+      adminCtx as never,
     );
     expect(mocks.runExport).toHaveBeenCalledWith(expect.objectContaining({ tenantId: "tenant-a" }));
   });

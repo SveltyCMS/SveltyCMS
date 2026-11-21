@@ -6,7 +6,7 @@ order: 7
 icon: "mdi:database"
 author: "SveltyCMS Team"
 created: "2026-02-09"
-updated: "2026-09-22"
+updated: "2026-11-21"
 tags:
   - "database"
   - "sqlite"
@@ -17,6 +17,8 @@ tags:
 # SQLite Implementation
 
 SQLite support is the default for local development, testing, and edge environments. It provides a zero-config database experience using **Drizzle ORM** with the `node:sqlite` or `bun:sqlite` driver.
+
+**SQLite version**: 3.51.0+ (boot-enforced; supported window 3.51–3.54.1). Bundled by the runtime: Node ≥ 24.22.1 ships 3.53.4, Bun ≥ 1.3.12 ships 3.51+. The adapter checks `sqlite_version()` at connect; FTS5 also requires the runtime build to include `ENABLE_FTS5` (both supported runtimes do). Older versions boot only with `SVELTY_ALLOW_LEGACY_DB=1` for migration.
 
 ## 🎯 Implementation Architecture
 

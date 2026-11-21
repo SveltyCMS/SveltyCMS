@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:leaf"
 author: "SveltyCMS Team"
 created: "2024-01-15"
-updated: "2026-09-22"
+updated: "2026-11-21"
 tags:
   - database
   - mongodb
@@ -28,9 +28,12 @@ This guide covers the **MongoDB-specific** implementation in SveltyCMS, includin
 
 ## 🎯 Production Architecture
 
-**MongoDB Version**: 6.0+ (latest stable recommended)  
+**MongoDB Version**: 8.0 – 9.0 (boot-enforced 8.0+ floor; 9.0 recommended)  
 **Performance Grade**: **A+ (99/100)**  
 **Architecture**: **Best-practice patterns from day one**
+
+> [!NOTE]
+> The boot floor is MongoDB **8.0** and the supported window is **8.0–9.0**. Multi-document transactions remain disabled by default (`supportsTransactions: false`, `TRANSACTIONS_DISABLED`); the 8.0 floor makes them available on replica sets, but the default write path does not use them.
 
 ### Performance Benchmarks
 

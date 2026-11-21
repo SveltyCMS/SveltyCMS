@@ -47,6 +47,29 @@ export type BenchmarkServerMode = "production" | "test" | "unknown";
  * stamps it for standalone runs (production | test). When it is absent the ambient
  * TEST_MODE/PLAYWRIGHT_TEST then NODE_ENV decide, and anything else stays `unknown`.
  */
+/**
+ * Which harness wrote the row.
+ *
+ * `diagnostic` exists so `--diagnose` runs stay out of the trend ledger: they
+ * intentionally change the configuration under measurement (`PROFILE_WRITE=1`,
+ * `SVELTY_SRV_SPLIT=1`, `BENCH_MIX_BREAKDOWN=1`), so a row from them is not
+ * comparable with a default-config matrix row. Every trend reader filters on
+ * `run_mode = 'matrix'`, which makes diagnostic samples invisible by construction.
+ */
+export type BenchmarkRunMode = "matrix" | "diagnostic" | "standalone";
+
+/**
+ * Resolve the run mode from the environment.
+ *
+ * `BENCHMARK_MATRIX=1` is the matrix marker; `SVELTY_BENCHMARK_RUN_MODE=diagnostic`
+ * (set by the matrix runner when `--diagnose`/`--profile` is passed) downgrades a
+ * matrix invocation to a diagnostic one.
+ */
+export function resolveBenchmarkRunMode(): BenchmarkRunMode {
+  if (process.env.BENCHMARK_MATRIX !== "1") return "standalone";
+  return process.env.SVELTY_BENCHMARK_RUN_MODE === "diagnostic" ? "diagnostic" : "matrix";
+}
+
 export function resolveServerMode(): BenchmarkServerMode {
   const marker = (process.env.SVELTY_BENCHMARK_SERVER_MODE || "").toLowerCase();
   if (marker === "production" || marker === "test") return marker;
@@ -357,21 +380,52 @@ export function loadDistinctTestIds(dbType: string, filter?: HistoryModeFilter):
   }
 }
 
-/** Return the metric with the most samples for a test (used for sparkline overview). */
+/** Preferred canonical primary metrics for multi-metric suites so overview sparklines never mix bulk/health series with point reads. */
+const PREFERRED_PRIMARY_METRICS: Record<string, readonly string[]> = {
+  "database-performance": ["FIND ONE", "INSERT", "UPDATE (no-returning)"],
+  "rest-api-performance": [
+    "Single Document Read",
+    "Collection Find (List Limit 20)",
+    "Collection Schema Metadata",
+  ],
+  "api-latency": ["TURBO-HIT (L1 ResponseCache)", "Cold (No Cache)"],
+  "graphql-performance": ["Single Content Read", "List Query (Limit 20)"],
+};
+
+/** Return the representative primary metric for a test (used for sparkline overview and per-test rollups). */
 export function loadPrimaryMetricForTest(
   testId: string,
   dbType: string,
   redisEnabled: boolean,
   phase: string,
+  filter?: HistoryModeFilter,
 ): string | null {
   try {
     const db = getDb();
+    const where = ["test_id = ?", "db_type = ?", "redis = ?", "phase = ?", "status = 'SUCCESS'"];
+    const params: (string | number)[] = [testId, dbType, redisEnabled ? 1 : 0, phase];
+    if (filter?.runMode) {
+      where.push("run_mode = ?");
+      params.push(filter.runMode);
+    }
+    if (filter?.serverMode) {
+      where.push("COALESCE(NULLIF(server_mode, ''), 'unknown') = ?");
+      params.push(filter.serverMode);
+    }
     const rows = db
       .query(
-        "SELECT metric, COUNT(*) as cnt FROM runs WHERE test_id = ? AND db_type = ? AND redis = ? AND phase = ? AND status = 'SUCCESS' GROUP BY metric ORDER BY cnt DESC LIMIT 1",
+        `SELECT metric, COUNT(*) as cnt FROM runs WHERE ${where.join(" AND ")} GROUP BY metric ORDER BY cnt DESC, metric ASC`,
       )
-      .all(testId, dbType, redisEnabled ? 1 : 0, phase) as { metric: string; cnt: number }[];
+      .all(...(params as any[])) as { metric: string; cnt: number }[];
     db.close();
+    if (rows.length === 0) return null;
+    const preferred = PREFERRED_PRIMARY_METRICS[testId];
+    if (preferred) {
+      const available = new Set(rows.map((r) => r.metric));
+      for (const candidate of preferred) {
+        if (available.has(candidate)) return candidate;
+      }
+    }
     return rows[0]?.metric ?? null;
   } catch {
     return null;

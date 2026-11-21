@@ -46,6 +46,13 @@ vi.mock("@src/services/collaboration/yjs-service", async (importOriginal) => {
   return { yjsService: actual.yjsService };
 });
 
+// The route validates the double-submit CSRF token before touching the body. These
+// tests pin the route's own contract (envelopes, ACL, persistence), so the token
+// check is stubbed as valid; CSRF rejection has its own coverage in the security suite.
+vi.mock("@utils/security/csrf-utils", () => ({
+  validateCsrfForRequest: vi.fn(() => ({ isValid: true })),
+}));
+
 import { yjsService } from "@src/services/collaboration/yjs-service";
 import { GET, POST } from "../../../src/routes/api/collaboration/yjs/+server";
 

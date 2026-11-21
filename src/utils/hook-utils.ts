@@ -33,9 +33,11 @@ const STATIC_BASE_HEADER_PAIRS = Object.entries(BASE_HEADERS).filter(
 export const IS_TEST_MODE = (() => {
   if (typeof globalThis === "undefined") return false;
   const env = (globalThis as any).process?.env;
-  return (
-    env?.TEST_MODE === "true" || env?.VITE_TEST_MODE === "true" || env?.PLAYWRIGHT_TEST === "true"
-  );
+  const isProd = env?.NODE_ENV === "production";
+  const hasTestFlag =
+    env?.TEST_MODE === "true" || env?.VITE_TEST_MODE === "true" || env?.PLAYWRIGHT_TEST === "true";
+  if (!hasTestFlag) return false;
+  return !isProd || Boolean(env?.TEST_API_SECRET) || env?.ALLOW_TEST_MODE_IN_PROD === "true";
 })();
 
 /** Mutation verbs that must run CSRF + cache invalidation. */
@@ -74,8 +76,29 @@ export const WRITE_HTTP_METHODS = new Set(["POST", "PUT", "PATCH"]);
  */
 export function isGraphqlReadOperation(query: string | null | undefined): boolean {
   if (!query) return true;
-  const trimmed = query.trim().toLowerCase();
-  return !trimmed.startsWith("mutation") && !trimmed.startsWith("subscription");
+  const len = query.length;
+  let i = 0;
+  while (i < len) {
+    const ch = query.charCodeAt(i);
+    if (ch <= 32 || ch === 44 /* ',' */ || ch === 0xfeff) {
+      i++;
+      continue;
+    }
+    if (ch === 35 /* '#' */) {
+      while (i < len && query.charCodeAt(i) !== 10 && query.charCodeAt(i) !== 13) i++;
+      continue;
+    }
+    break;
+  }
+  if (i >= len) return true;
+  const first = query.charCodeAt(i) | 32;
+  if (first === 109 /* 'm' */ && query.slice(i, i + 8).toLowerCase() === "mutation") {
+    return false;
+  }
+  if (first === 115 /* 's' */ && query.slice(i, i + 12).toLowerCase() === "subscription") {
+    return false;
+  }
+  return true;
 }
 
 /** Standardized user ID string extraction for cache key isolation. */
@@ -500,6 +523,12 @@ export function getClientIp(event: RequestEvent): string {
  * can branch on a boolean instead of using the throw as control flow.
  */
 function headersAreMutable(headers: Headers): boolean {
+  // FastHeaders facades always wrap a plain mutable backing record — returning
+  // immediately skips the probe `set` + `delete` that otherwise forces every
+  // fast-lane response header object into V8 slow dictionary mode.
+  if ((headers as unknown as { __backingRecord?: unknown }).__backingRecord !== undefined) {
+    return true;
+  }
   const probe = "x-svelty-mutable-probe";
   try {
     const hadProbe = headers.has(probe);
@@ -584,6 +613,7 @@ export function isBootstrapRoute(pathname: string): boolean {
 
   if (
     !pathname.startsWith("/api/") &&
+    !pathname.startsWith("/files/") &&
     (pathname.startsWith("/_") ||
       pathname.startsWith("/static") ||
       pathname.startsWith("/assets") ||

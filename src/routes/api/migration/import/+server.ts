@@ -11,6 +11,7 @@ import { isSecureCookieContext } from "@src/databases/auth/constants";
 import { logger } from "@utils/logger";
 import { AppError } from "@utils/error-handling";
 import { hasCollectionBuilderPermission } from "@src/databases/auth/permissions";
+import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { resolveTargetCollection } from "@plugins/smart-importer/infer-collection";
 import {
   MigrationLicenseError,
@@ -54,21 +55,54 @@ export const POST: RequestHandler = async ({ request, locals, cookies, url }) =>
       status: 403,
     });
   }
+  if (!locals.tenantId && isMultiTenantEnabled()) {
+    return new Response("Tenant context is required", { status: 403 });
+  }
 
   const dbAdapter = locals.cms?.db ?? (locals as { dbAdapter?: unknown }).dbAdapter;
   if (!dbAdapter) {
     return new Response("Database not available", { status: 500 });
   }
 
-  // Reject an oversized upload from the declared length before parsing the
-  // multipart body: formData() buffers the whole file, so the later file.size
-  // check only avoided the text() copy, not the parse.
+  // Reject an oversized upload from the declared length or chunked body stream
+  // before formData() parses the multipart payload.
+  const maxBodyBytes = MAX_INLINE_FILE_SIZE + 1_048_576;
   const declaredLength = Number(request.headers.get("content-length") ?? 0);
-  if (Number.isFinite(declaredLength) && declaredLength > MAX_INLINE_FILE_SIZE + 1_048_576) {
+  if (Number.isFinite(declaredLength) && declaredLength > maxBodyBytes) {
     return tooLargeResponse();
   }
 
-  const form = await request.formData();
+  let boundedRequest = request;
+  if (request.body && (!declaredLength || !Number.isFinite(declaredLength))) {
+    const reader = request.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let totalBytes = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) {
+        totalBytes += value.byteLength;
+        if (totalBytes > maxBodyBytes) {
+          await reader.cancel().catch(() => {});
+          return tooLargeResponse();
+        }
+        chunks.push(value);
+      }
+    }
+    const merged = new Uint8Array(totalBytes);
+    let offset = 0;
+    for (const chunk of chunks) {
+      merged.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    boundedRequest = new Request(request.url, {
+      method: request.method,
+      headers: request.headers,
+      body: merged,
+    });
+  }
+
+  const form = await boundedRequest.formData();
   const file = form.get("file");
   const format = form.get("format") as string | null;
   if (

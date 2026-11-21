@@ -46,7 +46,6 @@ Features:
 		widget_base_refresh_aria,
 		widget_base_refresh_title,
 		widget_base_remove_aria,
-		widget_base_resize_aria,
 		widget_base_resize_title,
 		widget_base_retry,
 		widget_base_size_aria,
@@ -556,7 +555,7 @@ Features:
 	<header
 		bind:this={headerEl}
 		class="widget-header flex cursor-grab items-center justify-between border-b border-(--admin-border-default) py-2 ps-3.5 pe-2"
-		style="touch-action: none; overflow: visible; position: relative; z-index: 10;"
+		style="touch-action: pan-y; overflow: visible; position: relative; z-index: 10;"
 	>
 		<div class="flex min-w-0 flex-1 flex-col gap-0.5">
 			<h2
@@ -762,24 +761,17 @@ Features:
 		</div>
 	</section>
 
-	<!-- Resize Handles -->
+	<!-- Resize Handles (pointer-only; keyboard resize is handled on the widget article via Shift+Arrow) -->
 	{#if resizable}
-		<div class="resize-handles pointer-events-none absolute inset-0">
+		<div class="resize-handles pointer-events-none absolute inset-0" aria-hidden="true">
 			{#each [{ dir: 'nw', classes: 'top-0 inset-s-0 cursor-nw-resize', icon: 'clarity:drag-handle-corner-line', rotation: 'rotate-180' }, { dir: 'n', classes: 'top-0 inset-x-0 mx-auto cursor-n-resize', icon: 'mdi:drag-vertical', style: 'transform: rotate(90deg);', rotation: '' }, { dir: 'ne', classes: 'top-0 end-0 cursor-ne-resize', icon: 'clarity:drag-handle-corner-line', rotation: '-rotate-90' }, { dir: 'e', classes: 'top-1/2 end-0 cursor-e-resize', icon: 'mdi:drag-vertical', style: 'transform: translateY(-50%) rotate(180deg);', rotation: '' }, { dir: 'se', classes: 'bottom-0 end-0 cursor-se-resize', icon: 'clarity:drag-handle-corner-line', rotation: '' }, { dir: 's', classes: 'bottom-0 inset-x-0 mx-auto cursor-s-resize', icon: 'mdi:drag-vertical', style: 'transform: rotate(90deg);', rotation: '' }, { dir: 'sw', classes: 'bottom-0 inset-s-0 cursor-sw-resize', icon: 'clarity:drag-handle-corner-line', rotation: 'rotate-90' }, { dir: 'w', classes: 'top-1/2 inset-s-0 cursor-w-resize', icon: 'mdi:drag-vertical', style: 'transform: translateY(-50%) rotate(180deg);', rotation: '' }] as handle (handle.dir)}
+				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<div
 					class="pointer-events-auto absolute z-20 flex items-center justify-center opacity-0 transition-all duration-200 hover:scale-125 hover:opacity-100 group-hover:opacity-60 {handle.classes} {handle.rotation}"
-					style="width: 16px; height: 16px; touch-action: none; {handle.style || ''}"
+					style="width: 24px; height: 24px; touch-action: none; {handle.style || ''}"
 					data-direction={handle.dir}
 					title={widget_base_resize_title({ dir: handle.dir })}
-					aria-label={widget_base_resize_aria({ dir: handle.dir })}
 					onpointerdown={handleResizePointerDown}
-					role="button"
-					tabindex="0"
-					onkeydown={(e) => {
-						if (e.key === 'Enter' || e.key === ' ') {
-							e.preventDefault();
-						}
-					}}
 				>
 					<iconify-icon icon="mdi:drag-vertical" width={12} class="text-(--admin-text-muted)"
 					></iconify-icon>

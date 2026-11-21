@@ -27,6 +27,12 @@ vi.mock("@utils/security/csrf-utils", () => ({
   validateCsrfForRequest: vi.fn(),
 }));
 
+// The route gates preview authorization on `collections:read`; grant it so these
+// tests exercise the authorization contract instead of the RBAC guard.
+vi.mock("@src/databases/auth/permissions", () => ({
+  hasPermissionWithRoles: vi.fn(() => true),
+}));
+
 import { previewService } from "@src/services/content/preview-service";
 import { requireEditableWebsiteLicense } from "@src/plugins/editable-website/license-gate.server";
 import { validateCsrfForRequest } from "@utils/security/csrf-utils";

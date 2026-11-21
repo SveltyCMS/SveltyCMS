@@ -705,6 +705,47 @@
 		systemPreferences.updateWidgets(updatedWidgets);
 		announce(`Moved ${widget.label || widget.component} to position ${indicator.targetIndex + 1}`);
 	}
+	const TOUCH_HOLD_MS = 200;
+	const TOUCH_MOVE_CANCEL_PX = 10;
+	let dragHoldTimer: ReturnType<typeof setTimeout> | null = null;
+
+	function cancelPendingTouchDrag() {
+		if (dragHoldTimer) {
+			clearTimeout(dragHoldTimer);
+			dragHoldTimer = null;
+		}
+	}
+
+	function activateWidgetDrag(
+		item: DashboardWidgetConfig,
+		element: HTMLElement,
+		clientX: number,
+		clientY: number
+	) {
+		const rect = element.getBoundingClientRect();
+		dragState = {
+			item,
+			element,
+			offset: { x: clientX - rect.left, y: clientY - rect.top },
+			isActive: true
+		};
+
+		element.style.opacity = '0.5';
+		element.style.zIndex = '1000';
+		const clone = element.cloneNode(true) as HTMLElement;
+		clone.style.cssText = `position: fixed; left: ${rect.left}px; top: ${rect.top}px; width: ${rect.width}px; height: ${rect.height}px; pointer-events: none; transform: scale(1.02); box-shadow: 0 20px 40px rgba(0,0,0,0.15); margin: 0;`;
+		document.body.appendChild(clone);
+		dragState.element = clone;
+
+		if (typeof navigator !== 'undefined' && navigator.vibrate) {
+			navigator.vibrate(8);
+		}
+
+		document.addEventListener('pointermove', handleDragMove, { passive: true });
+		document.addEventListener('pointerup', handleDragEnd, { once: true });
+		document.addEventListener('pointercancel', handleDragEnd, { once: true });
+	}
+
 	function handleDragStart(
 		event: MouseEvent | TouchEvent | PointerEvent,
 		item: DashboardWidgetConfig,
@@ -725,23 +766,45 @@
 			return;
 		}
 
+		const pointerType =
+			'pointerType' in event ? event.pointerType : 'touches' in event ? 'touch' : 'mouse';
+		if (pointerType === 'touch' || pointerType === 'pen') {
+			cancelPendingTouchDrag();
+			const startX = coords.clientX;
+			const startY = coords.clientY;
+
+			const onHoldMove = (moveEvent: PointerEvent) => {
+				if (
+					Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY) > TOUCH_MOVE_CANCEL_PX
+				) {
+					cleanupHoldListeners();
+					cancelPendingTouchDrag();
+				}
+			};
+			const onHoldCancel = () => {
+				cleanupHoldListeners();
+				cancelPendingTouchDrag();
+			};
+			const cleanupHoldListeners = () => {
+				document.removeEventListener('pointermove', onHoldMove);
+				document.removeEventListener('pointerup', onHoldCancel);
+				document.removeEventListener('pointercancel', onHoldCancel);
+			};
+
+			document.addEventListener('pointermove', onHoldMove, { passive: true });
+			document.addEventListener('pointerup', onHoldCancel, { once: true });
+			document.addEventListener('pointercancel', onHoldCancel, { once: true });
+
+			dragHoldTimer = setTimeout(() => {
+				dragHoldTimer = null;
+				cleanupHoldListeners();
+				activateWidgetDrag(item, element, startX, startY);
+			}, TOUCH_HOLD_MS);
+			return;
+		}
+
 		event.preventDefault();
-		dragState = {
-			item,
-			element,
-			offset: { x: coords.clientX - rect.left, y: coords.clientY - rect.top },
-			isActive: true
-		};
-
-		element.style.opacity = '0.5';
-		element.style.zIndex = '1000';
-		const clone = element.cloneNode(true) as HTMLElement;
-		clone.style.cssText = `position: fixed; left: ${rect.left}px; top: ${rect.top}px; width: ${rect.width}px; height: ${rect.height}px; pointer-events: none; transform: scale(1.02); box-shadow: 0 20px 40px rgba(0,0,0,0.15); margin: 0;`;
-		document.body.appendChild(clone);
-		dragState.element = clone;
-
-		document.addEventListener('pointermove', handleDragMove, { passive: true });
-		document.addEventListener('pointerup', handleDragEnd, { once: true });
+		activateWidgetDrag(item, element, coords.clientX, coords.clientY);
 	}
 
 	function handleDragMove(event: PointerEvent) {
@@ -778,6 +841,7 @@
 	}
 
 	function handleDragEnd() {
+		cancelPendingTouchDrag();
 		if (!dragState.isActive) {
 			return;
 		}
@@ -809,6 +873,8 @@
 		gridDropIndicator = null;
 
 		document.removeEventListener('pointermove', handleDragMove);
+		document.removeEventListener('pointerup', handleDragEnd);
+		document.removeEventListener('pointercancel', handleDragEnd);
 	}
 
 	function handleWidgetKeydown(event: KeyboardEvent, item: DashboardWidgetConfig) {
@@ -991,7 +1057,7 @@
 	backUrl="/config"
 >
 	{#snippet actions()}
-		<div class="flex items-center gap-2" data-testid="dashboard-toolbar">
+		<div class="flex flex-wrap items-center gap-2" data-testid="dashboard-toolbar">
 			<!-- Presets Menu -->
 			<div class="relative">
 				<Tooltip title={dashboard_layout_presets()} positioning={{ placement: 'bottom' }}>
@@ -1010,7 +1076,7 @@
 				</Tooltip>
 				{#if presetsOpen}
 					<div
-						class="presets-dropdown absolute inset-e-0 z-30 mt-2 w-72 rounded-(--admin-radius-card) border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) p-1.5 shadow-2xl dark:border-surface-500/40 dark:bg-surface-900"
+						class="presets-dropdown absolute inset-e-0 z-30 mt-2 w-72 max-w-[calc(100vw-1.5rem)] rounded-(--admin-radius-card) border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) p-1.5 shadow-2xl dark:border-surface-500/40 dark:bg-surface-900"
 						role="menu"
 						data-testid="dashboard-presets-menu"
 					>
@@ -1141,7 +1207,7 @@
 				{/if}
 				{#if dropdownOpen}
 					<div
-						class="widget-dropdown absolute inset-e-0 z-30 mt-2 w-84 sm:w-96 rounded-(--admin-radius-card) border bg-(--admin-bg-card,var(--color-surface-50)) shadow-2xl dark:border-surface-500/40 dark:bg-surface-900"
+						class="widget-dropdown absolute inset-e-0 z-30 mt-2 w-84 max-w-[calc(100vw-1.5rem)] sm:w-96 rounded-(--admin-radius-card) border bg-(--admin-bg-card,var(--color-surface-50)) shadow-2xl dark:border-surface-500/40 dark:bg-surface-900"
 						role="menu"
 						data-testid="dashboard-widget-menu"
 					>
@@ -1164,7 +1230,8 @@
 								<Button
 									variant="transparent"
 									aria-pressed={categoryFilter === cat}
-									class="h-auto! shrink-0 px-2! py-0.5! text-xs! font-medium {categoryFilter === cat
+									class="min-h-6! h-auto! shrink-0 px-2.5! py-1! text-xs! font-medium {categoryFilter ===
+									cat
 										? 'bg-tertiary-500/20! text-tertiary-600 dark:bg-primary-500/20! dark:text-primary-400 font-semibold'
 										: 'text-(--admin-text-muted) hover:bg-surface-500/10'}"
 									onclick={() => (categoryFilter = cat)}
@@ -1179,7 +1246,8 @@
 								<Button
 									variant="transparent"
 									aria-pressed={licenseFilter === tab.id}
-									class="h-auto! px-2! py-0.5! text-xs! font-medium {licenseFilter === tab.id
+									class="min-h-6! h-auto! px-2.5! py-1! text-xs! font-medium {licenseFilter ===
+									tab.id
 										? 'bg-tertiary-500/20! text-tertiary-600 dark:bg-primary-500/20! dark:text-primary-400 font-semibold'
 										: 'text-(--admin-text-muted) hover:bg-surface-500/10'}"
 									onclick={() => (licenseFilter = tab.id as typeof licenseFilter)}

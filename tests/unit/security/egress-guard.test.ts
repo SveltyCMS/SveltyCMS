@@ -7,8 +7,10 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
+import http from "node:http";
 import {
   allowTestEgressOrigin,
+  createNodePinnedFetch,
   safeFetch,
   validateEgressUrl,
   EgressError,
@@ -142,6 +144,27 @@ describe("validateEgressUrl — SSRF defense", () => {
     const parsed = await validateEgressUrl("https://1.1.1.1/cdn-cgi/trace");
     expect(parsed.protocol).toBe("https:");
     expect(parsed.hostname).toBe("1.1.1.1");
+  });
+
+  it("blocks 0.0.0.0/8, bare IPv6 unspecified (::), NAT64, 6to4, and Teredo ranges", async () => {
+    await expect(validateEgressUrl("https://0.1.2.3/secret")).rejects.toThrow(/private|Blocked/i);
+    await expect(validateEgressUrl("https://[::]/secret")).rejects.toThrow(/private|Blocked/i);
+    await expect(validateEgressUrl("https://[64:ff9b::a9fe:a9fe]/secret")).rejects.toThrow(
+      /private|Blocked/i,
+    );
+    await expect(validateEgressUrl("https://[2002:a9fe:a9fe::1]/secret")).rejects.toThrow(
+      /private|Blocked/i,
+    );
+  });
+
+  it("enforces allowedOrigins even when allowPrivate=true on localhost", async () => {
+    await expect(
+      validateEgressUrl("http://localhost:11434/api", {
+        allowHttp: true,
+        allowPrivate: true,
+        allowedOrigins: ["http://localhost:8080"],
+      }),
+    ).rejects.toThrow(/Origin not in allowedOrigins/i);
   });
 
   it("throws EgressError subclass for callers to distinguish SSRF blocks", async () => {
@@ -324,5 +347,31 @@ describe("allowTestEgressOrigin — explicit test-only allowlist", () => {
     expect(pinned?.address).toBe("93.184.216.34");
     expect(pinned?.family).toBe(4);
     expect(getPinnedDnsResolution("non-existent-host.com")).toBeNull();
+  });
+
+  it("connects directly to the pinned IP via built-in node:http without re-resolving DNS", async () => {
+    let observedHost = "";
+    const server = http.createServer((req, res) => {
+      observedHost = req.headers.host || "";
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ ok: true }));
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const addr = server.address();
+    const port = typeof addr === "object" && addr ? addr.port : 0;
+
+    try {
+      // Unresolvable synthetic TLD: only succeeds if createNodePinnedFetch honors the pin
+      pinDnsResolution("pinned-egress.invalid", "127.0.0.1", 4);
+      const pinnedFetch = await createNodePinnedFetch();
+      const response = await pinnedFetch(`http://pinned-egress.invalid:${port}/health`, {
+        method: "GET",
+      });
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ ok: true });
+      expect(observedHost).toBe(`pinned-egress.invalid:${port}`);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
   });
 });

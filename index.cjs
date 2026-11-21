@@ -19,6 +19,24 @@
 
 const os = require("node:os");
 
+// 🛡️ FAIL-CLOSED BOOT GUARD: Never allow a production server to boot with
+// TEST_MODE / PLAYWRIGHT_TEST / VITE_TEST_MODE enabled unless an explicit
+// non-empty TEST_API_SECRET or ALLOW_TEST_MODE_IN_PROD=true is configured for
+// the benchmark/integration harness.
+if (
+  process.env.NODE_ENV === "production" &&
+  (process.env.TEST_MODE === "true" ||
+    process.env.VITE_TEST_MODE === "true" ||
+    process.env.PLAYWRIGHT_TEST === "true") &&
+  !process.env.TEST_API_SECRET &&
+  process.env.ALLOW_TEST_MODE_IN_PROD !== "true"
+) {
+  console.error(
+    "[SveltyCMS] FATAL SECURITY ERROR: Refusing to boot in NODE_ENV=production with TEST_MODE enabled and no TEST_API_SECRET.",
+  );
+  process.exit(1);
+}
+
 /* ─────────────────────── effective-memory detection ───────────────────────
  * The memory the OS actually allows THIS process. `process.constrainedMemory()`
  * reports 0 when unconstrained under Node but the HOST TOTAL under Bun, so a

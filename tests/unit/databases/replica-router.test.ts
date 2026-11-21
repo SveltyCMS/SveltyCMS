@@ -247,6 +247,36 @@ describe("Read-Replica Router & Consistency Engine", () => {
       expect((otherRead as any).data).toMatchObject({ source: "replica1" });
       expect(mockReplica1.crud.findOne).toHaveBeenCalledTimes(1);
     });
+
+    it("synchronizes PG 19 standby replica via waitForReplicaLsn instead of pinning to primary", async () => {
+      mockPrimary.supportsPg19Features = true;
+      mockPrimary.getCurrentWalLsn = vi.fn().mockResolvedValue("0/16B3748");
+      mockReplica1.waitForReplicaLsn = vi.fn().mockResolvedValue(true);
+
+      const routed = createReplicaRouterAdapter(
+        mockPrimary as unknown as IDBAdapter,
+        [mockReplica1 as unknown as IDBAdapter],
+        { readYourWritesWindowMs: 1500 },
+      );
+
+      const clientId = "client-pg19-lsn";
+      await routed.crud.update(
+        "posts",
+        "1" as any,
+        { title: "PG19 RYW" } as any,
+        { tenantId: "t1" as any, clientId } as any,
+      );
+      expect(mockPrimary.getCurrentWalLsn).toHaveBeenCalledTimes(1);
+
+      const readRes = await routed.crud.findOne("posts", { _id: "1" as any }, {
+        tenantId: "t1" as any,
+        clientId,
+      } as any);
+
+      expect(mockReplica1.waitForReplicaLsn).toHaveBeenCalledWith("0/16B3748", 1500);
+      expect((readRes as any).data).toMatchObject({ source: "replica1" });
+      expect(mockPrimary.crud.findOne).not.toHaveBeenCalled();
+    });
   });
 
   describe("Transaction Affinity & Fallback", () => {

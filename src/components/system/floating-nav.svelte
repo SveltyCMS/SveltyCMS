@@ -84,6 +84,13 @@ Home button and Settings available.
 	let svg: SVGSVGElement | undefined = $state(undefined);
 	const circles: (HTMLAnchorElement | undefined)[] = $state([]);
 
+	// Calculate responsive menu radius so the radial ring fits on small viewports
+	const effectiveMenuRadius = $derived.by(() => {
+		if (!browser) return MENU_RADIUS;
+		const minViewport = Math.min(center.x * 2, center.y * 2);
+		return Math.max(96, Math.min(MENU_RADIUS, Math.floor((minViewport - 76) / 2)));
+	});
+
 	// Calculate endpoint positions for spokes only (center Home is fixed at menu center)
 	const spokesWithPos = $derived.by(() => {
 		const n = spokeEndpoints.length;
@@ -92,8 +99,8 @@ Home button and Settings available.
 		return spokeEndpoints.map((endpoint, index) => {
 			// Even spacing around the ring; avoid divide-by-zero (n >= 1 here)
 			const ANGLE = ((Math.PI * 2) / n) * index - Math.PI / 2;
-			const X = center.x + MENU_RADIUS * Math.cos(ANGLE);
-			const Y = center.y + MENU_RADIUS * Math.sin(ANGLE);
+			const X = center.x + effectiveMenuRadius * Math.cos(ANGLE);
+			const Y = center.y + effectiveMenuRadius * Math.sin(ANGLE);
 			return { ...endpoint, x: X, y: Y, angle: ANGLE };
 		});
 	});
@@ -505,97 +512,91 @@ Home button and Settings available.
 </SystemTooltip>
 
 {#if showRoutes}
-	<div out:keepAlive|local class="fixed inset-s-0 top-0 z-9999999">
+	<div out:keepAlive|local class="fixed inset-0 z-9999999">
 		<Button
 			variant="ghost"
 			onclick={closeMenu}
-			class="fixed inset-s-0 top-0 z-9999999"
+			class="fixed inset-0 z-9999998 h-full w-full rounded-none border-none bg-transparent p-0"
 			aria-label="Close navigation overlay"
+		></Button>
+
+		<svg
+			bind:this={svg}
+			xmlns="http://www.w3.org/2000/svg"
+			use:setDash
+			aria-hidden="true"
+			class="pointer-events-none fixed inset-s-0 top-0 z-9999998 h-full w-full [&&>line]:pointer-events-none [&&>line]:stroke-[#da1f1f] [&&>line]:stroke-[3px]"
 		>
-			<svg
-				bind:this={svg}
-				xmlns="http://www.w3.org/2000/svg"
-				use:setDash
-				aria-hidden="true"
-				class="pointer-events-none fixed inset-s-0 top-0 h-full w-full [&&>line]:pointer-events-none [&&>line]:stroke-[#da1f1f] [&&>line]:stroke-[3px]"
+			<!-- FAB → center Home line always present -->
+			<line bind:this={firstLine} x1={buttonInfo.x} y1={buttonInfo.y} x2={center.x} y2={center.y} />
+			{#each spokesWithPos as endpoint (endpoint.id)}
+				<line x1={center.x} y1={center.y} x2={endpoint.x} y2={endpoint.y} />
+			{/each}
+		</svg>
+
+		<!-- Empty / minimal ring: still draw the circle so the menu feels intentional -->
+		<div
+			transition:fade
+			aria-hidden="true"
+			class="pointer-events-none absolute top-1/4 z-9999998 -translate-x-1/2 -translate-y-1/2 animate-[showEndPoints_0.2s_0.2s_forwards] rounded-full border bg-tertiary-500/40"
+			class:opacity-60={isMinimalMenu && spokeEndpoints.length === 0}
+			style="top:{center.y}px;
+		       left:{center.x}px;
+		       width:{effectiveMenuRadius * 2}px;
+		       height:{effectiveMenuRadius * 2}px"
+		></div>
+
+		<!-- Fixed center: Home (always) -->
+		<SystemTooltip
+			title={centerEndpoint?.tooltip || 'Home'}
+			contentClass="z-[99999999]"
+			positioning={{ placement: 'top' }}
+			triggerClass="fixed z-99999999 flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 animate-[showEndPoints_0.2s_0.2s_forwards] cursor-pointer items-center justify-center rounded-full border-2 bg-tertiary-500"
+			triggerStyle="top:{center.y}px; left:{center.x}px"
+		>
+			<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+			<a
+				bind:this={circles[0]}
+				href={centerEndpoint?.path || '/'}
+				target={centerEndpoint?.external ? '_blank' : undefined}
+				rel={centerEndpoint?.external ? 'noopener noreferrer' : undefined}
+				data-preload={centerEndpoint?.external ? undefined : 'hover'}
+				onclick={handleNavigateHome}
+				aria-label={centerEndpoint?.tooltip || 'Home'}
+				class="h-full w-full flex items-center justify-center"
 			>
-				<!-- FAB → center Home line always present -->
-				<line
-					bind:this={firstLine}
-					x1={buttonInfo.x}
-					y1={buttonInfo.y}
-					x2={center.x}
-					y2={center.y}
-				/>
-				{#each spokesWithPos as endpoint (endpoint.id)}
-					<line x1={center.x} y1={center.y} x2={endpoint.x} y2={endpoint.y} />
-				{/each}
-			</svg>
+				<iconify-icon
+					width="32"
+					style="color:white"
+					icon={centerEndpoint?.icon || 'solar:home-bold'}
+				></iconify-icon>
+			</a>
+		</SystemTooltip>
 
-			<!-- Empty / minimal ring: still draw the circle so the menu feels intentional -->
-			<div
-				transition:fade
-				aria-hidden="true"
-				class="absolute top-1/4 z-9999998 -translate-x-1/2 -translate-y-1/2 animate-[showEndPoints_0.2s_0.2s_forwards] rounded-full border bg-tertiary-500/40"
-				class:opacity-60={isMinimalMenu && spokeEndpoints.length === 0}
-				style="top:{center.y}px;
-			       left:{center.x}px;
-			       width:{MENU_RADIUS * 2}px;
-			       height:{MENU_RADIUS * 2}px"
-			></div>
-
-			<!-- Fixed center: Home (always) -->
+		{#each spokesWithPos as endpoint, index (endpoint.id)}
 			<SystemTooltip
-				title={centerEndpoint?.tooltip || 'Home'}
+				title={endpoint.tooltip}
 				contentClass="z-[99999999]"
 				positioning={{ placement: 'top' }}
-				triggerClass="fixed z-99999999 flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 animate-[showEndPoints_0.2s_0.2s_forwards] cursor-pointer items-center justify-center rounded-full border-2 bg-tertiary-500"
-				triggerStyle="top:{center.y}px; left:{center.x}px"
+				triggerClass="fixed z-99999999 flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full {endpoint.color ||
+					'bg-tertiary-500'} animate-[showEndPoints_0.2s_0.4s_forwards] hover:scale-150 active:scale-100"
+				triggerStyle="top:{endpoint.y}px; left:{endpoint.x}px"
 			>
 				<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 				<a
-					bind:this={circles[0]}
-					href={centerEndpoint?.path || '/'}
-					target={centerEndpoint?.external ? '_blank' : undefined}
-					rel={centerEndpoint?.external ? 'noopener noreferrer' : undefined}
-					data-preload={centerEndpoint?.external ? undefined : 'hover'}
-					onclick={handleNavigateHome}
-					aria-label={centerEndpoint?.tooltip || 'Home'}
+					bind:this={circles[index + 1]}
+					href={endpoint.path}
+					target={endpoint.external ? '_blank' : undefined}
+					rel={endpoint.external ? 'noopener noreferrer' : undefined}
+					data-preload={endpoint.external ? undefined : 'hover'}
+					onclick={handleNavigateToEndpoint}
+					aria-label={endpoint.tooltip}
 					class="h-full w-full flex items-center justify-center"
 				>
-					<iconify-icon
-						width="32"
-						style="color:white"
-						icon={centerEndpoint?.icon || 'solar:home-bold'}
-					></iconify-icon>
+					<iconify-icon width="32" style="color:white" icon={endpoint.icon}></iconify-icon>
 				</a>
 			</SystemTooltip>
-
-			{#each spokesWithPos as endpoint, index (endpoint.id)}
-				<SystemTooltip
-					title={endpoint.tooltip}
-					contentClass="z-[99999999]"
-					positioning={{ placement: 'top' }}
-					triggerClass="fixed z-99999999 flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full {endpoint.color ||
-						'bg-tertiary-500'} animate-[showEndPoints_0.2s_0.4s_forwards] hover:scale-150 active:scale-100"
-					triggerStyle="top:{endpoint.y}px; left:{endpoint.x}px"
-				>
-					<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-					<a
-						bind:this={circles[index + 1]}
-						href={endpoint.path}
-						target={endpoint.external ? '_blank' : undefined}
-						rel={endpoint.external ? 'noopener noreferrer' : undefined}
-						data-preload={endpoint.external ? undefined : 'hover'}
-						onclick={handleNavigateToEndpoint}
-						aria-label={endpoint.tooltip}
-						class="h-full w-full flex items-center justify-center"
-					>
-						<iconify-icon width="32" style="color:white" icon={endpoint.icon}></iconify-icon>
-					</a>
-				</SystemTooltip>
-			{/each}
-		</Button>
+		{/each}
 	</div>
 {/if}
 

@@ -39,7 +39,7 @@
 
 <h3 align="center"><strong>It's lightning fast, flexible and an easy to use modern content management system to provide a headless backend</strong></h3>
 
-This SveltyCMS headless CMS provides a powerful backend based on a modern [SvelteKit 3 / Svelte 5](https://svelte.dev) framework. Being designed to be database agnostic, we fully support **MongoDB**, **PostgreSQL**, **SQLite**, and **MariaDB/MySQL** (via [Drizzle ORM](https://orm.drizzle.team/)).
+This SveltyCMS headless CMS provides a powerful backend based on a modern [SvelteKit 3 / Svelte 5](https://svelte.dev) framework. Being designed to be database agnostic with a lean 2-version active support window, we fully support **MongoDB (8.0–9.0)**, **PostgreSQL (18.0–19.0)**, **SQLite (3.51–3.54.1)**, and **MariaDB (11.4 LTS–13.2)** (via [Drizzle ORM](https://orm.drizzle.team/)).
 
 You can define Content Collections in two ways: in code or via the GUI-based collection builder. Full TypeScript support and a rich widget library make it straightforward to build custom data structures.
 
@@ -60,7 +60,7 @@ Backend data is available via REST API or [GraphQL Yoga](https://the-guild.dev/g
 | Multi-language (Paraglide) | ✅     | Compile-time i18n (type-safe)                                          |
 | REST API                   | ✅     | CRUD and configuration endpoints                                       |
 | GraphQL API (Yoga)         | ✅     | GraphQL API; Yoga upgrade path tracked on roadmap                      |
-| Database agnostic          | ✅     | MongoDB, PostgreSQL, SQLite, MariaDB/MySQL (Drizzle)                   |
+| Database agnostic          | ✅     | MongoDB, PostgreSQL, SQLite, MariaDB (Drizzle)                         |
 | List / count product layer | ✅     | `findPage` (hasMore/keyset), count modes, L1 count cache (all engines) |
 | Database Resilience        | ✅     | Retries, self-healing reconnection, diagnostics                        |
 | Email Templating           | ✅     | Svelte Email + SMTP                                                    |
@@ -69,7 +69,7 @@ Backend data is available via REST API or [GraphQL Yoga](https://the-guild.dev/g
 
 ## ⚡ Why SveltyCMS is Both Fast AND Secure: The Zero-Tax Architecture
 
-Most CMS architectures treat security as an expensive middleware tax: every request pays with async database roundtrips for session checks, unindexed permission evaluations, and heavy dynamic query AST builders. SveltyCMS inverts this paradigm with strict structural parity across all 4 supported database engines (**SQLite**, **PostgreSQL**, **MariaDB/MySQL**, and **MongoDB**):
+Most CMS architectures treat security as an expensive middleware tax: every request pays with async database roundtrips for session checks, unindexed permission evaluations, and heavy dynamic query AST builders. SveltyCMS inverts this paradigm with strict structural parity across all 4 supported database engines (**SQLite**, **PostgreSQL**, **MariaDB**, and **MongoDB**):
 
 1. **Compiled Query Engine (Zero AST Allocation):**
    Unlike legacy stacks that dynamically rebuild query abstract syntax trees (ASTs) on every request, SveltyCMS pre-compiles database statements with cached parameter bindings (`WeakMap` plans) and native BSON/Extended-JSON drivers. DB execution plans are instant.
@@ -212,7 +212,7 @@ pnpm run preview
 When starting the dev server without configuration, the guided installer launches automatically:
 
 - Smart detection via `vite.config.ts`
-- Database configuration: MongoDB, PostgreSQL, SQLite, or MariaDB/MySQL
+- Database configuration: MongoDB, PostgreSQL, SQLite, or MariaDB
 - Admin account setup, secrets/keys generation
 - Optional SMTP and Google OAuth configuration
 

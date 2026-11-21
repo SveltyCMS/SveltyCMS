@@ -120,7 +120,12 @@ export async function provisionPostgresTable(
         { name: "publishedAt", type: "TIMESTAMP WITH TIME ZONE" },
       ];
 
-      const dynamicCols = ["collection", "slug", "locale", "publishedAt"];
+      // Per-collection tables (`collection_<Name>`) only store rows of that one
+      // collection, so `"collection"` is never filtered in WHERE clauses and does
+      // not need a B-tree index (avoiding wasted index writes on every INSERT/UPDATE
+      // where updatedAt already prevents HOT updates).
+      const dynamicCols = ["slug", "locale", "publishedAt"];
+      const partialNotNullCols = new Set(["slug", "locale"]);
       const compositeCols = buildCompositeIndexColumns(schemaData.fields);
 
       if (schemaData.fields && Array.isArray(schemaData.fields)) {
@@ -173,17 +178,36 @@ export async function provisionPostgresTable(
 
       registerTableSchema(normalizedName, ["_id", "data", ...columns.map((c) => c.name)]);
 
+      const plainName = String(physicalName).split(".").pop() ?? String(physicalName);
+      const existingCols = new Set<string>();
+      try {
+        const existingRes = await ctx.raw.execute(
+          `SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = $1`,
+          [plainName],
+        );
+        if (Array.isArray(existingRes)) {
+          for (const row of existingRes as Array<{ column_name?: string }>) {
+            if (row?.column_name) existingCols.add(String(row.column_name));
+          }
+        }
+      } catch {
+        /* fall back to per-column probing below if introspection fails */
+      }
+
       for (const col of columns) {
         try {
           const colName = assertSafeSqlIdentifier(col.name, "column");
-          const plainName = String(physicalName).split(".").pop() ?? String(physicalName);
-          const query = `SELECT column_name FROM information_schema.columns WHERE table_name = '${plainName}' AND column_name = '${colName}'`;
-          const res = await ctx.raw.execute(query);
-          const exists = res.length > 0;
+          let exists = existingCols.has(colName);
+          if (!exists && existingCols.size === 0) {
+            const query = `SELECT column_name FROM information_schema.columns WHERE table_name = '${plainName}' AND column_name = '${colName}'`;
+            const res = await ctx.raw.execute(query);
+            exists = res.length > 0;
+          }
 
           if (!exists) {
-            const alterSql = `ALTER TABLE "${physicalName}" ADD COLUMN "${colName}" ${col.type}`;
+            const alterSql = `ALTER TABLE "${physicalName}" ADD COLUMN IF NOT EXISTS "${colName}" ${col.type}`;
             await ctx.raw.execute(alterSql);
+            existingCols.add(colName);
             if (colName === "deletedAt" || colName === "deletedBy") continue;
             try {
               const safeColName = assertSafeSqlIdentifier(col.name, "column");
@@ -209,6 +233,17 @@ export async function provisionPostgresTable(
         }
       }
 
+      // Drop legacy per-collection `"collection"` column index (constant/NULL per table).
+      try {
+        const legacyColIdx = assertSafeSqlIdentifier(
+          pgSafeIndexName(`${physicalName}_collection_idx`),
+          "index",
+        );
+        await ctx.raw.execute(`DROP INDEX IF EXISTS "${legacyColIdx}"`);
+      } catch {
+        /* safe */
+      }
+
       for (const colNameRaw of dynamicCols) {
         try {
           const colName = assertSafeSqlIdentifier(colNameRaw, "column");
@@ -216,8 +251,13 @@ export async function provisionPostgresTable(
             pgSafeIndexName(`${physicalName}_${colName}_idx`),
             "index",
           );
+          // Partial indexes for nullable equality-only columns (`slug`, `locale`)
+          // skip B-tree writes completely when NULL while serving `WHERE col = $1` identically.
+          const whereClause = partialNotNullCols.has(colNameRaw)
+            ? ` WHERE "${colName}" IS NOT NULL`
+            : "";
           await ctx.raw.execute(
-            `CREATE INDEX IF NOT EXISTS "${indexName}" ON "${physicalName}" ("${colName}")`,
+            `CREATE INDEX IF NOT EXISTS "${indexName}" ON "${physicalName}" ("${colName}")${whereClause}`,
           );
           if (compositeCols.has(colNameRaw)) {
             const compIndexName = assertSafeSqlIdentifier(

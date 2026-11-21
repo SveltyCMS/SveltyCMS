@@ -14,6 +14,8 @@ import {
   getTableBooleanColumns,
 } from "../core/relational-utils";
 import {
+  WIRE_POINT_DECLINED,
+  WIRE_POINT_MISSING,
   buildPointWireSqlTemplates,
   collectSafeMaterializedColumns,
   resolvePointWireQuery,
@@ -126,7 +128,7 @@ export class MariadbWireStreamEngine {
         wire_body?: unknown;
         updated_at?: unknown;
       }>;
-      if (!Array.isArray(rows) || rows.length === 0) return { kind: "missing" };
+      if (!Array.isArray(rows) || rows.length === 0) return WIRE_POINT_MISSING;
       const first = rows[0];
       const wireBody =
         typeof first.wire_body === "string" ? first.wire_body : JSON.stringify(first.wire_body);
@@ -139,7 +141,7 @@ export class MariadbWireStreamEngine {
       logger.debug(
         `[MariaDB rawFindPointWireStream] falling back: ${err instanceof Error ? err.message : String(err)}`,
       );
-      return { kind: "declined" };
+      return WIRE_POINT_DECLINED;
     }
   }
 

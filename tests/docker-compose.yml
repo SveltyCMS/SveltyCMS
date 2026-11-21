@@ -60,7 +60,7 @@ services:
       start_period: 15s
 
   postgresql:
-    image: postgres:18
+    image: postgres:19
     container_name: sveltycms-postgresql
     profiles: [postgresql]
     restart: unless-stopped
@@ -69,7 +69,7 @@ services:
     environment:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: sveltycms_test
-    command: postgres -c synchronous_commit=off -c shared_buffers=256MB -c wal_buffers=16MB
+    command: postgres -c synchronous_commit=off -c shared_buffers=256MB -c wal_buffers=16MB -c jit=off -c random_page_cost=1.1
     # Linux/CI: bind-mount so the CMS process can use a Unix socket (DATABASE_SOCKET / auto-detect).
     # Windows Docker Desktop cannot expose this socket to the host Node process — TCP 127.0.0.1 stays.
     volumes:

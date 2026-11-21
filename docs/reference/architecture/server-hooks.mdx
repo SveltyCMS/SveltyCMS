@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:server-network"
 author: "SveltyCMS Team"
 created: "2025-10-12"
-updated: "2026-09-30"
+updated: "2026-11-21"
 tags:
   - "architecture"
   - "hooks"
@@ -466,6 +466,24 @@ The write lane's first split (security / persist / serve) proved the security ph
 | serve     | lane: envelope + security headers (cumulative from t0)                                                                |
 
 `update` additionally stamps `snapshot` (the pre-write revision read — only present when the collection enables `revision`). `SVELTY_SRV_DUR=1` now also stamps total server time (`x-srv-dur`) on write-lane responses, so hot writes are comparable against the read lane's acceptance gate. Collect the p50s per phase with `tests/benchmarks/probe-write-split.test.ts` (see its header for the env recipe).
+
+#### GraphQL read lanes — `x-srv-split` phases (2026-11-21)
+
+GraphQL stamped neither header, so a `graphql` workload could be tail-attributed to
+the DB or the event loop but never to a server phase. `src/routes/api/graphql/+server.ts`
+now stamps `x-srv-dur` and `x-srv-split` under the same switches (`SVELTY_SRV_DUR=1` /
+`SVELTY_SRV_SPLIT=1`), with zero `performance.now()` calls when the switch is unset:
+
+| Phase        | Measured where                                                                     | Convention      |
+| :----------- | :--------------------------------------------------------------------------------- | :-------------- |
+| `cachehit`   | L1/stale-while-revalidate serve from `responseCache`                               | delta (= total) |
+| `fastpath`   | `handleGraphqlFastPath` (single-query/AST reuse path)                              | delta           |
+| `cachewrite` | body clone + `generateContentEtag` + `responseCache.set` (fast **and** yoga paths) | delta           |
+| `yoga`       | `yogaApp.handleRequest` (parse → resolve → serialize)                              | delta           |
+
+All four are deltas, so the replica's phase table can average them directly — the same
+rule the read lane adopted on 2026-10-12. `x-srv-dur` stays cumulative from request
+start by definition.
 
 #### Reusable CPU sampling for soak runs (2026-09-23)
 

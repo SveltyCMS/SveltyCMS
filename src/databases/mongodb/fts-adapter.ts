@@ -58,12 +58,12 @@ export class MongoFtsAdapter implements IFtsAdapter {
       $text: { $search: query },
     };
 
-    if (options?.tenantId) {
-      mongoFilter.tenantId = options.tenantId;
-    }
-
     if (options?.filters) {
       Object.assign(mongoFilter, options.filters);
+    }
+
+    if (options?.tenantId) {
+      mongoFilter.tenantId = options.tenantId;
     }
 
     const [result, countRes] = await Promise.all([
@@ -98,19 +98,20 @@ export class MongoFtsAdapter implements IFtsAdapter {
     options?: { tenantId?: string | null; filters?: Record<string, unknown> },
   ): Promise<DatabaseResult<{ items: any[]; total: number }>> {
     const colNames = columns.map((c) => c.name);
-    const regexFilter = { $regex: query, $options: "i" };
+    const escapedQuery = String(query ?? "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regexFilter = { $regex: escapedQuery, $options: "i" };
     const orFilter = colNames.map((name) => ({ [name]: regexFilter }));
 
     const mongoFilter: Record<string, unknown> = {
       $or: orFilter,
     };
 
-    if (options?.tenantId) {
-      mongoFilter.tenantId = options.tenantId;
-    }
-
     if (options?.filters) {
       Object.assign(mongoFilter, options.filters);
+    }
+
+    if (options?.tenantId) {
+      mongoFilter.tenantId = options.tenantId;
     }
 
     const [result, countRes] = await Promise.all([

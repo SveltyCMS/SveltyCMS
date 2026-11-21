@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:speedometer"
 author: "SveltyCMS Team"
 created: "2026-04-26"
-updated: "2026-09-22"
+updated: "2026-11-21"
 tags:
   - "benchmark"
   - "performance"
@@ -208,6 +208,17 @@ bun run scripts/benchmark-matrix/index.ts --continue-on-error
 ```bash
 bun run lint:benchmark-mdx
 ```
+
+**Attribute a run (phase decomposition + tail/contention leaderboard):**
+
+```bash
+# Forwards SVELTY_SRV_SPLIT/SVELTY_SRV_DUR/PROFILE_WRITE/BENCH_MIX_BREAKDOWN to the
+# server, prints the live hotspot leaderboard and the [WRITE-PROFILE] span table.
+# Rows are stamped run_mode='diagnostic' and the ledgers are left untouched.
+bun run scripts/benchmark-matrix/index.ts --db=postgresql --tier=competitive --diagnose
+```
+
+Full mechanics: [Benchmark Matrix → Bottleneck Attribution](../../tests/benchmark-matrix.mdx#bottleneck-attribution-on-site).
 
 ## Mode parity (comparability rule)
 

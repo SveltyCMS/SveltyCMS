@@ -61,7 +61,11 @@ import {
   upsertLedgerSection,
   ZONE_MARKERS,
 } from "../../tests/benchmarks/modules/benchmark-mdx";
-import { writeHistoryArchive } from "../../tests/benchmarks/modules/benchmark-reporting";
+import {
+  writeHistoryArchive,
+  writeRunSummary,
+  type JsonlRunEntry,
+} from "../../tests/benchmarks/modules/benchmark-reporting";
 
 /**
  * Ledger sections whose benchmark script was decommissioned (moved to
@@ -108,6 +112,7 @@ async function formatMdxDoc(filePath: string): Promise<void> {
 import { analyzeTrend, classifyRootCause } from "../../tests/benchmarks/modules/benchmark-analysis";
 import {
   loadHistory,
+  loadPrimaryMetricForTest,
   persistRun,
   type BenchmarkServerMode,
   type HistoryEntry,
@@ -563,9 +568,13 @@ function persistMatrixTrendRows(cfg?: {
       const testFile = String(entry.testFile || "unknown").replace(/\\/g, "/");
       const testId = path.basename(testFile).replace(/\.test\.ts$/i, "");
       const phase = /cold-start|setup-proxy/i.test(testId) ? "cold" : "warm";
+      // 🔬 A `--diagnose` run changes the configuration under measurement, so its rows
+      // are stamped `diagnostic` and stay out of every `run_mode = 'matrix'` trend read.
+      const runMode =
+        process.env.SVELTY_BENCHMARK_RUN_MODE === "diagnostic" ? "diagnostic" : "matrix";
       const result: HistoryEntry = {
         runId: cfg.runId,
-        runMode: "matrix",
+        runMode,
         serverMode,
         testId,
         dbType: String(entry.db || "sqlite"),
@@ -764,12 +773,13 @@ export async function generateFinalReport(
           resultsIn,
           perfRegressions,
           now,
+          cfg?.runId,
         );
         await updateBenchmarkIndexReport(db, results, latestMetrics, perfRegressions);
 
         // 🚀 Build ranked executive summary from history.sqlite
         const isPartial = resultsIn.length < ALL_DATABASES.length;
-        await writeRankedExecutiveSummary(db, scopedResults, isPartial);
+        await writeRankedExecutiveSummary(db, scopedResults, isPartial, cfg?.runId);
         log.success("Ranked executive summary updated.");
 
         log.success("Enterprise Benchmark technical ledgers updated.");
@@ -797,6 +807,7 @@ async function writeRankedExecutiveSummary(
   db: any,
   results: BenchmarkResult[],
   isPartial: boolean,
+  currentRunId?: string,
 ): Promise<void> {
   const dbKeys = [...new Set(results.map((r) => r.db))];
 
@@ -808,6 +819,22 @@ async function writeRankedExecutiveSummary(
     // in the trend schema, so this summary silently never rendered.)
     const dbType = dbKey.replace("-redis", "");
     const redisOn = dbKey.includes("redis") ? 1 : 0;
+
+    // When a specific runId was executed (e.g. `--tier=core` or `--only=...`),
+    // scope the ranked executive alerts to the test_ids that actually executed
+    // in this invocation so stale alerts from un-executed suites don't repeat.
+    let currentRunTestIds: Set<string> | null = null;
+    if (currentRunId) {
+      const invokedRows = db
+        .query(
+          "SELECT DISTINCT test_id FROM runs WHERE run_id = ? AND db_type = ? AND redis = ? AND status = 'SUCCESS'",
+        )
+        .all(currentRunId, dbType, redisOn) as Array<{ test_id: string }>;
+      if (invokedRows.length > 0) {
+        currentRunTestIds = new Set(invokedRows.map((r) => r.test_id));
+      }
+    }
+
     // Series identity is (test_id, metric): one test records several sub-metrics per
     // run (api-latency → Cold + TURBO-HIT; media-performance → 7 series). Grouping by
     // test_id alone compared a "Cold" row against a median of mixed series and
@@ -835,6 +862,7 @@ async function writeRankedExecutiveSummary(
     // Group by series = test_id + metric, compute deltas
     const byTest = new Map<string, any[]>();
     for (const r of regressions) {
+      if (currentRunTestIds && !currentRunTestIds.has(r.test_id)) continue;
       const key = `${r.test_id}\u0000${r.metric ?? ""}`;
       if (!byTest.has(key)) byTest.set(key, []);
       byTest.get(key)!.push(r);
@@ -1081,6 +1109,7 @@ async function updateDatabaseSpecificReports(
   resultsIn: BenchmarkResult[] = [],
   perfRegressions: any[] = [],
   currentRunTimestamp?: string,
+  currentRunId?: string,
 ) {
   const DOCS_DIR = path.join(process.cwd(), "docs/project/benchmarks");
   await fs.mkdir(DOCS_DIR, { recursive: true });
@@ -1445,11 +1474,22 @@ tags:
 
       const testId = path.basename(script.path).replace(/\.test\.ts$/i, "");
       // Mode parity: this block renders matrix/production trends, so it may only
-      // compare against rows measured the same way.
-      const history = loadHistory(testId, dbType, redisOn, "warm", undefined, {
+      // compare against rows measured the same way. Pick the canonical primary metric
+      // so multi-metric suites (database-performance, rest-api-performance) never mix
+      // bulk/health sub-metrics with point reads.
+      const modeFilter = {
         runMode: "matrix",
-        serverMode: "production",
-      });
+        serverMode: "production" as BenchmarkServerMode,
+      };
+      const primaryMetric = loadPrimaryMetricForTest(testId, dbType, redisOn, "warm", modeFilter);
+      const history = loadHistory(
+        testId,
+        dbType,
+        redisOn,
+        "warm",
+        primaryMetric ?? undefined,
+        modeFilter,
+      );
       const prior = history.slice(0, -1);
       const currentSample =
         history.length > 0
@@ -1640,6 +1680,44 @@ tags:
     });
 
     await fs.writeFile(filePath, doc);
+    if (currentRunId) {
+      try {
+        const jsonlPath = path.join(ROOT_RESULTS_DIR, "history.jsonl");
+        if (fsSync.existsSync(jsonlPath)) {
+          const rawLines = fsSync
+            .readFileSync(jsonlPath, "utf8")
+            .trim()
+            .split("\n")
+            .filter(Boolean);
+          const runEntries: JsonlRunEntry[] = [];
+          for (const line of rawLines) {
+            const parsed = JSON.parse(line) as JsonlRunEntry;
+            if (
+              parsed.runId === currentRunId &&
+              (parsed.db || "sqlite") === dbType &&
+              Boolean(parsed.redis) === redisOn &&
+              (parsed.status ?? "SUCCESS") === "SUCCESS"
+            ) {
+              runEntries.push(parsed);
+            }
+          }
+          if (runEntries.length > 0) {
+            writeRunSummary(
+              runEntries,
+              {
+                runId: currentRunId,
+                runMode: "matrix",
+                db: dbType,
+                redis: redisOn,
+              },
+              filePath,
+            );
+          }
+        }
+      } catch {
+        /* best-effort overlay update */
+      }
+    }
     writeHistoryArchive(dbKey, filePath);
     await formatMdxDoc(filePath);
     log.info(`Updated technical ledger: benchmark_${dbKey.replace("-", "_")}.mdx`);

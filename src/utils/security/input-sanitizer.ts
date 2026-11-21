@@ -151,6 +151,16 @@ export function containsXssVector(input: string): boolean {
   return (
     lower.includes("<script") ||
     lower.includes("<iframe") ||
+    lower.includes("<svg") ||
+    lower.includes("<object") ||
+    lower.includes("<embed") ||
+    lower.includes("<base") ||
+    lower.includes("<meta") ||
+    lower.includes("<link") ||
+    lower.includes("<form") ||
+    lower.includes("<math") ||
+    lower.includes("<style") ||
+    lower.includes("<template") ||
     XSS_URL_SCHEME_RE.test(lower) ||
     XSS_EVENT_HANDLER_RE.test(lower)
   );

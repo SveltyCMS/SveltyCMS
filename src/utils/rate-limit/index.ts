@@ -149,9 +149,13 @@ function buildBucketKey(namespace: string, ctx: AdaptiveContext, profile: string
 }
 
 /**
- * Führt den Rate-Limit-Check aus: adaptive Kapazität → Redis → In-Memory-Fallback.
+ * Führt den Rate-Limit-Check synchron aus wenn lokal/asyncRemote, oder gibt nur
+ * beim blockierenden Redis-Check ein Promise zurück (spart 1 Promise + Microtask
+ * pro Mutation im Fast-Path).
  */
-export async function rateLimit(options: RateLimitOptions): Promise<RateLimitDecision> {
+export function rateLimitSyncOrAsync(
+  options: RateLimitOptions,
+): RateLimitDecision | Promise<RateLimitDecision> {
   const base = options.base ?? DEFAULT_BASE_RATE_LIMIT_CONFIG;
   const context = options.context ?? {};
   const namespace = options.namespace ?? "api";
@@ -201,19 +205,30 @@ export async function rateLimit(options: RateLimitOptions): Promise<RateLimitDec
         degraded: false,
       };
     }
-    try {
-      const res = await redisStore.checkAndConsume(key, bucket, cost);
-      return {
+    return redisStore
+      .checkAndConsume(key, bucket, cost)
+      .then((res) => ({
         allowed: res.allowed,
-        scope: "redis",
+        scope: "redis" as const,
         remaining: Math.max(0, Math.round(res.tokens)),
         retryAfterSeconds: res.retryAfterSeconds,
         degraded: false,
-      };
-    } catch (err: any) {
-      // Redis-Ausfall mid-flight → Fallback, einmalig loggen.
-      logger.warn("[RateLimit] Redis fehlgeschlagen, lokaler Fallback aktiv:", err?.message ?? err);
-    }
+      }))
+      .catch((err: any) => {
+        // Redis-Ausfall mid-flight → Fallback, einmalig loggen.
+        logger.warn(
+          "[RateLimit] Redis fehlgeschlagen, lokaler Fallback aktiv:",
+          err?.message ?? err,
+        );
+        const fallback = memoryStore.checkAndConsume(key, bucket, cost, false, now);
+        return {
+          allowed: fallback.allowed,
+          scope: "memory" as const,
+          remaining: Math.max(0, Math.round(fallback.tokens)),
+          retryAfterSeconds: fallback.retryAfterSeconds,
+          degraded: true,
+        };
+      });
   }
 
   // ── Fallback: lokal (In-Memory) ────────────────────────────────────────
@@ -225,6 +240,13 @@ export async function rateLimit(options: RateLimitOptions): Promise<RateLimitDec
     retryAfterSeconds: res.retryAfterSeconds,
     degraded: true,
   };
+}
+
+/**
+ * Führt den Rate-Limit-Check aus: adaptive Kapazität → Redis → In-Memory-Fallback.
+ */
+export async function rateLimit(options: RateLimitOptions): Promise<RateLimitDecision> {
+  return rateLimitSyncOrAsync(options);
 }
 
 /** Setzt alle Storen zurueck (Tests / Reset). */

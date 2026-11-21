@@ -22,6 +22,8 @@
  * Env gate: `SVELTY_PG_STATEMENT_WARMUP=0` disables (A/B control lane).
  */
 
+import { assertSafeSqlIdentifier } from "../core/relational-utils";
+
 /** Minimal structural contract of the postgres.js client (mockable in tests). */
 export interface PreparedStatementExecutor {
   unsafe(query: string, params?: unknown[], options?: { prepare?: boolean }): Promise<unknown[]>;
@@ -103,4 +105,47 @@ export async function warmPgPreparedStatements(
   );
   const row = (rows?.[0] ?? { total: 0, warmed: 0 }) as { total: number; warmed: number };
   return { total: row.total, warmed: row.warmed };
+}
+
+/**
+ * Warms PK point-read probes across pooled connections for active dynamic
+ * collection tables so the first requests after boot skip PostgreSQL's
+ * 5-execution custom-plan bind window. Bounded to at most 16 tables.
+ */
+export async function warmPgCollectionStatements(
+  exec: PreparedStatementExecutor,
+  tableNames: readonly string[],
+  poolMax: number,
+): Promise<number> {
+  const safeTables: string[] = [];
+  const seen = new Set<string>();
+  for (const rawName of tableNames) {
+    if (safeTables.length >= 16) break;
+    try {
+      const safe = assertSafeSqlIdentifier(rawName, "table");
+      if (!seen.has(safe)) {
+        seen.add(safe);
+        safeTables.push(safe);
+      }
+    } catch {
+      /* skip unsafe names */
+    }
+  }
+  if (safeTables.length === 0) return 0;
+
+  const connections = Math.max(1, Math.min(32, Math.floor(poolMax) || 1));
+  const probes = safeTables.map(
+    (table) => `SELECT "_id" FROM "${table}" WHERE "_id" = $1 AND "isDeleted" = false LIMIT 1`,
+  );
+
+  await Promise.all(
+    Array.from({ length: connections }, async () => {
+      for (let rep = 0; rep < WARMUP_REPETITIONS; rep++) {
+        for (const sqlText of probes) {
+          await exec.unsafe(sqlText, [IMPOSSIBLE_ID], { prepare: true }).catch(() => {});
+        }
+      }
+    }),
+  );
+  return safeTables.length;
 }

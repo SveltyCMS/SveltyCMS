@@ -5,6 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { parse, validate, buildSchema, NoSchemaIntrospectionCustomRule } from "graphql";
 import { createDepthLimitRule, createMaxAliasesRule } from "@src/routes/api/graphql/rules";
+import { isGraphqlReadOperation } from "@src/utils/hook-utils";
 import { invokeGraphql } from "../utils/mock-event";
 import { createMockUser } from "../utils/mock-factories";
 
@@ -348,5 +349,11 @@ describe("GraphQL subscription subscribe() requires context.user (P1)", () => {
     const result = assertSubscriptionAuth({ user, pubSub });
     expect(result).toBe("async-iterator");
     expect(pubSub.subscribe).toHaveBeenCalledWith("entryUpdated");
+  });
+
+  it("isGraphqlReadOperation skips leading comments before detecting mutation/subscription", () => {
+    expect(isGraphqlReadOperation("# comment\nmutation { deleteUser(id: 1) }")).toBe(false);
+    expect(isGraphqlReadOperation("  # first\n  # second\n  subscription { onEvent }")).toBe(false);
+    expect(isGraphqlReadOperation("# comment\nquery { posts { _id } }")).toBe(true);
   });
 });

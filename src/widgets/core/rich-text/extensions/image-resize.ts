@@ -238,6 +238,7 @@ const ImageResize = ImageExtension.extend({
       resizer.style.width = safeWidth;
       resizer.style.height = safeHeight;
       resizer.style.display = "inline-block";
+      resizer.style.touchAction = "none";
 
       const img = document.createElement("img");
       img.setAttribute("src", nodeAttrs.src as string);
@@ -245,6 +246,7 @@ const ImageResize = ImageExtension.extend({
       img.style.width = "100%";
       img.style.height = "100%";
       img.style.cursor = "pointer";
+      img.style.touchAction = "none";
 
       resizer.appendChild(img);
       container.appendChild(resizer);
@@ -262,31 +264,14 @@ const ImageResize = ImageExtension.extend({
       const knob1 = document.createElement("div");
       const knob2 = document.createElement("div");
       knob1.style.cssText =
-        "cursor: ew-resize;width: 15px; height: 100%;  position: absolute; top:0;left:0;transform:translateX(-50%)";
+        "cursor: ew-resize;width: 24px; min-height: 24px; height: 100%; touch-action: none; position: absolute; top:0;left:0;transform:translateX(-50%)";
       knob2.style.cssText =
-        "cursor: ew-resize;width: 15px; height: 100%;  position: absolute; top:0;right:0;transform:translateX(50%)";
+        "cursor: ew-resize;width: 24px; min-height: 24px; height: 100%; touch-action: none; position: absolute; top:0;right:0;transform:translateX(50%)";
 
       resizer.appendChild(knob1);
       resizer.appendChild(knob2);
 
-      knob1.onpointerdown = (e) => knobDrag(e, knob1, "left", resizer, nodeAttrs);
-      knob2.onpointerdown = (e) => knobDrag(e, knob2, "right", resizer, nodeAttrs);
-
-      let isDragging = false;
-
-      const onDrag = (e: MouseEvent) => {
-        if (!isDragging) {
-          return;
-        }
-        const newWidth = e.clientX - resizer.getBoundingClientRect().left;
-        resizer.style.width = `${newWidth}px`;
-        preserveAspectRatio(resizer, nodeAttrs, `${newWidth}px`, e.shiftKey);
-      };
-
-      const onStopDrag = () => {
-        isDragging = false;
-        document.removeEventListener("mousemove", onDrag);
-        document.removeEventListener("mouseup", onStopDrag);
+      const persistDimensions = () => {
         if (typeof getPos === "function") {
           const pos = getPos();
           if (pos !== undefined) {
@@ -301,11 +286,36 @@ const ImageResize = ImageExtension.extend({
         }
       };
 
-      img.onmousedown = (e) => {
+      knob1.onpointerdown = (e) =>
+        knobDrag(e, knob1, "left", resizer, nodeAttrs, persistDimensions);
+      knob2.onpointerdown = (e) =>
+        knobDrag(e, knob2, "right", resizer, nodeAttrs, persistDimensions);
+
+      let isDragging = false;
+
+      const onDrag = (e: PointerEvent) => {
+        if (!isDragging) {
+          return;
+        }
+        const newWidth = Math.max(24, e.clientX - resizer.getBoundingClientRect().left);
+        resizer.style.width = `${newWidth}px`;
+        preserveAspectRatio(resizer, nodeAttrs, `${newWidth}px`, e.shiftKey);
+      };
+
+      const onStopDrag = () => {
+        isDragging = false;
+        document.removeEventListener("pointermove", onDrag);
+        document.removeEventListener("pointerup", onStopDrag);
+        document.removeEventListener("pointercancel", onStopDrag);
+        persistDimensions();
+      };
+
+      img.onpointerdown = (e) => {
         e.preventDefault();
         isDragging = true;
-        document.addEventListener("mousemove", onDrag);
-        document.addEventListener("mouseup", onStopDrag);
+        document.addEventListener("pointermove", onDrag);
+        document.addEventListener("pointerup", onStopDrag);
+        document.addEventListener("pointercancel", onStopDrag);
       };
 
       return {
@@ -348,35 +358,46 @@ function knobDrag(
   side: "left" | "right" | "top" | "bottom",
   resizer: HTMLDivElement,
   nodeAttrs: Record<string, unknown>,
+  onCommit?: () => void,
 ) {
   e.preventDefault();
   e.stopPropagation();
 
   // Check if shift key is pressed to preserve aspect ratio
   const shouldPreserveAspectRatio = e.shiftKey;
+  const startX = e.clientX;
+  const startY = e.clientY;
+  const startRect = resizer.getBoundingClientRect();
+  const startWidth = Number.parseInt(resizer.style.width, 10) || startRect.width;
+  const startHeight = Number.parseInt(resizer.style.height, 10) || startRect.height;
 
   knob.setPointerCapture(e.pointerId);
-  knob.onpointermove = (e) => {
+  knob.onpointermove = (moveEvent) => {
     if (side === "left" || side === "right") {
-      const currentWidth = Number.parseInt(resizer.style.width, 10);
-      const dx = side === "left" ? e.movementX * -1 : e.movementX;
-      const newWidth = currentWidth + dx;
+      const deltaX = moveEvent.clientX - startX;
+      const dx = side === "left" ? -deltaX : deltaX;
+      const newWidth = Math.max(24, Math.round(startWidth + dx));
       resizer.style.width = `${newWidth}px`;
       nodeAttrs.w = `${newWidth}px`;
       preserveAspectRatio(resizer, nodeAttrs, `${newWidth}px`, shouldPreserveAspectRatio);
     } else {
-      const currentHeight = Number.parseInt(resizer.style.height, 10);
-      const dy = side === "top" ? e.movementY * -1 : e.movementY;
-      const newHeight = currentHeight + dy;
+      const deltaY = moveEvent.clientY - startY;
+      const dy = side === "top" ? -deltaY : deltaY;
+      const newHeight = Math.max(24, Math.round(startHeight + dy));
       resizer.style.height = `${newHeight}px`;
       nodeAttrs.h = `${newHeight}px`;
     }
   };
 
-  knob.onpointerup = () => {
+  const finishKnobDrag = () => {
     knob.onpointermove = null;
     knob.onpointerup = null;
+    knob.onpointercancel = null;
+    onCommit?.();
   };
+
+  knob.onpointerup = finishKnobDrag;
+  knob.onpointercancel = finishKnobDrag;
 }
 
 export { ImageResize as default, ImageResize };

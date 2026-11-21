@@ -31,6 +31,18 @@ export class WafGuard {
     if (locals && locals.__wafCheck) {
       return locals.__wafCheck as WafCheckResult;
     }
+    // Fast-lane requests allocate a single-use headers facade scoped strictly to
+    // the lane call and memoize on `locals.__wafCheck` — skip inserting into the
+    // process-wide WeakMap to avoid ~10k ephemeron allocations/sec under GC.
+    if (locals?.__isFastLane === true) {
+      const result = inspectRequestLinear(
+        event.url.pathname,
+        event.url.search,
+        event.request.headers,
+      );
+      locals.__wafCheck = result;
+      return result;
+    }
     const result = this.inspectRequest(
       event.url.pathname,
       event.url.search,

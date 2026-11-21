@@ -14,6 +14,9 @@ import {
   getTableBooleanColumns,
 } from "../core/relational-utils";
 import {
+  WIRE_LIST_DECLINED,
+  WIRE_POINT_DECLINED,
+  WIRE_POINT_MISSING,
   buildPointWireSqlTemplates,
   collectSafeMaterializedColumns,
   resolvePointWireQuery,
@@ -59,13 +62,13 @@ export class SqliteWireStreamEngine {
       if (cachedWireSql === undefined) {
         if (!executor.getColumn(table, "data")) {
           this._pointSqlCache.set(table, { declined: true } as PointWireSqlTemplates);
-          return { kind: "declined" };
+          return WIRE_POINT_DECLINED;
         }
 
         const matCols = collectSafeMaterializedColumns(table);
         if (!matCols) {
           this._pointSqlCache.set(table, { declined: true } as PointWireSqlTemplates);
-          return { kind: "declined" };
+          return WIRE_POINT_DECLINED;
         }
 
         const updatedAtSelect = executor.getColumn(table, "updatedAt") ? '"updatedAt"' : "NULL";
@@ -102,17 +105,17 @@ export class SqliteWireStreamEngine {
         });
         this._pointSqlCache.set(table, cachedWireSql);
       } else if (cachedWireSql.declined) {
-        return { kind: "declined" };
+        return WIRE_POINT_DECLINED;
       }
 
       const resolved = resolvePointWireQuery(cachedWireSql, id, options);
-      if (!resolved) return { kind: "declined" };
+      if (!resolved) return WIRE_POINT_DECLINED;
 
       const rawRow = executor.prepareAndExecute(resolved.sqlText, "get", ...resolved.params) as
         | { wire_body: string; updated_at: number | string }
         | undefined;
 
-      if (!rawRow || !rawRow.wire_body) return { kind: "missing" };
+      if (!rawRow || !rawRow.wire_body) return WIRE_POINT_MISSING;
       return {
         kind: "found",
         wireBody:
@@ -126,7 +129,7 @@ export class SqliteWireStreamEngine {
         "[SQLite rawFindPointWireStream] falling back:",
         err instanceof Error ? err.message : String(err),
       );
-      return { kind: "declined" };
+      return WIRE_POINT_DECLINED;
     }
   }
 
@@ -151,7 +154,7 @@ export class SqliteWireStreamEngine {
   ): Promise<RawListWireStreamResult> {
     try {
       const v = validateWireListInput(executor, table, options, '"');
-      if (!v) return { kind: "declined" };
+      if (!v) return WIRE_LIST_DECLINED;
       const { isProjected, dedupedProjectedCols, orderClause, cacheKey, limit, offset } = v;
 
       let tableCache = this._listSqlCache.get(table);
@@ -187,7 +190,7 @@ export class SqliteWireStreamEngine {
           dataExpr = `json_object(${pairs.join(", ")})`;
         } else {
           const matCols = collectSafeMaterializedColumns(table);
-          if (!matCols) return { kind: "declined" };
+          if (!matCols) return WIRE_LIST_DECLINED;
           subColSet.add('"data"');
           subColSet.add('"_id"');
           const overrides: string[] = [`'$."_id"', "_id"`];
@@ -212,7 +215,7 @@ export class SqliteWireStreamEngine {
 
         const subCols = subColSet.size > 0 ? Array.from(subColSet).join(", ") : '"_id"';
         const wrap = (wherePart: string) => `
-          SELECT coalesce(json_group_array(json(${dataExpr})), '[]') AS wire_body,
+          SELECT coalesce(json_group_array(${dataExpr}), '[]') AS wire_body,
                  coalesce(max(${updatedAtSelect}), 0) AS max_updated_at
           FROM (
             SELECT ${subCols} FROM ${quoted}
@@ -241,7 +244,7 @@ export class SqliteWireStreamEngine {
 
       const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "sqlite");
       const wantPublished = options?.requirePublished === true;
-      if (wantPublished && !cachedWireSql.basePub) return { kind: "declined" };
+      if (wantPublished && !cachedWireSql.basePub) return WIRE_LIST_DECLINED;
 
       let sqlText: string;
       let params: unknown[];
@@ -255,7 +258,7 @@ export class SqliteWireStreamEngine {
         sqlText = wantPublished ? cachedWireSql.basePub! : cachedWireSql.base;
         params = [limit, offset];
       } else {
-        return { kind: "declined" };
+        return WIRE_LIST_DECLINED;
       }
 
       const rawRow = executor.prepareAndExecute(sqlText, "get", ...params) as
@@ -274,7 +277,7 @@ export class SqliteWireStreamEngine {
         "[SQLite rawFindListWireStream] falling back:",
         err instanceof Error ? err.message : String(err),
       );
-      return { kind: "declined" };
+      return WIRE_LIST_DECLINED;
     }
   }
 }

@@ -91,7 +91,9 @@ describe("GET /api/preview", () => {
     expect(target.location).toBe("/blog/draft-post?preview_token=tok-1");
     expect(cookies.jar.get("cms_draft_mode")).toBe("true");
     expect(cookies.jar.get("cms_preview_entry")).toBe("entry-1");
-    expect(mockValidate).toHaveBeenCalledWith("tok-1");
+    // H6: the token is audience-bound to the serving host, so the validator receives
+    // the request hostname as `expectedAudience` (2nd arg stays undefined).
+    expect(mockValidate).toHaveBeenCalledWith("tok-1", undefined, "localhost");
   });
 
   it("refuses a missing token", async () => {

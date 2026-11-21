@@ -76,7 +76,8 @@
 		inferWidgetFromFieldName,
 		type InferredWidgetResult
 	} from '@src/routes/(app)/config/collectionbuilder/smart-inference';
-	import { draggable, droppable, dndState } from '@thisux/sveltednd';
+	import { liftAndCarry } from '@utils/media/media-lift-drag';
+	import { droppable, dndState } from '@thisux/sveltednd';
 	import type { DragDropState } from '@thisux/sveltednd';
 
 	type WidgetListItem = FieldInstance & { id: number; _dragId: string };
@@ -828,7 +829,7 @@
 						)}
 						{@const dropLine = activeDropLine?.dragId === item._dragId ? activeDropLine.pos : null}
 						<div
-							use:draggable={{
+							use:liftAndCarry={{
 								container: 'widget-fields',
 								dragData: { kind: 'field', dragId: item._dragId } satisfies FieldDrag,
 								keyboard: true,
@@ -841,6 +842,7 @@
 							}}
 							animate:flip={{ duration: flipDurationMs }}
 							class="group relative py-1.5"
+							style="touch-action: pan-y;"
 							data-testid="widget-field-row"
 							data-field-name={item.db_fieldName || ''}
 							data-drag-id={item._dragId}
@@ -1050,7 +1052,7 @@
 								<!-- Drag Handle -->
 								<SystemTooltip title={builder_ts_drag_reorder_title()}>
 									<span
-										class="field-drag-handle flex min-h-8 min-w-8 cursor-grab items-center justify-center opacity-60 active:cursor-grabbing hover:opacity-100"
+										class="field-drag-handle flex min-h-8 min-w-8 cursor-grab touch-none items-center justify-center opacity-60 active:cursor-grabbing hover:opacity-100"
 										aria-hidden="true"
 										onclick={(e: MouseEvent) => e.stopPropagation()}
 									>
@@ -1183,7 +1185,7 @@
 								type="button"
 								variant="transparent"
 								size="sm"
-								class="h-auto! rounded-full! px-2.5! py-0.5! text-[11px]! font-semibold! {selectedCategory ===
+								class="min-h-6! h-auto! rounded-full! px-2.5! py-1! text-[11px]! font-semibold! {selectedCategory ===
 								cat.id
 									? 'bg-tertiary-500 text-white shadow-2xs dark:bg-primary-500 dark:text-(--admin-text-body)'
 									: 'bg-surface-500/10 text-(--admin-text-muted) hover:bg-surface-500/20 dark:text-(--admin-text-muted)'}"
@@ -1221,7 +1223,8 @@
 										<button
 											type="button"
 											data-palette-tile
-											use:draggable={{
+											style="touch-action: pan-y;"
+											use:liftAndCarry={{
 												container: 'widget-palette',
 												dragData: { kind: 'palette', widgetKey: w.key } satisfies PaletteDrag,
 												handle: '[data-palette-tile]',

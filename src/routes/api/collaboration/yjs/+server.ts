@@ -10,26 +10,46 @@
 
 import { json } from "@sveltejs/kit";
 import { apiHandler } from "@utils/api-handler";
-import { AppError } from "@utils/error-handling";
+import { raise } from "@utils/error-handling";
 import { pubSub } from "@src/services/background/pub-sub";
+import { isSecureCookieContext } from "@src/databases/auth/constants";
+import { validateCsrfForRequest } from "@utils/security/csrf-utils";
+import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { encodeYjsToBase64, decodeBase64ToYjs } from "@utils/tenant";
 import type { Role, User } from "@src/databases/auth/types";
 import { assertCollaborationAccess, parseEntryDocId } from "./yjs-access.ts";
 
-export const POST = apiHandler(async ({ locals, request }) => {
+const MAX_YJS_UPDATE_BASE64_LENGTH = 2 * 1024 * 1024; // 2 MiB cap
+
+export const POST = apiHandler(async ({ locals, request, cookies, url }) => {
   const { user, tenantId, roles } = locals;
-  if (!user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
+  if (!user) raise(401, "Unauthorized", "UNAUTHORIZED");
+  if (!tenantId && isMultiTenantEnabled()) {
+    raise(403, "Tenant context is required", "TENANT_REQUIRED");
+  }
+  const isSecure = isSecureCookieContext(url.protocol, url.hostname);
+  const csrf = validateCsrfForRequest(cookies, request, isSecure);
+  if (!csrf.isValid) {
+    raise(403, `Security violation: ${csrf.error}`, "CSRF_VIOLATION");
+  }
+  const declaredLen = Number(request.headers.get("content-length") ?? 0);
+  if (Number.isFinite(declaredLen) && declaredLen > MAX_YJS_UPDATE_BASE64_LENGTH) {
+    raise(413, "Yjs update payload too large", "PAYLOAD_TOO_LARGE");
+  }
 
   let body: { docId?: unknown; updateBase64?: unknown; awareness?: unknown };
   try {
     body = (await request.json()) as typeof body;
   } catch {
-    throw new AppError("Invalid JSON body", 400, "BAD_REQUEST");
+    raise(400, "Invalid JSON body", "BAD_REQUEST");
   }
 
   const { docId, updateBase64, awareness } = body;
   if (typeof docId !== "string" || typeof updateBase64 !== "string" || !docId || !updateBase64) {
-    throw new AppError("docId and updateBase64 are required", 400, "BAD_REQUEST");
+    raise(400, "docId and updateBase64 are required", "BAD_REQUEST");
+  }
+  if (updateBase64.length > MAX_YJS_UPDATE_BASE64_LENGTH) {
+    raise(413, "Yjs update payload too large", "PAYLOAD_TOO_LARGE");
   }
 
   const { collectionId } = parseEntryDocId(docId);
@@ -68,10 +88,13 @@ export const POST = apiHandler(async ({ locals, request }) => {
  */
 export const GET = apiHandler(async ({ locals, url }) => {
   const { user, tenantId, roles } = locals;
-  if (!user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
+  if (!user) raise(401, "Unauthorized", "UNAUTHORIZED");
+  if (!tenantId && isMultiTenantEnabled()) {
+    raise(403, "Tenant context is required", "TENANT_REQUIRED");
+  }
 
   const docId = url.searchParams.get("docId");
-  if (!docId) throw new AppError("docId is required", 400, "BAD_REQUEST");
+  if (!docId) raise(400, "docId is required", "BAD_REQUEST");
 
   const { collectionId } = parseEntryDocId(docId);
   assertCollaborationAccess(user as User, roles as Role[] | undefined, "read", collectionId);

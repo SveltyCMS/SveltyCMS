@@ -10,16 +10,20 @@
  * - High-speed zero-latency sub-millisecond encryption benchmarks
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { cloudKms } from "@src/utils/security/cloud-kms";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { cloudKms, signAwsKmsRequest } from "@src/utils/security/cloud-kms";
+import { AppError } from "@utils/error-handling";
 import {
   encryptFieldValueSync,
   decryptFieldValueSync,
   resetFieldEncryptionKeyCache,
 } from "@src/utils/security/field-encryption";
 
+const TEST_MASTER_KEY = "b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4";
+
 describe("Cloud KMS Envelope Encryption Engine", () => {
   beforeEach(() => {
+    vi.stubEnv("ENCRYPTION_KEY", TEST_MASTER_KEY);
     cloudKms.reset();
     resetFieldEncryptionKeyCache();
   });
@@ -27,6 +31,7 @@ describe("Cloud KMS Envelope Encryption Engine", () => {
   afterEach(() => {
     cloudKms.reset();
     resetFieldEncryptionKeyCache();
+    vi.unstubAllEnvs();
     delete process.env.KMS_PROVIDER;
     delete process.env.KMS_KEY_ID;
   });
@@ -145,5 +150,89 @@ describe("Cloud KMS Envelope Encryption Engine", () => {
     // pre-commit worker) allows Vitest/CI virtualization overhead.
     const maxBudgetMs = process.env.BENCHMARK === "1" ? 0.05 : 0.5;
     expect(medianPerOpMs).toBeLessThan(maxBudgetMs);
+  });
+
+  it("fails closed for local KMS when ENCRYPTION_KEY is missing (no hardcoded fallback)", () => {
+    vi.stubEnv("ENCRYPTION_KEY", undefined);
+    vi.stubEnv("SECRET_ENCRYPTION_KEY", undefined);
+    expect(() =>
+      cloudKms.configure({
+        provider: "local",
+        keyId: "master-key",
+      }),
+    ).toThrowError(AppError);
+    try {
+      cloudKms.configure({ provider: "local", keyId: "master-key" });
+    } catch (err) {
+      expect(err).toBeInstanceOf(AppError);
+      expect((err as AppError).code).toBe("KMS_MASTER_KEY_MISSING");
+    }
+  });
+
+  it("refuses unimplemented cloud providers instead of silently falling back to local KMS", () => {
+    for (const provider of ["gcp-kms", "azure-kv"] as const) {
+      let caught: unknown;
+      try {
+        cloudKms.configure({ provider, keyId: "cloud-key" });
+      } catch (err) {
+        caught = err;
+      }
+      expect(caught).toBeInstanceOf(AppError);
+      expect((caught as AppError).code).toBe("KMS_PROVIDER_UNSUPPORTED");
+    }
+  });
+
+  it("requires credentials for AWS KMS and Vault, and signs AWS KMS requests with SigV4", () => {
+    vi.stubEnv("AWS_ACCESS_KEY_ID", undefined);
+    vi.stubEnv("AWS_SECRET_ACCESS_KEY", undefined);
+
+    expect(() =>
+      cloudKms.configure({ provider: "aws-kms", keyId: "alias/svelty", region: "eu-central-1" }),
+    ).toThrowError(/SigV4/i);
+
+    expect(() =>
+      cloudKms.configure({ provider: "vault", keyId: "svelty", token: "" }),
+    ).toThrowError(/KMS_TOKEN/i);
+
+    const headers = signAwsKmsRequest({
+      url: new URL("https://kms.eu-central-1.amazonaws.com/"),
+      region: "eu-central-1",
+      target: "TrentService.GenerateDataKey",
+      body: JSON.stringify({ KeyId: "alias/svelty", KeySpec: "AES_256" }),
+      credentials: {
+        accessKeyId: "AKIAIOSFODNN7EXAMPLE",
+        secretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+        sessionToken: "session-token-123",
+      },
+      now: new Date("2026-11-21T22:00:00.000Z"),
+    });
+
+    expect(headers["X-Amz-Date"]).toBe("20261121T220000Z");
+    expect(headers["X-Amz-Target"]).toBe("TrentService.GenerateDataKey");
+    expect(headers["X-Amz-Security-Token"]).toBe("session-token-123");
+    expect(headers["X-Amz-Content-Sha256"]).toMatch(/^[0-9a-f]{64}$/);
+    expect(headers.Authorization).toMatch(
+      /^AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE\/20261121\/eu-central-1\/kms\/aws4_request, SignedHeaders=content-type;host;x-amz-content-sha256;x-amz-date;x-amz-security-token;x-amz-target, Signature=[0-9a-f]{64}$/,
+    );
+  });
+
+  it("keeps decrypting rows encrypted under a rotated DEK while cached and wipes plaintext on reset", async () => {
+    cloudKms.configure({ provider: "local", keyId: "rotating-key", dekTtlMs: 1 });
+    const firstDek = await cloudKms.rotateOrGetActiveDek();
+    const ctx = { tenantId: "t1", collectionId: "secrets" };
+    const firstEnvelope = encryptFieldValueSync("before-rotation", ctx, "token");
+
+    // Wait briefly so TTL expires and rotate produces a fresh DEK
+    await new Promise((r) => setTimeout(r, 10));
+    const secondDek = await cloudKms.rotateOrGetActiveDek();
+    expect(secondDek.keyId).not.toBe(firstDek.keyId);
+
+    // Envelope encrypted under the first DEK must still decrypt via getCachedDekSync
+    expect(decryptFieldValueSync(firstEnvelope, ctx, "token")).toBe("before-rotation");
+
+    // Reset must zero out plaintext DEK bytes in place
+    const firstBufRef = firstDek.plaintext;
+    cloudKms.reset();
+    expect(firstBufRef.every((byte) => byte === 0)).toBe(true);
   });
 });

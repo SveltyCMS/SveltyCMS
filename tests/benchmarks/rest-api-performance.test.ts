@@ -86,8 +86,9 @@ async function runRestAudit() {
       connection: "keep-alive",
     };
 
-    const isMongo = dbType.includes("MONGO");
-    const targetConcurrency = isMongo ? 12 : 4;
+    // Apples-to-apples concurrency across all database adapters (SQLite, MariaDB, PostgreSQL, MongoDB).
+    // (Previously `isMongo ? 12 : 4`, which measured MongoDB at 3x queueing depth and inflated its latency by ~3x.)
+    const targetConcurrency = 4;
     const results = [];
 
     for (let s = 0; s < restScenarios.length; s++) {

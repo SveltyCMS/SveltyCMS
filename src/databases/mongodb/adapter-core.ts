@@ -246,6 +246,23 @@ export abstract class MongoAdapterCore extends BaseAdapter {
 
       this.connected = true;
 
+      if (process.env.SVELTY_ALLOW_LEGACY_DB !== "1" && this._connection?.db) {
+        const buildInfo = await this._connection.db
+          .admin()
+          .command({ buildInfo: 1 })
+          .catch(() => null);
+        const versionArray = Array.isArray(buildInfo?.versionArray) ? buildInfo.versionArray : null;
+        const major = versionArray ? Number(versionArray[0]) : 0;
+        if (major > 0 && major < 8) {
+          await this._connection.close().catch(() => {});
+          this._connection = null;
+          this.connected = false;
+          throw new Error(
+            `Unsupported MongoDB server version (${String(buildInfo?.version ?? major)}): SveltyCMS requires MongoDB 8.0+ (8.0–9.0).`,
+          );
+        }
+      }
+
       await registerSystemModels(this._connection);
       await this.ensureAuditChainForkGuard();
       await this.ensureContentRelationIndexes();

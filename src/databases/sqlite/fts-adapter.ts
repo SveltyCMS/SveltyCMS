@@ -13,6 +13,20 @@ import type { IDBAdapter } from "../db-interface";
 import { logger } from "@utils/logger";
 import { assertSafeSqlIdentifier, buildRawTenantClause } from "../core/relational-utils";
 
+function clampSqliteFtsLimit(limit?: number): number {
+  const n = typeof limit === "number" ? Math.trunc(limit) : 50;
+  return Number.isFinite(n) ? Math.max(1, Math.min(1000, n)) : 50;
+}
+
+function clampSqliteFtsOffset(offset?: number): number {
+  const n = typeof offset === "number" ? Math.trunc(offset) : 0;
+  return Number.isFinite(n) ? Math.max(0, n) : 0;
+}
+
+function escapeSqliteLiteral(value: string): string {
+  return value.replace(/\0/g, "").replace(/'/g, "''");
+}
+
 export class SQLiteFtsAdapter implements IFtsAdapter {
   private adapter: IDBAdapter;
 
@@ -32,8 +46,8 @@ export class SQLiteFtsAdapter implements IFtsAdapter {
       filters?: Record<string, unknown>;
     },
   ): Promise<DatabaseResult<{ items: any[]; total: number }>> {
-    const limit = options?.limit ?? 50;
-    const offset = options?.offset ?? 0;
+    const limit = clampSqliteFtsLimit(options?.limit);
+    const offset = clampSqliteFtsOffset(options?.offset);
 
     try {
       return await this.searchWithFts5(collection, query, limit, offset, options);
@@ -65,14 +79,17 @@ export class SQLiteFtsAdapter implements IFtsAdapter {
     // UUID) via triggers — see src/databases/system-schema-spec.ts. The
     // implicit FTS rowid is an integer and can never match a TEXT UUID, so the
     // join must use the mirror column.
+    const safeLimit = clampSqliteFtsLimit(limit);
+    const safeOffset = clampSqliteFtsOffset(offset);
+    const safeMatch = escapeSqliteLiteral(ftsQuery);
     const rawSQL = `
       SELECT c.*, bm25(${safeFtsTable}) AS relevance
       FROM "${safeFtsTable}" fts
       JOIN "${safeCollection}" c ON c._id = fts."_id"
-      WHERE ${safeFtsTable} MATCH '${ftsQuery.replace(/'/g, "''")}'
+      WHERE ${safeFtsTable} MATCH '${safeMatch}'
       ${filterSQL}
       ORDER BY relevance
-      LIMIT ${limit} OFFSET ${offset}
+      LIMIT ${safeLimit} OFFSET ${safeOffset}
     `;
 
     // Real COUNT with the same MATCH expression + filters — items.length is
@@ -81,7 +98,7 @@ export class SQLiteFtsAdapter implements IFtsAdapter {
       SELECT COUNT(*) AS total
       FROM "${safeFtsTable}" fts
       JOIN "${safeCollection}" c ON c._id = fts."_id"
-      WHERE ${safeFtsTable} MATCH '${ftsQuery.replace(/'/g, "''")}'
+      WHERE ${safeFtsTable} MATCH '${safeMatch}'
       ${filterSQL}
     `;
 
@@ -119,12 +136,15 @@ export class SQLiteFtsAdapter implements IFtsAdapter {
       "content",
       "description",
     ];
-    const escapedQuery = query
+    const safeLimit = clampSqliteFtsLimit(limit);
+    const safeOffset = clampSqliteFtsOffset(offset);
+    const escapedQuery = escapeSqliteLiteral(query)
       .replace(/\\/g, "\\\\")
-      .replace(/'/g, "''")
       .replace(/%/g, "\\%")
       .replace(/_/g, "\\_");
-    const orConditions = colNames.map((col) => `${col} LIKE '%${escapedQuery}%'`).join(" OR ");
+    const orConditions = colNames
+      .map((col) => `${col} LIKE '%${escapedQuery}%' ESCAPE '\\'`)
+      .join(" OR ");
     const filterSQL = this.buildFilterSQL(options);
 
     const rawSQL = `
@@ -132,7 +152,7 @@ export class SQLiteFtsAdapter implements IFtsAdapter {
       FROM "${safeCollection}"
       WHERE (${orConditions})
       ${filterSQL}
-      LIMIT ${limit} OFFSET ${offset}
+      LIMIT ${safeLimit} OFFSET ${safeOffset}
     `;
 
     const countSQL = `
@@ -179,7 +199,7 @@ export class SQLiteFtsAdapter implements IFtsAdapter {
       for (const [key, value] of Object.entries(options.filters)) {
         if (value !== undefined && value !== null) {
           const safeKey = assertSafeSqlIdentifier(key, "fts.filter");
-          const strVal = String(value).replace(/'/g, "''");
+          const strVal = escapeSqliteLiteral(String(value));
           conditions.push(`"${safeKey}" = '${strVal}'`);
         }
       }

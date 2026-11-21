@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:arrow-up-bold-circle-outline"
 author: "SveltyCMS Team"
 created: "2026-02-15"
-updated: "2026-10-10"
+updated: "2026-11-21"
 tags:
   - "upgrade"
   - "maintenance"
@@ -23,6 +23,21 @@ SveltyCMS is designed to be upgraded easily while preserving your custom collect
 > **Renames:** `renamedFrom` on a system `ColumnSpec` or a collection field is the automatic rename (the old column exists and the new one does not, before `ADD`; Mongo `$rename` once per process when the model is created). The dropped v0.0.8 repairs (`security` → `password`, `redirects_mv.from|to`) stay manual. A database that needs one of those one-off repairs is upgraded through the release that introduced it, or by export → re-provision → import.
 >
 > **Aggregation on SQL engines (as of September 2026).** `crud.aggregate()` now runs on SQLite, PostgreSQL and MariaDB (the `supportsAggregation` capability flag is `true`; it was `false`), executing the portable subset of the MongoDB pipeline through `src/databases/core/aggregation-translator.ts`. Two consequences for existing callers: a pipeline that asked for `$min`/`$max` on a **non-materialized** field is now refused with `NOT_SUPPORTED` on PostgreSQL/MariaDB — those engines extract JSON as TEXT, so the previous answers were lexicographic (`MIN` of `{10, 2}` is `"10"`) and were never the intended number; declare the field `indexed` or `materialize: true` to aggregate it natively. Stages outside the subset (`$lookup`, `$unwind`, `$facet`, compound `$group._id`, out-of-order stages) fail closed with the same named error instead of running on MongoDB only.
+
+## Database version floors
+
+The four adapters enforce a lean 2-generation window at connection boot. Check the server before upgrading:
+
+| Engine     | Boot-enforced floor | Technical floor             | Check                                           |
+| :--------- | :------------------ | :-------------------------- | :---------------------------------------------- |
+| PostgreSQL | 18.0                | 15.0 (`NULLS NOT DISTINCT`) | `SELECT current_setting('server_version_num');` |
+| MariaDB    | 11.4                | 10.5.2 (`RENAME COLUMN`)    | `SELECT VERSION();`                             |
+| MongoDB    | 8.0                 | 4.4 driver / 6.0 Mongoose   | `db.version()`                                  |
+| SQLite     | 3.51.0              | 3.35 / 3.38                 | `SELECT sqlite_version();`                      |
+
+A server below the boot-enforced floor refuses to start. `SVELTY_ALLOW_LEGACY_DB=1` bypasses the checks for a one-off migration import only — it logs a warning and must not be left set for production traffic. After the import, upgrade the server (or restore a dump into a supported major) and remove the flag.
+
+The full matrix, per-engine caveats (MariaDB 11.4–12.x update fallback, PG 18 vs 19 Read-Your-Writes behavior), and the compatibility tier are in the [Database Engine Compatibility Matrix](../../reference/database/index.mdx#-supported-database-engine-versions-latest-optimizations-20262027).
 
 ## The Upgrade Process
 

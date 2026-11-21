@@ -637,6 +637,8 @@ async function prepareCollection(db: any) {
           (db as any)._getOrCreateModel?.(tableName) ?? (db as any).getModel?.(tableName);
         if (rawModel?.collection?.createIndex) {
           await rawModel.collection.createIndex({ tenantId: 1, createdAt: -1 });
+          await rawModel.collection.createIndex({ tenantId: 1, createdAt: -1, _id: -1 });
+          await rawModel.collection.createIndex({ createdAt: -1, _id: -1 });
           await rawModel.collection.createIndex({ status: 1 });
         }
       } catch {}
