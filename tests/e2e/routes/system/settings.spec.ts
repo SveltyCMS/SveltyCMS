@@ -308,7 +308,7 @@ test.describe("System Settings shell", () => {
         timeout: ACTION_TIMEOUT,
       });
 
-      const pageSave = page.getByTestId("settings-page-save");
+      const pageSave = page.getByTestId("settings-group-save");
       await expect(pageSave).toBeVisible({ timeout: ACTION_TIMEOUT });
       await expect(pageSave).toBeDisabled();
       await expect(pageSave).toContainText(/Saved/i);
@@ -325,7 +325,7 @@ test.describe("System Settings shell", () => {
       const input = field.locator("input").first();
       await expect(input).toBeVisible({ timeout: ACTION_TIMEOUT });
 
-      const pageSave = page.getByTestId("settings-page-save");
+      const pageSave = page.getByTestId("settings-group-save");
       await expect(pageSave).toBeVisible({ timeout: ACTION_TIMEOUT });
       await expect(pageSave).toBeDisabled();
 
@@ -362,7 +362,7 @@ test.describe("System Settings shell", () => {
         target = String(Number(target) + 1);
       }
 
-      const pageSave = page.getByTestId("settings-page-save");
+      const pageSave = page.getByTestId("settings-group-save");
       await fillUntil(page, input, target, () => expect(pageSave).toBeEnabled({ timeout: 2_000 }));
 
       const saveRes = page
@@ -396,7 +396,7 @@ test.describe("System Settings shell", () => {
       const field = page.getByTestId("settings-field-CACHE_TTL_SCHEMA");
       const input = field.locator("input").first();
       const current = await input.inputValue();
-      const pageSave = page.getByTestId("settings-page-save");
+      const pageSave = page.getByTestId("settings-group-save");
 
       await fillUntil(
         page,

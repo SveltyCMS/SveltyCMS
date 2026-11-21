@@ -279,7 +279,6 @@ Allows synchronization between compiled filesystem schemas and the database, pro
 	async function exportCurrentConfig() {
 		isExporting = true;
 		try {
-			toast.info('Exporting database configuration snapshot...');
 			const result: ApiResponse<{ dirPath: string }> = await fetchApi('/api/config/export', {
 				method: 'POST',
 				body: JSON.stringify({})

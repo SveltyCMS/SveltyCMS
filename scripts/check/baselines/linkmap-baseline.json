@@ -1,11 +1,11 @@
 {
   "version": 1,
   "summary": {
-    "generatedAt": "2026-11-20T23:11:50.232Z",
+    "generatedAt": "2026-11-21T00:15:12.399Z",
     "totalFiles": 1524,
-    "totalLoc": 439435,
-    "totalBytes": 14969572,
-    "runtimeEdgeCount": 6375,
+    "totalLoc": 439441,
+    "totalBytes": 14969721,
+    "runtimeEdgeCount": 6376,
     "typeEdgeCount": 1521,
     "barrelCount": 8,
     "passThroughBarrelCount": 0,
@@ -86,7 +86,7 @@
       },
       "src/routes": {
         "files": 331,
-        "loc": 111153,
+        "loc": 111155,
         "microFiles": 57,
         "barrels": 0,
         "singleCallers": 139
@@ -121,7 +121,7 @@
       },
       "src/components": {
         "files": 222,
-        "loc": 51524,
+        "loc": 51528,
         "microFiles": 43,
         "barrels": 9,
         "singleCallers": 98

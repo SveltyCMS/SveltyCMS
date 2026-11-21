@@ -19,6 +19,7 @@
 	import Button from '@components/ui/button.svelte';
 	import { browser } from '$app/env';
 	import { toast } from '@src/stores/toast.svelte.ts';
+	import { ui } from '@src/stores/ui-store.svelte.ts';
 	import { flip } from 'svelte/animate';
 	import { fade, fly } from 'svelte/transition';
 	import { onMount } from 'svelte';
@@ -192,6 +193,9 @@
 		class="fixed z-9999 flex flex-col gap-2 {positionClasses[
 			effectivePosition
 		]} pointer-events-none w-full sm:w-auto px-4 sm:px-0"
+		style={ui.stickyActionContent && effectivePosition.startsWith('bottom')
+			? 'bottom: 4.25rem;'
+			: undefined}
 		role="region"
 		aria-label="Notifications"
 		aria-live="polite"

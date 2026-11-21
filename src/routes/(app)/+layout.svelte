@@ -164,14 +164,14 @@ This layout provides the administrative shell, including sidebars and header con
 	);
 
 	$effect(() => {
-		const userTheme = data.user?.preferences?.theme as
-			| { highContrast?: boolean; reducedMotion?: boolean }
-			| undefined;
+		const userTheme = data.user?.preferences?.theme as Parameters<
+			typeof userThemePrefs.getEffective
+		>[0];
+		const effective = userThemePrefs.getEffective(userTheme);
 		theme.features.highContrastMode =
-			userTheme?.highContrast ?? dbAdminConfig?.features?.highContrastMode ?? false;
+			effective?.highContrast ?? dbAdminConfig?.features?.highContrastMode ?? false;
 		theme.features.reducedMotion =
-			userTheme?.reducedMotion ?? dbAdminConfig?.features?.reducedMotion ?? false;
-		userThemePrefs.release();
+			effective?.reducedMotion ?? dbAdminConfig?.features?.reducedMotion ?? false;
 	});
 
 	// Per-user floating nav (system defaults + PageTitle favorites) — bind early so mobile FAB + stars stay in sync
