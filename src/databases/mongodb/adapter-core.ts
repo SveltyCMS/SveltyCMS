@@ -49,6 +49,11 @@ const MONGO_OP_MAP: Record<string, string> = {
   $nin: "$nin",
   $exists: "$exists",
   $contains: "$regex",
+  // Case-insensitive operators mirror the SQL builder and the in-memory path:
+  // anchored regex for ieq/nieq, substring regex for contains/nicontains.
+  $ieq: "$regex",
+  $nieq: "$not",
+  $nicontains: "$not",
   $like: "$regex",
 };
 
@@ -404,6 +409,13 @@ export abstract class MongoAdapterCore extends BaseAdapter {
     // injection ("a.b" matching any char) and ReDoS via crafted patterns.
     if (operator === "$contains") {
       v = new RegExp(escapeRegExp(String(value)), "i");
+    } else if (operator === "$ieq") {
+      v = new RegExp(`^${escapeRegExp(String(value))}$`, "i");
+    } else if (operator === "$nicontains") {
+      v = new RegExp(escapeRegExp(String(value)), "i");
+    } else if (operator === "$nieq") {
+      // `$not` with a regex is valid Mongo and is the exact negation of `$ieq`.
+      v = new RegExp(`^${escapeRegExp(String(value))}$`, "i");
     } else if (operator === "$like") {
       // '%' is the only wildcard; every other character is matched literally.
       const parts = String(value).split("%").map(escapeRegExp);

@@ -35,6 +35,60 @@ function loadHandleTurboGetModule(): Promise<typeof import("@src/hooks/handle-tu
   return (handleTurboGetModulePromise ??= import("@src/hooks/handle-turbo-get"));
 }
 
+/**
+ * Cached lazy handle to the audit service.
+ *
+ * The audit service imports the DB module, which imports this auth service —
+ * a static import would close that cycle at boot. Failed logins are not a hot
+ * path, so the one-time dynamic resolve is the cheapest safe option.
+ */
+let auditServiceModulePromise:
+  | Promise<typeof import("@src/services/security/audit-service")>
+  | undefined;
+function loadAuditServiceModule(): Promise<typeof import("@src/services/security/audit-service")> {
+  return (auditServiceModulePromise ??= import("@src/services/security/audit-service"));
+}
+
+type LoginFailureReason =
+  | "invalid_password"
+  | "unknown_user"
+  | "account_locked"
+  | "account_blocked"
+  | "no_password";
+
+/**
+ * Record one failed login attempt on the audit chain.
+ *
+ * The password is never accepted by this helper, so the row cannot carry
+ * credential material. One call per failed attempt — never per verification.
+ */
+async function recordLoginFailure(params: {
+  email: string;
+  reason: LoginFailureReason;
+  tenantId?: DatabaseId | null;
+  ip?: string;
+}): Promise<void> {
+  try {
+    const { auditLogService, AuditEventType } = await loadAuditServiceModule();
+    await auditLogService.log(
+      `Login failed: ${params.reason}`,
+      { id: null, email: params.email, ip: params.ip },
+      { type: "user", id: null },
+      AuditEventType.USER_LOGIN_FAILED,
+      "medium",
+      { reason: params.reason },
+      params.tenantId ?? null,
+      "failure",
+    );
+  } catch (err) {
+    // The login already failed; a broken audit sink must not change that result.
+    logger.error("[Auth] Failed to write USER_LOGIN_FAILED audit event", {
+      reason: params.reason,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
 // Import global settings service for DB-based configuration
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
@@ -929,6 +983,12 @@ export class Auth {
         logger.debug("User not found for authentication", { email, tenantId });
         hashPerformed = true;
         await cryptoVerifyDummyPassword(password);
+        await recordLoginFailure({
+          email,
+          reason: "unknown_user",
+          tenantId,
+          ip: sessionMeta?.ipAddress,
+        });
         return null;
       }
 
@@ -940,6 +1000,12 @@ export class Auth {
           logger.warn("Authentication attempt on locked account", {
             email,
             lockoutUntil: user.lockoutUntil,
+          });
+          await recordLoginFailure({
+            email,
+            reason: "account_locked",
+            tenantId,
+            ip: sessionMeta?.ipAddress,
           });
           throw error(
             423,
@@ -961,6 +1027,12 @@ export class Auth {
         });
         hashPerformed = true;
         await cryptoVerifyDummyPassword(password);
+        await recordLoginFailure({
+          email,
+          reason: "no_password",
+          tenantId,
+          ip: sessionMeta?.ipAddress,
+        });
         return null;
       }
 
@@ -976,6 +1048,12 @@ export class Auth {
         });
         hashPerformed = true;
         await cryptoVerifyDummyPassword(password);
+        await recordLoginFailure({
+          email,
+          reason: "account_blocked",
+          tenantId,
+          ip: sessionMeta?.ipAddress,
+        });
         return null;
       }
 
@@ -1002,6 +1080,12 @@ export class Auth {
         logger.warn("Password authentication failed", {
           email,
           failedAttempts,
+        });
+        await recordLoginFailure({
+          email,
+          reason: "invalid_password",
+          tenantId,
+          ip: sessionMeta?.ipAddress,
         });
         return null;
       }
@@ -1299,6 +1383,11 @@ export class Auth {
         password,
         failedAttempts: 0,
         lockoutUntil: null,
+        // A password change revokes every "remember this device" 2FA trust
+        // token: a browser that skipped TOTP under the old credential must
+        // prove the new one. `[]` (not `undefined`) is portable across all
+        // four adapters.
+        twoFactorTrustedDevices: [],
       },
       options,
     );
@@ -1312,6 +1401,15 @@ export class Auth {
     );
 
     return { status: true, invalidatedSessions: invalidatedIds };
+  }
+
+  /**
+   * Public pre-write gate for callers that must validate BEFORE mutating state
+   * (e.g. password reset — a weak password must not spend a one-time token).
+   * Uses the same policy as createUser/updateUser.
+   */
+  assertPasswordStrength(password: string): void {
+    this.validatePasswordStrength(password);
   }
 
   /**

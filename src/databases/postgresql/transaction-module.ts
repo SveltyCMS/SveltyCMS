@@ -8,6 +8,8 @@
  * - Single round-trip `set_config` batching for tenant context + statement timeout
  *   (SET LOCAL semantics: settings auto-revert on commit/rollback)
  * - `isolationLevel` / `timeout` options forwarded to the Drizzle transaction
+ * - Bounded whole-transaction retry on 40P01 (deadlock) / 40001 (serialization)
+ *   with deterministic backoff — retries only after PostgreSQL aborted the txn
  * - Dedicated `RollbackSignal` so intentional rollbacks never log as crashes
  * - `commit()`/`rollback()` state guards: operations after commit fail fast
  * - `findById` routed to the prepared raw point-read instead of a dynamic AST query
@@ -46,6 +48,42 @@ const PG_ISOLATION_LEVELS = new Set([
   "repeatable read",
   "serializable",
 ]);
+
+/**
+ * SQLSTATEs where PostgreSQL has already rolled back the whole transaction, so
+ * re-running the callback is safe and is the documented client contract:
+ * - `40P01` deadlock_detected — the victim is chosen and aborted by the server
+ * - `40001` serialization_failure — only reachable under REPEATABLE READ / SERIALIZABLE
+ */
+const RETRYABLE_TXN_CODES = new Set(["40P01", "40001"]);
+
+const DEFAULT_MAX_ATTEMPTS = 3;
+const MAX_ATTEMPTS_CAP = 5;
+const RETRY_BASE_DELAY_MS = 8;
+const RETRY_MAX_DELAY_MS = 64;
+
+/** Walk the Drizzle → driver `cause` chain for a SQLSTATE (bounded, no allocation on success). */
+function pgSqlState(error: unknown, depth = 0): string | undefined {
+  if (!error || typeof error !== "object" || depth > 3) return undefined;
+  const code = (error as { code?: unknown }).code;
+  if (typeof code === "string" && RETRYABLE_TXN_CODES.has(code)) return code;
+  return pgSqlState((error as { cause?: unknown }).cause, depth + 1);
+}
+
+/**
+ * True only for transaction-level deadlock / serialization aborts. Message
+ * matching is a fallback for drivers that drop the SQLSTATE on rethrow.
+ */
+function isRetryableTxnError(error: unknown): boolean {
+  if (pgSqlState(error)) return true;
+  const message = error instanceof Error ? error.message : String(error);
+  return /deadlock detected/i.test(message) || /could not serialize access/i.test(message);
+}
+
+/** Deterministic exponential backoff (no RNG: jitter is not worth a CSPRNG call here). */
+function retryDelayMs(attempt: number): number {
+  return Math.min(RETRY_MAX_DELAY_MS, RETRY_BASE_DELAY_MS * 2 ** (attempt - 1));
+}
 
 /**
  * Deep-binds a domain namespace (auth, content, media, system, batch, collection)
@@ -148,6 +186,8 @@ export class TransactionModule {
       isWrite?: boolean;
       /** Bind `app.tenant_id` for this transaction instead of the process-global tenant. */
       tenantId?: string;
+      /** Total attempts for deadlock/serialization retries (1 disables, capped at 5). */
+      maxAttempts?: number;
     },
   ): Promise<DatabaseResult<T>> {
     // 🛡️ SAFE CONNECTION CHECK: `core.db` is a throwing getter when disconnected —
@@ -174,157 +214,172 @@ export class TransactionModule {
     // wrapper passes it per call, so two concurrent requests for different
     // tenants cannot bind each other's context.
     const tenantId = options?.tenantId ?? this.core.currentTenantId;
+    const requestedAttempts = Math.floor(Number(options?.maxAttempts ?? DEFAULT_MAX_ATTEMPTS));
+    const maxAttempts = Math.min(
+      MAX_ATTEMPTS_CAP,
+      Number.isFinite(requestedAttempts) && requestedAttempts > 0 ? requestedAttempts : 1,
+    );
 
-    try {
-      return await this.core.db.transaction(async (tx) => {
-        // 🚀 RAW-PATH HANDLE: drizzle's postgres-js session exposes the
-        // begin()-scoped postgres.js instance as `session.client` so raw paths
-        // (rawInsertReturning/rawUpdate/rawFindById/insertMany) participate in
-        // the transaction instead of deferring to Drizzle.
-        const txSql: unknown = (tx as { session?: { client?: unknown } }).session?.client ?? null;
-        const txnOpts: TxnHandle = txSql ? { db: tx, sql: txSql } : { db: tx };
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await this.core.db.transaction(async (tx) => {
+          // 🚀 RAW-PATH HANDLE: drizzle's postgres-js session exposes the
+          // begin()-scoped postgres.js instance as `session.client` so raw paths
+          // (rawInsertReturning/rawUpdate/rawFindById/insertMany) participate in
+          // the transaction instead of deferring to Drizzle.
+          const txSql: unknown = (tx as { session?: { client?: unknown } }).session?.client ?? null;
+          const txnOpts: TxnHandle = txSql ? { db: tx, sql: txSql } : { db: tx };
 
-        // 🚀 GUC BATCHING: tenant context + statement_timeout in ONE round trip.
-        // SET LOCAL (third param = true) auto-reverts on commit/rollback.
-        // The request path already set `currentTenantId` via setTenantContext,
-        // so the tx connection only needs its own local GUC for RLS.
-        const hasTenant = Boolean(txSql && tenantId);
-        const hasTimeout = Boolean(txSql && Number.isFinite(timeoutMs) && timeoutMs > 0);
-        if (hasTenant && hasTimeout) {
-          await (txSql as (strings: TemplateStringsArray, ...values: unknown[]) => unknown)`
+          // 🚀 GUC BATCHING: tenant context + statement_timeout in ONE round trip.
+          // SET LOCAL (third param = true) auto-reverts on commit/rollback.
+          // The request path already set `currentTenantId` via setTenantContext,
+          // so the tx connection only needs its own local GUC for RLS.
+          const hasTenant = Boolean(txSql && tenantId);
+          const hasTimeout = Boolean(txSql && Number.isFinite(timeoutMs) && timeoutMs > 0);
+          if (hasTenant && hasTimeout) {
+            await (txSql as (strings: TemplateStringsArray, ...values: unknown[]) => unknown)`
             SELECT set_config('app.tenant_id', ${tenantId}, true),
                    set_config('statement_timeout', ${String(Math.floor(timeoutMs))}, true)`;
-        } else if (hasTenant) {
-          await this.core.setTenantContext(tenantId, txSql as PostgresAdapterCore["sql"]);
-        } else if (hasTimeout) {
-          await (txSql as (strings: TemplateStringsArray, ...values: unknown[]) => unknown)`
+          } else if (hasTenant) {
+            await this.core.setTenantContext(tenantId, txSql as PostgresAdapterCore["sql"]);
+          } else if (hasTimeout) {
+            await (txSql as (strings: TemplateStringsArray, ...values: unknown[]) => unknown)`
             SELECT set_config('statement_timeout', ${String(Math.floor(timeoutMs))}, true)`;
-        }
-
-        let isCommitted = false;
-        let isRolledBack = false;
-        const assertActive = (): void => {
-          if (isCommitted) {
-            throw new Error(
-              "TRANSACTION_ALREADY_COMMITTED: Cannot execute operations on a committed transaction.",
-            );
           }
-          if (isRolledBack) {
+
+          let isCommitted = false;
+          let isRolledBack = false;
+          const assertActive = (): void => {
+            if (isCommitted) {
+              throw new Error(
+                "TRANSACTION_ALREADY_COMMITTED: Cannot execute operations on a committed transaction.",
+              );
+            }
+            if (isRolledBack) {
+              throw new RollbackSignal();
+            }
+          };
+
+          const dbTransaction: ScopedTransaction = {
+            commit: async () => {
+              isCommitted = true;
+              return { success: true, data: undefined };
+            },
+            rollback: async () => {
+              isRolledBack = true;
+              throw new RollbackSignal();
+            },
+            insert: <T2 extends BaseEntity>(
+              collection: string,
+              data: EntityCreate<T2>,
+              opts: BaseQueryOptions = {},
+            ) => {
+              assertActive();
+              return this.core.crud.insert<T2>(collection, data, {
+                ...opts,
+                transaction: txnOpts,
+              });
+            },
+            update: <T2 extends BaseEntity>(
+              collection: string,
+              id: DatabaseId,
+              data: EntityUpdate<T2>,
+              opts: BaseQueryOptions = {},
+            ) => {
+              assertActive();
+              return this.core.crud.update<T2>(collection, id, data, {
+                ...opts,
+                transaction: txnOpts,
+              });
+            },
+            delete: (collection: string, id: DatabaseId, opts: BaseQueryOptions = {}) => {
+              assertActive();
+              return this.core.crud.delete(collection, id, { ...opts, transaction: txnOpts });
+            },
+            // 🚀 FAST-PATH: core.findById hits the prepared rawFindById point-read
+            // (tx-aware: it runs on the transaction connection when a transaction
+            // handle is present) instead of building a dynamic findOne AST.
+            findById: <T2 extends BaseEntity>(
+              collection: string,
+              id: DatabaseId,
+              opts: BaseQueryOptions = {},
+            ) => {
+              assertActive();
+              return this.core.findById<T2>(collection, id, {
+                ...opts,
+                transaction: txnOpts,
+              });
+            },
+            db: tx,
+            sql: txSql,
+            // 🛡️ BOUND DOMAIN MODULES: auto-inject the transaction handle so every
+            // domain call runs on this connection and rolls back with the txn.
+            auth: bindTransactionToNamespace(this.core.auth as object, txnOpts),
+            content: bindTransactionToNamespace(this.core.content as object, txnOpts),
+            media: bindTransactionToNamespace(this.core.media as object, txnOpts),
+            system: bindTransactionToNamespace(this.core.system as object, txnOpts),
+            batch: bindTransactionToNamespace(this.core.batch as object, txnOpts),
+            collection: bindTransactionToNamespace(this.core.collection as object, txnOpts),
+          };
+
+          const result = await fn(dbTransaction as DatabaseTransaction);
+
+          // A callback that returns a non-envelope value succeeded without throwing.
+          if (!result || (typeof result === "object" && !("success" in result))) {
+            return { success: true, data: result } as DatabaseResult<T>;
+          }
+
+          if (!result.success && (result as { rollback?: boolean }).rollback !== false) {
             throw new RollbackSignal();
           }
-        };
+          return result;
+        }, config);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
 
-        const dbTransaction: ScopedTransaction = {
-          commit: async () => {
-            isCommitted = true;
-            return { success: true, data: undefined };
-          },
-          rollback: async () => {
-            isRolledBack = true;
-            throw new RollbackSignal();
-          },
-          insert: <T2 extends BaseEntity>(
-            collection: string,
-            data: EntityCreate<T2>,
-            opts: BaseQueryOptions = {},
-          ) => {
-            assertActive();
-            return this.core.crud.insert<T2>(collection, data, {
-              ...opts,
-              transaction: txnOpts,
-            });
-          },
-          update: <T2 extends BaseEntity>(
-            collection: string,
-            id: DatabaseId,
-            data: EntityUpdate<T2>,
-            opts: BaseQueryOptions = {},
-          ) => {
-            assertActive();
-            return this.core.crud.update<T2>(collection, id, data, {
-              ...opts,
-              transaction: txnOpts,
-            });
-          },
-          delete: (collection: string, id: DatabaseId, opts: BaseQueryOptions = {}) => {
-            assertActive();
-            return this.core.crud.delete(collection, id, { ...opts, transaction: txnOpts });
-          },
-          // 🚀 FAST-PATH: core.findById hits the prepared rawFindById point-read
-          // (tx-aware: it runs on the transaction connection when a transaction
-          // handle is present) instead of building a dynamic findOne AST.
-          findById: <T2 extends BaseEntity>(
-            collection: string,
-            id: DatabaseId,
-            opts: BaseQueryOptions = {},
-          ) => {
-            assertActive();
-            return this.core.findById<T2>(collection, id, {
-              ...opts,
-              transaction: txnOpts,
-            });
-          },
-          db: tx,
-          sql: txSql,
-          // 🛡️ BOUND DOMAIN MODULES: auto-inject the transaction handle so every
-          // domain call runs on this connection and rolls back with the txn.
-          auth: bindTransactionToNamespace(this.core.auth as object, txnOpts),
-          content: bindTransactionToNamespace(this.core.content as object, txnOpts),
-          media: bindTransactionToNamespace(this.core.media as object, txnOpts),
-          system: bindTransactionToNamespace(this.core.system as object, txnOpts),
-          batch: bindTransactionToNamespace(this.core.batch as object, txnOpts),
-          collection: bindTransactionToNamespace(this.core.collection as object, txnOpts),
-        };
-
-        const result = await fn(dbTransaction as DatabaseTransaction);
-
-        // A callback that returns a non-envelope value succeeded without throwing.
-        if (!result || (typeof result === "object" && !("success" in result))) {
-          return { success: true, data: result } as DatabaseResult<T>;
+        // 🔁 Deadlock / serialization abort: PostgreSQL already rolled the whole
+        // transaction back, so replaying the callback cannot double-apply writes.
+        // Deliberately checked before the envelope mapping below.
+        if (attempt < maxAttempts && isRetryableTxnError(error)) {
+          await new Promise((resolve) => setTimeout(resolve, retryDelayMs(attempt)));
+          continue;
         }
 
-        if (!result.success && (result as { rollback?: boolean }).rollback !== false) {
-          throw new RollbackSignal();
-        }
-        return result;
-      }, config);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-
-      // Intentional rollbacks (explicit rollback() / failed envelope) return an
-      // envelope instead of surfacing as TRANSACTION_FAILED crashes.
-      if (
-        error instanceof RollbackSignal ||
-        message === "ROLLBACK_TRANSACTION" ||
-        /force rollback/i.test(message)
-      ) {
-        return {
-          success: false,
-          message: "Transaction rolled back",
-          error: {
-            code: "TRANSACTION_ROLLED_BACK",
+        // Intentional rollbacks (explicit rollback() / failed envelope) return an
+        // envelope instead of surfacing as TRANSACTION_FAILED crashes.
+        if (
+          error instanceof RollbackSignal ||
+          message === "ROLLBACK_TRANSACTION" ||
+          /force rollback/i.test(message)
+        ) {
+          return {
+            success: false,
             message: "Transaction rolled back",
-          },
-        } as DatabaseResult<T>;
-      }
+            error: {
+              code: "TRANSACTION_ROLLED_BACK",
+              message: "Transaction rolled back",
+            },
+          } as DatabaseResult<T>;
+        }
 
-      // 🛡️ Postgres.js v4: detect connection boundary loss during a transaction
-      // (driver rejects with CONNECTION_CLOSED / "Connection closed" rather than leaking).
-      const errCode = (error as { code?: string })?.code;
-      if (
-        errCode === "CONNECTION_CLOSED" ||
-        errCode === "ECONNRESET" ||
-        errCode === "ECONNREFUSED" ||
-        /connection closed/i.test(message)
-      ) {
-        return this.core.handleError(
-          error,
-          "DATABASE_CONNECTION_LOST",
-          "Database connection lost during transaction",
-        );
-      }
+        // 🛡️ Postgres.js v4: detect connection boundary loss during a transaction
+        // (driver rejects with CONNECTION_CLOSED / "Connection closed" rather than leaking).
+        const errCode = (error as { code?: string })?.code;
+        if (
+          errCode === "CONNECTION_CLOSED" ||
+          errCode === "ECONNRESET" ||
+          errCode === "ECONNREFUSED" ||
+          /connection closed/i.test(message)
+        ) {
+          return this.core.handleError(
+            error,
+            "DATABASE_CONNECTION_LOST",
+            "Database connection lost during transaction",
+          );
+        }
 
-      return this.core.handleError(error, "TRANSACTION_FAILED");
+        return this.core.handleError(error, "TRANSACTION_FAILED");
+      }
     }
   }
 }

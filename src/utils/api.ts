@@ -20,10 +20,23 @@ import { fetchApi, type ApiResponse } from "./http-client";
 
 // --- Type Definitions ---
 
+/**
+ * One row of `/api/collections/:collectionId/:entryId/revisions`.
+ *
+ * Mirrors the persisted `content_revisions` shape returned by the SDK
+ * (`authorId` / `createdAt`). The legacy `revision_by` / `revision_at` names
+ * never existed on the wire; the history tab reads them only as a fallback.
+ */
 export interface RevisionMeta {
   _id: string;
-  revision_at: ISODateString;
-  revision_by: string;
+  contentId: string;
+  version: number;
+  commitMessage?: string | null;
+  authorId: string;
+  tenantId?: string | null;
+  createdAt: ISODateString;
+  updatedAt: ISODateString;
+  data: Record<string, unknown>;
 }
 
 export interface Collection {

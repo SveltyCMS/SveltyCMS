@@ -124,6 +124,14 @@ interface SseHarness {
 }
 
 const TEST_TENANT = "tenant-sse" as DatabaseId;
+/** Authenticated subscriber: `/api/events` already requires `collection:read`. */
+const TEST_USER = {
+  _id: "sse-admin",
+  email: "sse@example.com",
+  role: "admin",
+  isAdmin: true,
+  permissions: [],
+} as unknown as NonNullable<App.Locals["user"]>;
 
 /**
  * Connects the real stream handler and exposes its wildcard listener plus the
@@ -146,6 +154,7 @@ async function connectSse(tenantId: DatabaseId = TEST_TENANT): Promise<SseHarnes
       headers: new Headers(),
       signal: abortController.signal,
     },
+    locals: { user: TEST_USER, roles: [] },
     url: new URL("http://localhost/api/events"),
   } as unknown as RequestEvent;
 
@@ -178,6 +187,15 @@ async function readConnectedFrames(harness: SseHarness) {
   expect(second.value).toContain(": connected");
 }
 
+/**
+ * Drains the authorization chain for events emitted in the current tick. Real
+ * timers are faked in these tests, so `advanceTimersByTimeAsync(0)` is the
+ * deterministic way to flush chained microtasks without firing the 32ms flush.
+ */
+async function flushAuthorization(): Promise<void> {
+  await vi.advanceTimersByTimeAsync(0);
+}
+
 describe("content SSE debounced flush", () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -203,7 +221,9 @@ describe("content SSE debounced flush", () => {
     const harness = await connectSse();
     await readConnectedFrames(harness);
 
-    harness.emit({ event: "content:update", data: { version: 42 } });
+    harness.emit({ event: "content:update", data: { version: 42, collection: "*" } });
+    // The first event for a subject is authorized asynchronously (microtasks).
+    await flushAuthorization();
     expect(vi.getTimerCount()).toBe(2); // keep-alive + one flush timer
 
     let resolved = false;
@@ -235,8 +255,9 @@ describe("content SSE debounced flush", () => {
     const harness = await connectSse();
     await readConnectedFrames(harness);
 
-    harness.emit({ event: "content:update", data: { version: 1 } });
-    harness.emit({ event: "content:update", data: { version: 2 } });
+    harness.emit({ event: "content:update", data: { version: 1, collection: "*" } });
+    harness.emit({ event: "content:update", data: { version: 2, collection: "*" } });
+    await flushAuthorization();
     expect(vi.getTimerCount()).toBe(2); // second event reuses the pending timer
 
     vi.advanceTimersByTime(32);
@@ -259,7 +280,8 @@ describe("content SSE debounced flush", () => {
     const harness = await connectSse();
     await readConnectedFrames(harness);
 
-    harness.emit({ event: "content:update", data: { version: 9 } });
+    harness.emit({ event: "content:update", data: { version: 9, collection: "*" } });
+    await flushAuthorization();
     expect(vi.getTimerCount()).toBe(2);
 
     harness.abort();
@@ -269,5 +291,42 @@ describe("content SSE debounced flush", () => {
 
     vi.advanceTimersByTime(32);
     expect(await harness.read()).toEqual({ done: true });
+  });
+
+  it("drops events the subscriber is not authorized to see", async () => {
+    vi.useFakeTimers();
+    const harness = await connectSse();
+    await readConnectedFrames(harness);
+
+    // Unknown doc channel, a Yjs channel with a broadcast tenant, and an event
+    // shape with no collection subject: all fail closed and never buffer.
+    harness.emit({
+      event: "yjs:sync",
+      data: {
+        docId: "not-an-entry-doc",
+        updateBase64: "AAAA",
+        origin: "server",
+        tenantId: TEST_TENANT,
+      },
+    });
+    harness.emit({
+      event: "yjs:awareness",
+      data: {
+        docId: "entry:posts:entry-1",
+        updateBase64: "AAAA",
+        origin: "server",
+        tenantId: "all",
+      },
+    });
+    harness.emit({
+      event: "chat:message",
+      data: { text: "secret", tenantId: TEST_TENANT },
+    });
+    await flushAuthorization();
+
+    // Only the keep-alive timer exists — no flush was scheduled for a dropped event.
+    expect(vi.getTimerCount()).toBe(1);
+
+    harness.abort();
   });
 });

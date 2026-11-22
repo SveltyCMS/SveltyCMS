@@ -15,7 +15,7 @@ describe("RBAC Audit Trail", () => {
   });
 
   it("records audit logs when roles are created, updated, and deleted", async () => {
-    const logSpy = vi.spyOn(auditLogService, "log").mockResolvedValue(undefined as any);
+    const logSpy = vi.spyOn(auditLogService, "log").mockResolvedValue(undefined);
 
     const mockAuth = {
       getAllRoles: vi.fn().mockResolvedValue([
@@ -75,5 +75,77 @@ describe("RBAC Audit Trail", () => {
       expect.objectContaining({ roleName: "Brand New Role", operation: "create" }),
       "tenant_abc",
     );
+  });
+
+  it("awaits every role audit write before resolving the mutation", async () => {
+    let releaseAudit!: () => void;
+    const auditGate = new Promise<void>((resolve) => {
+      releaseAudit = resolve;
+    });
+    const logSpy = vi.spyOn(auditLogService, "log").mockImplementation(() => auditGate);
+
+    const authNamespace = new AuthNamespace({} as never);
+    (authNamespace as unknown as { getAuth: () => Promise<unknown> }).getAuth = vi.fn(async () => ({
+      getAllRoles: vi
+        .fn()
+        .mockResolvedValue([
+          { _id: "role_to_update", name: "Existing Role", permissions: ["read"] },
+        ]),
+      createRole: vi.fn().mockResolvedValue({ _id: "role_new" }),
+      updateRole: vi.fn().mockResolvedValue({ success: true }),
+      deleteRole: vi.fn().mockResolvedValue({ success: true }),
+    }));
+    (authNamespace as unknown as { validateRoles: () => Promise<unknown> }).validateRoles = vi
+      .fn()
+      .mockResolvedValue({ isValid: true });
+
+    let settled = false;
+    const pending = authNamespace
+      .updateRoles(
+        [{ _id: "role_to_update" as never, name: "Updated Role", permissions: ["read"] }],
+        { user: { _id: "admin_123", email: "admin@svelty.org", role: "admin" }, tenantId: null },
+      )
+      .then((value) => {
+        settled = true;
+        return value;
+      });
+
+    await vi.waitFor(() => expect(logSpy).toHaveBeenCalled());
+    expect(settled).toBe(false);
+
+    releaseAudit();
+    const result = await pending;
+    expect(result.success).toBe(true);
+  });
+
+  it("keeps the role write when the audit sink fails, and logs loudly", async () => {
+    const logSpy = vi
+      .spyOn(auditLogService, "log")
+      .mockRejectedValue(new Error("audit sink offline"));
+
+    const updateRole = vi.fn().mockResolvedValue({ success: true });
+    const authNamespace = new AuthNamespace({} as never);
+    (authNamespace as unknown as { getAuth: () => Promise<unknown> }).getAuth = vi.fn(async () => ({
+      getAllRoles: vi
+        .fn()
+        .mockResolvedValue([
+          { _id: "role_to_update", name: "Existing Role", permissions: ["read"] },
+        ]),
+      createRole: vi.fn().mockResolvedValue({ _id: "role_new" }),
+      updateRole,
+      deleteRole: vi.fn().mockResolvedValue({ success: true }),
+    }));
+    (authNamespace as unknown as { validateRoles: () => Promise<unknown> }).validateRoles = vi
+      .fn()
+      .mockResolvedValue({ isValid: true });
+
+    const result = await authNamespace.updateRoles(
+      [{ _id: "role_to_update" as never, name: "Updated Role", permissions: ["read"] }],
+      { user: { _id: "admin_123", email: "admin@svelty.org", role: "admin" }, tenantId: null },
+    );
+
+    expect(result.success).toBe(true);
+    expect(updateRole).toHaveBeenCalledTimes(1);
+    expect(logSpy).toHaveBeenCalledTimes(1);
   });
 });

@@ -19,7 +19,9 @@
  * - prepared list plans: equality + physical ORDER BY + limit/offset compile once
  *   and run through the driver statement cache (the admin list shape)
  * - search (LIKE/ILIKE per dialect) with JSON fallback
- * - projection via select(); no-op exclude/distinct/groupBy/hint/timeout
+ * - projection via select(); no-op exclude/groupBy/hint/timeout
+ * - distinct() fails loudly: the SQL adapters do not implement SELECT DISTINCT
+ *   and no caller relies on the old silent no-op (see the method JSDoc)
  * - count / exists / findOne / findOneOrFail / updateMany / deleteMany
  * - optional streaming (PostgreSQL only)
  * - ISODateString normalization on every read path (all engines)
@@ -53,6 +55,7 @@ import type {
   QueryFilter,
   QueryOptimizationHints,
 } from "../db-interface";
+import { AppError } from "@utils/error-handling";
 import { normalizeSortDirection } from "./page-utils";
 import { coerceDateColumnValue } from "./drizzle-sql-helpers";
 import {
@@ -998,8 +1001,28 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
     return this;
   }
 
+  /**
+   * Not implemented on the SQL adapters — and deliberately not a silent no-op.
+   *
+   * Decision (2026-11): a repo-wide grep finds no caller of `QueryBuilder.distinct()`
+   * (the Mongo query builder owns its own `distinctField` path and calls the
+   * driver directly). The previous implementation returned `this` without
+   * changing the statement, so a caller would have received every duplicate row
+   * while believing the query was deduplicated — a wrong-results bug that is
+   * worse than a clear failure. This method therefore throws
+   * `UNSUPPORTED_OPERATION` naming the adapter.
+   *
+   * If a real caller needs it, implement `SELECT DISTINCT` in `buildQuery()`
+   * (and pin the projection semantics: DISTINCT applies to the full selected
+   * row, `_id` included, so it only deduplicates when `select()` narrows the
+   * projection). Until then, use a `groupBy` raw query or dedupe in memory.
+   */
   distinct<K extends keyof T>(_field?: K): this {
-    return this;
+    throw new AppError(
+      `queryBuilder.distinct is not implemented for the ${this.dialect.id} adapter`,
+      501,
+      "UNSUPPORTED_OPERATION",
+    );
   }
 
   groupBy<K extends keyof T>(_field: K): this {

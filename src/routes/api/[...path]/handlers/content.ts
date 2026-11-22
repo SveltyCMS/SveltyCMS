@@ -18,6 +18,7 @@ import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { successResponse, rawResponse } from "./base";
+import { createSseAuthorizer } from "./sse-authorization";
 
 /** Cached lazy handle to the engine server — one module-registry lookup instead of one per call. */
 let engineServerModulePromise: Promise<typeof import("@src/content/engine.server")> | undefined;
@@ -270,13 +271,21 @@ export function normalizeSseEventPayload(
 
 /**
  * Establishes a Server-Sent Events stream for real-time content updates.
- * Filters events by tenantId when provided.
+ * Filters events by tenantId, then authorizes each subject against the subscriber:
+ * Yjs document channels and collection events carry data the caller may not read.
  * Sends keep-alive pings every 30 seconds.
  * Cleans up on client disconnect via AbortSignal.
  */
 export async function handleContentEventsStream(event: RequestEvent, tenantId: DatabaseId) {
   const { eventBus } = await import("@utils/event-bus");
   const encoder = new TextEncoder();
+  // One authorizer (and decision cache) per connection; the handler's wildcard
+  // listener is the only consumer, so the cache is scoped to this subscriber.
+  const authorizer = createSseAuthorizer({
+    user: event.locals?.user ?? null,
+    roles: event.locals?.roles,
+    tenantId: tenantId ? String(tenantId) : null,
+  });
 
   const stream = new ReadableStream({
     start(controller) {
@@ -330,16 +339,55 @@ export async function handleContentEventsStream(event: RequestEvent, tenantId: D
       };
 
       // Event handler — buffers events instead of synchronous enqueue
+      //
+      // The first event for a subject is authorized asynchronously. A later event
+      // that arrives in the same tick must not overtake it via the fresh cache
+      // entry, so misses are serialized on one chain; once idle, a decided
+      // doc/collection takes the synchronous one-lookup fast path.
+      let authQueue: Promise<void> = Promise.resolve();
+      let pendingAuthorizations = 0;
+
       const handler = (payload: { event?: string; data?: Record<string, unknown> }) => {
         if (isClosed) return;
         const clientPayload = normalizeSseEventPayload(payload, tenantId);
         if (!clientPayload) return;
-        // Redact the VALUE, never the serialized document: text patterns also match
-        // inside JSON tokens (a 13-digit epoch-ms read as a phone number rewrote
-        // `"timestamp":1793522984546` to `"timestamp":[REDACTED]`, which the client then
-        // reported as `Unexpected token 'R'`. The frame always ends with a blank line.
-        eventBuffer.push(`data: ${JSON.stringify(redactSecretsDeep(clientPayload))}\n\n`);
-        scheduleFlush();
+
+        const buffer = (value: Record<string, unknown>) => {
+          // Redact the VALUE, never the serialized document: text patterns also match
+          // inside JSON tokens (a 13-digit epoch-ms read as a phone number rewrote
+          // `"timestamp":1793522984546` to `"timestamp":[REDACTED]`, which the client then
+          // reported as `Unexpected token 'R'`. The frame always ends with a blank line.
+          eventBuffer.push(`data: ${JSON.stringify(redactSecretsDeep(value))}\n\n`);
+          scheduleFlush();
+        };
+
+        const eventName = typeof clientPayload.event === "string" ? clientPayload.event : undefined;
+        // A denial needs no ordering: drop it immediately on the cached verdict.
+        const cached = authorizer.peek(eventName, clientPayload);
+        if (cached === false) return;
+        // Hot path: nothing queued, decision already made — one Map lookup.
+        if (cached === true && pendingAuthorizations === 0) {
+          buffer(clientPayload);
+          return;
+        }
+
+        pendingAuthorizations += 1;
+        authQueue = authQueue
+          .then(async () => {
+            if (isClosed) return;
+            const verdict = authorizer.peek(eventName, clientPayload);
+            const allowed =
+              verdict === undefined
+                ? await authorizer.authorize(eventName, clientPayload)
+                : verdict;
+            if (allowed && !isClosed) buffer(clientPayload);
+          })
+          .finally(() => {
+            pendingAuthorizations -= 1;
+          })
+          .catch((err) => {
+            logger.debug("[SSE] Event authorization failed; event dropped", err);
+          });
       };
 
       eventBus.on("*", handler);

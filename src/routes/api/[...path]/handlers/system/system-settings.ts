@@ -14,6 +14,8 @@ import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import type { User } from "@src/databases/auth/types";
 import { handleWebhookRoutes } from "./system-webhooks";
+import { auditLogService, AuditEventType } from "@src/services/security/audit-service";
+import { logger } from "@utils/logger";
 
 const SECRET_KEY_RE =
   /(secret|password|passwd|token|api[_-]?key|private[_-]?key|credential|refresh|jwt|encryption)/i;
@@ -157,6 +159,31 @@ export async function handleSettingsRoutes(
     const result = await cms.system.settings.set(action || "all", body, {
       tenantId: tenantId as any,
     });
+
+    // Audit the mutation by group and key names only — values routinely carry
+    // SMTP/API secrets and must never reach the audit chain.
+    try {
+      const actor = event.locals.user as { _id?: DatabaseId; email?: string; role?: string } | null;
+      await auditLogService.log(
+        "System settings updated",
+        {
+          id: actor?._id ?? null,
+          email: actor?.email ?? "unknown",
+          role: actor?.role,
+          ip: event.getClientAddress?.(),
+        },
+        { type: "settings", id: null },
+        AuditEventType.SETTINGS_UPDATED,
+        "high",
+        { group: action || "all", keys: Object.keys(body).sort() },
+        tenantId,
+      );
+    } catch (err) {
+      logger.error("[Settings] Failed to write SETTINGS_UPDATED audit event", {
+        group: action || "all",
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
 
     // 🚀 Invalidate the field-permission + access-rule memos so a saved policy
     // takes effect immediately (no up-to-60s stale window).

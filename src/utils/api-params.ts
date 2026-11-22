@@ -64,7 +64,9 @@ const FILTER_BRACKET_PREFIX = "filter[";
  * (list/stream/export) receives the shape the query layer understands.
  *
  * `contains` is the playground's substring match: SQL answers it with a LIKE
- * comparison, Mongo with an escaped case-insensitive regex.
+ * comparison, Mongo with an escaped case-insensitive regex. `ieq` / `nieq` /
+ * `nicontains` add case-insensitive equality, inequality and negated substring
+ * matching on both engines.
  */
 const FILTER_OPERATOR_ALIASES: Readonly<Record<string, string>> = Object.freeze({
   eq: "$eq",
@@ -76,6 +78,15 @@ const FILTER_OPERATOR_ALIASES: Readonly<Record<string, string>> = Object.freeze(
   in: "$in",
   nin: "$nin",
   contains: "$contains",
+  // Case-insensitive equality / inequality / substring. Accept the Directus
+  // `_`-prefixed REST spellings (`filter[field][_ieq]`) as well as the bare
+  // ones, so the bracket syntax and the `filter={…}` JSON syntax agree.
+  ieq: "$ieq",
+  _ieq: "$ieq",
+  nieq: "$nieq",
+  _nieq: "$nieq",
+  nicontains: "$nicontains",
+  _nicontains: "$nicontains",
 });
 
 /** Operators whose value is a comma-separated list (`$in=a,b`). */

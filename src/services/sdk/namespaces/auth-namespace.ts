@@ -14,7 +14,7 @@ const loadHandleTurboGetModule = lazyModule(() => import("@src/hooks/handle-turb
 /** Cached lazy handle to the SSO session store — one module-registry lookup instead of one per call. */
 const loadSsoSessionModule = lazyModule(() => import("@src/databases/auth/sso-session"));
 
-import { AppError, getErrorMessage, rethrow } from "@utils/error-handling";
+import { AppError, getErrorMessage, raise, rethrow } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { dateToISODateString, isoDateStringToDate } from "@src/utils/date";
 import { verifyPassword, verifyDummyPassword } from "@utils/security/crypto";
@@ -24,7 +24,7 @@ import {
   invalidatePermissionCache,
   isAcceptablePermissionId,
 } from "@src/databases/auth/permissions";
-import { sessionTtlMs } from "@src/databases/auth/constants";
+import { sessionTtlMs, isAdmin } from "@src/databases/auth/constants";
 import { invalidateRolesCache } from "@src/hooks/handle-authorization";
 import { isAutomatedTestHarness } from "@utils/private-config-policy";
 import { auditLogService, AuditEventType } from "@src/services/security/audit-service";
@@ -70,6 +70,42 @@ import { type LocalApiOptions } from "./types";
 
 /** Compiled once — the email shape check is identical on every call path. */
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+type LoginFailureReason =
+  | "invalid_password"
+  | "unknown_user"
+  | "account_locked"
+  | "account_blocked"
+  | "no_password";
+
+/**
+ * Record one failed login attempt. The password is never accepted, so the row
+ * cannot carry credential material.
+ */
+async function recordLoginFailure(params: {
+  email: string;
+  reason: LoginFailureReason;
+  tenantId?: DatabaseId | null;
+  ip?: string;
+}): Promise<void> {
+  try {
+    await auditLogService.log(
+      `Login failed: ${params.reason}`,
+      { id: null, email: params.email, ip: params.ip },
+      { type: "user", id: null },
+      AuditEventType.USER_LOGIN_FAILED,
+      "medium",
+      { reason: params.reason },
+      params.tenantId ?? null,
+      "failure",
+    );
+  } catch (err) {
+    logger.error("[Auth] Failed to write USER_LOGIN_FAILED audit event", {
+      reason: params.reason,
+      error: getErrorMessage(err),
+    });
+  }
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -310,8 +346,69 @@ export class AuthNamespace {
       const { tenantId } = options;
       const auth = await this.getAuth();
       if (!auth) throw new AppError("Authentication system not initialized", 500);
+      await this.assertNotLastAdmin(auth, [userId], tenantId);
       return auth.deleteUser(userId as DatabaseId, { tenantId: tenantId as DatabaseId });
     });
+  }
+
+  /**
+   * Refuse to delete or block the final active administrator of a scope.
+   *
+   * Admin detection uses the dialect-tolerant `isAdmin()` helper (role name or
+   * `isAdmin` flag). The affected scope is the TARGET users' tenant (or the
+   * global scope for null-tenant users), so a global caller cannot silently
+   * empty a tenant's admin roster either. A "remaining" admin must be
+   * unblocked, in the same tenant, and not part of the mutation set. Without
+   * this guard a tenant can be left without any account able to manage users.
+   * Capability-checked so partial adapter stubs (unit tests, legacy adapters)
+   * are not broken by an unrelated mutation.
+   */
+  private async assertNotLastAdmin(
+    auth: IAuthAdapter,
+    targetIds: readonly string[],
+    tenantId: DatabaseId | null | undefined,
+  ): Promise<void> {
+    if (targetIds.length === 0) return;
+    if (typeof auth.getUserById !== "function" || typeof auth.getAllUsers !== "function") return;
+
+    const lookupOptions: BaseQueryOptions = tenantId
+      ? { tenantId }
+      : withSystemScope("auth-bootstrap");
+    const targets = new Set(targetIds.map(String));
+    /** Affected scopes, keyed by tenant id ("" = global/null-tenant). */
+    const affectedTenants = new Map<string, DatabaseId | null>();
+
+    for (const id of targetIds) {
+      const res = await auth.getUserById(id as DatabaseId, lookupOptions);
+      const candidate = res?.success ? res.data : null;
+      if (!candidate || !isAdmin(candidate) || candidate.blocked) continue;
+      const ownerTenant = (candidate.tenantId ?? null) as DatabaseId | null;
+      affectedTenants.set(ownerTenant ? String(ownerTenant) : "", ownerTenant);
+    }
+    if (affectedTenants.size === 0) return;
+
+    for (const ownerTenant of affectedTenants.values()) {
+      const usersRes = await auth.getAllUsers(
+        undefined,
+        ownerTenant ? { tenantId: ownerTenant } : withSystemScope("auth-bootstrap"),
+      );
+      if (!usersRes?.success) {
+        logger.error("[Auth] Last-admin guard could not read users; refusing mutation", {
+          tenantId: ownerTenant ?? null,
+        });
+        raise(500, "Unable to verify remaining administrators", "LAST_ADMIN_CHECK_FAILED");
+      }
+
+      const hasRemainingAdmin = (usersRes.data ?? []).some((candidate) => {
+        if (!isAdmin(candidate) || candidate.blocked) return false;
+        const candidateTenant = (candidate.tenantId ?? null) as DatabaseId | null;
+        if (String(candidateTenant ?? "") !== String(ownerTenant ?? "")) return false;
+        return !targets.has(String(candidate._id));
+      });
+      if (!hasRemainingAdmin) {
+        raise(409, "Cannot delete or block the last administrator in this scope", "LAST_ADMIN");
+      }
+    }
   }
 
   async getUserCount(filter: any = {}, options: LocalApiOptions = {}) {
@@ -471,6 +568,12 @@ export class AuthNamespace {
         // latency matches valid-user verification, neutralizing email enumeration.
         await verifyDummyPassword(password || "dummy-password");
         logger.debug("Login failed: User not found", { userLookup });
+        await recordLoginFailure({
+          email,
+          reason: "unknown_user",
+          tenantId,
+          ip: sessionMeta?.ipAddress,
+        });
         throw new AppError("Invalid credentials", 401);
       }
 
@@ -485,6 +588,12 @@ export class AuthNamespace {
           logger.warn("Authentication attempt on locked account", {
             email,
             lockoutUntil: user.lockoutUntil,
+          });
+          await recordLoginFailure({
+            email,
+            reason: "account_locked",
+            tenantId,
+            ip: sessionMeta?.ipAddress,
           });
           throw new AppError(
             `Account is temporarily locked. Please try again in ${remainingMinutes} minutes.`,
@@ -509,6 +618,12 @@ export class AuthNamespace {
         logger.debug("Login failed: User blocked or no password", {
           userId: user._id,
         });
+        await recordLoginFailure({
+          email,
+          reason: user.blocked ? "account_blocked" : "no_password",
+          tenantId,
+          ip: sessionMeta?.ipAddress,
+        });
         throw new AppError("Account suspended or incomplete", 401);
       }
 
@@ -518,6 +633,12 @@ export class AuthNamespace {
       // user with a stored hash).
       if (!password) {
         logger.warn("Login attempt without password", { email });
+        await recordLoginFailure({
+          email,
+          reason: "invalid_password",
+          tenantId,
+          ip: sessionMeta?.ipAddress,
+        });
         throw new AppError("Invalid credentials", 401);
       }
 
@@ -550,6 +671,12 @@ export class AuthNamespace {
             });
           }
           logger.warn("Password authentication failed", { email, failedAttempts });
+          await recordLoginFailure({
+            email,
+            reason: "invalid_password",
+            tenantId,
+            ip: sessionMeta?.ipAddress,
+          });
           throw new AppError("Invalid credentials", 401);
         }
       }
@@ -715,6 +842,11 @@ export class AuthNamespace {
         role: user?.role,
       };
 
+      // RBAC mutations must not land unlogged. Collect the audit writes and
+      // await them before returning; a failed audit is logged loudly without
+      // undoing the (already applied) role write.
+      const auditWrites: Promise<void>[] = [];
+
       await withTenant(
         tenantId as DatabaseId | null,
         async () => {
@@ -723,20 +855,27 @@ export class AuthNamespace {
               await auth.deleteRole(existingRole._id as DatabaseId, {
                 tenantId: tenantId as DatabaseId,
               });
-              auditLogService
-                .log(
-                  `Role deleted: ${existingRole.name || existingRole._id}`,
-                  actor,
-                  { type: "role", id: existingRole._id as DatabaseId },
-                  AuditEventType.ROLE_DELETED,
-                  "high",
-                  {
-                    roleName: existingRole.name,
-                    permissionsCount: existingRole.permissions?.length ?? 0,
-                  },
-                  tenantId as DatabaseId | null,
-                )
-                .catch(() => {});
+              auditWrites.push(
+                auditLogService
+                  .log(
+                    `Role deleted: ${existingRole.name || existingRole._id}`,
+                    actor,
+                    { type: "role", id: existingRole._id as DatabaseId },
+                    AuditEventType.ROLE_DELETED,
+                    "high",
+                    {
+                      roleName: existingRole.name,
+                      permissionsCount: existingRole.permissions?.length ?? 0,
+                    },
+                    tenantId as DatabaseId | null,
+                  )
+                  .catch((err) => {
+                    logger.error("[Auth] Failed to persist ROLE_DELETED audit event", {
+                      roleId: existingRole._id,
+                      error: getErrorMessage(err),
+                    });
+                  }),
+              );
             }
           }
 
@@ -763,43 +902,59 @@ export class AuthNamespace {
               await auth.updateRole(role._id as DatabaseId, roleData, {
                 tenantId: tenantId as DatabaseId,
               });
-              auditLogService
-                .log(
-                  `Role updated: ${roleData.name || roleData._id}`,
-                  actor,
-                  { type: "role", id: roleData._id as DatabaseId },
-                  AuditEventType.ROLE_MUTATED,
-                  "medium",
-                  {
-                    roleName: roleData.name,
-                    permissionsCount: roleData.permissions?.length ?? 0,
-                    operation: "update",
-                  },
-                  tenantId as DatabaseId | null,
-                )
-                .catch(() => {});
+              auditWrites.push(
+                auditLogService
+                  .log(
+                    `Role updated: ${roleData.name || roleData._id}`,
+                    actor,
+                    { type: "role", id: roleData._id as DatabaseId },
+                    AuditEventType.ROLE_MUTATED,
+                    "medium",
+                    {
+                      roleName: roleData.name,
+                      permissionsCount: roleData.permissions?.length ?? 0,
+                      operation: "update",
+                    },
+                    tenantId as DatabaseId | null,
+                  )
+                  .catch((err) => {
+                    logger.error("[Auth] Failed to persist ROLE_MUTATED audit event", {
+                      roleId: roleData._id,
+                      error: getErrorMessage(err),
+                    });
+                  }),
+              );
             } else {
               await auth.createRole(roleData);
-              auditLogService
-                .log(
-                  `Role created: ${roleData.name || roleData._id}`,
-                  actor,
-                  { type: "role", id: roleData._id as DatabaseId },
-                  AuditEventType.ROLE_MUTATED,
-                  "medium",
-                  {
-                    roleName: roleData.name,
-                    permissionsCount: roleData.permissions?.length ?? 0,
-                    operation: "create",
-                  },
-                  tenantId as DatabaseId | null,
-                )
-                .catch(() => {});
+              auditWrites.push(
+                auditLogService
+                  .log(
+                    `Role created: ${roleData.name || roleData._id}`,
+                    actor,
+                    { type: "role", id: roleData._id as DatabaseId },
+                    AuditEventType.ROLE_MUTATED,
+                    "medium",
+                    {
+                      roleName: roleData.name,
+                      permissionsCount: roleData.permissions?.length ?? 0,
+                      operation: "create",
+                    },
+                    tenantId as DatabaseId | null,
+                  )
+                  .catch((err) => {
+                    logger.error("[Auth] Failed to persist ROLE_MUTATED audit event", {
+                      roleId: roleData._id,
+                      error: getErrorMessage(err),
+                    });
+                  }),
+              );
             }
           }
         },
         { collection: "roles" },
       );
+
+      await Promise.all(auditWrites);
 
       invalidateRolesCache(tenantId as DatabaseId);
 
@@ -867,6 +1022,10 @@ export class AuthNamespace {
       const { tenantId } = options;
       const auth = await this.getAuth();
       if (!auth) throw new AppError("Authentication system not initialized", 500);
+
+      if (action === "delete" || action === "block") {
+        await this.assertNotLastAdmin(auth, userIds, tenantId);
+      }
 
       // Direct switch — the IIFE existed only to `return` out of a case and
       // cost a closure allocation per batch call.

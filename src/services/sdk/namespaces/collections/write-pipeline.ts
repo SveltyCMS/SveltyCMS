@@ -6,7 +6,8 @@
  * centralized widget pipeline.
  *
  * ### Features:
- * - prepareWritePayload: sanitize + constraints + stamps + DateTime inline + hooks
+ * - prepareWritePayload: sanitize + constraints + stamps + strict DateTime validation
+ *   (raw ISO string checked before normalization) + hooks
  * - schema hook pipeline with numeric-range gate (AppError, 400)
  * - assertWriteAllowed for non-admin/non-system writes on schemas with fields
  * - applyWidgetPipeline: collectionModelCache lookup + resilient model resolve
@@ -23,7 +24,12 @@ import {
 import { applySchemaHookPipeline, type SchemaHookPipelineOptions } from "@src/content/schema-hooks";
 import { modifyRequest, type EntryData } from "@utils/modify-request";
 import { AppError } from "@utils/error-handling";
-import { hasIsoDateTimePrefix, nowISODateString, toISOString } from "@src/utils/date";
+import {
+  hasIsoDateTimePrefix,
+  isISODateString,
+  nowISODateString,
+  toISOString,
+} from "@src/utils/date";
 import { assertWriteAllowed } from "@src/services/security/field-permission-service";
 import { isAdmin } from "@src/databases/auth/constants";
 import { sanitizeObject } from "@utils/security/input-sanitizer";
@@ -316,11 +322,24 @@ export function prepareWritePayload(
 
   const dateTimeFieldNames = hot._dateTimeFieldNames;
   if (dateTimeFieldNames && dateTimeFieldNames.length > 0) {
+    // Date validation must see the RAW string: `toISOString()` parses
+    // `2026-02-31` as March 3 (and `2025-13-01` as January 2026), so a
+    // normalize-then-validate order silently accepted impossible dates. The
+    // skip flags mirror the field-validation gate below so imports/benchmarks
+    // (which intentionally bypass validation) keep their contract.
+    const validateDates = !system && !opts.skipValidation;
+    let dateErrors: string[] | null = null;
     for (let i = 0; i < dateTimeFieldNames.length; i++) {
       const name = dateTimeFieldNames[i];
       if (!Object.hasOwn(entryData, name)) continue;
       const val = entryData[name];
       if (val === undefined || val === null || val === "") continue;
+      if (validateDates && typeof val === "string" && !isISODateString(val)) {
+        (dateErrors ??= []).push(
+          `Field "${name}": value "${val}" is not a valid ISO date (impossible calendar date or malformed input)`,
+        );
+        continue;
+      }
       // Skip only when the value is ALREADY the canonical `toISOString()`
       // form (millisecond precision + trailing Z). A bare "…T12:00:00Z" is a
       // valid ISO timestamp but NOT the standardized .000Z contract the CMS
@@ -336,6 +355,7 @@ export function prepareWritePayload(
       const normalized = toISOString(val);
       if (normalized !== val) entryData[name] = normalized;
     }
+    if (dateErrors) throw fieldValidationError(dateErrors);
   }
 
   // 🧹 SELECTIVE DB PASSING: prune extraneous client-sent keys on strict schemas

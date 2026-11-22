@@ -8,11 +8,13 @@
  * ### Features:
  * - parseEntryDocId: only `entry:{collectionId}:{entryId}` channels are accepted
  * - assertCollaborationAccess: collection-scoped `collection:read|write`, then global
+ *
+ * The grant rule itself lives in `@src/services/collaboration/access` so the SSE
+ * stream can reuse the same boolean predicate without throwing.
  */
 
 import { AppError } from "@utils/error-handling";
-import { hasPermissionWithRoles, hasPermissionByAction } from "@src/databases/auth/permissions";
-import { isAdmin } from "@src/databases/auth/constants";
+import { hasCollaborationAccess } from "@src/services/collaboration/access";
 import type { Role, User } from "@src/databases/auth/types";
 
 /** Parse `entry:{collectionId}:{entryId}` — collection ids are kebab-case, entry ids are UUIDs. */
@@ -39,10 +41,7 @@ export function assertCollaborationAccess(
   action: "read" | "write",
   collectionId: string,
 ): void {
-  if (isAdmin(user)) return;
-  const scoped = hasPermissionByAction(user, action, "collection", collectionId, roles ?? []);
-  const global = hasPermissionWithRoles(user, `collection:${action}`, roles ?? []);
-  if (!scoped && !global) {
+  if (!hasCollaborationAccess(user, roles, action, collectionId)) {
     throw new AppError("Forbidden: Insufficient permissions for this entry", 403, "FORBIDDEN");
   }
 }

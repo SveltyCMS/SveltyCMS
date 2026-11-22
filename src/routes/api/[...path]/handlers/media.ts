@@ -56,6 +56,7 @@ import {
 } from "@utils/media/direct-upload.server";
 import { getStorageAdapter, resolveConfiguredMediaFolder } from "@utils/media/storage-adapters";
 import { resolveRemoteAssetMime } from "@utils/media/slim-sniffer.server";
+import { auditLogService, AuditEventType } from "@src/services/security/audit-service";
 import {
   appendTusChunk,
   createTusSession,
@@ -89,6 +90,45 @@ function isFileLike(value: unknown): value is File {
     typeof (value as any).arrayBuffer === "function" &&
     "name" in value
   );
+}
+
+/**
+ * Record one media mutation on the audit chain.
+ *
+ * Best-effort: the file operation already succeeded, so a broken audit sink is
+ * logged loudly instead of turning a completed upload/delete into a 500.
+ */
+async function recordMediaAudit(
+  event: RequestEvent,
+  tenantId: DatabaseId,
+  eventType: AuditEventType,
+  action: string,
+  mediaId: string | null,
+  details: Record<string, unknown> = {},
+): Promise<void> {
+  const actor = event.locals.user as { _id?: DatabaseId; email?: string; role?: string } | null;
+  try {
+    await auditLogService.log(
+      action,
+      {
+        id: actor?._id ?? null,
+        email: actor?.email ?? "unknown",
+        role: actor?.role,
+        ip: event.getClientAddress?.(),
+      },
+      { type: "media", id: (mediaId as DatabaseId | null) ?? null },
+      eventType,
+      "medium",
+      details,
+      tenantId,
+    );
+  } catch (err) {
+    logger.error("[Media] Failed to write audit event", {
+      eventType,
+      mediaId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 }
 
 /**
@@ -311,6 +351,7 @@ async function handleDeleteRoutes(
     if (!deleted.success) {
       throw new AppError(deleted.message || "Failed to delete media", 400, "DELETE_FAILED");
     }
+    await recordMediaAudit(event, tenantId, AuditEventType.MEDIA_DELETED, "Media deleted", method);
     return successResponse(event, { deleted: true, id: method });
   }
   return successResponse(event, null);
@@ -533,6 +574,19 @@ export async function handleMediaUpload(
   const workers = Array.from({ length: Math.min(concurrency, files.length) }, uploadWorker);
   await Promise.all(workers);
 
+  for (const entry of results) {
+    if (!entry || entry.success !== true) continue;
+    const uploadedId = entry.data?._id ?? entry.data?.id ?? null;
+    await recordMediaAudit(
+      event,
+      tenantId,
+      AuditEventType.MEDIA_UPLOADED,
+      "Media uploaded",
+      uploadedId ? String(uploadedId) : null,
+      { fileName: entry.fileName },
+    );
+  }
+
   return successResponse(event, results.filter(Boolean));
 }
 
@@ -567,7 +621,16 @@ export async function handleMediaProcess(
       }
       const mediaId = formData.get("mediaId") as string;
       if (!mediaId) throw new AppError("Identifier expected", 400);
-      await cms.media.delete(mediaId, { tenantId });
+      const deleteResult = await cms.media.delete(mediaId, { tenantId });
+      if (deleteResult.success) {
+        await recordMediaAudit(
+          event,
+          tenantId,
+          AuditEventType.MEDIA_DELETED,
+          "Media deleted",
+          mediaId,
+        );
+      }
       return successResponse(event, null);
     }
     case "batch": {
@@ -663,6 +726,7 @@ export async function handleMediaPostDelete(
 
   const result = await cms.media.delete(targetId, { tenantId });
   if (!result.success) throw result.error || new AppError(result.message || "Deletion failed", 500);
+  await recordMediaAudit(event, tenantId, AuditEventType.MEDIA_DELETED, "Media deleted", targetId);
   return successResponse(event, { success: true });
 }
 

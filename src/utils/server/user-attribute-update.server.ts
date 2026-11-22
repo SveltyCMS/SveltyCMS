@@ -12,6 +12,7 @@ import {
   hasCredentialChangeFields,
   hasPrivilegedUserFields,
   isAdminCaller,
+  PRIVILEGED_USER_FIELDS,
   sanitizeClientUserAttributePatch,
 } from "@utils/security/user-attribute-policy";
 import { verifyPassword } from "@src/databases/auth";
@@ -19,6 +20,7 @@ import { sanitizeUserForClient } from "@src/databases/auth/session-user";
 import { verifyReauthToken, verifyUserReauthToken } from "@utils/server/session-reauth.server";
 import { AppError, raise, rethrow } from "@utils/error-handling";
 import { logger } from "@utils/logger";
+import { auditLogService, AuditEventType } from "@src/services/security/audit-service";
 import { invalidateSessionCache, primeSessionMemoryCache } from "@src/hooks/handle-authentication";
 import { readSessionCookie } from "@utils/security/session-cookie";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
@@ -62,6 +64,44 @@ function extractUserRecord(res: unknown): User | null {
     return null;
   }
   return res as User;
+}
+
+/**
+ * Record a blocked privilege-escalation attempt.
+ *
+ * Only field names are logged — never the submitted values (a rejected
+ * `role` payload can still reveal intended targets). A failed audit write is
+ * loud but does not turn the already-correct 403/partial success into a 500.
+ */
+async function recordPrivilegeEscalation(
+  event: RequestEvent,
+  actor: { id?: DatabaseId | null; email?: string; role?: string },
+  targetId: string,
+  strippedFields: string[],
+  tenantId?: DatabaseId,
+): Promise<void> {
+  try {
+    await auditLogService.log(
+      "Privilege escalation attempt blocked",
+      {
+        id: actor.id ?? null,
+        email: actor.email ?? "unknown",
+        role: actor.role,
+        ip: event.getClientAddress?.(),
+      },
+      { type: "user", id: targetId as DatabaseId },
+      AuditEventType.PRIVILEGE_ESCALATION,
+      "high",
+      { strippedFields },
+      tenantId ?? null,
+      "failure",
+    );
+  } catch (err) {
+    logger.error("[Auth] Failed to write PRIVILEGE_ESCALATION audit event", {
+      targetId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 }
 
 export async function applyUserAttributeUpdate(
@@ -116,12 +156,27 @@ export async function applyUserAttributeUpdate(
   }
 
   if (hasPrivilegedUserFields(merged) && !isAdmin) {
+    const strippedFields = PRIVILEGED_USER_FIELDS.filter((field) => Object.hasOwn(merged, field));
     logger.warn(
       `[Auth] Stripped privileged fields from update-user-attributes (user=${caller._id})`,
+    );
+    await recordPrivilegeEscalation(
+      event,
+      { id: caller._id, email: caller.email, role: caller.role },
+      targetIdStr,
+      strippedFields,
+      tenantId,
     );
   }
 
   const updates = sanitizeClientUserAttributePatch(merged, { isAdmin });
+
+  // A real password change invalidates every trusted 2FA device: a browser
+  // remembered under the old credential must not keep skipping TOTP. Profile
+  // saves without a password field leave the trusted list untouched.
+  if (typeof updates.password === "string" && updates.password.trim().length > 0) {
+    updates.twoFactorTrustedDevices = [];
+  }
 
   // H1: a self-service change of email or password must prove the current
   // password for THIS request, either via x-reauth-token (5 min TTL) or

@@ -25,13 +25,16 @@
  * - sync fast-path (`getPrivateSettingSync`) — no async hop on the hot path
  * - admin fast-path — admins always see every field
  * - recursive stripping of nested objects inside list/entry payloads
+ * - `explainCollectionAccess` — pure read/write matrix + per-field reason, derived
+ *   from the same `canAccessField` predicate the enforcement paths use
  * - best-effort: config parse failure degrades to "no filtering"
  */
 
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { logger } from "@utils/logger";
-import { enforceFieldAccess } from "@utils/field-access";
-import { fieldDeclaresGuardDeep } from "@utils/field-guard";
+import { enforceFieldAccess, canAccessField } from "@utils/field-access";
+import { fieldDeclaresGuard, fieldDeclaresGuardDeep, childFieldsOf } from "@utils/field-guard";
+import { isAdmin } from "@src/databases/auth/constants";
 import { lazyModule } from "@utils/lazy-module";
 import type { DatabaseId, FieldInstance } from "@src/content/types";
 import type { User } from "@src/databases/auth/types";
@@ -252,6 +255,145 @@ export function getCollectionFromPath(pathname: string): string | null {
 }
 
 const guardedFieldsWeakMap = new WeakMap<FieldInstance[], boolean>();
+
+// ─── Permission explain (dry-run) ─────────────────────────────────────────────
+
+/**
+ * Why a field decision came out the way it did. Descriptive only — enforcement
+ * always uses `canAccessField`, so a stale label can never grant access.
+ */
+export type FieldAccessReason =
+  | "admin"
+  | "no_policy"
+  | "role_granted"
+  | "visibility_granted"
+  | "hidden"
+  | "visibility_denied"
+  | "role_list_empty"
+  | "role_not_granted"
+  | "auth_required"
+  | "parent_denied";
+
+export interface FieldAccessDecision {
+  /** Dotted field path (`seo.title` for nested group fields). */
+  path: string;
+  /** Effective read access — false when the field or an ancestor is denied. */
+  read: boolean;
+  /** Effective write access — false when the field or an ancestor is denied. */
+  write: boolean;
+  /** True when the schema declares a restriction (even when this actor is allowed). */
+  guarded: boolean;
+  readReason: FieldAccessReason;
+  writeReason: FieldAccessReason;
+}
+
+export interface CollectionAccessExplanation {
+  role: string;
+  fields: FieldAccessDecision[];
+  /** Paths `redactRecord` will drop for this actor. */
+  readDenied: string[];
+  /** Paths the write guard will reject with 403 for this actor. */
+  writeDenied: string[];
+}
+
+type AccessActor = User | { _id: string; role: string } | null | undefined;
+
+/** Descriptive mirror of `canAccessField`'s branch order (never used to decide). */
+function explainReason(
+  field: FieldInstance,
+  user: AccessActor,
+  operation: "read" | "write",
+  allowed: boolean,
+): FieldAccessReason {
+  const userId = user?._id || null;
+  if (userId === "system" || isAdmin(user)) return "admin";
+
+  const permissions = field.permissions;
+  const extra = field as { hidden?: boolean; visibility?: string };
+  const isHidden = Boolean(extra.hidden || extra.visibility === "hidden");
+
+  if (!permissions) return allowed ? "no_policy" : "hidden";
+
+  if (permissions.visibility === "private" || permissions.visibility === "hidden") {
+    return allowed ? "visibility_granted" : "visibility_denied";
+  }
+  if (operation === "read" && isHidden) return "hidden";
+  if (permissions.requiredAuth && !userId) return "auth_required";
+
+  const roles = operation === "read" ? permissions.readRoles : permissions.writeRoles;
+  if (Array.isArray(roles)) {
+    if (roles.length === 0) return "role_list_empty";
+    return allowed ? "role_granted" : "role_not_granted";
+  }
+  return allowed ? "no_policy" : "role_not_granted";
+}
+
+function collectDecisions(
+  fields: readonly FieldInstance[],
+  user: AccessActor,
+  prefix: string,
+  parentRead: boolean,
+  parentWrite: boolean,
+  out: FieldAccessDecision[],
+): void {
+  for (const field of fields) {
+    const name = (field.db_fieldName || (field as { name?: string }).name) as string | undefined;
+    if (!name) continue;
+    const path = prefix ? `${prefix}.${name}` : name;
+
+    const readSelf = canAccessField(field, user, "read");
+    const writeSelf = canAccessField(field, user, "write");
+    const read = parentRead && readSelf;
+    const write = parentWrite && writeSelf;
+
+    out.push({
+      path,
+      read,
+      write,
+      guarded: fieldDeclaresGuard(field),
+      readReason: parentRead ? explainReason(field, user, "read", readSelf) : "parent_denied",
+      writeReason: parentWrite ? explainReason(field, user, "write", writeSelf) : "parent_denied",
+    });
+
+    const children = childFieldsOf(field);
+    if (children.length > 0) {
+      collectDecisions(children, user, path, read, write, out);
+    }
+  }
+}
+
+/**
+ * Flattens a schema into a per-field read/write matrix for the actor, including
+ * nested group/repeater leaves as dotted paths. Pure and side-effect free: the
+ * decision is `canAccessField`, the label is explanatory only.
+ */
+export function explainFieldPermissions(
+  fields: readonly FieldInstance[],
+  user: AccessActor,
+): FieldAccessDecision[] {
+  const out: FieldAccessDecision[] = [];
+  collectDecisions(fields, user, "", true, true, out);
+  return out;
+}
+
+/**
+ * Collection-level dry-run: what this actor can read and write, and the exact
+ * paths the read redactor / write guard will act on. Admins get an all-true
+ * matrix; unguarded collections still list every field as allowed.
+ */
+export function explainCollectionAccess(
+  fields: readonly FieldInstance[],
+  user: AccessActor,
+): CollectionAccessExplanation {
+  const decisions = explainFieldPermissions(fields, user);
+  const readDenied: string[] = [];
+  const writeDenied: string[] = [];
+  for (const decision of decisions) {
+    if (!decision.read) readDenied.push(decision.path);
+    if (!decision.write) writeDenied.push(decision.path);
+  }
+  return { role: user?.role || "public", fields: decisions, readDenied, writeDenied };
+}
 
 /**
  * True when any field in the schema declares per-field restrictions

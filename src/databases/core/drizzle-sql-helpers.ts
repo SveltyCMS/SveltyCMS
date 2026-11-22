@@ -1212,6 +1212,29 @@ function addSingleCondition(
       conditions.push(sql`lower(${col}) LIKE lower(${pattern}) ESCAPE ${LIKE_ESCAPE_CHAR}`);
       break;
     }
+    case "$ieq": {
+      // Case-insensitive equality. Mirrors `documentMatches` and Mongo's
+      // anchored `/^…$/i` regex so the same `_ieq` filter returns the same rows
+      // on SQL, Mongo and the in-memory (inverse-relation) path.
+      if (val === null) {
+        conditions.push(isNull(col));
+        break;
+      }
+      conditions.push(sql`lower(${col}) = lower(${val})`);
+      break;
+    }
+    case "$nieq": {
+      // Case-insensitive inequality (the negation of `$ieq`).
+      conditions.push(sql`lower(${col}) <> lower(${val})`);
+      break;
+    }
+    case "$nicontains": {
+      // Negated case-insensitive substring. LIKE wildcards are escaped exactly
+      // as in `$contains`; only the comparison is inverted.
+      const pattern = `%${escapeLikePattern(String(val ?? ""))}%`;
+      conditions.push(sql`lower(${col}) NOT LIKE lower(${pattern}) ESCAPE ${LIKE_ESCAPE_CHAR}`);
+      break;
+    }
     case "$options":
       // Paired with $regex above (Mongo syntax); no standalone SQL meaning.
       break;

@@ -61,6 +61,10 @@ import {
 import { getAllPermissions, hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import type { User } from "@src/databases/auth/types";
 import { successResponse, rawResponse } from "./base";
+import {
+  explainCollectionAccess,
+  getCollectionFields,
+} from "@src/services/security/field-permission-service";
 import { hasMediaPermission } from "./media-permissions";
 import {
   adoptSessionSurface,
@@ -74,6 +78,7 @@ import { generateCsrfToken } from "@utils/security/csrf-utils";
 import {
   hasPrivilegedUserFields,
   isAdminCaller,
+  PRIVILEGED_USER_FIELDS,
   sanitizeClientUserAttributePatch,
 } from "@utils/security/user-attribute-policy";
 import { sanitizeUserForClient } from "@src/databases/auth/session-user";
@@ -91,6 +96,7 @@ import { getClientIp } from "@utils/hook-utils";
 import { buildDeviceFingerprint, getTrustedDeviceCookieConfig } from "@src/databases/auth/totp";
 import { recordListQuery } from "@utils/list-query-metrics";
 import { nowISODateString } from "@utils/date";
+import { auditLogService, AuditEventType } from "@src/services/security/audit-service";
 
 const SSO_SECRET_MASK = "••••••••";
 
@@ -1084,7 +1090,27 @@ export async function handleCreateUser(event: RequestEvent, cms: LocalCMS, tenan
   const caller = event.locals.user;
   const isAdmin = isAdminCaller(caller);
   if (!isAdmin && hasPrivilegedUserFields(body)) {
+    const strippedFields = PRIVILEGED_USER_FIELDS.filter((field) => Object.hasOwn(body, field));
     logger.warn(`[Auth] Stripped privileged fields from create-user (user=${caller?._id})`);
+    try {
+      await auditLogService.log(
+        "Privilege escalation attempt blocked",
+        {
+          id: (caller?._id as DatabaseId | undefined) ?? null,
+          email: caller?.email ?? "unknown",
+          role: caller?.role,
+          ip: getClientIp(event),
+        },
+        { type: "user", id: null },
+        AuditEventType.PRIVILEGE_ESCALATION,
+        "high",
+        { operation: "create_user", strippedFields },
+        tenantId,
+        "failure",
+      );
+    } catch (err) {
+      logger.error("[Auth] Failed to write PRIVILEGE_ESCALATION audit event", err);
+    }
   }
   const payload = isAdmin ? body : sanitizeClientUserAttributePatch(body, { isAdmin: false });
   const result = await cms.auth.createUser(payload, { tenantId });
@@ -1885,12 +1911,13 @@ export async function handleUserSpecificRoutes(
 /**
  * Handles permission routes:
  * - list → returns all registered permissions
+ * - explain → per-field read/write matrix for a collection (dry-run, no data read)
  * - update → sets user-level permission overrides
  */
 export async function handlePermissionRoutes(
   event: RequestEvent,
   _cms: LocalCMS,
-  _tenantId: DatabaseId,
+  tenantId: DatabaseId,
   segments: string[],
 ) {
   const method = segments[1];
@@ -1899,6 +1926,37 @@ export async function handlePermissionRoutes(
     case "list":
       if (event.request.method !== "GET") throw notAllowed();
       return successResponse(event, await getAllPermissions());
+
+    /**
+     * `GET /api/permission/explain?collection=<name>[&role=<role>]`
+     *
+     * Dry-run for integrations and admins: returns the per-field read/write
+     * matrix the API would apply, derived from the same `canAccessField`
+     * predicate as redaction and the write guard. No entry data is read and
+     * nothing is mutated. `role` simulates another role without impersonation.
+     */
+    case "explain": {
+      if (event.request.method !== "GET") throw notAllowed();
+
+      const collection = event.url.searchParams.get("collection");
+      if (!collection) raise(400, "collection query parameter is required", "MISSING_COLLECTION");
+
+      const simulatedRole = event.url.searchParams.get("role");
+      const actor = simulatedRole
+        ? { _id: `explain:${simulatedRole}`, role: simulatedRole }
+        : event.locals.user;
+      if (!actor) raise(401, "Authentication required", "UNAUTHORIZED");
+
+      const fields = await getCollectionFields(collection, tenantId as string);
+      if (!fields || fields.length === 0) {
+        raise(404, `Collection "${collection}" not found`, "COLLECTION_NOT_FOUND");
+      }
+
+      return successResponse(event, {
+        collection,
+        ...explainCollectionAccess(fields, actor),
+      });
+    }
 
     case "update":
       if (event.request.method !== "POST") throw notAllowed();

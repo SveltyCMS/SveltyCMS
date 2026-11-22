@@ -68,14 +68,15 @@ describe("Events API Security - Tenant Isolation", () => {
       expect(capturedListener).toBeDefined();
       expect(mockController).toBeDefined();
 
-      // Simulate events from different tenants
+      // Simulate events from different tenants. The event needs an
+      // authorization subject (collection) to reach the stream at all.
       const myEvent = {
-        event: "entry:create",
-        data: { name: "My Tenant", tenantId: myTenant },
+        event: "content:update",
+        data: { collection: "posts", name: "My Tenant", tenantId: myTenant },
       };
       const otherEvent = {
-        event: "entry:create",
-        data: { name: "Other Tenant", tenantId: otherTenant },
+        event: "content:update",
+        data: { collection: "posts", name: "Other Tenant", tenantId: otherTenant },
       };
 
       // Call the captured listener

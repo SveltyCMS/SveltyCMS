@@ -32,33 +32,34 @@ The Authentication API handles the complete lifecycle of a user identity within 
 
 ## ⚡ Quick Reference
 
-| Feature           | HTTP Endpoint                | Method      | Permission Required      |
-| :---------------- | :--------------------------- | :---------- | :----------------------- |
-| **Login**         | `/api/auth/login`            | `POST`      | **Public**               |
-| **Logout**        | `/api/auth/logout`           | `POST`      | **Authenticated**        |
-| **OIDC Login**    | `/api/auth/oidc-login`       | `GET`       | **Public**               |
-| **OIDC Callback** | `/api/auth/oidc-callback`    | `GET`       | **Public**               |
-| **OIDC Logout**   | `/api/auth/oidc-logout`      | `GET, POST` | **Public**               |
-| **SSO Providers** | `/api/auth/sso-providers`    | `GET, POST` | **Public** (exempt)      |
-| **Current User**  | `/api/auth`                  | `GET`       | **Authenticated**        |
-| **List Users**    | `/api/user`                  | `GET`       | `user:read`              |
-| **Create User**   | `/api/auth/create-user`      | `POST`      | `user:write`             |
-| **API Keys**      | `/api/api-keys`              | `GET`       | `system:read`            |
-| **Create Key**    | `/api/api-keys`              | `POST`      | `system:settings`        |
-| **Revoke Key**    | `/api/api-keys/{id}`         | `DELETE`    | Owner or Admin           |
-| **Magic Link**    | `auth.remote.ts` (remote fn) | `POST`      | **Public**               |
-| **Passkey Auth**  | `auth.remote.ts` (remote fn) | `POST`      | **Public**               |
-| **Passkey Reg**   | `auth.remote.ts` (remote fn) | `POST`      | **Authenticated**        |
-| **2FA Status**    | `/api/auth/2fa/status`       | `GET`       | **Authenticated**        |
-| **2FA Setup**     | `/api/auth/2fa/setup`        | `POST`      | **Authenticated**        |
-| **2FA Enable**    | `/api/auth/2fa/enable`       | `POST`      | **Authenticated**        |
-| **2FA Verify**    | `/api/auth/2fa/verify`       | `POST`      | **Authenticated**        |
-| **2FA Disable**   | `/api/auth/2fa/disable`      | `POST`      | **Authenticated**        |
-| **Backup Codes**  | `/api/auth/2fa/backup-codes` | `GET, POST` | **Authenticated**        |
-| **SAML Login**    | `/api/auth/saml/login`       | `GET`       | **Public**               |
-| **SAML ACS**      | `/api/auth/saml/acs`         | `POST`      | **Public**               |
-| **SAML Config**   | `/api/auth/saml/config`      | `POST`      | Admin (handler-enforced) |
-| **Permissions**   | `/api/permission/list`       | `GET`       | `system:admin`           |
+| Feature                | HTTP Endpoint                               | Method      | Permission Required      |
+| :--------------------- | :------------------------------------------ | :---------- | :----------------------- |
+| **Login**              | `/api/auth/login`                           | `POST`      | **Public**               |
+| **Logout**             | `/api/auth/logout`                          | `POST`      | **Authenticated**        |
+| **OIDC Login**         | `/api/auth/oidc-login`                      | `GET`       | **Public**               |
+| **OIDC Callback**      | `/api/auth/oidc-callback`                   | `GET`       | **Public**               |
+| **OIDC Logout**        | `/api/auth/oidc-logout`                     | `GET, POST` | **Public**               |
+| **SSO Providers**      | `/api/auth/sso-providers`                   | `GET, POST` | **Public** (exempt)      |
+| **Current User**       | `/api/auth`                                 | `GET`       | **Authenticated**        |
+| **List Users**         | `/api/user`                                 | `GET`       | `user:read`              |
+| **Create User**        | `/api/auth/create-user`                     | `POST`      | `user:write`             |
+| **API Keys**           | `/api/api-keys`                             | `GET`       | `system:read`            |
+| **Create Key**         | `/api/api-keys`                             | `POST`      | `system:settings`        |
+| **Revoke Key**         | `/api/api-keys/{id}`                        | `DELETE`    | Owner or Admin           |
+| **Magic Link**         | `auth.remote.ts` (remote fn)                | `POST`      | **Public**               |
+| **Passkey Auth**       | `auth.remote.ts` (remote fn)                | `POST`      | **Public**               |
+| **Passkey Reg**        | `auth.remote.ts` (remote fn)                | `POST`      | **Authenticated**        |
+| **2FA Status**         | `/api/auth/2fa/status`                      | `GET`       | **Authenticated**        |
+| **2FA Setup**          | `/api/auth/2fa/setup`                       | `POST`      | **Authenticated**        |
+| **2FA Enable**         | `/api/auth/2fa/enable`                      | `POST`      | **Authenticated**        |
+| **2FA Verify**         | `/api/auth/2fa/verify`                      | `POST`      | **Authenticated**        |
+| **2FA Disable**        | `/api/auth/2fa/disable`                     | `POST`      | **Authenticated**        |
+| **Backup Codes**       | `/api/auth/2fa/backup-codes`                | `GET, POST` | **Authenticated**        |
+| **SAML Login**         | `/api/auth/saml/login`                      | `GET`       | **Public**               |
+| **SAML ACS**           | `/api/auth/saml/acs`                        | `POST`      | **Public**               |
+| **SAML Config**        | `/api/auth/saml/config`                     | `POST`      | Admin (handler-enforced) |
+| **Permissions**        | `/api/permission/list`                      | `GET`       | `system:admin`           |
+| **Permission Dry-Run** | `/api/permission/explain?collection=<name>` | `GET`       | `system:admin`           |
 
 > **Trusted Devices**: The browser-based flow (`auth.remote.ts` `verify2FA`) supports `trustDevice: true` to set a `__Host-2fa-trusted-device` cookie (30-day TTL, HMAC-SHA256 signed). On subsequent logins from the same device, 2FA is silently skipped.
 
@@ -292,6 +293,7 @@ Implementation: `src/databases/auth/sso-session.ts` · handlers in `handlers/aut
 The authorization system is built on granular permissions assigned to user roles.
 
 - **Check Permissions**: `GET /api/permission/list` returns the full registry of available permissions in the system.
+- **Explain Field Access**: `GET /api/permission/explain?collection=<name>[&role=<role>]` returns the per-field read/write matrix for the caller (or a simulated role) without reading any entry data. Decisions come from the same `canAccessField` predicate used by redaction and the write guard; each row carries `path`, `read`, `write`, `guarded`, `readReason` and `writeReason`. Nested group/repeater leaves appear as dotted paths, and a denied parent marks its children `parent_denied`. An unknown collection returns `404 COLLECTION_NOT_FOUND`.
 - **Role Assignment**: Managed via `POST /api/auth/update-roles` (**admin only** — the dispatcher denies non-admins outright and the handler fail-closes, because coarse `user:write` must not allow rewriting the role matrix) or `PATCH /api/user/{id}` (requires `user:write`, with privilege fields stripped for non-admins).
 
 ---

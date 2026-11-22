@@ -334,6 +334,72 @@ describe("handleSecurity — GraphQL limits", () => {
 
     expect(response?.status).toBe(400);
   });
+
+  it("rejects a chunked body above the cap without buffering it first", async () => {
+    const CHUNK_SIZE = 8 * 1024;
+    const TOTAL_CHUNKS = 40; // 320 KB: past the 100 KB query cap, below the API ceiling
+    let pulled = 0;
+    let cancelled = false;
+
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (pulled >= TOTAL_CHUNKS) {
+          controller.close();
+          return;
+        }
+        pulled += 1;
+        controller.enqueue(new Uint8Array(CHUNK_SIZE));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+
+    const request = new Request("https://cms.test/api/graphql", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body,
+      duplex: "half",
+    } as RequestInit & { duplex: "half" });
+    const event = { request, url: new URL(request.url), locals: {} } as any;
+    const resolve = okResolve();
+
+    const response = await handleSecurity({ event, resolve } as any);
+
+    expect(response?.status).toBe(400);
+    expect(resolve).not.toHaveBeenCalled();
+    // The stream was cancelled at the ceiling instead of drained to the last byte.
+    expect(cancelled).toBe(true);
+    expect(pulled).toBeLessThan(TOTAL_CHUNKS);
+  });
+
+  it("keeps a chunked body under the cap available to the route via locals", async () => {
+    const payload = JSON.stringify({ query: "{ ping }" });
+    const encoded = new TextEncoder().encode(payload);
+
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoded);
+        controller.close();
+      },
+    });
+
+    const request = new Request("https://cms.test/api/graphql", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body,
+      duplex: "half",
+    } as RequestInit & { duplex: "half" });
+    const event = { request, url: new URL(request.url), locals: {} } as any;
+    const resolve = okResolve();
+
+    const response = await handleSecurity({ event, resolve } as any);
+
+    expect(response?.status).toBe(200);
+    expect(resolve).toHaveBeenCalledTimes(1);
+    expect(event.locals.__graphqlBodyText).toBe(payload);
+    expect(event.locals.__graphqlParsedBody).toEqual({ query: "{ ping }" });
+  });
 });
 
 describe("handleSecurity — form replay guard", () => {

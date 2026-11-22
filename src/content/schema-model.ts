@@ -5,9 +5,9 @@
  * The GraphQL list args (`where` / `orderBy` / `take`) and field `cacheHint`s are
  * resolved here so the resolver stays a thin adapter. `where` is one JSON
  * argument in a small operator language (`equals`, `not`, `in`, `gt`, `gte`,
- * `lt`, `lte`, `contains`, `AND` / `OR` / `NOT`, and relation
- * `some` / `none` / `every`), evaluated in memory for inverse relations and
- * passed through to the database for native lists.
+ * `lt`, `lte`, `contains`, `ieq` / `nieq` / `nicontains`, `AND` / `OR` / `NOT`,
+ * and relation `some` / `none` / `every`), evaluated in memory for inverse
+ * relations and passed through to the database for native lists.
  *
  * ### Features:
  * - `SchemaModelError` — typed model failure with a stable code
@@ -93,6 +93,15 @@ const OPERATOR_ALIASES: Record<string, string> = {
   $lte: "$lte",
   contains: "$contains",
   $contains: "$contains",
+  ieq: "$ieq",
+  $ieq: "$ieq",
+  _ieq: "$ieq",
+  nieq: "$nieq",
+  $nieq: "$nieq",
+  _nieq: "$nieq",
+  nicontains: "$nicontains",
+  $nicontains: "$nicontains",
+  _nicontains: "$nicontains",
   some: "$some",
   $some: "$some",
   none: "$none",
@@ -208,6 +217,33 @@ function relationList(value: unknown): unknown[] {
   return [value];
 }
 
+/** Case-insensitive string equality; non-strings keep plain `looseEquals` semantics. */
+function caseInsensitiveEquals(actual: unknown, expected: unknown): boolean {
+  return typeof actual === "string" && typeof expected === "string"
+    ? actual.toLowerCase() === expected.toLowerCase()
+    : looseEquals(actual, expected);
+}
+
+/**
+ * Case-insensitive substring match (string) or member match (array).
+ * Mirrors SQL `lower(col) LIKE lower('%term%')` and Mongo's escaped `/term/i`,
+ * which are both case-insensitive — the in-memory path used to be
+ * case-sensitive, so inverse-relation filters disagreed with native lists.
+ */
+function containsValue(actual: unknown, expected: unknown): boolean {
+  if (typeof actual === "string" && typeof expected === "string") {
+    return expected.length > 0 && actual.toLowerCase().includes(expected.toLowerCase());
+  }
+  if (Array.isArray(actual)) {
+    return actual.some((value) =>
+      typeof value === "string" && typeof expected === "string"
+        ? value.toLowerCase() === expected.toLowerCase()
+        : looseEquals(value, expected),
+    );
+  }
+  return false;
+}
+
 function matchCondition(actual: unknown, condition: unknown): boolean {
   const record = asRecord(condition);
   if (record) {
@@ -256,13 +292,14 @@ function applyOperator(operator: string, actual: unknown, expected: unknown): bo
       const order = orderCompare(actual, expected);
       return order !== null && order <= 0;
     }
-    case "$contains": {
-      if (typeof actual === "string" && typeof expected === "string") {
-        return expected.length > 0 && actual.includes(expected);
-      }
-      if (Array.isArray(actual)) return actual.some((value) => looseEquals(value, expected));
-      return false;
-    }
+    case "$contains":
+      return containsValue(actual, expected);
+    case "$nicontains":
+      return !containsValue(actual, expected);
+    case "$ieq":
+      return caseInsensitiveEquals(actual, expected);
+    case "$nieq":
+      return !caseInsensitiveEquals(actual, expected);
     case "$some":
       return relationList(actual).some((value) => matchCondition(value, expected));
     case "$none":

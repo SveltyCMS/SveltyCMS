@@ -953,6 +953,29 @@ async function resetPWInternal(event: RequestEvent, input: any) {
     await verifyDummyPassword(p || "dummy-password");
     return { success: false, message: "Invalid reset link.", code: "TOKEN_NOT_FOUND" };
   }
+
+  // 🛡️ Blocked accounts must not be able to rotate their own credential.
+  if (user.blocked) {
+    return {
+      success: false,
+      message: "This account is suspended. Contact an administrator.",
+      code: "ACCOUNT_BLOCKED",
+    };
+  }
+
+  // 🛡️ ORDERING: validate BEFORE claiming the token. Consuming first meant a
+  // password rejected by the policy (e.g. the stricter PASSWORD_MIN_LENGTH
+  // setting) spent a valid one-time link, forcing a fresh reset request.
+  try {
+    auth.assertPasswordStrength(p);
+  } catch (err) {
+    return {
+      success: false,
+      message: err instanceof Error ? err.message : "Password does not meet the security policy.",
+      code: "WEAK_PASSWORD",
+    };
+  }
+
   const v = await auth.consumeToken(t, user._id, "password_reset");
   if (!v.status) {
     return {
@@ -962,11 +985,38 @@ async function resetPWInternal(event: RequestEvent, input: any) {
       code: v.code || "TOKEN_INVALID",
     };
   }
-  if (p.length < 8) return { success: false, message: "Password too weak." };
 
-  await auth.invalidateAllUserSessions(user._id);
-  const ur = await auth.updateUserPassword(e, p);
-  if (!ur.status) return { success: false, message: "Failed to update password." };
+  // 🛡️ ORDERING: write the new credential BEFORE revoking sessions. The old
+  // order logged the user out even when the password write failed, leaving
+  // them with an unchanged password and no session.
+  let ur: Awaited<ReturnType<typeof auth.updateUserPassword>>;
+  try {
+    ur = await auth.updateUserPassword(e, p);
+  } catch (err) {
+    logger.error("[auth.remote] password reset write failed after token claim", err);
+    return {
+      success: false,
+      message:
+        "The reset link was accepted, but the new password could not be saved. Request a new reset link or contact an administrator.",
+      code: "PASSWORD_UPDATE_FAILED",
+    };
+  }
+  if (!ur.status) {
+    return {
+      success: false,
+      message:
+        "The reset link was accepted, but the new password could not be saved. Request a new reset link or contact an administrator.",
+      code: "PASSWORD_UPDATE_FAILED",
+    };
+  }
+
+  try {
+    await auth.invalidateAllUserSessions(user._id);
+  } catch (err) {
+    // The credential is already rotated — surface the failure in logs, but do
+    // not report a failed reset that the user would have to repeat.
+    logger.error("[auth.remote] failed to revoke sessions after password reset", err);
+  }
 
   // Clear account lockout on password reset so legitimate users who were locked out by brute-force attacks can immediately log in
   try {

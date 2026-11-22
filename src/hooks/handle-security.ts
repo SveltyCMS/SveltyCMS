@@ -18,6 +18,7 @@ import { securityResponseService } from "@src/services/security/response-service
 import { error } from "@sveltejs/kit";
 import type { Handle } from "@sveltejs/kit/hooks";
 import { AppError, handleApiError } from "@utils/error-handling";
+import { boundApiRequestBody } from "@utils/api-body-limits";
 import { logger } from "@utils/logger";
 import { getTenantIdFromHostname } from "@utils/tenant";
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
@@ -121,6 +122,60 @@ const GRAPHQL_COMPLEXITY_CACHE_MAX = 512;
 const graphqlComplexityCache = new FastLRU<string, GraphqlComplexityResult>({
   max: GRAPHQL_COMPLEXITY_CACHE_MAX,
 });
+
+/**
+ * Reads a GraphQL POST body without buffering past the query cap.
+ *
+ * A body with a valid `Content-Length` keeps the existing single clone+text read
+ * (same cost as before, no extra copy). A chunked body has no declared size, so
+ * it is drained through the shared bounded reader: the decoded text is capped at
+ * {@link MAX_GRAPHQL_QUERY_LENGTH} and the client stream is cancelled at the
+ * ceiling instead of being buffered first. The route reuses
+ * `locals.__graphqlBodyText`, so consuming the original body here is safe.
+ */
+async function readGraphqlBodyText(request: Request): Promise<string> {
+  const declaredHeader = request.headers.get("content-length");
+  const declaredLength = declaredHeader === null ? Number.NaN : Number(declaredHeader);
+  if (Number.isFinite(declaredLength) && declaredLength >= 0) {
+    return request
+      .clone()
+      .text()
+      .catch(() => "");
+  }
+
+  const bounded = boundApiRequestBody(request);
+  const body = bounded.body;
+  if (!body) return "";
+
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  // Byte ceiling below the char cap: 100 K UTF-16 code units need at most 400 KB
+  // of UTF-8 (a surrogate pair is 2 units / 4 bytes), so memory stays bounded
+  // while multibyte queries under the char cap are not falsely rejected.
+  const maxBytes = MAX_GRAPHQL_QUERY_LENGTH * 4;
+  let text = "";
+  let received = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+
+      received += value.byteLength;
+      text += decoder.decode(value, { stream: true });
+      if (received > maxBytes || text.length > MAX_GRAPHQL_QUERY_LENGTH) {
+        // Stop pulling from the client before failing — nothing past the cap is kept.
+        await reader.cancel().catch(() => {});
+        throw new AppError("GraphQL Query exceeds maximum allowed length", 400);
+      }
+    }
+    return text + decoder.decode();
+  } catch (err) {
+    await reader.cancel().catch(() => {});
+    throw err;
+  }
+}
 
 async function calculateGraphqlComplexity(query: string): Promise<GraphqlComplexityResult> {
   const quickScore = quickComplexityCheck(query);
@@ -313,13 +368,18 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
             event,
           );
         }
-        const bodyText = await request
-          .clone()
-          .text()
-          .catch(() => "");
 
-        // 🛡️ Length cap BEFORE JSON.parse / AST parse — unbounded bodies let an
-        // attacker block the event loop synchronously (CPU starvation DoS).
+        // 🛡️ The cap is enforced while reading: a chunked body is cancelled at
+        // MAX_GRAPHQL_QUERY_LENGTH instead of being fully buffered, so an attacker
+        // cannot block the event loop with a multi-MB JSON.parse / AST parse.
+        let bodyText: string;
+        try {
+          bodyText = await readGraphqlBodyText(request);
+        } catch (err) {
+          metricsService.incrementSecurityViolations(tenantId);
+          throw err;
+        }
+
         if (bodyText.length > MAX_GRAPHQL_QUERY_LENGTH) {
           metricsService.incrementSecurityViolations(tenantId);
           return handleApiError(

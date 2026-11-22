@@ -183,11 +183,32 @@
 	// Revisions State (now simpler)
 	let selectedRevisionId = $state('');
 
+	/** Revision rows are persisted `content_revisions` documents (plus legacy aliases). */
+	type RevisionRecord = Record<string, unknown>;
+
+	function revisionText(value: unknown): string {
+		return typeof value === 'string' ? value : '';
+	}
+
+	/** `authorId` is the persisted column; `revision_by` is the legacy payload name. */
+	function revisionAuthor(revision: RevisionRecord): string {
+		return revisionText(revision.authorId) || revisionText(revision.revision_by);
+	}
+
+	/** `createdAt` is the persisted column; `revision_at` is the legacy payload name. */
+	function revisionTimestamp(revision: RevisionRecord): string | undefined {
+		return revisionText(revision.createdAt) || revisionText(revision.revision_at) || undefined;
+	}
+
 	const revisionOptions = $derived(
-		revisions.map((revision: any) => ({
-			value: revision._id,
-			label: `${formatDateTime(revision.revision_at)} by ${revision.revision_by.substring(0, 8)}...`
-		}))
+		revisions.map((revision: unknown) => {
+			const row = (revision ?? {}) as RevisionRecord;
+			const author = revisionAuthor(row);
+			return {
+				value: String(row._id ?? ''),
+				label: `${formatDateTime(revisionTimestamp(row))} by ${author.substring(0, 8)}...`
+			};
+		})
 	);
 
 	// Track the last entry ID to detect when switching entries
@@ -1098,7 +1119,7 @@
 											oldData={selectedRevision.data}
 											newData={currentCollectionValue}
 											fields={filteredFields}
-											oldLabel={`Revision (${formatDate(selectedRevision.revision_at)})`}
+											oldLabel={`Revision (${formatDate(revisionTimestamp(selectedRevision))})`}
 											newLabel="Current Content"
 											close={() => (isDiffModalOpen = false)}
 										/>
