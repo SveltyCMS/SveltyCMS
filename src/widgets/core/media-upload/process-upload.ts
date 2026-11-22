@@ -86,7 +86,7 @@ async function processSingleFile(
   const saved = await service.saveMedia(
     file,
     ctx.user._id,
-    "private",
+    "public",
     ctx.tenantId as DatabaseId,
     folderPath,
   );
@@ -129,7 +129,7 @@ async function processMultiFiles(
         const saved = await service.saveMedia(
           item,
           ctx.user._id,
-          "private",
+          "public",
           ctx.tenantId as DatabaseId,
           folderPath,
         );

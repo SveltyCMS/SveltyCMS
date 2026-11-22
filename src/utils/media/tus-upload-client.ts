@@ -119,7 +119,7 @@ async function createSession(file: File, options: TusUploadOptions): Promise<str
         filename: file.name,
         filetype: file.type,
         folder: options.folder || "global",
-        access: options.access || "private",
+        access: options.access || "public",
       }),
       "X-CSRF-Token": csrfToken,
     },

@@ -33,13 +33,16 @@ function simulateFileServerTenantCheck(
   isMultiTenant: boolean,
   filePath: string,
   userTenantId: string | null | undefined,
+  isAdmin = false,
 ): FileServerTenantResult {
   const pathTenant = filePath.split("/")[0];
 
   // 🛡️ Tenant access control
   if (isMultiTenant && pathTenant && pathTenant !== "global") {
-    // Reject when: no tenantId (undefined/null), OR tenantId doesn't match path tenant and isn't "global" bypass
-    if (!userTenantId || (userTenantId !== pathTenant && userTenantId !== "global")) {
+    // The `global` tenant is the system scope — it only bypasses the tenant gate
+    // for a system admin, never for an ordinary user row that carries it.
+    const isGlobalAdmin = userTenantId === "global" && isAdmin;
+    if (!userTenantId || (userTenantId !== pathTenant && !isGlobalAdmin)) {
       return { allowed: false, status: 403, code: "TENANT_MISMATCH" };
     }
   }
@@ -159,23 +162,31 @@ describe("File Server: Multi-Tenant Enabled — Missing TenantId", () => {
 // ─── Multi-Tenant Enabled: Global TenantId Bypass ─────────────────────────
 
 describe("File Server: Multi-Tenant Enabled — 'global' Tenant Bypass", () => {
-  it("should allow access when user tenantId is 'global' (admin bypass)", () => {
-    const result = simulateFileServerTenantCheck(true, "tenant-a/abc123/image.jpg", "global");
+  it("should allow access when a *system admin* with tenantId 'global' reads a tenant file", () => {
+    const result = simulateFileServerTenantCheck(true, "tenant-a/abc123/image.jpg", "global", true);
     expect(result.allowed).toBe(true);
   });
 
-  it("should allow 'global' user to access any tenant's files", () => {
-    const result = simulateFileServerTenantCheck(true, "tenant-b/secret.docx", "global");
+  it("should allow a 'global' system admin to access any tenant's files", () => {
+    const result = simulateFileServerTenantCheck(true, "tenant-b/secret.docx", "global", true);
     expect(result.allowed).toBe(true);
   });
 
-  it("should allow 'global' user to access deeply nested tenant files", () => {
+  it("should allow a 'global' system admin to access deeply nested tenant files", () => {
     const result = simulateFileServerTenantCheck(
       true,
       "acme-corp/deeply/nested/file.pdf",
       "global",
+      true,
     );
     expect(result.allowed).toBe(true);
+  });
+
+  it("should block a non-admin user whose tenantId is 'global' (no cross-tenant read)", () => {
+    const result = simulateFileServerTenantCheck(true, "tenant-b/secret.docx", "global", false);
+    expectDenied(result);
+    expect(result.status).toBe(403);
+    expect(result.code).toBe("TENANT_MISMATCH");
   });
 });
 

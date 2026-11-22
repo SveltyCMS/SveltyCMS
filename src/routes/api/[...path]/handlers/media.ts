@@ -627,7 +627,7 @@ export async function handleMediaRemote(
   if (!remoteUrl) throw new AppError("Remote tracking ingestion URL target required", 400);
   const result = await cms.media.remote(remoteUrl, {
     userId: user?._id || "system",
-    access: access || "private",
+    access: access || "public",
     tenantId,
   });
   if (!result.success)
@@ -1912,7 +1912,7 @@ export async function handleMediaUploadInstructions(
     mimeType: typeof body.mimeType === "string" ? body.mimeType : "application/octet-stream",
     size,
     folder: typeof body.folder === "string" ? body.folder : undefined,
-    access: body.access === "public" ? "public" : "private",
+    access: body.access === "private" ? "private" : "public",
   });
   return successResponse(event, instruction);
 }
@@ -1985,7 +1985,7 @@ export async function handleMediaDirectUploadComplete(
       userId: String(user._id),
       tenantId,
       folder: typeof body.folder === "string" ? body.folder : undefined,
-      access: body.access === "public" ? "public" : "private",
+      access: body.access === "private" ? "private" : "public",
     },
   );
   if (!result.success) {

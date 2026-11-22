@@ -1,117 +1,131 @@
 ---
 path: "docs/tests/mutation-testing.mdx"
-title: "Mutation Testing (Seam Harness)"
-description: "How SveltyCMS mutation-tests the three seam modules that caused recent regressions, and why it uses a self-contained harness instead of StrykerJS."
+title: "Mutation Testing (Security & Data-Integrity Seams)"
+description: "What the mutation gate actually scores, which files it covers, and the blind spots it cannot see — absent checks, missing call sites and denylist completeness."
 order: 4
 icon: "mdi:dna"
 author: "SveltyCMS Team"
 created: "2026-10-16"
-updated: "2026-10-16"
+updated: "2026-11-21"
 tags:
   - "testing"
   - "mutation"
   - "seams"
+  - "security"
   - "regression"
-  - "unit"
 ---
 
-# Mutation Testing — Seam Harness
+# Mutation Testing — Security & Data-Integrity Seams
 
-**North star:** The three "seam" modules that produced recent regressions are _proven_ against semantic mutations, not just exercised by happy-path assertions. A mutation of a protected seam **must** fail an existing invariant.
+**North star:** a protected seam is _proven_ against semantic mutations, not just exercised by a
+happy-path assertion. Line coverage says a seam ran; only a killed mutant proves a _change_ to it
+is caught.
 
-This is the #1 remaining testing gap: line coverage says a seam is exercised, but only mutation testing proves a _change_ to that seam is caught. A test that never fails when the logic is flipped is a test that isn't protecting the regression.
-
----
-
-## What it protects (the three seams)
-
-| #   | Module                                        | Pure seam                                                  | Regression it pins                                                                                                                             |
-| :-- | :-------------------------------------------- | :--------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | `src/utils/error-display.ts`                  | `resolveErrorDisplay(status, errorMessage?)`               | A 500 ("System Error") must **not** render the "page doesn't exist or has been moved" helper — that copy belongs to 404 only.                  |
-| 2   | `src/routes/api/[...path]/handlers/tokens.ts` | `pickTokenUpdateFields` + the DELETE/PUT honest-404 guards | Updating/deleting must resolve the row by `_id` (not the hashed token value), and an unresolvable row must 404 — never a silent success toast. |
-| 3   | `src/utils/error-handling.ts`                 | `raise(...)` / `AppError`                                  | `raise` must throw an `AppError` carrying the exact `status`, `message`, and `code` — no dropped or swapped arguments.                         |
-
-The harness reads the **real** source at run time, extracts the pure logic, and verifies the extracted text still matches the file — so a refactor that moves or rewrites a seam fails loudly instead of silently drifting.
+> [!IMPORTANT]
+> **A 100 % score describes the seams in the config — not the security posture of the product.**
+> See [Scope and blind spots](#scope-and-blind-spots). Absent code has no mutant.
 
 ---
 
-## How it works (self-contained, no external deps)
+## What the gate runs
 
-The harness lives at `tests/mutation/seam-mutation.test.ts` and is a single Vitest file. For each seam it:
+| Command                          | Harness                       | Scope                                      |
+| :------------------------------- | :---------------------------- | :----------------------------------------- |
+| `bun run test:mutation`          | `scripts/test/mutate-core.ts` | 31 seams across 15 files (all targets)     |
+| `bun run test:mutation:security` | same, `--security-only`       | 24 seams across 13 files (security subset) |
 
-1. **Reads** the source file (`readFileSync`) and LF-normalizes it.
-2. **Extracts** the pure logic — either the whole module (`error-display.ts`), a marker-delimited slice (`pickTokenUpdateFields` + its allowlists), or a brace-matched statement (`AppError` / `raise`).
-3. **Mutates** the source text with a small fixed set of _semantic_ mutations (each `find` string is asserted to match exactly once):
-   - `status === 404` → `status !== 404` (page-moved flag and title ladder)
-   - `status === 403` → `status !== 403` (title ladder)
-   - drop `"expires"` from the lifecycle allowlist
-   - `admin` → `true` (bypass the identity gate)
-   - `deletedCount === 0` → `deletedCount !== 0` (DELETE honest-404)
-   - `if (!result)` → `if (result)` (PUT honest-404)
-   - drop / swap the `raise` code argument
-4. **Loads** each mutant through a temp file (`.vitest/mutation/*.ts`) + dynamic `import()` with a cache-busting query.
-5. **Asserts** the existing invariant now **fails** — a failed invariant means the mutant is _killed_.
+It runs **last** in `.githooks/pre-push` (`Mutation (changed seams)`) and in CI `04-unit`, after the
+browser gate. `scripts/security/check-test-strength.ts` reads the resulting
+`.mutation/report.json`; `bun run security:assurance` fails when a scored area drops below its floor.
 
-Each seam also has an "original source passes the invariant" sanity test, so the invariant can't be accidentally too strict (which would make every mutant trivially "killed").
+### Inventory
+
+| Area               | Files | Seams | Examples                                                                                                                      |
+| :----------------- | ----: | ----: | :---------------------------------------------------------------------------------------------------------------------------- |
+| Auth / session     |     6 |     9 | `revocation-epoch` (global/tenant/user), `totp`, `totp-replay-registry`, `permissions`, `api-permissions`, `dashboard-access` |
+| Security utilities |     6 |    11 | `input-sanitizer`, `safe-redirect`, `mongo-sanitize`, `egress-guard`, `session-cookie`, `user-attribute-policy`               |
+| Write pipeline     |     1 |     2 | `collections/write-pipeline.ts` (updatedBy stamp, createdBy system)                                                           |
+| Data integrity     |     2 |     7 | `optimistic-lock` (4), `drizzle-sql-helpers` rowsAffected (3)                                                                 |
+
+### How it works
+
+1. **Reads** the real source file and asserts the `find` fragment matches **exactly once**
+   (a refactor that moves the seam fails loudly instead of mutating the wrong lines).
+2. **Writes** the semantic mutant in place, backing up the original.
+3. **Runs** only the unit files mapped to that seam (`tests:` on the entry).
+4. **Restores** in `finally` (plus an exit handler and `git checkout -- <file>` as a last resort).
+   A target with uncommitted changes is **refused** (`exiting 3`) — never mutate a dirty tree.
+
+Each mutant must be **killed** (the mapped suite fails). A surviving mutant or an invalid `find`
+fails the gate; an "invalid" mutant means the config is stale and must be updated in the same
+change that moved the seam.
 
 ### Why not StrykerJS?
 
-The primary approach was Stryker (`@stryker-mutator/core` + `@stryker-mutator/vitest-runner`). It was installed and run against this project (Vitest **5.0.5** / Bun) and rejected for a concrete reason:
-
-- `@stryker-mutator/vitest-runner@10.0.0` **hardcodes `pool: "threads"`** in its runner (`#getVitestPoolConfig`), with no config escape hatch (its `vitest` options only accept `dir` / `related` / `configFile`).
-- This project **requires `pool: "forks"`** (`vitest.config.ts`) because several unit tests call `process.chdir()`, which is unsupported in worker threads.
-- The dry run failed with `process.chdir() is not supported in workers` (from `tests/unit/content/sync-content-state.test.ts`), proving the incompatibility.
-
-A secondary Windows-only issue (`EPERM (unlink)` on the shared `node_modules/.vitest-cache`) was also observed. Both deps were removed cleanly, so there is no broken install left behind.
+Stryker (`@stryker-mutator/vitest-runner@10`) hardcodes `pool: "threads"`, while this project
+requires `pool: "forks"` because several unit tests call `process.chdir()`. The dry run failed with
+`process.chdir() is not supported in workers`, so the self-contained harness replaced it.
 
 ---
 
-## Running it
+## Scope and blind spots
 
-```bash
-bun run test:mutation
-# equivalent:
-node ./node_modules/vitest/vitest.mjs run tests/mutation/seam-mutation.test.ts
-```
+Mutation testing proves the **mechanism** inside a scored function. It cannot prove the
+**composition** around it. Four limits, stated plainly:
 
-A full pass takes a few seconds (the first import of the generated `@src/paraglide/messages` barrel dominates; the mutants themselves run in single-digit milliseconds). It runs via `test:mutation`, as a separate step in CI `04-unit`, and **last** in `.githooks/pre-push` (after the browser gate): the runner rewrites source files in place, writes atomically, restores in a `finally`/exit handler, and falls back to `git checkout -- <file>` if a target is left dirty. It is **not** part of `test:unit` — keeping its temp-file dynamic `import()` out of the `--coverage` run, where v8 instrumentation would otherwise make it flaky.
+| Blind spot                            | Why                                                                                                                                                                                                                                                   | Where the gap is covered instead                                                                                                                        |
+| :------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------- | ---------------------------------------------------------------- |
+| **Absent code has no mutant**         | A missing check, an incomplete denylist entry, or a field never read is not "changed by a mutant" — the code is correct as written. `stripPrivilegedUserFields` at 100 % validates the stripping loop, not that the list names every sensitive field. | Denylist/allowlist completeness is a review concern; the threat model records the field set (`docs/reference/security/threat-models/auth-session.mdx`). |
+| **Helper score ≠ call-site coverage** | A route that never invokes the sanitizer scores green, because the mutation only runs the mapped unit file.                                                                                                                                           | `bun run test:security`, the hook suites and the E2E contracts exercise invocation.                                                                     |
+| **Curated mutants, not operators**    | The set is deliberately semantic (one per documented regression class); it is not exhaustive `&&`/`                                                                                                                                                   |                                                                                                                                                         | `/boundary coverage. | New seams are added only with a regression they pin (see below). |
+| **Config scope**                      | Targets live in `src/utils/**`, `src/databases/**`, `src/services/sdk/namespaces/collections/write-pipeline.ts` and one route handler (`handlers/tokens.ts`). `src/hooks/**` and other `src/routes/**` handlers are **not** in the mutation set.      | Hook behaviour is covered by `tests/unit/hooks/**` and the E2E gates.                                                                                   |
 
-Expected output summary line:
+### Composition coverage (what proves the wiring)
 
-```text
-[mutation] seam harness: 9 mutant(s), 9 killed, 0 survived (100.0% mutation score)
-```
+| Control                                                                            | Scored mutation?              | Invocation evidence                                                                                                                                                                                 |
+| :--------------------------------------------------------------------------------- | :---------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sanitizeClientUserAttributePatch` (privileged strip + deep `__proto__`/`$` guard) | helper is scored              | `handlers/auth.ts:1089` (create), `src/utils/server/user-attribute-update.server.ts:124` (self-service and admin patch)                                                                             |
+| `sanitizeMongoQuery`                                                               | scored                        | `src/databases/mongodb/adapter-core.ts:526` (query results). **Not** applied to the user PATCH path — that path is guarded by the attribute policy above.                                           |
+| `/files/[...path]` traversal / tenant / global-admin gate                          | route is not scored           | `tests/unit/hooks/file-server-tenant.test.ts` pins the decision table, including "non-admin with `tenantId: global` is rejected".                                                                   |
+| `VITE_TEST_MODE` production gate                                                   | hook is not scored            | `tests/unit/hooks/authorization-test-mode-gate.test.ts` asserts an unauthenticated `/api` request still returns 401 when `NODE_ENV=production` and `VITE_TEST_MODE=true` without `TEST_API_SECRET`. |
+| `access: "public" \| "private"` on media                                           | **no check exists to mutate** | Recorded as a known residual in `docs/reference/security/threat-models/media-files.mdx`; the serving route authorizes on tenant path plus opt-in signed URLs.                                       |
+
+The lesson from the last audit: a green mutation score on pure helpers says nothing about whether
+a route reads a field, guards a branch, or calls the helper at all. When a security finding is
+about wiring, add the assertion to the route/hook suite **and** a seam to the config only if the
+control is a pure function.
 
 ---
 
 ## Interpreting the score
 
-- **Killed** — the mutant changed behavior and the invariant failed. This is the desired outcome.
-- **Survived** — the mutant changed behavior but the invariant still held. The harness **fails the test** and prints a `SURVIVED` line with the seam + mutant id. Fix the invariant (or the seam) before shipping.
-- **Mutation score** = `killed / total × 100`. The baseline is **100%** for the current 9-mutant set.
+- **Killed** — the mutant changed behaviour and the mapped invariant failed (the desired outcome).
+- **Survived** — behaviour changed but the invariant held; the gate fails and prints the seam id.
+- **Invalid** — the `find` text no longer matches exactly once; the config is stale. Fix the seam,
+  never delete the entry silently.
 
-A non-100% score is _not_ a silent warning — it is a failing test, so CI catches it the same way it catches any other unit regression.
+Mutation score = `killed ÷ total × 100`. `bun run security:assurance` enforces per-area floors, and
+`--require-mutation` makes a missing report fail instead of skip.
 
 ---
 
-## Seam rules (why these, not arbitrary mutations)
+## Adding a seam
 
-The mutation set is deliberately small and _semantic_ — each maps to a real regression, not to every possible operator:
+1. Add a `Mutation` entry to `MUTATIONS` (data-integrity) or `SECURITY_TARGETS` (security) in
+   `scripts/test/mutate-core.ts`.
+2. Provide an exact-once `find`/`replace` pair and the `tests` array that must fail.
+3. Prefer a segment that encodes a documented regression class — not a random operator.
+4. Re-run `bun run test:mutation` and confirm the score stays at the baseline (or document the
+   surviving mutant with the reason).
 
-- **`error-display.ts`** — the `showPageMoved` flag and the title ladder are the only places a status can be misclassified. Flipping `=== 404` / `=== 403` is exactly the class of bug that shipped.
-- **`pickTokenUpdateFields`** — the allowlist is the account-takeover boundary. Dropping `expires` or bypassing the admin gate are the two failure modes.
-- **token guards** — `deletedCount === 0` and `if (!result)` are the "honest 404" seams that previously answered a silent 200.
-- **`raise`** — the status/message/code triple is the contract every handler relies on; dropping or swapping an argument is the regression class.
-
-## Adding a seam or a mutation
-
-1. Add a `SeamSpec` to `seams` in `tests/mutation/seam-mutation.test.ts`.
-2. Provide `source` (read from the real file), `mutations` (exactly-one `find`/`replace` pairs), and `assertInvariant` (throws on violation).
-3. Keep the mutation _semantic_ and tied to a documented regression.
-4. Re-run `bun run test:mutation` and confirm the summary still shows 100% (or intentionally document a surviving mutant).
+> [!NOTE]
+> `tests/mutation/seam-mutation.test.ts` (the original 9-mutant seam harness) is still in the tree
+> but is **not referenced** by any script, hook or CI job — `test:mutation` runs
+> `scripts/test/mutate-core.ts`. Keep it in sync or delete it; do not cite its score as the gate's.
 
 ## Related
 
 - `docs/tests/three-layer-completeness.mdx` — how unit / integration / E2E layers split the work.
+- `docs/tests/security-testing.mdx` — the scanner and regression suites behind `test:security`.
 - `docs/tests/strategy.mdx` — the overall testing strategy.
-- `tests/unit/utils/error-display.test.ts`, `tests/unit/routes/token-routes-handler.test.ts`, `tests/unit/utils/error-handling.test.ts` — the invariant sources this harness mirrors.
+- `scripts/security/check-test-strength.ts` — the floor gate that reads `.mutation/report.json`.

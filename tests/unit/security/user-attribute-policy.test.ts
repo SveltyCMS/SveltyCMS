@@ -138,3 +138,83 @@ describe("user-attribute-policy — privilege escalation defense", () => {
     expect(isAdminCaller(null)).toBe(false);
   });
 });
+
+describe("user-attribute-policy — nested, operator and prototype guards", () => {
+  it("drops prototype-pollution keys at any depth", () => {
+    const raw = JSON.parse(
+      '{"username":"a","profile":{"__proto__":{"isAdmin":true},"constructor":{"prototype":{"isAdmin":true}}}}',
+    ) as Record<string, unknown>;
+
+    const clean = sanitizeClientUserAttributePatch(raw, { isAdmin: false });
+    const profile = clean.profile as Record<string, unknown>;
+
+    expect(Object.prototype.hasOwnProperty.call(profile, "__proto__")).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(profile, "constructor")).toBe(false);
+    // The shared prototype was never touched.
+    expect(({} as Record<string, unknown>).isAdmin).toBeUndefined();
+    expect(clean.username).toBe("a");
+  });
+
+  it("drops MongoDB operators at the top level and nested", () => {
+    const raw = {
+      username: "a",
+      $set: { role: "admin" },
+      profile: { $unset: { isAdmin: "" }, bio: "ok" },
+    };
+
+    const clean = sanitizeClientUserAttributePatch(raw, { isAdmin: false });
+    const profile = clean.profile as Record<string, unknown>;
+
+    expect(clean).not.toHaveProperty("$set");
+    expect(Object.prototype.hasOwnProperty.call(profile, "$unset")).toBe(false);
+    expect(profile.bio).toBe("ok");
+    expect(clean.username).toBe("a");
+  });
+
+  it("walks arrays so an operator cannot ride inside a list", () => {
+    const raw = { tags: [{ $set: { role: "admin" } }, "ok"] };
+
+    const clean = sanitizeClientUserAttributePatch(raw, { isAdmin: false });
+    const tags = clean.tags as Array<Record<string, unknown> | string>;
+
+    expect(Object.prototype.hasOwnProperty.call(tags[0], "$set")).toBe(false);
+    expect(tags[1]).toBe("ok");
+  });
+
+  it("strips server-owned identity, tenant and timestamp fields for admins too", () => {
+    const clean = sanitizeClientUserAttributePatch(
+      {
+        _id: "target",
+        id: "target",
+        tenantId: "tenant-b",
+        createdAt: "2020-01-01",
+        updatedAt: "2020-01-01",
+        role: "admin",
+      },
+      { isAdmin: true },
+    );
+
+    expect(clean).not.toHaveProperty("_id");
+    expect(clean).not.toHaveProperty("id");
+    expect(clean).not.toHaveProperty("tenantId");
+    expect(clean).not.toHaveProperty("createdAt");
+    expect(clean).not.toHaveProperty("updatedAt");
+    // Admins may still set privilege fields — that path is gated by the DB layer.
+    expect(clean.role).toBe("admin");
+  });
+
+  it("fails closed past the recursion depth cap", () => {
+    let node: Record<string, unknown> = { leaf: "value" };
+    for (let i = 0; i < 12; i += 1) node = { nested: node };
+
+    const clean = sanitizeClientUserAttributePatch({ profile: node }, { isAdmin: false });
+
+    let cursor: unknown = clean.profile;
+    let depth = 0;
+    while (cursor && typeof cursor === "object" && "nested" in (cursor as object)) {
+      cursor = (cursor as Record<string, unknown>).nested;
+      depth += 1;
+    }
+    expect(depth).toBeLessThanOrEqual(8);
+  });
+});
