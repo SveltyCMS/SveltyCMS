@@ -468,6 +468,33 @@ export const SECURITY_TARGETS: readonly Mutation[] = [
     tests: ["tests/unit/security/user-attribute-policy.test.ts"],
   },
   {
+    id: "security-user-attr-deep-guard",
+    file: "src/utils/security/user-attribute-policy.ts",
+    description:
+      "stripUnsafeKeysDeep: prototype-pollution keys and `$` operators survive at any depth",
+    find: "    if (depth >= MAX_SANITIZE_DEPTH || isUnsafeKey(key)) {",
+    replace: "    if (false) {",
+    tests: ["tests/unit/security/user-attribute-policy.test.ts"],
+  },
+  {
+    id: "security-user-attr-server-owned",
+    file: "src/utils/security/user-attribute-policy.ts",
+    description:
+      "sanitizeClientUserAttributePatch: server-owned identity/tenant/timestamp fields survive",
+    find: "  for (const field of SERVER_OWNED_FIELDS) delete updates[field];",
+    replace: "  // mutation: server-owned fields kept",
+    tests: ["tests/unit/security/user-attribute-policy.test.ts"],
+  },
+  {
+    id: "security-test-mode-prod-gate",
+    file: "src/utils/hook-utils.ts",
+    description:
+      "resolveTestMode: a production server accepts TEST_MODE without a non-empty secret",
+    find: '  return !isProd || Boolean(env.TEST_API_SECRET) || env.ALLOW_TEST_MODE_IN_PROD === "true";',
+    replace: "  return true;",
+    tests: ["tests/unit/security/test-mode-gate.test.ts"],
+  },
+  {
     id: "security-redirect-backslash",
     file: "src/utils/security/safe-redirect.ts",
     description: "safeRedirect: `/\\evil.com` is accepted as an internal path",

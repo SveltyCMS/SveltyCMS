@@ -7,6 +7,7 @@
  * - ReDoS fix: split regex into INTERNAL_PATH_REGEX + anchored STATIC_EXT_REGEX
  * - O(1) Set lookup for 80% of public routes (replaces array scan)
  * - IS_TEST_MODE IIFE at module load (zero repeated globalThis lookups)
+ * - Pure `resolveTestMode()` so the production gate is unit- and mutation-testable
  * - Token validation uses regex capture group (zero allocation)
  */
 
@@ -23,21 +24,33 @@ const STATIC_BASE_HEADER_PAIRS = Object.entries(BASE_HEADERS).filter(
   ([k]) => k !== "Content-Security-Policy",
 );
 
+/**
+ * Resolve test-mode from an environment bag.
+ *
+ * Deliberately permissive in development (the E2E preview servers rely on the
+ * flag even when `NODE_ENV` is unset), fail-closed in production: there, a test
+ * flag is honoured only with a non-empty `TEST_API_SECRET` or the explicit
+ * `ALLOW_TEST_MODE_IN_PROD=true` override. The `/api/testing` gate in
+ * `test-bypass.server.ts` keeps its own stricter production hard-gate.
+ */
+export function resolveTestMode(env: Record<string, string | undefined> | undefined): boolean {
+  if (!env) return false;
+  const isProd = env.NODE_ENV === "production";
+  const hasTestFlag =
+    env.TEST_MODE === "true" || env.VITE_TEST_MODE === "true" || env.PLAYWRIGHT_TEST === "true";
+  if (!hasTestFlag) return false;
+  return !isProd || Boolean(env.TEST_API_SECRET) || env.ALLOW_TEST_MODE_IN_PROD === "true";
+}
+
 // 🚀 Cache static environment flag at module load.
 // SINGLE source of truth for middleware test-mode detection (was duplicated with
-// divergent env sets in handle-security / handle-rate-limit). NOTE: deliberately
-// NOT production-gated — the E2E preview servers rely on these flags even when
-// NODE_ENV is unset/"production". The /api/testing gate in test-bypass.server.ts
-// keeps its own stricter production hard-gate. BENCHMARK is deliberately absent:
-// benchmark runs must exercise real middleware, not test-mode shortcuts.
+// divergent env sets in handle-security / handle-rate-limit). BENCHMARK is
+// deliberately absent: benchmark runs must exercise real middleware, not
+// test-mode shortcuts.
 export const IS_TEST_MODE = (() => {
   if (typeof globalThis === "undefined") return false;
-  const env = (globalThis as any).process?.env;
-  const isProd = env?.NODE_ENV === "production";
-  const hasTestFlag =
-    env?.TEST_MODE === "true" || env?.VITE_TEST_MODE === "true" || env?.PLAYWRIGHT_TEST === "true";
-  if (!hasTestFlag) return false;
-  return !isProd || Boolean(env?.TEST_API_SECRET) || env?.ALLOW_TEST_MODE_IN_PROD === "true";
+  const env = (globalThis as any).process?.env as Record<string, string | undefined> | undefined;
+  return resolveTestMode(env);
 })();
 
 /** Mutation verbs that must run CSRF + cache invalidation. */
