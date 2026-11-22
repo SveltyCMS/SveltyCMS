@@ -5,7 +5,8 @@
  * Features:
  * - Headless server gateway (not client-only)
  * - Configurable transport mode (SSE/stdio)
- * - Remote agent support with API key auth
+ * - Remote agent support with scoped, expiring OAuth 2.1 client-credentials tokens
+ * - Legacy static `agentApiKey` exchange (backward compatibility)
  * - Token limit enforcement
  *
  * ### Licensing:
@@ -25,7 +26,7 @@ export const webmcpPlugin = definePlugin({
   metadata: {
     id: "webmcp",
     name: "Headless WebMCP Server Gateway",
-    version: "2.0.0",
+    version: "2.1.0",
     description:
       "Exposes controlled content management and navigation capabilities to remote AI agents via the Model Context Protocol (MCP) as a headless server gateway.",
     icon: "mdi:robot",
@@ -39,6 +40,8 @@ export const webmcpPlugin = definePlugin({
       maxPayloadTokenLimit: 4096,
     },
     private: {
+      // Legacy shared key. Still accepted by the OAuth token endpoint (client id
+      // absent or "webmcp-legacy"); prefer provisioned OAuth clients instead.
       agentApiKey: "",
     },
   },

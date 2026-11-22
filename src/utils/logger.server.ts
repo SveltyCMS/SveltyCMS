@@ -37,6 +37,7 @@ import { createGzip } from "node:zlib";
 
 import { logger as coreLogger, mask } from "./logger";
 import type { LogLevel } from "./logger";
+import { nowISODateString } from "@utils/date";
 
 // ── Re-export the core logger ──
 export { logger } from "./logger";
@@ -203,7 +204,7 @@ async function flush() {
     let batchBuffer = "";
 
     for (const e of batch) {
-      const ts = new Date().toISOString().slice(0, 19).replace("T", " ");
+      const ts = nowISODateString().slice(0, 19).replace("T", " ");
       const argsStr = safeStringify(e.args);
       const plain = `${ts} [${e.level.toUpperCase().padEnd(5)}] ${e.msg}${argsStr}`;
 
@@ -251,7 +252,7 @@ function enqueue(level: LogLevel, msg: string, args: unknown[]) {
 process.on("beforeExit", () => {
   if (queue.length > 0 && stream) {
     for (const e of queue) {
-      const ts = new Date().toISOString().slice(0, 19).replace("T", " ");
+      const ts = nowISODateString().slice(0, 19).replace("T", " ");
       const argsStr = safeStringify(e.args);
       const plain = `${ts} [${e.level.toUpperCase().padEnd(5)}] ${e.msg}${argsStr}`;
       lastHash = chainHash(lastHash, plain);

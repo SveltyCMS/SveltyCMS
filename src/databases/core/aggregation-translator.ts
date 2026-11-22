@@ -9,7 +9,9 @@
  * - `$match` (any number, before `$group`) → `WHERE` through the adapter's own query
  *   mapper, so filters, JSON fields and the tenant scope behave exactly like
  *   `find*` (`getJsonEquals` containment included)
- * - `$group` with a scalar `_id` key (`null` or `"$field"`, dotted paths allowed)
+ * - `$group` with a scalar `_id` key (`null` or `"$field"`, dotted paths allowed),
+ *   or a narrow `$dateToString` month key
+ *   (`{ format: "%Y-%m", date: "$createdAt" | { $toDate: "$createdAt" } }`),
  *   and the `$sum` / `$avg` / `$min` / `$max` / `$count` accumulators
  *   (`$sum: 1` → `COUNT(*)`)
  * - `$min`/`$max` go through `orderedField`: a materialized column, or a typed JSON
@@ -48,6 +50,12 @@ export interface AggregationDialect {
    * this field's values type-safely — see `getJsonOrderedField` in the SQL adapters.
    */
   orderedField(name: string): SQL | null;
+  /**
+   * Month bucket (`$dateToString` with `%Y-%m`) over a native date column.
+   * Optional: an engine without a formatter refuses the stage instead of
+   * returning an engine-specific string.
+   */
+  dateToString?(name: string, format: string): SQL | null;
 }
 
 export type AggregationPlan =
@@ -73,6 +81,60 @@ function fieldRef(value: unknown): string | null {
   if (typeof value !== "string" || !value.startsWith("$")) return null;
   const name = value.slice(1);
   return name.length > 0 && !name.startsWith("$") ? name : null;
+}
+
+/**
+ * `$group._id` object form → SQL: the one shape SQL can express is a month bucket
+ * (`$dateToString` with `%Y-%m`). Compound keys still fail closed.
+ */
+function dateGroupKey(
+  value: unknown,
+  dialect: AggregationDialect,
+): { ok: true; expr: SQL } | { ok: false; message: string } {
+  const compound =
+    'Only a scalar $group._id (null, "$field" or a $dateToString month key) is supported; ' +
+    "compound keys return a nested document SQL rows cannot express";
+
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { ok: false, message: compound };
+  }
+  const keys = Object.keys(value);
+  if (keys.length !== 1 || keys[0] !== "$dateToString") {
+    return { ok: false, message: compound };
+  }
+
+  const spec = (value as Record<string, unknown>)["$dateToString"];
+  if (!spec || typeof spec !== "object" || Array.isArray(spec)) {
+    return { ok: false, message: "$dateToString requires a specification object" };
+  }
+  const { format, date } = spec as { format?: unknown; date?: unknown };
+  if (format !== "%Y-%m") {
+    return {
+      ok: false,
+      message: `$dateToString format ${JSON.stringify(format)} is not supported — only month buckets ("%Y-%m") translate to SQL`,
+    };
+  }
+
+  const inner = date as { $toDate?: unknown } | null;
+  const ref =
+    fieldRef(date) ?? (inner && typeof inner === "object" ? fieldRef(inner.$toDate) : null);
+  if (!ref) {
+    return {
+      ok: false,
+      message: '$dateToString.date must be "$field" or { $toDate: "$field" }',
+    };
+  }
+
+  const expr = dialect.dateToString?.(ref, format);
+  if (!expr) {
+    return {
+      ok: false,
+      message:
+        `$dateToString group keys are not supported on ${dialect.engine}: ` +
+        "the engine has no month formatter for this field",
+    };
+  }
+  return { ok: true, expr };
 }
 
 /**
@@ -201,14 +263,16 @@ export function translateAggregation(
         const groupSelection: Record<string, SQL> = Object.create(null) as Record<string, SQL>;
         if (spec._id !== null) {
           const ref = fieldRef(spec._id);
-          if (!ref) {
-            return fail(
-              'Only a scalar $group._id is supported (null or "$field"); compound keys return a nested document SQL rows cannot express',
-            );
+          if (ref) {
+            const keyExpr = dialect.field(ref);
+            groupBy.push(keyExpr);
+            groupSelection._id = keyExpr;
+          } else {
+            const key = dateGroupKey(spec._id, dialect);
+            if (!key.ok) return fail(key.message);
+            groupBy.push(key.expr);
+            groupSelection._id = key.expr;
           }
-          const keyExpr = dialect.field(ref);
-          groupBy.push(keyExpr);
-          groupSelection._id = keyExpr;
         }
 
         for (const [alias, accumulator] of Object.entries(spec)) {

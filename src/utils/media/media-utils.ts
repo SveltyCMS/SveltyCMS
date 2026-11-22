@@ -9,6 +9,7 @@
  * - Reverse extension mapping from MIME type
  * - Media URL construction and path resolution
  * - Filename sanitization for safe upload/storage (merged from media-processing)
+ * - Media folder validation (opaque folder id or path) for every upload lane
  * - Media metadata API client wrappers (merged from api.ts)
  */
 
@@ -532,3 +533,51 @@ export const SIZES = {
   original: 0,
   thumbnail: 200,
 } as const;
+
+// --- Media folder validation ---
+
+/** Control, zero-width and line-separator characters that must never reach a folder value. */
+// eslint-disable-next-line no-control-regex -- intentional: reject control characters in folder values
+const FOLDER_CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028\u2029]/;
+/** Characters Windows/drive syntax or a URL scheme could smuggle through. */
+const FOLDER_ILLEGAL_CHARS = /[<>"|?*:\\]/;
+const MAX_MEDIA_FOLDER_LENGTH = 255;
+
+/**
+ * Validates a caller-supplied media folder before it is stored on the row.
+ *
+ * Two lanes send different shapes: the gallery sends a virtual-folder `_id`,
+ * the media-upload widget sends a path such as `collections/posts`. Neither
+ * reaches the filesystem (storage paths are hash-derived), so this is a
+ * data-integrity gate — it rejects traversal segments, control/zero-width
+ * characters, drive/scheme separators and over-long values that would corrupt
+ * the folder tree or the admin UI.
+ *
+ * Pure and client-safe: the caller decides how to surface the rejection.
+ */
+export type MediaFolderValidation = { ok: true; folder: string } | { ok: false; reason: string };
+
+export function validateMediaFolder(value: string): MediaFolderValidation {
+  const folder = value.trim();
+  if (folder.length === 0) {
+    return { ok: false, reason: "Media folder must not be empty" };
+  }
+  if (folder.length > MAX_MEDIA_FOLDER_LENGTH) {
+    return {
+      ok: false,
+      reason: `Media folder exceeds ${MAX_MEDIA_FOLDER_LENGTH} characters`,
+    };
+  }
+  if (FOLDER_CONTROL_CHARS.test(folder) || FOLDER_ILLEGAL_CHARS.test(folder)) {
+    return { ok: false, reason: "Media folder contains unsupported characters" };
+  }
+  if (folder.startsWith("/") || folder.endsWith("/") || folder.includes("//")) {
+    return { ok: false, reason: "Media folder must be a relative path without empty segments" };
+  }
+  for (const segment of folder.split("/")) {
+    if (segment === "" || segment === "." || segment === "..") {
+      return { ok: false, reason: "Media folder must not contain relative segments" };
+    }
+  }
+  return { ok: true, folder };
+}

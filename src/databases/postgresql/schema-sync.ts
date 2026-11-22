@@ -6,14 +6,20 @@
  * - DDL provisioning with JSONB and millisecond-accurate timestamps
  * - Native GIN index provisioning for jsonb_path_ops containment
  * - Covered composite index provisioning for filter+sort targets with NAMEDATALEN=63 truncation
+ * - Case-insensitive (`$ieq` / `$nieq`) `lower()` expression indexes
  * - Elimination of redundant twin indexes and drop of legacy truncated names
  * - Schema rename tracking and column migration
  */
 
 import { getTableName, type Table } from "drizzle-orm";
 import { logger } from "@utils/logger";
-import { buildCompositeIndexColumns } from "../core/drizzle-sql-helpers";
-import { shouldMaterializeField } from "../core/drizzle-sql-helpers";
+import {
+  buildCaseInsensitiveIndexColumns,
+  buildCaseInsensitiveIndexDdl,
+  buildCompositeIndexColumns,
+  buildTrigramIndexDdl,
+  shouldMaterializeField,
+} from "../core/drizzle-sql-helpers";
 import {
   applyDeclaredFieldRenames,
   hasDeclaredFieldRename,
@@ -127,6 +133,7 @@ export async function provisionPostgresTable(
       const dynamicCols = ["slug", "locale", "publishedAt"];
       const partialNotNullCols = new Set(["slug", "locale"]);
       const compositeCols = buildCompositeIndexColumns(schemaData.fields);
+      const caseInsensitiveCols = buildCaseInsensitiveIndexColumns(schemaData.fields);
 
       if (schemaData.fields && Array.isArray(schemaData.fields)) {
         const materialized = new Map<string, string>();
@@ -286,6 +293,48 @@ export async function provisionPostgresTable(
           }
         } catch {
           /* safe */
+        }
+      }
+
+      // `$ieq` / `$nieq` keep `lower()` on both sides on PostgreSQL (locale-aware
+      // `lower()` is the only provable form there); this is the matching index.
+      // `$contains` / `$nicontains` compile to `ILIKE`, which only a trigram GIN
+      // tree can serve — provisioned right after the `lower()` btree. `pg_trgm`
+      // is created by the system schema bootstrap.
+      // CONCURRENTLY cannot run inside a transaction, and `ctx.raw` shares the
+      // queue gate — use the postgres.js client directly when it is available.
+      for (const colNameRaw of caseInsensitiveCols) {
+        if (!dynamicCols.includes(colNameRaw)) continue;
+        try {
+          const colName = assertSafeSqlIdentifier(colNameRaw, "column");
+          const ddl = buildCaseInsensitiveIndexDdl({
+            dialect: "postgresql",
+            tableName: physicalName,
+            columnName: colName,
+            indexName: assertSafeSqlIdentifier(
+              pgSafeIndexName(`${physicalName}_${colName}_lower`),
+              "index",
+            ),
+          });
+          if (ctx.sql) await ctx.sql.unsafe(ddl);
+          else await ctx.raw.execute(ddl);
+        } catch {
+          /* safe */
+        }
+        try {
+          const colName = assertSafeSqlIdentifier(colNameRaw, "column");
+          const trgmDdl = buildTrigramIndexDdl({
+            tableName: physicalName,
+            columnName: colName,
+            indexName: assertSafeSqlIdentifier(
+              pgSafeIndexName(`${physicalName}_${colName}_trgm`),
+              "index",
+            ),
+          });
+          if (ctx.sql) await ctx.sql.unsafe(trgmDdl);
+          else await ctx.raw.execute(trgmDdl);
+        } catch {
+          /* safe: pg_trgm unavailable on this deployment — ILIKE stays a scan */
         }
       }
 

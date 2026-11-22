@@ -197,6 +197,10 @@ async loading, grouped options, configurable debounce, and clearable selection.
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (disabled) return;
+		// IME composition (Japanese/Chinese/Korean): Enter confirms the candidate
+		// list, not the combobox. Acting on it would select the first option or
+		// commit a half-typed custom value mid-composition.
+		if (e.isComposing || e.keyCode === 229) return;
 
 		const optionsList = flatFilteredOptions;
 

@@ -14,6 +14,7 @@ import { createMockUser, createMockSuperAdmin } from "../utils/mock-factories";
 
 // Mock webhook service
 vi.mock("@src/services/background/webhook-service", () => ({
+  validateWebhookFilterInput: vi.fn(),
   webhookService: {
     getWebhooks: vi.fn().mockResolvedValue([]),
     saveWebhook: vi.fn().mockResolvedValue({ id: "webhook-1", name: "Test" }),

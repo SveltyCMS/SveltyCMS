@@ -6,13 +6,19 @@
  * - DDL provisioning for core and dynamic collection tables
  * - Self-healing backfill from JSON data blob to physical columns
  * - Covered composite index provisioning for filter+sort targets
+ * - Case-insensitive (`$ieq` / `$nieq`) `lower()` expression indexes
  * - Elimination of redundant twin indexes
  * - Schema rename tracking and column migration
  */
 
 import { getTableName, type Table } from "drizzle-orm";
 import { logger } from "@utils/logger";
-import { buildCompositeIndexColumns, shouldMaterializeField } from "../core/drizzle-sql-helpers";
+import {
+  buildCaseInsensitiveIndexColumns,
+  buildCaseInsensitiveIndexDdl,
+  buildCompositeIndexColumns,
+  shouldMaterializeField,
+} from "../core/drizzle-sql-helpers";
 import {
   applyDeclaredFieldRenames,
   hasDeclaredFieldRename,
@@ -110,6 +116,7 @@ export async function provisionSqliteTable(
         { name: "publishedAt", type: "INTEGER" },
       ];
       const compositeCols = buildCompositeIndexColumns(schemaData.fields);
+      const caseInsensitiveCols = buildCaseInsensitiveIndexColumns(schemaData.fields);
 
       if (schemaData.fields && Array.isArray(schemaData.fields)) {
         const materialized = new Map<string, string>();
@@ -225,6 +232,28 @@ export async function provisionSqliteTable(
           await ctx.raw.execute(
             `DROP INDEX IF EXISTS "${physicalName}_tenant_status_${col.name}_id"`,
           );
+        } catch {
+          /* safe */
+        }
+      }
+
+      // `$ieq` / `$nieq` compile to `col = ? COLLATE NOCASE` (see
+      // `caseInsensitiveComparison`), so the matching tree has to carry the
+      // NOCASE collation — a `lower(col)` index cannot serve it. The legacy
+      // `lower()` tree from the previous provisioning policy is dropped so it
+      // does not keep charging every write for nothing.
+      for (const colName of caseInsensitiveCols) {
+        if (!existingCols.has(colName)) continue;
+        try {
+          await ctx.raw.execute(
+            buildCaseInsensitiveIndexDdl({
+              dialect: "sqlite",
+              tableName: physicalName,
+              columnName: colName,
+            }),
+          );
+          const legacyIndex = assertSafeSqlIdentifier(`${physicalName}_${colName}_lower`, "index");
+          await ctx.raw.execute(`DROP INDEX IF EXISTS "${legacyIndex}"`);
         } catch {
           /* safe */
         }

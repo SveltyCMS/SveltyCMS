@@ -7,14 +7,36 @@
  * ### Features:
  * - Direct translation of aggregation pipelines via aggregation-translator
  * - Soft-delete clamping and tenant filter propagation
+ * - Month-bucket group keys (`$dateToString` / `%Y-%m`) per engine
  * - Date and timestamp normalization back to ISO format
  * - Fail-closed handling for unsupported pipeline operations
  */
 
 import type { BaseEntity, BaseQueryOptions, DatabaseResult, QueryFilter } from "../db-interface";
 import { convertArrayDatesToISO } from "./relational-utils";
-import { and, type SQL } from "drizzle-orm";
+import { and, sql, type SQL } from "drizzle-orm";
 import { translateAggregation } from "./aggregation-translator";
+
+/**
+ * Month bucket expression for a native timestamp column.
+ *
+ * SQLite stores `timestamp_ms` as integer milliseconds, so it needs the
+ * `unixepoch` conversion; PostgreSQL and MariaDB format their native date
+ * columns directly. `null` → the engine has no month formatter (the translator
+ * then refuses the group key).
+ */
+export function dateMonthExpression(engine: string, column: SQL): SQL | null {
+  switch (engine) {
+    case "sqlite":
+      return sql`strftime('%Y-%m', ${column} / 1000, 'unixepoch')`;
+    case "postgresql":
+      return sql`to_char(${column}, 'YYYY-MM')`;
+    case "mariadb":
+      return sql`date_format(${column}, '%Y-%m')`;
+    default:
+      return null;
+  }
+}
 
 /**
  * Structural contract required by the SQL aggregation pipeline from its host adapter.
@@ -69,6 +91,11 @@ export async function executeSqlAggregate<R>(
         match: (filter) => ctx.mapQuery(table, filter, options),
         orderedField: (name) =>
           (ctx.getColumn(table, name) as SQL | undefined) ?? ctx.getJsonOrderedField(name),
+        dateToString: (name, format) => {
+          if (format !== "%Y-%m") return null;
+          const column = ctx.getColumn(table, name) as SQL | undefined;
+          return column ? dateMonthExpression(ctx.type, column) : null;
+        },
       })
     : null;
 

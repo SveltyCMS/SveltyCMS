@@ -66,6 +66,8 @@ The [3-Pillar Widget System](../../development/widgets/development.mdx) is manag
 Webhooks allow SveltyCMS to notify external systems about content changes or system events.
 
 - **Create/Update**: `POST /api/webhooks` — Saves a webhook with a target URL and event filters.
+- **Per-collection filter** (optional `collection`): deliver only events whose payload names that collection. `*` or an omitted value delivers every collection; media/config/content-package events that carry no collection are never filtered out. Resolution order is `payload.collection` → `payload.collectionName` → `payload.data.collection` → `payload.entry.collection` → `payload.document.collection`.
+- **Custom body** (optional `bodyTemplate`): replaces the default JSON envelope with a rendered template. Supported placeholders are `{{event}}`, `{{collection}}`, `{{entryId}}`, `{{timestamp}}`, `{{webhookId}}` and `{{payload}}`; unknown placeholders stay literal and property paths are not evaluated. The rendered body is capped at 64 KiB — an oversized render fails permanently into the delivery log instead of retrying forever. The template never affects the URL, method or headers, and the HMAC signature covers the rendered body.
 - **Test Webhook**: `POST /api/webhooks/{id}/test` — Dispatches a dummy payload to verify connectivity.
 - **Delivery logs**: `GET /api/webhooks/logs` — Returns `{ success: true, data: [] }` for a tenant with no deliveries (an empty list is a normal answer, not a 404). Optional `?limit=` and `?status=`.
 - **Retry a delivery**: `POST /api/webhooks/logs/{id}/retry` — Re-dispatches one logged delivery; an unknown id raises `404`.

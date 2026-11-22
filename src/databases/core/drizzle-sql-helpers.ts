@@ -11,6 +11,11 @@
  * - stateless table/column mappings
  * - query translation engine wrapper
  * - physical select projectors
+ * - dialect-hinted case-insensitive filter compilation (`$ieq` / `$nieq` /
+ *   `$contains` / `$nicontains`), with `lower()` retained wherever equivalence
+ *   cannot be proven
+ * - case-insensitive equality index selection and DDL (SQLite `COLLATE NOCASE`,
+ *   PostgreSQL `lower(col)` + `pg_trgm`)
  */
 
 import {
@@ -34,7 +39,12 @@ import {
   desc,
 } from "drizzle-orm";
 import type { FindOptions } from "../db-interface";
-import { acquireConditionsArray, applyTenantFilter, safeDate } from "./relational-utils";
+import {
+  acquireConditionsArray,
+  applyTenantFilter,
+  assertSafeSqlIdentifier,
+  safeDate,
+} from "./relational-utils";
 import { normalizeSortDirection } from "./page-utils";
 import { logger } from "@utils/logger";
 
@@ -362,6 +372,116 @@ export function buildCompositeIndexColumns(fields: unknown): Set<string> {
     if (name) columns.add(name);
   }
   return columns;
+}
+
+/**
+ * Scalar widgets whose values are temporal strings — no case-insensitive lookup.
+ * A `DateTime` field can carry `type: "string"`, so the materialized column is
+ * TEXT and would otherwise pass the text-column check.
+ */
+const NON_CASE_INSENSITIVE_WIDGETS = new Set(["DateTime", "Date"]);
+
+/**
+ * Physical text columns whose case-insensitive predicates earn an index.
+ *
+ * The engine-specific cheap predicate is `col = ? COLLATE NOCASE` on SQLite and
+ * `lower(col) = lower(?)` on PostgreSQL (see `caseInsensitiveComparison`), so
+ * the matching tree differs per engine:
+ *
+ * - SQLite: `CREATE INDEX … ("col" COLLATE NOCASE)` serves the NOCASE form.
+ * - PostgreSQL: `CREATE INDEX … (lower("col"))` serves the `lower()` form, and
+ *   a second `pg_trgm` GIN tree makes `ILIKE '%x%'` indexable.
+ *
+ * The index is opt-in (`indexed: true` only): every extra index is maintained on
+ * every write, and one extra index on a 2 000-row UPDATE was measured at
+ * ~11–17 % (see `earnsCompositeIndex`). Selection reuses
+ * `materializedColumnTypes`, so only columns that actually exist as TEXT /
+ * VARCHAR are returned — numerics and booleans never qualify, and a text field
+ * that was never materialized (or is encrypted) is excluded.
+ *
+ * MariaDB has no functional indexes (`CREATE INDEX ... (lower(col))` is a syntax
+ * error) and its case-insensitive predicates are the plain comparison under the
+ * column's CI collation, which the existing btree already serves — no call site.
+ */
+export function buildCaseInsensitiveIndexColumns(fields: unknown): Set<string> {
+  const columns = new Set<string>();
+  if (!Array.isArray(fields)) return columns;
+  const columnTypes = materializedColumnTypes(fields);
+  for (const field of fields) {
+    if (!field || typeof field !== "object") continue;
+    const record = field as { indexed?: unknown; db_fieldName?: unknown; label?: unknown };
+    if (record.indexed !== true) continue;
+    const rawName =
+      typeof record.db_fieldName === "string" && record.db_fieldName
+        ? record.db_fieldName
+        : record.label;
+    if (typeof rawName !== "string" || !rawName) continue;
+    if (columnTypes.get(rawName) !== "text") continue;
+    const widget = widgetNameOf(field);
+    if (widget && NON_CASE_INSENSITIVE_WIDGETS.has(widget)) continue;
+    columns.add(rawName);
+  }
+  return columns;
+}
+
+/** Dialects with functional/expression index support. MariaDB is deliberately absent. */
+export type CaseInsensitiveIndexDialect = "sqlite" | "postgresql";
+
+/**
+ * DDL for the index matching the `$ieq` / `$nieq` predicate.
+ *
+ * SQLite compares with `COLLATE NOCASE`, so its tree is
+ * `ON "<table>" ("<col>" COLLATE NOCASE)` — the only index that form can use.
+ * PostgreSQL compares with `lower(col)`, so its tree is `(lower("<col>"))`.
+ *
+ * The index name defaults to `<table>_<column>_nocase` on SQLite and
+ * `<table>_<column>_lower` on PostgreSQL. PostgreSQL callers pass a
+ * `pgSafeIndexName`-truncated name because NAMEDATALEN=63 silently truncates
+ * anything longer. Identifiers are validated before interpolation, so a schema
+ * field can never inject DDL.
+ */
+export function buildCaseInsensitiveIndexDdl(options: {
+  dialect: CaseInsensitiveIndexDialect;
+  tableName: string;
+  columnName: string;
+  indexName?: string;
+}): string {
+  const table = assertSafeSqlIdentifier(options.tableName, "table");
+  const column = assertSafeSqlIdentifier(options.columnName, "column");
+  const isSqlite = options.dialect === "sqlite";
+  const index = options.indexName
+    ? assertSafeSqlIdentifier(options.indexName, "index")
+    : `${table}_${column}_${isSqlite ? "nocase" : "lower"}`;
+  if (isSqlite) {
+    return `CREATE INDEX IF NOT EXISTS "${index}" ON "${table}" ("${column}" COLLATE NOCASE)`;
+  }
+  return `CREATE INDEX CONCURRENTLY IF NOT EXISTS "${index}" ON "${table}" (lower("${column}"))`;
+}
+
+/**
+ * DDL for the `pg_trgm` GIN tree that makes `ILIKE '%term%'` (the compiled
+ * `$contains` / `$nicontains` predicate) indexable.
+ *
+ * Availability: the system schema creates `pg_trgm` at boot
+ * (`CREATE EXTENSION IF NOT EXISTS "pg_trgm"` in `system-schema-spec.ts`), the
+ * same extension the media filename trigram indexes rely on. Callers still wrap
+ * the statement in their best-effort guard — a server that forbids extensions
+ * loses the optional index, not the table.
+ *
+ * The default name is `<table>_<column>_trgm`; callers pass a
+ * `pgSafeIndexName`-truncated name for the same NAMEDATALEN reason as above.
+ */
+export function buildTrigramIndexDdl(options: {
+  tableName: string;
+  columnName: string;
+  indexName?: string;
+}): string {
+  const table = assertSafeSqlIdentifier(options.tableName, "table");
+  const column = assertSafeSqlIdentifier(options.columnName, "column");
+  const index = options.indexName
+    ? assertSafeSqlIdentifier(options.indexName, "index")
+    : `${table}_${column}_trgm`;
+  return `CREATE INDEX CONCURRENTLY IF NOT EXISTS "${index}" ON "${table}" USING gin ("${column}" gin_trgm_ops)`;
 }
 
 /**
@@ -1065,6 +1185,115 @@ export function coerceDateColumnValue(col: any, val: unknown): unknown {
 // Uses for...in (zero allocation) instead of Object.entries.
 // Exact semantics preserved (including root $and grouping, nested non-$ as $eq, date handling).
 
+/**
+ * Dialect hint for the case-insensitive filter forms. `undefined` means "engine
+ * unknown" (the shared default) and keeps the `lower()`-on-both-sides predicate
+ * — the only form that is provably case-insensitive on every engine, including a
+ * `_bin` collation or SQLite with the `case_sensitive_like` pragma.
+ *
+ * Callers pass `SqlDialect["id"]`, so this module still contains no class-level
+ * dialect branching — it stays a set of pure functions.
+ */
+export type CaseInsensitiveFilterDialect = "sqlite" | "mariadb" | "postgresql";
+
+const _isTextColCache = new WeakMap<object, boolean>();
+
+/**
+ * Whether a resolved column stores text.
+ *
+ * Only text comparisons have a provably equivalent cheap form. On a numeric
+ * column, `col = ?` applies NUMERIC affinity to the bound value, so `'5.0'`
+ * would start matching stored `5` — while `lower(col) = lower(?)` is a text
+ * comparison that never did. sqlite-core/pg-core expose `dataType` directly;
+ * mysql-core keeps it on `config` (same shape as `coerceDateColumnValue`).
+ */
+function isTextColumn(col: unknown): boolean {
+  if (!col || typeof col !== "object") return false;
+  let isText = _isTextColCache.get(col);
+  if (isText === undefined) {
+    const record = col as { dataType?: unknown; config?: { dataType?: unknown } };
+    isText = record.dataType === "string" || record.config?.dataType === "string";
+    _isTextColCache.set(col, isText);
+  }
+  return isText;
+}
+
+/**
+ * Case-insensitive equality / inequality in the cheapest form that is provably
+ * equivalent to `lower(col) = lower(?)`:
+ *
+ * - **SQLite** — `col = ? COLLATE NOCASE`. NOCASE folds ASCII exactly like the
+ *   built-in `lower()` (both are ASCII-only without ICU), so non-ASCII text is
+ *   still compared byte-for-byte. The `COLLATE NOCASE` tree from
+ *   `buildCaseInsensitiveIndexDdl` serves it.
+ * - **MariaDB** — `col = ?`. The collection tables are created without a
+ *   COLLATE clause, so the column inherits the server's default utf8mb4
+ *   collation (`utf8mb4_general_ci` / `utf8mb4_uca1400_ai_ci`, both
+ *   case-insensitive). An explicit COLLATE here would defeat the btree, which
+ *   is the point of the plain comparison. The bound value must be a string:
+ *   MariaDB compares a string column against a number numerically, so `'05'`
+ *   would start matching `5` where the `lower()` form never did.
+ * - **PostgreSQL / unknown** — keep `lower(col) = lower(?)`: PostgreSQL's
+ *   `lower()` is locale-aware, so it is the only provable form there, and it is
+ *   already served by the `lower(col)` btree.
+ */
+function caseInsensitiveComparison(
+  col: unknown,
+  value: unknown,
+  negate: boolean,
+  dialect?: CaseInsensitiveFilterDialect,
+): SQL {
+  if (isTextColumn(col)) {
+    if (dialect === "sqlite") {
+      // TEXT affinity applies to the bound parameter, so a numeric value is
+      // compared as text exactly like the `lower()` form did.
+      return negate
+        ? sql`${col} <> ${value} COLLATE NOCASE`
+        : sql`${col} = ${value} COLLATE NOCASE`;
+    }
+    if (dialect === "mariadb" && typeof value === "string") {
+      return negate ? sql`${col} <> ${value}` : sql`${col} = ${value}`;
+    }
+  }
+  return negate ? sql`lower(${col}) <> lower(${value})` : sql`lower(${col}) = lower(${value})`;
+}
+
+/**
+ * Case-insensitive substring match in the cheapest form per engine, with the
+ * LIKE wildcards in `pattern` already escaped by the caller:
+ *
+ * - **PostgreSQL** — `col ILIKE ?`. PostgreSQL implements ILIKE by lowering
+ *   both operands and running LIKE, i.e. the exact predicate the old shape
+ *   spelled out — and ILIKE is the form a `pg_trgm` GIN index can serve.
+ * - **SQLite** — `col LIKE ?`. SQLite's LIKE is case-insensitive by default
+ *   (`case_sensitive_like` is OFF; this codebase never enables it) with the
+ *   same ASCII-only folding as `lower()`.
+ * - **MariaDB** — `col LIKE ?`. LIKE inherits the column's CI collation, so the
+ *   comparison is case-insensitive without adding an explicit COLLATE (which
+ *   would also make the equality sibling's btree unusable).
+ * - **unknown** — keep `lower(col) LIKE lower(?)`.
+ */
+function caseInsensitiveLike(
+  col: unknown,
+  pattern: string,
+  negate: boolean,
+  dialect?: CaseInsensitiveFilterDialect,
+): SQL {
+  if (dialect === "postgresql") {
+    return negate
+      ? sql`${col} NOT ILIKE ${pattern} ESCAPE ${LIKE_ESCAPE_CHAR}`
+      : sql`${col} ILIKE ${pattern} ESCAPE ${LIKE_ESCAPE_CHAR}`;
+  }
+  if (dialect === "sqlite" || dialect === "mariadb") {
+    return negate
+      ? sql`${col} NOT LIKE ${pattern} ESCAPE ${LIKE_ESCAPE_CHAR}`
+      : sql`${col} LIKE ${pattern} ESCAPE ${LIKE_ESCAPE_CHAR}`;
+  }
+  return negate
+    ? sql`lower(${col}) NOT LIKE lower(${pattern}) ESCAPE ${LIKE_ESCAPE_CHAR}`
+    : sql`lower(${col}) LIKE lower(${pattern}) ESCAPE ${LIKE_ESCAPE_CHAR}`;
+}
+
 function addSingleCondition(
   conditions: SQL[],
   table: any,
@@ -1081,6 +1310,7 @@ function addSingleCondition(
     value: unknown,
     op: "$gt" | "$gte" | "$lt" | "$lte",
   ) => SQL | null,
+  dialect?: CaseInsensitiveFilterDialect,
 ) {
   let col = getColumn(table, field);
   let isJsonField = false;
@@ -1193,11 +1423,13 @@ function addSingleCondition(
       const caseInsensitive = String(operators?.["$options"] ?? "")
         .toLowerCase()
         .includes("i");
-      // Postgres LIKE is case-sensitive — use lower() on both sides for $options:"i"
-      // (SQLite/MySQL LIKE are already case-insensitive by default).
+      // Case-sensitive LIKE is unchanged everywhere. The `i` option compiles to
+      // the dialect's cheap case-insensitive form (PostgreSQL ILIKE, SQLite and
+      // MariaDB rely on their default CI comparison) with `lower()` kept for an
+      // unknown engine.
       conditions.push(
         caseInsensitive
-          ? sql`lower(${col}) LIKE lower(${pattern}) ESCAPE ${LIKE_ESCAPE_CHAR}`
+          ? caseInsensitiveLike(col, pattern, false, dialect)
           : sql`${col} LIKE ${pattern} ESCAPE ${LIKE_ESCAPE_CHAR}`,
       );
       break;
@@ -1209,7 +1441,7 @@ function addSingleCondition(
       // The LIKE wildcards in the searched-for term are escaped: a user typing
       // "100%" must match that text, not "100" followed by anything.
       const pattern = `%${escapeLikePattern(String(val ?? ""))}%`;
-      conditions.push(sql`lower(${col}) LIKE lower(${pattern}) ESCAPE ${LIKE_ESCAPE_CHAR}`);
+      conditions.push(caseInsensitiveLike(col, pattern, false, dialect));
       break;
     }
     case "$ieq": {
@@ -1220,19 +1452,19 @@ function addSingleCondition(
         conditions.push(isNull(col));
         break;
       }
-      conditions.push(sql`lower(${col}) = lower(${val})`);
+      conditions.push(caseInsensitiveComparison(col, val, false, dialect));
       break;
     }
     case "$nieq": {
       // Case-insensitive inequality (the negation of `$ieq`).
-      conditions.push(sql`lower(${col}) <> lower(${val})`);
+      conditions.push(caseInsensitiveComparison(col, val, true, dialect));
       break;
     }
     case "$nicontains": {
       // Negated case-insensitive substring. LIKE wildcards are escaped exactly
       // as in `$contains`; only the comparison is inverted.
       const pattern = `%${escapeLikePattern(String(val ?? ""))}%`;
-      conditions.push(sql`lower(${col}) NOT LIKE lower(${pattern}) ESCAPE ${LIKE_ESCAPE_CHAR}`);
+      conditions.push(caseInsensitiveLike(col, pattern, true, dialect));
       break;
     }
     case "$options":
@@ -1257,6 +1489,7 @@ function addFilterConds(
     value: unknown,
     op: "$gt" | "$gte" | "$lt" | "$lte",
   ) => SQL | null,
+  dialect?: CaseInsensitiveFilterDialect,
 ) {
   if (!q || typeof q !== "object") return;
   for (const key in q) {
@@ -1275,6 +1508,7 @@ function addFilterConds(
           coerceJsonValue,
           getJsonEquals,
           getJsonCompare,
+          dialect,
         );
         if (sc.length > 0) {
           const s = sc.length === 1 ? sc[0] : and(...sc);
@@ -1297,6 +1531,7 @@ function addFilterConds(
           coerceJsonValue,
           getJsonEquals,
           getJsonCompare,
+          dialect,
         );
       }
       if (subs.length > 0) {
@@ -1321,6 +1556,7 @@ function addFilterConds(
             coerceJsonValue,
             getJsonEquals,
             getJsonCompare,
+            dialect,
           );
           handled = true;
         } else {
@@ -1338,6 +1574,7 @@ function addFilterConds(
               coerceJsonValue,
               getJsonEquals,
               getJsonCompare,
+              dialect,
             );
             handled = true;
             continue;
@@ -1354,6 +1591,7 @@ function addFilterConds(
             coerceJsonValue,
             getJsonEquals,
             getJsonCompare,
+            dialect,
           );
           handled = true;
           break;
@@ -1372,6 +1610,7 @@ function addFilterConds(
           coerceJsonValue,
           getJsonEquals,
           getJsonCompare,
+          dialect,
         );
       }
     } else {
@@ -1387,6 +1626,7 @@ function addFilterConds(
         coerceJsonValue,
         getJsonEquals,
         getJsonCompare,
+        dialect,
       );
     }
   }
@@ -1405,6 +1645,7 @@ export function mapQuery(
     value: unknown,
     op: "$gt" | "$gte" | "$lt" | "$lte",
   ) => SQL | null,
+  dialect?: CaseInsensitiveFilterDialect,
 ): SQL | undefined {
   if (query && query._id && (typeof query._id === "string" || typeof query._id === "number")) {
     // Zero-allocation fast-path guard: count keys without allocating Object.keys array.
@@ -1440,6 +1681,7 @@ export function mapQuery(
       coerceJsonValue,
       getJsonEquals,
       getJsonCompare,
+      dialect,
     );
   }
 

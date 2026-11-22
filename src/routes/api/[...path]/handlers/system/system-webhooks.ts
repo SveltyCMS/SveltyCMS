@@ -11,7 +11,11 @@ import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { successResponse, validateRequestBody } from "../base";
 import { requireAdminUser } from "./system-shared";
-import { webhookService, type Webhook } from "@src/services/background/webhook-service";
+import {
+  validateWebhookFilterInput,
+  webhookService,
+  type Webhook,
+} from "@src/services/background/webhook-service";
 import { array, boolean, object, optional, record, string } from "valibot";
 
 const SaveWebhookSchema = object({
@@ -23,6 +27,8 @@ const SaveWebhookSchema = object({
   active: optional(boolean()),
   secret: optional(string()),
   headers: optional(record(string(), string())),
+  collection: optional(string()),
+  bodyTemplate: optional(string()),
 });
 
 async function auditWebhookChange(
@@ -127,6 +133,7 @@ export async function handleWebhookRoutes(
       return successResponse(event, await webhookService.getWebhooks(tenantId as string));
     if (request.method === "POST") {
       const body = await validateRequestBody(event, SaveWebhookSchema);
+      validateWebhookFilterInput(body.collection, body.bodyTemplate);
       const saved = await webhookService.saveWebhook(
         body as unknown as Partial<Webhook>,
         tenantId as string,
@@ -150,6 +157,7 @@ export async function handleWebhookRoutes(
 
     if (request.method === "PATCH" || request.method === "PUT") {
       const body = await validateRequestBody(event, SaveWebhookSchema);
+      validateWebhookFilterInput(body.collection, body.bodyTemplate);
       const saved = await webhookService.saveWebhook(
         { ...body, id: webhookId } as unknown as Partial<Webhook>,
         tenantId as string,

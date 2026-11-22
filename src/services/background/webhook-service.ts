@@ -5,12 +5,21 @@
 
 import { logger } from "@utils/logger";
 import { generateUUID } from "@utils/native-utils";
+import { raise } from "@utils/error-handling";
 import { dbAdapter } from "@src/databases/db";
 import type { Job } from "@src/databases/db-interface";
 import { isBenchmarkExternalServicesDisabled } from "@utils/benchmark-runtime";
 import { jobQueue } from "./jobs/job-queue-service";
 import { webhookDeliveryHandler } from "./jobs/webhook-jobs";
 import { auditLogService, AuditEventType } from "@src/services/security/audit-service";
+import {
+  mergeWebhookBodyTemplate,
+  mergeWebhookCollection,
+  webhookBodyTemplateError,
+  webhookCollectionError,
+  webhookCollectionMatches,
+} from "./webhook-body";
+import { resolveWebhookCollection } from "./webhook-body-render.server";
 
 export interface Webhook {
   id: string;
@@ -23,6 +32,10 @@ export interface Webhook {
   headers?: Record<string, string>;
   failureCount?: number;
   lastTriggered?: string;
+  /** Collection filter; undefined or "*" matches every collection. */
+  collection?: string;
+  /** Custom request-body template; omitted means the default JSON envelope. */
+  bodyTemplate?: string;
 }
 
 /**
@@ -104,6 +117,18 @@ export type WebhookEvent =
 
 const WEBHOOK_SERVICE_KEY = "__WEBHOOK_SERVICE_INSTANCE__";
 
+/**
+ * Validate the optional per-collection filter / body template.
+ * Shared by `saveWebhook` and the admin API handler so both reject the same input.
+ */
+export function validateWebhookFilterInput(collection?: string, bodyTemplate?: string): void {
+  const collectionError = webhookCollectionError(collection);
+  if (collectionError) raise(400, collectionError, "VALIDATION_FAILED");
+
+  const templateError = webhookBodyTemplateError(bodyTemplate);
+  if (templateError) raise(400, templateError, "VALIDATION_FAILED");
+}
+
 export class WebhookService {
   // In-memory cache: tenantId → { data, timestamp }
   private readonly webhooksCache = new Map<string, { data: Webhook[]; timestamp: number }>();
@@ -182,9 +207,13 @@ export class WebhookService {
   private async _dispatch(event: WebhookEvent, payload: unknown, tenantId?: string): Promise<void> {
     const tid = tenantId || "global";
     const webhooks = await this.getWebhooks(tid);
+    const payloadCollection = resolveWebhookCollection(payload);
 
     const matchingHooks = webhooks.filter(
-      (wh) => wh.active && (wh.events.includes(event) || wh.events.includes("*" as WebhookEvent)),
+      (wh) =>
+        wh.active &&
+        (wh.events.includes(event) || wh.events.includes("*" as WebhookEvent)) &&
+        webhookCollectionMatches(wh.collection, payloadCollection),
     );
 
     if (matchingHooks.length === 0) {
@@ -260,6 +289,8 @@ export class WebhookService {
   public async saveWebhook(partial: Partial<Webhook>, tenantId?: string): Promise<Webhook> {
     const tid = tenantId || "global";
 
+    validateWebhookFilterInput(partial.collection, partial.bodyTemplate);
+
     const db = dbAdapter;
     if (!db?.system?.preferences) {
       throw new Error("Database adapter not available");
@@ -267,6 +298,10 @@ export class WebhookService {
 
     const current = await this.getWebhooks(tid);
     const existing = partial.id ? current.find((w) => w.id === partial.id) : undefined;
+
+    // Omitted filter fields keep the stored value; an explicit empty string clears it.
+    const collection = mergeWebhookCollection(partial.collection, existing?.collection);
+    const bodyTemplate = mergeWebhookBodyTemplate(partial.bodyTemplate, existing?.bodyTemplate);
 
     const newWebhook: Webhook = {
       id: partial.id || generateUUID(),
@@ -281,6 +316,8 @@ export class WebhookService {
       secret: partial.secret ?? existing?.secret,
       headers: partial.headers ?? existing?.headers,
       failureCount: partial.failureCount ?? existing?.failureCount ?? 0,
+      ...(collection ? { collection } : {}),
+      ...(bodyTemplate ? { bodyTemplate } : {}),
     };
 
     let updated: Webhook[];

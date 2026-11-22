@@ -137,6 +137,17 @@ Each worker within a chromium shard uses **header-based database routing** for f
 - Each job reuses the `storageState` files from `auth-setup`
 - Each job starts its own preview server from the e2e-prep artifact
 
+### 5. `webkit` – Opt-in Cross-Engine Contract
+
+Not part of the CI matrix. Included only when `PW_WEBKIT=1`, so the default local and CI runs are unchanged:
+
+```sh
+bun x playwright install webkit
+PW_WEBKIT=1 bun run test:e2e -- --project=webkit tests/e2e/smoke.spec.ts
+```
+
+It runs the auth → CRUD → persistence smoke contract on Safari's engine, where `:has()`, container queries and touch-pointer synthesis diverge from Chromium. Use it when a change touches one of those features; a green Chromium run does not prove the Safari path.
+
 ## Why This Works
 
 The key insight driving the simplification: **auth state is shared, not per-project**. Previously, each of the 19 projects repeated the login/setup flow independently, wasting ~3–5 minutes per project on redundant bootstrapping. By extracting setup into dedicated serial projects and sharing the resulting `storageState` files, the chromium tests start instantly with pre-authenticated sessions.

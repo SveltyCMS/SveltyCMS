@@ -11,6 +11,12 @@ import type { Webhook } from "@src/services/background/webhook-service";
 
 import { safeFetch } from "@utils/egress-guard";
 import {
+  renderWebhookBody,
+  resolveWebhookCollection,
+  resolveWebhookEntryId,
+  WebhookBodyTooLargeError,
+} from "../webhook-body-render.server";
+import {
   beforeWebhookRequest,
   recordWebhookFailure,
   recordWebhookSuccess,
@@ -34,17 +40,40 @@ export interface WebhookJobPayload {
  */
 export async function webhookDeliveryHandler(jobPayload: WebhookJobPayload) {
   const { webhook, event, payload } = jobPayload;
+  const timestamp = nowISODateString();
+  // Stored config is JSON: only a non-empty string is a usable template.
+  const bodyTemplate = typeof webhook.bodyTemplate === "string" ? webhook.bodyTemplate : "";
 
-  const payloadStr =
-    jobPayload.body ??
-    JSON.stringify({
+  let payloadStr: string;
+  if (jobPayload.body !== undefined) {
+    payloadStr = jobPayload.body;
+  } else if (bodyTemplate) {
+    try {
+      payloadStr = renderWebhookBody(bodyTemplate, {
+        event,
+        collection: resolveWebhookCollection(payload),
+        entryId: resolveWebhookEntryId(payload),
+        timestamp,
+        webhookId: webhook.id,
+        payload,
+      });
+    } catch (error) {
+      if (error instanceof WebhookBodyTooLargeError) {
+        // Deterministic input error: retrying the same template cannot succeed.
+        throw new Error(`PERMANENT_FAILURE: ${error.message}`);
+      }
+      throw error;
+    }
+  } else {
+    payloadStr = JSON.stringify({
       event,
-      timestamp: nowISODateString(),
+      timestamp,
       payload,
       webhookId: webhook.id,
       deliveryId: generateUUID(),
       tenantId: webhook.tenantId,
     });
+  }
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",

@@ -8,6 +8,8 @@
  *   (→ `groupBy` + accumulators), `$sort`, `$skip`, `$limit`, `$count`, `$project`
  * - Accumulator mapping, including `$sum: 1` → `COUNT(*)` and the numeric safe
  *   extraction (`numericField`) for `SUM`/`AVG` versus the plain one for `MIN`/`MAX`
+ * - Month-bucket group keys (`$dateToString` / `%Y-%m`) and the per-engine SQL
+ *   expressions they translate to
  * - Fail-closed coverage: every unsupported stage or shape must return a named
  *   `NOT_SUPPORTED`-style message instead of a silently wrong result
  * - Purity: the pipeline array is never mutated
@@ -24,6 +26,7 @@ import {
   type AggregationPlan,
   type AggregationDialect,
 } from "@src/databases/core/aggregation-translator";
+import { dateMonthExpression } from "@src/databases/core/sql-aggregate";
 
 /** Marker dialect: `F[x]` physical/dynamic field, `N[x]` numeric, `M[a,b]` match. */
 const dialect: AggregationDialect = {
@@ -43,6 +46,12 @@ const textDialect: AggregationDialect = {
   ...dialect,
   engine: "text-engine",
   orderedField: () => null,
+};
+
+/** A dialect with a month formatter (SQLite/PostgreSQL/MariaDB in production). */
+const dateDialect: AggregationDialect = {
+  ...dialect,
+  dateToString: (name, format) => sql.raw(`D[${name},${format}]`),
 };
 
 interface RenderableQuery {
@@ -159,6 +168,70 @@ describe("translateAggregation — $group", () => {
   it("rejects a `$sum` argument that is neither the `1` shorthand nor a field reference", () => {
     // `$sum: 2` is not a field reference and not the `1` count shorthand.
     expect(messageOf([{ $group: { _id: null, total: { $sum: 2 } } }])).toContain("$sum");
+  });
+});
+
+describe("translateAggregation — $dateToString month key", () => {
+  const monthPipeline = (date: unknown) => [
+    { $group: { _id: { $dateToString: { format: "%Y-%m", date } }, files: { $sum: 1 } } },
+  ];
+
+  it("maps the month key to the dialect's formatter", () => {
+    const plan = planOf(monthPipeline({ $toDate: "$createdAt" }), dateDialect);
+
+    expect(selectSql(plan)).toEqual({ _id: "D[createdAt,%Y-%m]", files: "COUNT(*)" });
+    expect(plan.groupBy?.map(render)).toEqual(["D[createdAt,%Y-%m]"]);
+  });
+
+  it("accepts a bare field reference as the date", () => {
+    const plan = planOf(monthPipeline("$createdAt"), dateDialect);
+
+    expect(selectSql(plan)._id).toBe("D[createdAt,%Y-%m]");
+  });
+
+  it("refuses an engine without a month formatter", () => {
+    expect(messageOf(monthPipeline({ $toDate: "$createdAt" }), dialect)).toContain(
+      "not supported on test",
+    );
+  });
+
+  it("refuses other formats and nested date expressions", () => {
+    const dayFormat = [
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+          files: { $sum: 1 },
+        },
+      },
+    ];
+    expect(messageOf(dayFormat, dateDialect)).toContain("%Y-%m-%d");
+
+    const computed = monthPipeline({ $subtract: ["$createdAt", 1] });
+    expect(messageOf(computed, dateDialect)).toContain('$dateToString.date must be "$field"');
+  });
+});
+
+describe("dateMonthExpression — per-engine SQL", () => {
+  const column = sql.raw("createdAt") as SQL;
+
+  it("renders SQLite milliseconds through unixepoch", () => {
+    const expr = dateMonthExpression("sqlite", column);
+    if (!expr) throw new Error("sqlite must have a month formatter");
+    expect(render(expr)).toContain("strftime('%Y-%m', createdAt / 1000, 'unixepoch')");
+  });
+
+  it("renders PostgreSQL to_char and MariaDB date_format", () => {
+    const pg = dateMonthExpression("postgresql", column);
+    if (!pg) throw new Error("postgresql must have a month formatter");
+    expect(render(pg)).toContain("to_char(createdAt, 'YYYY-MM')");
+
+    const maria = dateMonthExpression("mariadb", column);
+    if (!maria) throw new Error("mariadb must have a month formatter");
+    expect(render(maria)).toContain("date_format(createdAt, '%Y-%m')");
+  });
+
+  it("returns null for an engine without a formatter", () => {
+    expect(dateMonthExpression("test", column)).toBeNull();
   });
 });
 

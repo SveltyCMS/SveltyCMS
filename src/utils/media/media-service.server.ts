@@ -37,6 +37,7 @@ import {
   getMimeType,
   isAllowedUploadMime,
   resolveMediaRelPath,
+  validateMediaFolder,
 } from "./media-utils";
 import { getUrl } from "./storage-adapters";
 import { validateEgressUrl, safeFetch } from "../egress-guard";
@@ -752,9 +753,18 @@ export class MediaService {
     _userContext?: unknown,
     _skipResizing?: boolean,
   ): Promise<DatabaseResult<MediaItem>> {
+    // 🛡️ FOLDER GATE: validate a caller-supplied folder before any I/O, so a bad
+    // value cannot create an orphaned media row. Accepts both a virtual-folder
+    // id (gallery) and a path (media-upload widget).
+    let folderId: string | undefined;
+    if (_basePath && _basePath !== "global") {
+      const checked = validateMediaFolder(_basePath);
+      if (!checked.ok) raise(400, checked.reason, "INVALID_FOLDER");
+      folderId = checked.folder;
+    }
+
     try {
       validateMime(file.type, file.name);
-      const folderId = _basePath && _basePath !== "global" ? _basePath : undefined;
       const { hashFileContent } = await import("./media-processing.server");
 
       // 🛡️ SVG: ALWAYS buffer + sanitize — never take the streaming path (XSS bypass if skipped)

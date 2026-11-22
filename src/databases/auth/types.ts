@@ -183,7 +183,11 @@ export type ApiKeyScope =
   | "graphql"
   | "users:read"
   | "users:write"
-  | "webhooks";
+  | "webhooks"
+  // Plugin-issued scopes (WebMCP OAuth client credentials). The auth hook maps
+  // `:read`/`:write` suffixes onto GET/HEAD versus mutating methods.
+  | "webmcp:read"
+  | "webmcp:write";
 
 export interface ApiKey {
   _id: DatabaseId; // Unique identifier for the API key

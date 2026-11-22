@@ -17,6 +17,7 @@ import type { ContentNode, Schema, StatusType, WidgetFieldPermissions } from "@s
 import { StatusTypes } from "@src/content/status";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { logger } from "@utils/logger";
+import { deepClone } from "@utils/native-utils";
 
 /**
  * Client-side guard.
@@ -271,7 +272,8 @@ class CollectionState {
 
   setInitialSnapshot(data: Record<string, unknown>) {
     // Cloned because the form mutates its own copy: the baseline must not alias it.
-    this.initialData = JSON.parse(JSON.stringify(data)) as Record<string, unknown>;
+    // `deepClone` skips the JSON string round-trip (and its allocations).
+    this.initialData = deepClone(data);
     this.hasChanges = false;
     this.interacted = false;
   }

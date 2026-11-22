@@ -80,9 +80,12 @@ export function classifyProvenance(indexName: string, tableName: string): IndexP
     return "unique";
   }
 
-  // GIN trees are JSONB containment / full-text structures, never prunable.
-  // `_fts_idx` is the GIN name the system schema chose for content_nodes.
-  if (indexName.endsWith("_gin") || indexName.endsWith("_fts_idx")) return "gin";
+  // GIN trees are JSONB containment / full-text / trigram structures, never
+  // prunable. `_fts_idx` is the GIN name the system schema chose for
+  // content_nodes; `_trgm` backs `ILIKE '%term%'` on indexed text columns.
+  if (indexName.endsWith("_gin") || indexName.endsWith("_fts_idx") || indexName.endsWith("_trgm")) {
+    return "gin";
+  }
 
   // Lazy families require the table prefix: a plugin index that happens to end
   // in `_list_id` must never be mistaken for a published-list partial index.
@@ -118,7 +121,7 @@ export function classifyProvenance(indexName: string, tableName: string): IndexP
     if (rest.startsWith("tenant_")) return "declared";
     if (rest.includes("_expr_") || rest.endsWith("_expr")) return "lazy-sort";
     if (rest.includes("_list_") || rest.endsWith("_list")) return "lazy-published-list";
-    if (rest.startsWith("data_gi") || rest.endsWith("_gin")) return "gin";
+    if (rest.startsWith("data_gi") || rest.endsWith("_gin") || rest.endsWith("_trgm")) return "gin";
   }
 
   return "unknown";

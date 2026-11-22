@@ -3,6 +3,11 @@
  * @description Pure helpers for webhook manager UI (validation, event filter).
  */
 
+import {
+  webhookBodyTemplateError,
+  webhookCollectionError,
+} from "@src/services/background/webhook-body";
+
 export const WEBHOOK_EVENT_TYPES = [
   "entry:create",
   "entry:update",
@@ -22,6 +27,8 @@ export interface WebhookDraft {
   active: boolean;
   events: string[];
   secret?: string;
+  collection?: string;
+  bodyTemplate?: string;
 }
 
 /**
@@ -71,6 +78,10 @@ export function validateWebhookDraft(draft: WebhookDraft): Record<string, string
   if (!draft.events?.length) {
     errors.events = "Select at least one event";
   }
+  const collectionErr = webhookCollectionError(draft.collection);
+  if (collectionErr) errors.collection = collectionErr;
+  const bodyTemplateErr = webhookBodyTemplateError(draft.bodyTemplate);
+  if (bodyTemplateErr) errors.bodyTemplate = bodyTemplateErr;
   return errors;
 }
 

@@ -2,11 +2,15 @@
  * @file playwright.config.ts
  * @description Playwright test configuration for SveltyCMS
  *
- * Simplified 4-project architecture:
+ * Project architecture:
  * - wizard:     Setup wizard on clean slate (serial, port 5174 fallback)
  * - firstuser:  Signup + OAuth before auth seeding (serial)
  * - auth-setup: Seed users + login test + save auth state (serial)
  * - chromium:   All CMS routes — fully parallel, sharded in CI
+ * - mobile:     Phone viewport (touch + mobile UA) for the admin shell/mobile specs
+ * - webkit:     Opt-in (`PW_WEBKIT=1`, after `bun x playwright install webkit`) —
+ *               runs the smoke contract on Safari's engine, where :has(), container
+ *               queries and touch-pointer synthesis diverge from Chromium
  *
  * Projects run in dependency order. In CI, e2e-prep runs wizard →
  * firstuser → auth-setup sequentially, then chromium is sharded N ways.
@@ -214,5 +218,26 @@ export default defineConfig({
       },
       dependencies: process.env.SKIP_E2E_DEPS === "true" ? [] : ["auth-setup"],
     },
+    // Opt-in Safari/WebKit engine contract. Chromium stays the CI default; this
+    // project exists so a component that depends on Chromium-only behaviour
+    // (`:has()`, container queries, touch-pointer synthesis) has a reproducible
+    // cross-engine check. Enable with: bun x playwright install webkit, then
+    //   PW_WEBKIT=1 bun run test:e2e -- --project=webkit tests/e2e/smoke.spec.ts
+    ...(process.env.PW_WEBKIT === "1"
+      ? [
+          {
+            name: "webkit",
+            testMatch: ["**/smoke.spec.ts"],
+            use: {
+              ...devices["Desktop Safari"],
+              headless: true,
+              ...(existsSync(join(authDir, "admin.json"))
+                ? { storageState: join(authDir, "admin.json") }
+                : {}),
+            },
+            dependencies: process.env.SKIP_E2E_DEPS === "true" ? [] : ["auth-setup"],
+          },
+        ]
+      : []),
   ],
 });

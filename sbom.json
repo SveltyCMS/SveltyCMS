@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:d3bc3497-5c03-4163-98e6-74ce6809419a",
+  "serialNumber": "urn:uuid:b5f0f6f2-ebab-46d6-9804-fe5ec84de062",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-11-21T23:29:20.528Z",
+    "timestamp": "2026-11-22T15:36:40.610Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -4137,15 +4137,15 @@
     },
     {
       "type": "library",
-      "bom-ref": "pkg:npm/@testing-library/jest-dom@7.0.1",
+      "bom-ref": "pkg:npm/@testing-library/jest-dom@8.0.0",
       "name": "@testing-library/jest-dom",
-      "version": "7.0.1",
-      "purl": "pkg:npm/@testing-library/jest-dom@7.0.1",
+      "version": "8.0.0",
+      "purl": "pkg:npm/@testing-library/jest-dom@8.0.0",
       "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-oMDTC3oA+6CXSO2JZnvOI7CA6oVub6kij5ggk9ohwye5slmkwxYDXcPOVxgMw/RQlticjtO0C1RZkR97HgrWMw=="
+          "content": "sha512-Nu45KEeFgP/ydCMipnisMblq6YHViqEFi3fKN0a40s+zdKDDD7vEPCEavS0i7i4RxmclcEIL8q2o42pu+WgNgg=="
         }
       ]
     },
@@ -6279,15 +6279,15 @@
     },
     {
       "type": "library",
-      "bom-ref": "pkg:npm/dompurify@3.4.18",
+      "bom-ref": "pkg:npm/dompurify@3.5.0",
       "name": "dompurify",
-      "version": "3.4.18",
-      "purl": "pkg:npm/dompurify@3.4.18",
+      "version": "3.5.0",
+      "purl": "pkg:npm/dompurify@3.5.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-ofe3wI/uNm68HInABYFJYqQxRw1EaKAjNdrFVKqjUY+UZurvNd2L/HuQe097s/4RivWiZyP6tT7aoT8atjfhwg=="
+          "content": "sha512-LYC0ZkE8P1V42JsRYTwMdme/2ET8SpOc5AA2eOFjP/IadvRd2fwiT4TVz5vkfy0XUx12aS2UaRkTnfVPNOv9vw=="
         }
       ]
     },
@@ -6601,15 +6601,15 @@
     },
     {
       "type": "library",
-      "bom-ref": "pkg:npm/fast-json-stringify@7.3.9",
+      "bom-ref": "pkg:npm/fast-json-stringify@7.3.10",
       "name": "fast-json-stringify",
-      "version": "7.3.9",
-      "purl": "pkg:npm/fast-json-stringify@7.3.9",
+      "version": "7.3.10",
+      "purl": "pkg:npm/fast-json-stringify@7.3.10",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-5wxgeniisjX/pgaAeCN9tTizOhMEl5sZepJ+8N0YfFCRjc4X3BcDlswqgbBMFghbsRPVhnmFovdmdo0vpfIZ+g=="
+          "content": "sha512-M8P1gBHMWlGzjHgRmZDCjAo+c50yjtG91Ej3CWmG2L8cX8Z5Ast5+vniZWvfyqKjfwrs85AiKisk4ADs6E6SkA=="
         }
       ]
     },
@@ -7595,15 +7595,15 @@
     },
     {
       "type": "library",
-      "bom-ref": "pkg:npm/lint-staged@17.6.1",
+      "bom-ref": "pkg:npm/lint-staged@17.6.2",
       "name": "lint-staged",
-      "version": "17.6.1",
-      "purl": "pkg:npm/lint-staged@17.6.1",
+      "version": "17.6.2",
+      "purl": "pkg:npm/lint-staged@17.6.2",
       "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-3MXgVN7BERDR/6CXZs2fDHGc+r0+hlvGAa9wqMlVbIS6RVRuaPOnb5SnN6wMXulwfEy9DXVkMVUN/8cUlpPDnw=="
+          "content": "sha512-c/JaXaXmleubmKUwwp4OAcq55RV9Z3HTUNdqdqPh2srtmP9Of3bcR6o00GoWDUye+9JhMuoYkhYqAVPIOZKcsw=="
         }
       ]
     },
@@ -12060,7 +12060,7 @@
       ]
     },
     {
-      "ref": "pkg:npm/@testing-library/jest-dom@7.0.1",
+      "ref": "pkg:npm/@testing-library/jest-dom@8.0.0",
       "dependsOn": [
         "pkg:npm/@adobe/css-tools@4.5.0",
         "pkg:npm/aria-query@5.3.0",
@@ -12885,7 +12885,7 @@
       ]
     },
     {
-      "ref": "pkg:npm/dompurify@3.4.18",
+      "ref": "pkg:npm/dompurify@3.5.0",
       "dependsOn": []
     },
     {
@@ -12996,7 +12996,7 @@
       "dependsOn": []
     },
     {
-      "ref": "pkg:npm/fast-json-stringify@7.3.9",
+      "ref": "pkg:npm/fast-json-stringify@7.3.10",
       "dependsOn": [
         "pkg:npm/@fastify/merge-json-schemas@0.2.2",
         "pkg:npm/ajv-formats@3.0.1",
@@ -13092,7 +13092,7 @@
       "ref": "pkg:npm/graphql-jit@0.10.1",
       "dependsOn": [
         "pkg:npm/@graphql-typed-document-node/core@3.2.0",
-        "pkg:npm/fast-json-stringify@7.3.9",
+        "pkg:npm/fast-json-stringify@7.3.10",
         "pkg:npm/generate-function@2.3.1",
         "pkg:npm/lodash.memoize@4.1.2",
         "pkg:npm/lodash.merge@4.6.2",
@@ -13409,7 +13409,7 @@
       "dependsOn": []
     },
     {
-      "ref": "pkg:npm/lint-staged@17.6.1",
+      "ref": "pkg:npm/lint-staged@17.6.2",
       "dependsOn": [
         "pkg:npm/picomatch@4.0.7",
         "pkg:npm/string-argv@0.4.0",

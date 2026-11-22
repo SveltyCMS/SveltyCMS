@@ -25,6 +25,7 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 	import Button from '@components/ui/button.svelte';
 	import Checkbox from '@components/ui/checkbox.svelte';
 	import Input from '@components/ui/input.svelte';
+	import Textarea from '@components/ui/textarea.svelte';
 	import Tooltip from '@components/ui/tooltip.svelte';
 	import HelpIcon from '@components/ui/help-icon.svelte';
 	import Loader from '@components/ui/loader.svelte';
@@ -44,6 +45,7 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 		saveWebhook as apiSaveWebhook,
 		testWebhookDelivery
 	} from './webhooks-api';
+	import { WEBHOOK_BODY_TEMPLATE_PLACEHOLDERS } from '@src/services/background/webhook-body';
 	import {
 		automation_webhook_url_placeholder,
 		automations_empty_cta,
@@ -56,7 +58,12 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 		usersessions_close_modal,
 		webhooks_add,
 		webhooks_add_aria,
+		webhooks_body_template_hint,
+		webhooks_body_template_label,
 		webhooks_cancel_editing,
+		webhooks_collection_hint,
+		webhooks_collection_label,
+		webhooks_collection_placeholder,
 		webhooks_delete_aria,
 		webhooks_delete_title,
 		webhooks_delivery_logs,
@@ -88,6 +95,8 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 	let editingWebhook: Partial<Webhook> | null = $state(null);
 	let formErrors = $state<Record<string, string>>({});
 	let searchQuery = $state('');
+	let collectionFilter = $state('');
+	let bodyTemplate = $state('');
 
 	const filteredWebhooks = $derived(filterWebhooksByQuery(webhooks, searchQuery));
 
@@ -115,7 +124,9 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 			url: editingWebhook.url || '',
 			active: editingWebhook.active !== false,
 			events: (editingWebhook.events as string[]) || [],
-			secret: editingWebhook.secret
+			secret: editingWebhook.secret,
+			collection: collectionFilter,
+			bodyTemplate
 		};
 		const errors = validateWebhookDraft(draft);
 		formErrors = errors;
@@ -132,7 +143,9 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 				url: draft.url.trim(),
 				active: draft.active,
 				events: draft.events as Webhook['events'],
-				secret: draft.secret
+				secret: draft.secret,
+				collection: draft.collection,
+				bodyTemplate: draft.bodyTemplate
 			});
 			if (result.success) {
 				toast.success(`Webhook ${draft.id ? 'updated' : 'created'} successfully`);
@@ -191,12 +204,16 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 			events: ['entry:publish'],
 			secret: generateSecureToken(16)
 		};
+		collectionFilter = '';
+		bodyTemplate = '';
 		formErrors = {};
 		showModal = true;
 	}
 
 	function openEditModal(webhook: Webhook) {
 		editingWebhook = { ...webhook };
+		collectionFilter = webhook.collection ?? '';
+		bodyTemplate = webhook.bodyTemplate ?? '';
 		formErrors = {};
 		showModal = true;
 	}
@@ -528,6 +545,41 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 								</div>
 							{/each}
 						</div>
+					</div>
+
+					<hr class="opacity-30" />
+
+					<div class="space-y-1" data-testid="webhook-collection-field">
+						<label for="webhook-collection-input" class="text-sm font-semibold">
+							{webhooks_collection_label()}
+						</label>
+						<Input
+							id="webhook-collection-input"
+							type="text"
+							placeholder={webhooks_collection_placeholder()}
+							bind:value={collectionFilter}
+							error={formErrors.collection}
+							data-testid="webhook-collection"
+						/>
+						<p class="text-xs opacity-60 text-start">{webhooks_collection_hint()}</p>
+					</div>
+
+					<div class="space-y-1" data-testid="webhook-body-template-field">
+						<label for="webhook-body-template-input" class="text-sm font-semibold">
+							{webhooks_body_template_label()}
+						</label>
+						<Textarea
+							id="webhook-body-template-input"
+							rows={6}
+							textareaClass="font-mono text-xs"
+							bind:value={bodyTemplate}
+							error={formErrors.bodyTemplate}
+							data-testid="webhook-body-template"
+						/>
+						<p class="text-xs opacity-60 text-start">
+							{webhooks_body_template_hint()}
+							<code class="font-mono">{WEBHOOK_BODY_TEMPLATE_PLACEHOLDERS.join(' ')}</code>
+						</p>
 					</div>
 				</section>
 

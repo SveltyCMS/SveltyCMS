@@ -21,6 +21,7 @@ import { handleWebhookRoutes } from "@src/routes/api/[...path]/handlers/system/s
 import { webhookService } from "@src/services/background/webhook-service";
 
 vi.mock("@src/services/background/webhook-service", () => ({
+  validateWebhookFilterInput: vi.fn(),
   webhookService: {
     getTenantLogs: vi.fn(),
     getWebhooks: vi.fn(),

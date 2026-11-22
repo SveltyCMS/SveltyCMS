@@ -44,6 +44,8 @@ Both lanes converge on the normal `MediaService.saveMedia` pipeline, so deduplic
 
 The server rejects a missing filename/size (`400`), a disallowed MIME (`415`), and anything above `API_MAX_BODY_SIZE_BYTES` (`413`).
 
+`folder` is validated before any I/O. Both shapes used by the upload lanes are accepted — a virtual-folder `_id` (media gallery) and a relative path such as `collections/posts` (media-upload widget). A value is rejected (`400 INVALID_FOLDER`) when it is empty, longer than 255 characters, contains control or zero-width characters, `<>"|?*:\`, a drive/scheme separator, a leading/trailing slash, an empty segment (`a//b`) or a relative segment (`.`, `..`). The value is stored on the media row; it never reaches the filesystem, because storage paths are hash-derived.
+
 ### Response — S3 / R2
 
 ```json

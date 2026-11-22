@@ -4,7 +4,7 @@
  */
 
 import { logger } from "@utils/logger";
-import { nowISODateString } from "@utils/date";
+import { dateToISODateString, isoDateStringToDate, nowISODateString } from "@utils/date";
 import { clampPageSize } from "@utils/api-params";
 import { generateUUID } from "@utils/native-utils";
 import crypto from "node:crypto";
@@ -16,7 +16,7 @@ import { Readable } from "node:stream";
 import { AppError, raise, rethrow } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
-import type { DatabaseId } from "@src/content/types";
+import type { DatabaseId, MediaItem as DbMediaItem } from "@src/databases/db-interface";
 import { successResponse, rawResponse } from "./base";
 import { hasMediaPermission } from "./media-permissions";
 import { handleMediaTranscode } from "./media-transcode";
@@ -36,7 +36,25 @@ import {
   type ShareLink,
 } from "@src/utils/media/sharing";
 import { hashSharePassword, verifySharePassword } from "@src/utils/media/share-link-hash.server";
-import { analyze, insights, trends, quota } from "@src/utils/media/storage-analytics";
+import {
+  breakdownFromAggregates,
+  insights,
+  mediaBreakdownPipeline,
+  mediaMonthlyPipeline,
+  mediaTotalPipeline,
+  quota,
+  trendsFromMonthly,
+  MEDIA_ANALYTICS_COLLECTION,
+  MEDIA_ANALYTICS_FOLDER_LIMIT,
+  MEDIA_ANALYTICS_INSIGHT_SAMPLE_LIMIT,
+  MEDIA_ANALYTICS_LARGE_FILE_BYTES,
+  MEDIA_ANALYTICS_TOP_TYPES,
+  MEDIA_ANALYTICS_USER_LIMIT,
+  type MediaGroupRow,
+  type MediaInsightRow,
+  type MediaMonthRow,
+  type MediaTotalRow,
+} from "@src/utils/media/storage-analytics";
 import { formatBytes } from "@utils/file";
 import {
   compareMediaVersions,
@@ -1447,31 +1465,143 @@ export async function handleMediaSyncStatus(
   return successResponse(event, result.data);
 }
 
+/**
+ * Run one analytics aggregation, degrading to an empty result when the engine
+ * refuses the pipeline or the driver throws. A dashboard read must never turn
+ * into a 500 because one breakdown is unavailable.
+ */
+async function aggregateMedia<T>(
+  cms: LocalCMS,
+  pipeline: Record<string, unknown>[],
+  tenantId: DatabaseId,
+  label: string,
+): Promise<T[]> {
+  try {
+    const result = await cms.db.crud.aggregate<T>(MEDIA_ANALYTICS_COLLECTION, pipeline, {
+      tenantId,
+    });
+    if (!result.success) {
+      logger.warn(
+        `[media:analytics] ${label} aggregation failed (${result.error?.code ?? "ERROR"}): ${
+          result.message ?? "unknown error"
+        }`,
+      );
+      return [];
+    }
+    return result.data ?? [];
+  } catch (error) {
+    logger.warn(
+      `[media:analytics] ${label} aggregation threw: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+    return [];
+  }
+}
+
+/**
+ * Bounded row sample for `insights()`.
+ *
+ * The insight cards carry `action.data` = matching asset ids, which the supported
+ * `$group` subset cannot return as a list. Two condition-targeted queries keep
+ * both cards present regardless of library size (a newest-first page would drop
+ * "Old Files" once the tenant has more than one page of recent uploads); each is
+ * capped at `MEDIA_ANALYTICS_INSIGHT_SAMPLE_LIMIT`.
+ */
+async function loadInsightSample(cms: LocalCMS, tenantId: DatabaseId): Promise<MediaInsightRow[]> {
+  const now = nowISODateString();
+  const cutoff = isoDateStringToDate(now);
+  cutoff.setFullYear(cutoff.getFullYear() - 1);
+  const yearAgo = dateToISODateString(cutoff);
+
+  try {
+    const [largeRes, oldRes] = await Promise.all([
+      cms.db.crud.findMany<DbMediaItem>(
+        MEDIA_ANALYTICS_COLLECTION,
+        { size: { $gt: MEDIA_ANALYTICS_LARGE_FILE_BYTES } },
+        { tenantId, limit: MEDIA_ANALYTICS_INSIGHT_SAMPLE_LIMIT },
+      ),
+      cms.db.crud.findMany<DbMediaItem>(
+        MEDIA_ANALYTICS_COLLECTION,
+        { createdAt: { $lt: yearAgo } },
+        { tenantId, limit: MEDIA_ANALYTICS_INSIGHT_SAMPLE_LIMIT },
+      ),
+    ]);
+
+    if (!largeRes.success) {
+      logger.warn(
+        `[media:analytics] large-file sample failed: ${largeRes.message ?? "unknown error"}`,
+      );
+    }
+    if (!oldRes.success) {
+      logger.warn(`[media:analytics] old-file sample failed: ${oldRes.message ?? "unknown error"}`);
+    }
+
+    // A file can match both conditions; dedupe by id so neither insight
+    // double-counts it.
+    const merged = new Map<string, MediaInsightRow>();
+    for (const row of largeRes.success ? (largeRes.data ?? []) : []) {
+      merged.set(String(row._id), row);
+    }
+    for (const row of oldRes.success ? (oldRes.data ?? []) : []) {
+      merged.set(String(row._id), row);
+    }
+    return [...merged.values()];
+  } catch (error) {
+    logger.warn(
+      `[media:analytics] insight sample unavailable: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+    return [];
+  }
+}
+
 export async function handleMediaAnalytics(
   event: RequestEvent,
   cms: LocalCMS,
   tenantId: DatabaseId,
 ) {
-  // Use DB-side count for accurate total; cap in-memory sample to avoid heap pressure.
-  // TODO: push full breakdown (byType/byFolder/byUser/byMonth) to DB adapter
-  // aggregate pipelines for sub-millisecond analytics at 100K+ asset scale.
-  const [countRes, listRes] = await Promise.all([
-    cms.db.crud.count("media", {}, { tenantId }),
-    (cms.media as any).list({
+  // Breakdowns are grouped in the database — one row per group key instead of the
+  // previous 2,000-document sample. Tenant scope travels in the pipeline and in
+  // the adapter options; the adapter clamps soft-deleted rows (Mongo) / skips the
+  // clamp for tables without an `isDeleted` column (media on SQL).
+  const [totalRows, typeRows, folderRows, userRows, monthRows, insightRows] = await Promise.all([
+    aggregateMedia<MediaTotalRow>(cms, mediaTotalPipeline(tenantId), tenantId, "total"),
+    aggregateMedia<MediaGroupRow>(
+      cms,
+      mediaBreakdownPipeline(tenantId, "mimeType"),
       tenantId,
-      limit: 2000,
-    }),
+      "byType",
+    ),
+    aggregateMedia<MediaGroupRow>(
+      cms,
+      mediaBreakdownPipeline(tenantId, "folderId", MEDIA_ANALYTICS_FOLDER_LIMIT),
+      tenantId,
+      "byFolder",
+    ),
+    aggregateMedia<MediaGroupRow>(
+      cms,
+      mediaBreakdownPipeline(tenantId, "createdBy", MEDIA_ANALYTICS_USER_LIMIT),
+      tenantId,
+      "byUser",
+    ),
+    aggregateMedia<MediaMonthRow>(cms, mediaMonthlyPipeline(tenantId), tenantId, "byMonth"),
+    loadInsightSample(cms, tenantId),
   ]);
-  const totalFiles = countRes.success ? (countRes.data ?? 0) : 0;
-  const files = (listRes.success ? listRes.data : []) as any[];
 
-  const breakdown = analyze(files);
-  breakdown.total.files = totalFiles;
+  const breakdown = breakdownFromAggregates({
+    total: totalRows[0],
+    typeRows,
+    folderRows,
+    userRows,
+    monthRows,
+  });
 
   const topTypes = Object.entries(breakdown.byType)
-    .sort(([, a]: any, [, b]: any) => b.size - a.size)
-    .slice(0, 5)
-    .map(([k, v]: any) => ({ type: k, ...v }));
+    .sort(([, a], [, b]) => b.size - a.size)
+    .slice(0, MEDIA_ANALYTICS_TOP_TYPES)
+    .map(([type, counters]) => ({ type, ...counters }));
 
   return successResponse(event, {
     total: {
@@ -1479,8 +1609,8 @@ export async function handleMediaAnalytics(
       formattedSize: formatBytes(breakdown.total.size),
     },
     byType: topTypes,
-    insights: insights(files, breakdown),
-    trends: trends(files).slice(-12),
+    insights: insights(insightRows, breakdown),
+    trends: trendsFromMonthly(monthRows),
     quota: quota(breakdown.total.size, 10 * 1024 * 1024 * 1024),
   });
 }
@@ -1589,9 +1719,10 @@ export async function handleMediaSearch(
     criteria.aspectRatio = aspectRatio;
   }
 
-  // Fetch all media for client-side filtering
-  const listRes = await (cms.media as any).list({ tenantId, limit: 10000 });
-  const files: MediaItem[] = listRes.success ? (listRes.data ?? []) : [];
+  // Fetch matching media for advanced filtering. `find()` is the SDK read
+  // surface — the previous `cms.media.list()` call did not exist and threw.
+  const listRes = await cms.media.find({ tenantId, limit: 10000 });
+  const files: MediaItem[] = listRes.success ? ((listRes.data?.items ?? []) as MediaItem[]) : [];
 
   const result = advancedSearch(files, criteria);
 

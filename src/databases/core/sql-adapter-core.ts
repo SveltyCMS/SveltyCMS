@@ -1352,6 +1352,10 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       (v) => this.coerceJsonValue(v),
       (f, v) => this.getJsonEquals(f, v),
       (f, v, op) => this.getJsonCompare(f, v, op),
+      // Dialect hint only: the shared helper picks the cheapest case-insensitive
+      // predicate it can prove (SQLite COLLATE NOCASE, MariaDB's column
+      // collation, PostgreSQL ILIKE) and keeps `lower()` otherwise.
+      this.sqlDialect.id,
     );
   }
 
