@@ -16,7 +16,11 @@ import { Readable } from "node:stream";
 import { AppError, raise, rethrow } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
-import type { DatabaseId, MediaItem as DbMediaItem } from "@src/databases/db-interface";
+import type {
+  DatabaseId,
+  MediaItem as DbMediaItem,
+  QueryFilter,
+} from "@src/databases/db-interface";
 import { successResponse, rawResponse } from "./base";
 import { hasMediaPermission } from "./media-permissions";
 import { handleMediaTranscode } from "./media-transcode";
@@ -65,7 +69,12 @@ import { parseMultipartStream } from "@utils/media/streaming-upload";
 import { API_MAX_BODY_SIZE_BYTES } from "@utils/api-body-limits";
 import { resolveMimeTypeFromPath } from "@src/utils/media/slim-sniffer.server";
 import { advancedSearch, type SearchCriteria } from "@utils/media/advanced-search";
-import { sanitizeMediaUpdatePayload, type FilterOptions } from "@utils/media/media-service.server";
+import { criteriaToQueryFilter } from "@utils/media/media-query-filters";
+import {
+  MediaService,
+  sanitizeMediaUpdatePayload,
+  type FilterOptions,
+} from "@utils/media/media-service.server";
 import type { MediaItem } from "@utils/media/media-models";
 import {
   createUploadInstruction,
@@ -1658,6 +1667,29 @@ export async function handleMediaVersionCompare(
 
 // ─── Advanced Search ─────────────────────────────────────────────────────────
 
+/**
+ * Default and maximum rows read for the in-memory post-filter.
+ *
+ * Criteria without a portable database predicate (tags, EXIF, pixel bounds,
+ * duplicates) are still evaluated over this window in `advancedSearch()`, so the
+ * cap also bounds how much of the library they can see. The maximum preserves
+ * the previous 10k ceiling; `?limit=` may raise the default but never above it.
+ */
+export const MEDIA_SEARCH_SCAN_LIMIT = 5_000;
+export const MEDIA_SEARCH_MAX_SCAN_LIMIT = 10_000;
+
+/**
+ * Resolve the scan window from `?limit=`. Values are clamped to
+ * {@link MEDIA_SEARCH_MAX_SCAN_LIMIT}; an absent or invalid value keeps the
+ * default.
+ */
+export function resolveMediaSearchScanLimit(raw: string | null): number {
+  if (!raw) return MEDIA_SEARCH_SCAN_LIMIT;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 1) return MEDIA_SEARCH_SCAN_LIMIT;
+  return Math.min(Math.floor(parsed), MEDIA_SEARCH_MAX_SCAN_LIMIT);
+}
+
 export async function handleMediaSearch(
   event: RequestEvent,
   cms: LocalCMS,
@@ -1719,10 +1751,56 @@ export async function handleMediaSearch(
     criteria.aspectRatio = aspectRatio;
   }
 
-  // Fetch matching media for advanced filtering. `find()` is the SDK read
-  // surface — the previous `cms.media.list()` call did not exist and threw.
-  const listRes = await cms.media.find({ tenantId, limit: 10000 });
-  const files: MediaItem[] = listRes.success ? ((listRes.data?.items ?? []) as MediaItem[]) : [];
+  // Pushdown map — the database filter below is only a SUPERSET; the rows are
+  // still run through `advancedSearch()`, which is the final authority.
+  //
+  // PUSHED (physical columns every adapter addresses identically):
+  //   filename                → `$contains` (case-insensitive substring)
+  //   fileTypes               → `mimeType` `$in`
+  //   minSize / maxSize       → `size` range
+  //   uploadedAfter/Before    → `createdAt` range
+  //   hashMatch               → `hash` equality
+  //
+  // POST-FILTERED in memory (no portable predicate):
+  //   minWidth/maxWidth/minHeight/maxHeight/aspectRatio — pixel bounds live in
+  //     the `metadata` JSON blob, which `crud.findMany` cannot address on a
+  //     table without a `data` column; a Mongo-only push would also drop the
+  //     non-image rows the in-memory pass keeps.
+  //   tags — AND-membership across an array (`$all` has no portable SQL form).
+  //   camera/location/hasEXIF — EXIF values are composed/derived here, not a
+  //     stored field.
+  //   dominantColor — nested-metadata substring.
+  //   showDuplicatesOnly — needs a hash census over the whole library, not over
+  //     the already-narrowed candidate set.
+  //
+  // `criteriaToQueryFilter` omits every member of
+  // `MEDIA_SEARCH_IN_MEMORY_CRITERIA`; the unit test pins that it never silently
+  // emits a predicate it cannot map.
+  const queryFilter = criteriaToQueryFilter(criteria);
+  const scanLimit = resolveMediaSearchScanLimit(url.searchParams.get("limit"));
+
+  // Tenant scope travels in the filter and in the options: SQL adapters append
+  // `tenantId = ?` from the options, MongoDB's `safeQuery` reads it from there.
+  const listRes = await cms.db.crud.findMany<DbMediaItem>(
+    "media",
+    { ...queryFilter, tenantId } as unknown as QueryFilter<DbMediaItem>,
+    { limit: scanLimit, sort: { createdAt: "desc", _id: "desc" }, tenantId },
+  );
+
+  if (!listRes.success) {
+    logger.warn(`[MediaSearch] media query failed: ${listRes.message}`);
+  }
+  const rows: DbMediaItem[] = listRes.success ? (listRes.data ?? []) : [];
+
+  // `crud.findMany` returns raw rows; the previous `cms.media.find()` path also
+  // resolved public URLs, thumbnails and version URLs. Enrich with the same
+  // helper the media namespace uses so the response contract is unchanged.
+  type EnrichableRow = Parameters<MediaService["enrichMediaWithUrl"]>[0];
+  const mediaService = new MediaService(cms.db);
+  const files = rows.map(
+    (row) =>
+      mediaService.enrichMediaWithUrl(row as unknown as EnrichableRow) as unknown as MediaItem,
+  );
 
   const result = advancedSearch(files, criteria);
 

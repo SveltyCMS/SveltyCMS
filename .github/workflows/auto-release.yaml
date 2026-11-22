@@ -82,6 +82,7 @@ jobs:
       contents: write
       packages: write
       id-token: write
+      attestations: write
     steps:
       - name: Checkout Repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -117,7 +118,7 @@ jobs:
       - name: Setup Node.js (for npm registry auth)
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: "24"
+          node-version: "24.22.3"
           registry-url: "https://registry.npmjs.org"
 
       - name: Install dependencies
@@ -320,6 +321,24 @@ jobs:
           fi
           echo "✅ verified tag + GitHub Release v$VERSION"
 
+      # SLSA build provenance: attest the exact tarball that npm publishes, so
+      # consumers can verify it built from this commit. `npm pack` happens before
+      # publish; a failed pack falls back to the historical `npm publish` path.
+      - name: Pack the release tarball
+        id: pack
+        if: steps.version.outputs.skip != 'true'
+        continue-on-error: true
+        run: |
+          mkdir -p dist
+          npm pack --pack-destination dist
+          ls -1 dist/*.tgz
+
+      - name: Attest build provenance (SLSA)
+        if: steps.version.outputs.skip != 'true' && steps.pack.outcome == 'success'
+        uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661 # v3
+        with:
+          subject-path: "dist/*.tgz"
+
       # npm publish is best-effort and must never swallow the GitHub Release
       # (already created above). A missing token is a visible warning; a token npm
       # rejects is a visible error annotation — both leave the release intact and
@@ -362,7 +381,13 @@ jobs:
         id: npm-publish
         if: steps.version.outputs.skip != 'true' && steps.npm-auth.outputs.ready == 'true' && steps.npm-check.outputs.published != 'true'
         continue-on-error: true
-        run: npm publish --access public
+        run: |
+          if ls dist/*.tgz >/dev/null 2>&1; then
+            # Publish the attested tarball (same bytes SLSA covers).
+            npm publish dist/*.tgz --access public
+          else
+            npm publish --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 

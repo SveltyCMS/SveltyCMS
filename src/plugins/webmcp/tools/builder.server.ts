@@ -162,32 +162,50 @@ export function registerBuilderServerTools(): void {
     name: "design_collection",
     description:
       "Generate a full SveltyCMS collection schema proposal from natural language (Draft-by-Default Airgap)",
+    capability: "write",
     parameters: {
       prompt: "Natural language description of the content model and required fields",
       name: "Optional collection slug/name",
       description: "Optional collection description",
       language: "Optional language code (e.g. en, de)",
     },
+    required: ["prompt"],
     handler: designCollectionTool,
   });
 
   registerServerTool({
     name: "refine_collection",
     description: "Refine an existing collection proposal using natural language instructions",
+    capability: "write",
     parameters: {
-      previousProposal: "The CollectionDesignProposal to refine",
+      previousProposal: {
+        type: "object",
+        description: "The CollectionDesignProposal to refine",
+        additionalProperties: true,
+      },
       instruction: "Modification instructions (e.g. 'add tags field', 'make title required')",
     },
+    required: ["previousProposal", "instruction"],
     handler: refineCollectionTool,
   });
 
   registerServerTool({
     name: "diff_collection_schema",
     description: "Compare an existing collection schema against an AI proposal",
+    capability: "read",
     parameters: {
-      current: "The current CollectionDesignProposal or null if creating new",
-      proposal: "The proposed CollectionDesignProposal",
+      current: {
+        type: ["object", "null"],
+        description: "The current CollectionDesignProposal or null if creating new",
+        additionalProperties: true,
+      },
+      proposal: {
+        type: "object",
+        description: "The proposed CollectionDesignProposal",
+        additionalProperties: true,
+      },
     },
+    required: ["current", "proposal"],
     handler: diffCollectionSchemaTool,
   });
 
@@ -195,18 +213,27 @@ export function registerBuilderServerTools(): void {
     name: "scaffold_widget",
     description:
       "Scaffold complete 3-pillar Svelte 5 widget files (definition, input.svelte, display.svelte)",
+    capability: "write",
     parameters: {
       name: "PascalCase widget name",
       label: "Human-readable label",
       description: "Short description of what the widget does",
-      fields: "Array of fields exposed to content editors",
+      fields: {
+        type: "array",
+        items: { type: "object", additionalProperties: true },
+        description: "Array of fields exposed to content editors",
+      },
     },
+    required: ["name", "label", "fields"],
     handler: scaffoldWidgetTool,
   });
 
   registerServerTool({
     name: "list_available_widgets",
     description: "List all widgets currently registered in the SveltyCMS widget registry",
+    capability: "read",
+    parameters: {},
+    required: [],
     handler: listAvailableWidgetsTool,
   });
 

@@ -34,6 +34,7 @@ The Media API provides a centralized interface for managing all assets within Sv
 | **Update Metadata**     | `/api/media/{id}`                   | `PATCH`             | `media:write`       |
 | **Delete Media**        | `/api/media/{id}`                   | `DELETE`            | `media:delete`      |
 | **Bulk Download**       | `/api/media/bulk-download`          | `GET/POST`          | `media:read`        |
+| **Advanced Search**     | `/api/media/search`                 | `GET`               | `media:read`        |
 | **Batch Process**       | `/api/media/process`                | `POST`              | `media:write`       |
 | **Batch Resize/Filter** | `/api/media/batch-process`          | `POST`              | `media:write`       |
 | **Video Transcode**     | `/api/media/transcode`              | `POST`              | `media:write`       |
@@ -321,6 +322,12 @@ Download multiple media files as a single TAR.GZ archive.
 **Returns**: `application/gzip` binary stream with `Content-Disposition: attachment`.
 
 **Admin UI**: When one or more assets are selected in the Media Gallery, the selection toolbar exposes a **Download Archive** button that builds the query string from `selectedFiles` and triggers a browser download.
+
+### Advanced Search
+
+`GET /api/media/search` accepts the criteria the admin search panel sends: `filename`, `type` (comma-separated MIME types), `tags`, `camera`, `location`, `dominantColor`, `minWidth`/`maxWidth`/`minHeight`/`maxHeight`, `minSize`/`maxSize`, `uploadedAfter`/`uploadedBefore`, `aspectRatio`, `hasEXIF` and `hashMatch`.
+
+The directly mappable criteria (filename substring, MIME types, size/date ranges, hash) are pushed into the database filter, so the handler does not load the whole library. Pixel bounds, tags, EXIF-derived values and `showDuplicatesOnly` still need the in-memory pass because they live in metadata or require a library-wide census; that pass is bounded to **5,000** candidate rows by default, and `?limit=` can raise it to the previous 10,000 ceiling. The response shape is unchanged: `{ files, total, matched }`.
 
 ### Storage Analytics
 

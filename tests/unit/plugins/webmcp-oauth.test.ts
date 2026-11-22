@@ -206,13 +206,14 @@ describe("WebMCP OAuth client credentials", () => {
   let state: MockState;
   let db: IDBAdapter;
 
-  it("registers exactly the two POST routes as public plugin routes", () => {
+  it("registers the OAuth and MCP POST routes as public plugin routes", () => {
     const routePart = parts.find((part) => part.type === "route");
     if (!routePart || routePart.type !== "route") throw new Error("route part is missing");
 
     expect(routePart.routes.map((route) => `${route.method} ${route.path}`)).toEqual([
       "POST /api/webmcp/oauth/token",
       "POST /api/webmcp/oauth/revoke",
+      "POST /api/webmcp/mcp",
     ]);
     for (const route of routePart.routes) {
       expect(route.requiredCapabilities).toBe("public");

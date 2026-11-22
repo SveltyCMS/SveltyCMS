@@ -6,7 +6,7 @@
  * - DDL provisioning for core and dynamic collection tables
  * - Self-healing backfill from JSON data blob to physical columns
  * - Covered composite index provisioning for filter+sort targets
- * - Case-insensitive (`$ieq` / `$nieq`) `lower()` expression indexes
+ * - Case-insensitive (`$ieq` / `$nieq`) NOCASE indexes (`SVELTY_SQLITE_CI_INDEX=0` opts out)
  * - Elimination of redundant twin indexes
  * - Schema rename tracking and column migration
  */
@@ -28,6 +28,13 @@ import { assertSafeSqlIdentifier, registerTableSchema } from "../core/relational
 import { normalizeCollectionTableName } from "../core/collection-name";
 import type { DatabaseResult } from "../db-interface";
 import type { SchemaData } from "../core/schema-data";
+
+/**
+ * `SVELTY_SQLITE_CI_INDEX=0` keeps the binary index only. The NOCASE tree makes
+ * `$ieq`/`$nieq` indexable but adds a second B-tree per indexed text field;
+ * write-heavy deployments can trade that lookup speed for write throughput.
+ */
+const SQLITE_CI_INDEX_ENABLED = process.env.SVELTY_SQLITE_CI_INDEX !== "0";
 
 export interface SqliteSchemaSyncContext {
   getTable(collection: string): Table;
@@ -242,17 +249,26 @@ export async function provisionSqliteTable(
       // NOCASE collation — a `lower(col)` index cannot serve it. The legacy
       // `lower()` tree from the previous provisioning policy is dropped so it
       // does not keep charging every write for nothing.
+      //
+      // `SVELTY_SQLITE_CI_INDEX=0` drops the NOCASE tree instead: case-insensitive
+      // filters fall back to a scan, and the deployment keeps only the binary
+      // index for write-heavy workloads.
       for (const colName of caseInsensitiveCols) {
         if (!existingCols.has(colName)) continue;
         try {
-          await ctx.raw.execute(
-            buildCaseInsensitiveIndexDdl({
-              dialect: "sqlite",
-              tableName: physicalName,
-              columnName: colName,
-            }),
-          );
+          const nocaseIndex = assertSafeSqlIdentifier(`${physicalName}_${colName}_nocase`, "index");
           const legacyIndex = assertSafeSqlIdentifier(`${physicalName}_${colName}_lower`, "index");
+          if (SQLITE_CI_INDEX_ENABLED) {
+            await ctx.raw.execute(
+              buildCaseInsensitiveIndexDdl({
+                dialect: "sqlite",
+                tableName: physicalName,
+                columnName: colName,
+              }),
+            );
+          } else {
+            await ctx.raw.execute(`DROP INDEX IF EXISTS "${nocaseIndex}"`);
+          }
           await ctx.raw.execute(`DROP INDEX IF EXISTS "${legacyIndex}"`);
         } catch {
           /* safe */

@@ -14,7 +14,16 @@
 
 import type { DatabaseId, IDBAdapter } from "@databases/db-interface";
 import { logger } from "@utils/logger";
-import { registerServerTool, syncHeadlessToolBag } from "../tool-registry";
+import {
+  readOptionalBooleanArgument,
+  readOptionalNumberArgument,
+  readOptionalStringArgument,
+  readOptionalStringArrayArgument,
+  readRequiredKeyArrayArgument,
+  readRequiredStringArgument,
+  registerServerTool,
+  syncHeadlessToolBag,
+} from "../tool-registry";
 
 function getModelContext() {
   if (typeof window === "undefined") return undefined;
@@ -248,27 +257,68 @@ function registerHeadlessVirtualTools(db: IDBAdapter): void {
   registerServerTool({
     name: "list_virtual_collections",
     description: "List Unified Data Hub virtual collections with schemas and connector health",
-    parameters: { tenantId: "Tenant id (default: default)" },
+    capability: "read",
+    parameters: {},
+    required: [],
+    invoke: (_args, context) => list_virtual_collections(context.tenantId ?? undefined),
     handler: list_virtual_collections,
   });
   registerServerTool({
     name: "query_virtual_collection",
     description: "Query a virtual collection with pagination cursor (read-only, governed)",
+    capability: "read",
     parameters: {
       slug: "Virtual collection slug",
-      keys: "Projection keys",
-      tenantId: "Tenant id (default: default)",
+      limit: { type: "number", description: "Max rows (capped at 100)" },
+      offset: { type: "number", description: "Pagination offset" },
+      cursor: "Per-source cursor token",
+      include: {
+        type: "array",
+        items: { type: "string" },
+        description: "Same-source relation names to expand",
+      },
+      bypassCache: { type: "boolean", description: "Skip the federation cache" },
     },
+    required: ["slug"],
+    invoke: (args, context) =>
+      query_virtual_collection(
+        readRequiredStringArgument(args, "slug"),
+        context.tenantId ?? undefined,
+        {
+          limit: readOptionalNumberArgument(args, "limit"),
+          offset: readOptionalNumberArgument(args, "offset"),
+          cursor: readOptionalStringArgument(args, "cursor"),
+          include: readOptionalStringArrayArgument(args, "include"),
+          bypassCache: readOptionalBooleanArgument(args, "bypassCache"),
+        },
+      ),
     handler: query_virtual_collection,
   });
   registerServerTool({
     name: "enrich_virtual_collection",
     description: "Batch enrich entries of a virtual collection by native keys (read-only)",
+    capability: "read",
     parameters: {
       slug: "Virtual collection slug",
-      keys: "Projection keys",
-      tenantId: "Tenant id (default: default)",
+      keys: {
+        type: "array",
+        items: { type: ["string", "number"] },
+        description: "Native entry keys to match against virtualKeyField",
+      },
+      field: "Virtual field to match (default: id)",
+      bypassCache: { type: "boolean", description: "Skip the federation cache" },
     },
+    required: ["slug", "keys"],
+    invoke: (args, context) =>
+      enrich_virtual_collection(
+        readRequiredStringArgument(args, "slug"),
+        readRequiredKeyArrayArgument(args, "keys"),
+        context.tenantId ?? undefined,
+        {
+          virtualKeyField: readOptionalStringArgument(args, "field"),
+          bypassCache: readOptionalBooleanArgument(args, "bypassCache"),
+        },
+      ),
     handler: enrich_virtual_collection,
   });
 

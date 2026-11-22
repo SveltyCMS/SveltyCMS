@@ -43,6 +43,7 @@ if (!status.active) {
 | Feature                 | Description                                           |
 | :---------------------- | :---------------------------------------------------- |
 | MCP Server              | Full Model Context Protocol server implementation     |
+| HTTP JSON-RPC Transport | Stateless `POST /api/webmcp/mcp` (single request)     |
 | SSE Transport           | Server-Sent Events for remote agent connections       |
 | stdio Transport         | Standard I/O for local agent tooling                  |
 | API Key Auth            | Scoped, expiring OAuth 2.1 client-credentials tokens  |
@@ -126,7 +127,43 @@ grant_type=client_credentials&client_id=…&client_secret=…&scope=webmcp%3Area
 Send `Authorization: Bearer sck_…` on MCP requests. The token carries the
 client's tenant and scopes and expires automatically.
 
-### 4. Revoke
+### 4. Call the MCP endpoint
+
+`POST /api/webmcp/mcp` is a **stateless** MCP JSON-RPC 2.0 endpoint — one
+request per HTTP call, no batching, no SSE, no session. Responses are
+`application/json` with `Cache-Control: no-store`.
+
+```http
+POST /api/webmcp/mcp
+Authorization: Bearer sck_…
+Content-Type: application/json
+
+{"jsonrpc":"2.0","id":1,"method":"tools/list"}
+```
+
+| Method       | Result                                                                       |
+| :----------- | :--------------------------------------------------------------------------- |
+| `initialize` | `{ protocolVersion: "2025-06-18", serverInfo, capabilities: { tools: {} } }` |
+| `ping`       | `{}`                                                                         |
+| `tools/list` | `{ tools: [{ name, description, inputSchema, annotations }] }`               |
+| `tools/call` | `{ content: [{ type: "text", text: <JSON> }], isError }`                     |
+
+Scope enforcement is per tool:
+
+- `webmcp:read` → `tools/list` and tools annotated `readOnlyHint: true`
+- `webmcp:write` → every tool (reads and mutations)
+- tools without an explicit classification require `webmcp:write` (fail closed)
+
+Errors use JSON-RPC codes: `-32001` missing/invalid/expired token (HTTP 401),
+`-32003` token scope does not permit the tool, `-32601` unknown tool/method,
+`-32600` malformed request, `-32602` bad params, `-32603` internal error. An
+inactive license answers HTTP 403 (`-32000`).
+
+The execution tenant **always comes from the token**. Argument keys that try to
+carry context (`tenantId`, `tenant_id`, `user`, `roles`) are stripped before the
+tool runs, and `tenantId` is no longer advertised as a tool argument.
+
+### 5. Revoke
 
 ```http
 POST /api/webmcp/oauth/revoke

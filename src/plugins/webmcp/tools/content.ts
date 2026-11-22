@@ -10,10 +10,17 @@
  * - No browser dependencies (no contentStore, no fetch)
  */
 
-import type { IDBAdapter } from "@src/databases/db-interface";
+import type { BaseEntity, DatabaseId, EntityCreate, IDBAdapter } from "@src/databases/db-interface";
 import { clientJsonHeaders } from "@utils/security/client-csrf";
 import { logger } from "@utils/logger";
-import { registerServerTool, syncHeadlessToolBag } from "../tool-registry";
+import {
+  readOptionalNumberArgument,
+  readOptionalStringArgument,
+  readRequiredObjectArgument,
+  readRequiredStringArgument,
+  registerServerTool,
+  syncHeadlessToolBag,
+} from "../tool-registry";
 
 // ── Internal model context (browser-only fallback) ───────────────
 function getModelContext() {
@@ -393,9 +400,9 @@ function registerServerTools(db: IDBAdapter): void {
   // (e.g., @modelcontextprotocol/sdk). Here we define the tool contracts.
 
   // get_collections — server
-  async function getCollections() {
+  async function getCollections(tenantId?: DatabaseId | null) {
     try {
-      const result = await db.collection.listSchemas();
+      const result = await db.collection.listSchemas(tenantId ?? undefined);
       const collections =
         result && typeof result === "object" && "success" in result && result.success
           ? ((result as any).data ?? [])
@@ -423,9 +430,9 @@ function registerServerTools(db: IDBAdapter): void {
   }
 
   // get_collection_schema — server
-  async function getCollectionSchema(collectionId: string) {
+  async function getCollectionSchema(collectionId: string, tenantId?: DatabaseId | null) {
     try {
-      const result = await db.collection.getSchema(collectionId);
+      const result = await db.collection.getSchema(collectionId, tenantId ?? undefined);
       const schema =
         result && typeof result === "object" && "success" in result && (result as any).success
           ? (result as any).data
@@ -450,9 +457,9 @@ function registerServerTools(db: IDBAdapter): void {
   }
 
   // get_agent_instructions — server
-  async function getAgentInstructions(collectionId?: string) {
+  async function getAgentInstructions(collectionId?: string, tenantId?: DatabaseId | null) {
     try {
-      const result = await db.collection.listSchemas();
+      const result = await db.collection.listSchemas(tenantId ?? undefined);
       const collections =
         result && typeof result === "object" && "success" in result && (result as any).success
           ? ((result as any).data ?? [])
@@ -505,9 +512,10 @@ function registerServerTools(db: IDBAdapter): void {
       sortDirection?: string;
       status?: string;
     } = {},
+    tenantId?: DatabaseId | null,
   ) {
     try {
-      const filter: any = {};
+      const filter: Record<string, unknown> = {};
       if (opts.status && opts.status !== "all") {
         filter.status = opts.status;
       }
@@ -517,6 +525,7 @@ function registerServerTools(db: IDBAdapter): void {
         sort: opts.sortField
           ? { [opts.sortField]: (opts.sortDirection as "asc" | "desc") || "desc" }
           : { updatedAt: "desc" },
+        ...(tenantId ? { tenantId } : {}),
       });
       return result;
     } catch (err: any) {
@@ -529,10 +538,23 @@ function registerServerTools(db: IDBAdapter): void {
   }
 
   // create_entry — server (Draft-by-Default)
-  async function createEntry(collectionId: string, data: any) {
+  async function createEntry(
+    collectionId: string,
+    data: Record<string, unknown>,
+    tenantId?: DatabaseId | null,
+  ) {
     try {
-      const safeData = { ...data, status: "draft" };
-      const result = await db.crud.insert(collectionId, safeData);
+      const safeData: Record<string, unknown> = { ...data, status: "draft" };
+      // Defense in depth: the token tenant wins even on adapters/paths where a
+      // payload-supplied tenantId would otherwise be persisted verbatim.
+      delete safeData.tenantId;
+      delete safeData.tenant_id;
+      // Entry payloads are dynamically shaped; the collection schema validates them.
+      const result = await db.crud.insert<BaseEntity>(
+        collectionId,
+        safeData as EntityCreate<BaseEntity>,
+        tenantId ? { tenantId } : undefined,
+      );
       return result;
     } catch (err: any) {
       logger.error("[WebMCP] headless create_entry failed", {
@@ -549,47 +571,84 @@ function registerServerTools(db: IDBAdapter): void {
     name: "get_collections",
     description:
       "List all content collections with their schemas, fields, and AI agent instructions",
+    capability: "read",
+    parameters: {},
+    required: [],
+    invoke: (_args, context) => getCollections(context.tenantId),
     handler: getCollections,
   });
   registerServerTool({
     name: "get_collection_schema",
     description:
       "Get detailed schema, field definitions, validations, and AI agent instructions for a specific collection",
+    capability: "read",
     parameters: {
       collectionId: "The collection id or name to fetch schema for",
     },
+    required: ["collectionId"],
+    invoke: (args, context) =>
+      getCollectionSchema(readRequiredStringArgument(args, "collectionId"), context.tenantId),
     handler: getCollectionSchema,
   });
   registerServerTool({
     name: "get_agent_instructions",
     description:
       "Get natural-language prompt instructions and field rules for AI agents working with collections",
+    capability: "read",
     parameters: {
       collectionId: "Optional collection id or name to get specific instructions for",
     },
+    invoke: (args, context) =>
+      getAgentInstructions(readOptionalStringArgument(args, "collectionId"), context.tenantId),
     handler: getAgentInstructions,
   });
   registerServerTool({
     name: "list_entries",
     description:
       "List content entries of a collection with optional limit, offset, sort and status filter",
+    capability: "read",
     parameters: {
       collectionId: "The collection id or name to list entries from",
-      limit: "Max entries to return (capped at 100)",
-      offset: "Pagination offset",
+      limit: { type: "number", description: "Max entries to return (capped at 100)" },
+      offset: { type: "number", description: "Pagination offset" },
       sortField: "Field to sort by (default updatedAt)",
-      sortDirection: "asc or desc",
+      sortDirection: { type: "string", enum: ["asc", "desc"], description: "Sort direction" },
       status: "Filter by status (e.g. published, draft)",
     },
+    required: ["collectionId"],
+    invoke: (args, context) =>
+      listEntries(
+        readRequiredStringArgument(args, "collectionId"),
+        {
+          limit: readOptionalNumberArgument(args, "limit"),
+          offset: readOptionalNumberArgument(args, "offset"),
+          sortField: readOptionalStringArgument(args, "sortField"),
+          sortDirection: readOptionalStringArgument(args, "sortDirection"),
+          status: readOptionalStringArgument(args, "status"),
+        },
+        context.tenantId,
+      ),
     handler: listEntries,
   });
   registerServerTool({
     name: "create_entry",
     description: "Create a new content entry as draft (Draft-by-Default airgap)",
+    capability: "write",
     parameters: {
       collectionId: "The collection id or name to create the entry in",
-      data: "Entry payload; status is forced to draft",
+      data: {
+        type: "object",
+        description: "Entry payload; status is forced to draft",
+        additionalProperties: true,
+      },
     },
+    required: ["collectionId", "data"],
+    invoke: (args, context) =>
+      createEntry(
+        readRequiredStringArgument(args, "collectionId"),
+        readRequiredObjectArgument(args, "data"),
+        context.tenantId,
+      ),
     handler: createEntry,
   });
 

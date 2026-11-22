@@ -1,6 +1,18 @@
 /**
  * @file src/utils/media/advanced-search.ts
- * @description Advanced client-side media search with filtering
+ * @description Advanced client-side media search with filtering.
+ *
+ * The search handler compiles the criteria it can into a database filter
+ * (`criteriaToQueryFilter` in `./media-query-filters`), fetches the candidate
+ * rows and then calls this function. Every criterion is re-checked here, so the
+ * pushed filter is only a superset and this remains the single authority for
+ * the visible rows and the per-file `matched` labels.
+ *
+ * Features:
+ * - text, tag, dimension, aspect-ratio, MIME, size, date, EXIF, duplicate and
+ *   hash criteria
+ * - per-file `matched` labels for the criteria that matched
+ * - final in-memory authority behind the database pushdown
  */
 
 import type { MediaImage, MediaItem } from "./media-models";
@@ -76,6 +88,12 @@ export function advancedSearch(files: MediaItem[], criteria: SearchCriteria): Se
     if (searchFilename) {
       ok &&= file.filename.toLowerCase().includes(searchFilename);
       if (ok) fileMatched.push(`Filename: "${criteria.filename}"`);
+    }
+
+    // Exact content identity. Pushed as `{ hash }` by `criteriaToQueryFilter`;
+    // re-checked here so the database predicate can never widen the result.
+    if (criteria.hashMatch) {
+      ok &&= isStoredMedia(file) && file.hash === criteria.hashMatch;
     }
 
     if (searchTags?.length) {

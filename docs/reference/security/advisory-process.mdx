@@ -78,10 +78,44 @@ if nobody has opened a pull request.
 3. **Draft the advisory.** Write the summary and the affected ranges, request
    a CVE through the GitHub advisory when the severity is `critical` or `high`,
    and record `osv_id`, `cve_id`, and `fixed_version`.
-4. **Release.** Ship the fixed version, publish the advisory, and write
-   `released_at` and `published_at`.
-5. **Regenerate the table.** Run `bun run security:assurance:doc` and commit the
-   record with the regenerated [patch latency](./patch-latency.mdx) block.
+
+### Recording a real advisory
+
+A real record is a JSON file in `scripts/security/advisories/` named after its
+`SC-YYYY-NNN` id. The minimum released shape is:
+
+```json
+{
+  "schema_version": "1.0",
+  "id": "SC-2026-001",
+  "title": "Short, non-exploitable summary",
+  "summary": "What was reachable, what an attacker gained, and what changed.",
+  "severity": "high",
+  "cvss": { "score": 8.1, "vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:N" },
+  "state": "released",
+  "provenance": "published",
+  "received_at": "2026-11-02T09:12:00Z",
+  "triaged_at": "2026-11-02T15:40:00Z",
+  "patched_at": "2026-11-09T11:05:00Z",
+  "released_at": "2026-11-12T08:30:00Z",
+  "published_at": "2026-11-13T10:00:00Z",
+  "osv_id": "GHSA-xxxx-xxxx-xxxx",
+  "cve_id": "CVE-2026-NNNNN",
+  "fixed_version": "0.16.1",
+  "affected_versions": ["< 0.16.1"],
+  "regression_tests": ["tests/unit/<the regression>.test.ts"],
+  "references": ["https://github.com/SveltyCMS/SveltyCMS/security/advisories/GHSA-…"]
+}
+```
+
+Omit `provenance` for a real record (it defaults to `published`); `example`
+records are the only ones excluded from the latency table. Validate with
+`bun run check-advisories` (or `bun run security:assurance --only=advisories`),
+which fails on a broken timeline, a CVSS/severity disagreement, a missing CVE
+on a high/critical record, or an SLA breach. Request the CVE through GitHub
+Security Advisories as CNA; the OSV id is the GHSA id. 4. **Release.** Ship the fixed version, publish the advisory, and write
+`released_at` and `published_at`. 5. **Regenerate the table.** Run `bun run security:assurance:doc` and commit the
+record with the regenerated [patch latency](./patch-latency.mdx) block.
 
 The record is evidence, not marketing. A record that reaches `released` must
 name a regression test, because an advisory without a test is a claim nobody

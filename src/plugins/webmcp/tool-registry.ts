@@ -19,11 +19,40 @@
  * - name-keyed registration with dedupe (HMR / double-init safe)
  * - `listServerTools()` / `searchServerTools(query)` search-first lookup
  * - `exportServerTools()` → handlers map + metadata catalog in one snapshot
+ * - capability classification (`read` / `write`) for HTTP scope enforcement
+ * - `invoke` adapters that map named MCP arguments onto positional handlers
  * - backward-compatible `__webmcp_headless_tools` bag (handlers only) plus a
  *   new `__webmcp_tool_catalog` (metadata) for headless integrations
  */
 
+import type { ApiKey } from "@databases/auth/types";
+import type { DatabaseId } from "@content/types";
 import { logger } from "@utils/logger";
+
+/** Least capability a token needs before it may call a tool. */
+export type ToolCapability = "read" | "write";
+
+/** Execution context supplied by the authenticated HTTP transport. */
+export interface ToolExecutionContext {
+  /** Tenant from the authenticated token (`null` in single-tenant mode). */
+  tenantId: DatabaseId | null;
+  /** The authenticated API key row (owner, scopes, permissions). */
+  apiKey: ApiKey;
+}
+
+/**
+ * Raised when an MCP argument is missing or has the wrong shape. The transport
+ * maps it onto JSON-RPC `-32602` (invalid params) instead of `-32603`.
+ */
+export class ToolInputError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ToolInputError";
+  }
+}
+
+/** A short string description or an inline JSON Schema fragment. */
+export type ToolParameterSpec = string | Record<string, unknown>;
 
 /** Metadata contract for a headless (server-side) AI tool. */
 export interface ServerToolDef<P extends unknown[] = unknown[]> {
@@ -31,10 +60,128 @@ export interface ServerToolDef<P extends unknown[] = unknown[]> {
   name: string;
   /** Human/AI-readable description of what the tool does. */
   description: string;
-  /** Parameter names → short descriptions (for schema discovery). */
-  parameters?: Record<string, string>;
+  /** Parameter names → short descriptions or JSON Schema fragments. */
+  parameters?: Record<string, ToolParameterSpec>;
+  /** Argument keys that must be present (advertised + enforced by transport). */
+  required?: string[];
+  /** Full JSON Schema override for `tools/list` (derived from `parameters` otherwise). */
+  inputSchema?: Record<string, unknown>;
+  /**
+   * Least capability required to call the tool. Omitting it means `write`
+   * (fail closed) — only tools explicitly classified as `read` are reachable
+   * with a `webmcp:read` token.
+   */
+  capability?: ToolCapability;
+  /**
+   * Map a named-argument object from `tools/call` onto the handler's positional
+   * signature and inject the execution context. Omitting it calls
+   * `handler(args)` — correct for tools that take a single object argument.
+   */
+  invoke?: (args: Record<string, unknown>, context: ToolExecutionContext) => unknown;
   /** The callable implementation — signature inferred per tool at registration. */
   handler: (...args: P) => unknown;
+}
+
+/** Resolve the effective capability (unclassified tools fail closed as `write`). */
+export function resolveToolCapability(tool: ServerToolDef): ToolCapability {
+  return tool.capability === "read" ? "read" : "write";
+}
+
+/** Invoke a tool with named arguments and the authenticated execution context. */
+export function callServerTool(
+  tool: ServerToolDef,
+  args: Record<string, unknown>,
+  context: ToolExecutionContext,
+): unknown {
+  if (tool.invoke) return tool.invoke(args, context);
+  return tool.handler(args);
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Required non-empty string argument (`ToolInputError` otherwise). */
+export function readRequiredStringArgument(args: Record<string, unknown>, key: string): string {
+  const value = args[key];
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new ToolInputError(`"${key}" must be a non-empty string`);
+  }
+  return value;
+}
+
+/** Optional string argument; `undefined` when absent, `ToolInputError` on a wrong type. */
+export function readOptionalStringArgument(
+  args: Record<string, unknown>,
+  key: string,
+): string | undefined {
+  const value = args[key];
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") throw new ToolInputError(`"${key}" must be a string`);
+  return value;
+}
+
+/** Optional finite-number argument. */
+export function readOptionalNumberArgument(
+  args: Record<string, unknown>,
+  key: string,
+): number | undefined {
+  const value = args[key];
+  if (value === undefined) return undefined;
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new ToolInputError(`"${key}" must be a finite number`);
+  }
+  return value;
+}
+
+/** Optional boolean argument. */
+export function readOptionalBooleanArgument(
+  args: Record<string, unknown>,
+  key: string,
+): boolean | undefined {
+  const value = args[key];
+  if (value === undefined) return undefined;
+  if (typeof value !== "boolean") throw new ToolInputError(`"${key}" must be a boolean`);
+  return value;
+}
+
+/** Required object argument (`ToolInputError` otherwise). */
+export function readRequiredObjectArgument(
+  args: Record<string, unknown>,
+  key: string,
+): Record<string, unknown> {
+  const value = args[key];
+  if (!isPlainObject(value)) throw new ToolInputError(`"${key}" must be an object`);
+  return value;
+}
+
+/** Optional string-array argument. */
+export function readOptionalStringArrayArgument(
+  args: Record<string, unknown>,
+  key: string,
+): string[] | undefined {
+  const value = args[key];
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
+    throw new ToolInputError(`"${key}" must be an array of strings`);
+  }
+  return value as string[];
+}
+
+/** Required array of string/number keys (virtual-collection stitch keys). */
+export function readRequiredKeyArrayArgument(
+  args: Record<string, unknown>,
+  key: string,
+): (string | number)[] {
+  const value = args[key];
+  if (
+    !Array.isArray(value) ||
+    value.length === 0 ||
+    value.some((item) => typeof item !== "string" && typeof item !== "number")
+  ) {
+    throw new ToolInputError(`"${key}" must be a non-empty array of strings or numbers`);
+  }
+  return value as (string | number)[];
 }
 
 /** Dynamic invocation signature used by gateways (args arrive unvalidated). */

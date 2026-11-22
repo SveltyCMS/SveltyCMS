@@ -5,7 +5,7 @@
  * Node compiles its own Brotli snapshot into the binary (`node:zlib`), so
  * **CVE-2026-111497** (Brotli decoder out-of-bounds write → memory corruption /
  * RCE) is fixed only by upgrading Node itself:
- *   - Node 22.23.4+, 24.22.1+, 26.12.1+
+ *   - Node 22.23.4+, 24.22.3+, 26.12.1+
  * Updating a system brotli used by another process (e.g. Plesk/nginx) does not
  * change the decoder inside the Node runtime.
  *

@@ -12,6 +12,7 @@
 import { page } from "$app/state";
 import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
 import { logger } from "@utils/logger";
+import { registerServerTool, syncHeadlessToolBag } from "../tool-registry";
 
 // ── Internal model context (browser-only fallback) ───────────────
 function getModelContext() {
@@ -225,4 +226,28 @@ function registerHeadlessTopologyTools(db: IDBAdapter): void {
     discoverTopology,
     getContentGraph,
   };
+
+  // Also expose them through the name-keyed registry (MCP `tools/list` +
+  // `tools/call`). Both are read-only topology discovery.
+  registerServerTool({
+    name: "discover_topology",
+    description:
+      "Discover native and virtual collections with their admin and API routes (read-only)",
+    capability: "read",
+    parameters: {},
+    required: [],
+    invoke: (_args, context) => discoverTopology(context.tenantId ?? undefined),
+    handler: discoverTopology,
+  });
+  registerServerTool({
+    name: "get_content_graph",
+    description:
+      "Return per-collection entry counts and relation targets, including virtual collections (read-only)",
+    capability: "read",
+    parameters: {},
+    required: [],
+    invoke: (_args, context) => getContentGraph(context.tenantId ?? undefined),
+    handler: getContentGraph,
+  });
+  syncHeadlessToolBag();
 }

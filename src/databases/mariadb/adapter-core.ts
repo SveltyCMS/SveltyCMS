@@ -66,6 +66,16 @@ import { TenantPoolManager } from "../core/tenant-pool-manager";
 /** Options bag accepted by the inherited `BaseAdapter.wrap` error wrapper. */
 type AdapterWrapOptions = NonNullable<Parameters<SqlAdapterCore["wrap"]>[3]>;
 
+/**
+ * A MariaDB collation folds case when its name ends in `_ci`. `_bin` and `_cs`
+ * do not; an unknown/empty name is treated as case-sensitive so the filter
+ * compiler falls back to `lower()`.
+ */
+export function isCaseInsensitiveCollation(name: string): boolean {
+  if (!name.trim()) return false;
+  return !/_(?:bin|cs)$/i.test(name);
+}
+
 export abstract class AdapterCore extends SqlAdapterCore {
   public type = "mariadb";
   public capabilities: DatabaseCapabilities = {
@@ -88,6 +98,12 @@ export abstract class AdapterCore extends SqlAdapterCore {
   };
 
   public pool: mysql.Pool | null = null;
+  /**
+   * True when the server default collation folds case (`*_ci`). The cheap
+   * `col = ?` / `LIKE` predicates are only sound under a case-insensitive
+   * collation; a `*_bin` / `*_cs` server falls back to `lower()`.
+   */
+  private _ciCollation = true;
   /** Tenant → dedicated mysql2 pool and current tenant context. */
   private _tenantPools = new TenantPoolManager<mysql.Pool>({
     label: "MariaDBAdapter",
@@ -99,6 +115,15 @@ export abstract class AdapterCore extends SqlAdapterCore {
   /** Active tenant for pool routing (null = unset). */
   public get currentTenantId(): string | null {
     return this._tenantPools.currentTenantId;
+  }
+
+  /**
+   * MariaDB's cheap case-insensitive form is only equivalent under a CI
+   * collation. A binary/case-sensitive server default switches the shared
+   * compiler back to `lower()` for every MariaDB filter.
+   */
+  protected override get caseInsensitiveFilterDialect(): "mariadb" | undefined {
+    return this._ciCollation ? "mariadb" : undefined;
   }
 
   public get db(): MySql2Database<typeof schema> {
@@ -539,6 +564,26 @@ export abstract class AdapterCore extends SqlAdapterCore {
       }
 
       this.connected = true;
+      // The compiler's `col = ?` / `LIKE` form assumes a case-insensitive column
+      // collation. Verify the server default once per connection; a `_bin` or
+      // `_cs` server falls back to `lower()` so `$ieq` cannot become
+      // case-sensitive. Per-column overrides are rare and remain a documented
+      // residual (see docs/reference/database/mariadb-implementation.mdx).
+      try {
+        const [collRows] = await this.pool.query("SELECT @@collation_server AS coll");
+        const collRow = (collRows as Array<{ coll?: unknown }> | undefined)?.[0];
+        const collName = String(collRow?.coll ?? "");
+        this._ciCollation = isCaseInsensitiveCollation(collName);
+        if (!this._ciCollation) {
+          logger.warn(
+            `[mariadb] Server collation "${collName}" is case-sensitive — case-insensitive filters fall back to lower().`,
+          );
+        }
+      } catch {
+        // catch-allow: a failed probe must fail safe (use lower()),
+        // not block the connection.
+        this._ciCollation = false;
+      }
       const poolMax = poolConfig.connectionLimit || 20;
       const gateDisabled =
         process.env.DATABASE_QUEUE_GATE === "0" || process.env.SVELTY_DB_QUEUE_GATE === "0";

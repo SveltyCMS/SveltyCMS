@@ -54,6 +54,7 @@ import {
   SYSTEM_LITERAL_COLUMNS,
   rowsAffected,
   RAW_DECLINED,
+  type CaseInsensitiveFilterDialect,
   type RawFindResult,
 } from "./drizzle-sql-helpers";
 import { normalizeCollectionTableName } from "./collection-name";
@@ -1342,6 +1343,17 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     );
   }
 
+  /**
+   * Dialect hint for the shared case-insensitive filter compiler.
+   *
+   * `undefined` makes the compiler keep `lower()` on both sides, which is always
+   * correct. Adapters may narrow it when they can prove a cheaper form — MariaDB
+   * returns `undefined` when the server collation is case-sensitive.
+   */
+  protected get caseInsensitiveFilterDialect(): CaseInsensitiveFilterDialect | undefined {
+    return this.sqlDialect.id as CaseInsensitiveFilterDialect;
+  }
+
   public mapQuery(table: any, query: any, options: any = {}): any {
     return mapQuery(
       table,
@@ -1355,7 +1367,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       // Dialect hint only: the shared helper picks the cheapest case-insensitive
       // predicate it can prove (SQLite COLLATE NOCASE, MariaDB's column
       // collation, PostgreSQL ILIKE) and keeps `lower()` otherwise.
-      this.sqlDialect.id,
+      this.caseInsensitiveFilterDialect,
     );
   }
 
