@@ -23,7 +23,7 @@
  * build is auto-rebuilt locally (CI fails closed so artifact bugs surface).
  */
 import { spawn, execSync, type ChildProcess } from "node:child_process";
-import { existsSync, createWriteStream, type WriteStream } from "node:fs";
+import { existsSync, createWriteStream, readdirSync, statSync, type WriteStream } from "node:fs";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import * as v from "valibot";
@@ -937,6 +937,27 @@ async function phaseSetup(ctx: ValidatedContext): Promise<{
 }
 
 /** Phase 4: Run — execute the test suite with optional retry. */
+/** Expand repo-relative files/directories into a deterministic test-file list. */
+function expandIntegrationFiles(paths: string[]): string[] {
+  const files: string[] = [];
+  const walk = (rel: string): void => {
+    const abs = join(ROOT, rel);
+    let stats: ReturnType<typeof statSync>;
+    try {
+      stats = statSync(abs);
+    } catch {
+      return;
+    }
+    if (stats.isDirectory()) {
+      for (const entry of readdirSync(abs).sort()) walk(join(rel, entry));
+      return;
+    }
+    if (/\.(?:test|spec)\.ts$/.test(rel)) files.push(rel);
+  };
+  for (const path of paths) walk(path);
+  return [...new Set(files)];
+}
+
 async function phaseRun(
   args: ParsedArgs,
   ctx: ValidatedContext,
@@ -967,27 +988,63 @@ async function phaseRun(
     hasBunFlag(args.bunFlags, "--only-failures") ||
     hasBunFlag(args.bunFlags, "--reporter");
 
-  const primary = await Exec.run({
-    cmd: "bun",
-    args: [
-      "test",
-      "--timeout",
-      "300000",
-      ...serialIntegrationBunFlags(args.bunFlags),
-      ...(reporterAlreadySet ? [] : quietBunFlags),
-      ...testPaths,
-    ],
-    env,
-    capture: true,
-    tee: true,
-    label: "test",
-    okCodes: [0, 1],
-  });
+  const primary = await (async () => {
+    // Bun runs test FILES concurrently by default, and every file here shares one
+    // SQLite database + one preview server. Concurrent writers produced
+    // "database is locked" and cross-file module-registry poisoning — the same
+    // failure the parity runner documents. One process per file keeps the server
+    // shared but isolates the module graph and the write lock.
+    const files = expandIntegrationFiles(testPaths);
+    const targets = files.length > 0 ? files : testPaths;
+    const results: TestResult[] = [];
+    let totalPass = 0;
+    let totalFail = 0;
+    let sawTally = false;
+    let exitCode = 0;
 
-  const combinedOut = `${primary.stdout}\n${primary.stderr}`;
-  const results = parseTestOutput(combinedOut, testPaths[0]);
-  const tally = parseBunTally(combinedOut);
-  const failures = results.filter((r) => r.status === "fail");
+    for (let index = 0; index < targets.length; index++) {
+      const target = targets[index]!;
+      if (targets.length > 1) {
+        console.log(`\n▶ [${index + 1}/${targets.length}] ${target}`);
+      }
+      const run = await Exec.run({
+        cmd: "bun",
+        args: [
+          "test",
+          "--timeout",
+          "300000",
+          ...serialIntegrationBunFlags(args.bunFlags),
+          ...(reporterAlreadySet ? [] : quietBunFlags),
+          target,
+        ],
+        env,
+        capture: true,
+        tee: true,
+        label: "test",
+        okCodes: [0, 1],
+      });
+
+      const out = `${run.stdout}\n${run.stderr}`;
+      results.push(...parseTestOutput(out, target));
+      const fileTally = parseBunTally(out);
+      if (fileTally) {
+        sawTally = true;
+        totalPass += fileTally.pass;
+        totalFail += fileTally.fail;
+      }
+      if (run.exitCode !== 0) exitCode = 1;
+    }
+
+    return {
+      exitCode,
+      results,
+      tally: sawTally ? { pass: totalPass, fail: totalFail } : null,
+    };
+  })();
+
+  const results = primary.results;
+  const tally = primary.tally;
+  const failures = results.filter((result) => result.status === "fail");
   const flaky: FlakyResult[] = [];
   let exitCode = primary.exitCode;
 
@@ -995,9 +1052,10 @@ async function phaseRun(
     console.log(
       `\n🔍 Flaky detection: ${failures.length} failed — retrying up to ${args.retryCount}x...\n`,
     );
+    const expanded = expandIntegrationFiles(testPaths);
     const retried = await retryFailedTests(
       failures,
-      testPaths,
+      expanded.length > 0 ? expanded : testPaths,
       args.bunFlags,
       env,
       args.retryCount,
