@@ -185,6 +185,7 @@
     "benchmark:ci": "bun scripts/benchmark-matrix/index.ts --ci",
     "benchmark:core": "bun run verify:benchmark-local && bun run scripts/runs/run-core-benchmarks.ts",
     "benchmark:gate": "bun run scripts/benchmark-matrix/ci-regression-gate.ts",
+    "benchmark:median": "bun run scripts/runs/run-benchmark-median.ts",
     "preview": "PORT=4173 node build/index.js",
     "prepare": "git config core.hooksPath .githooks || exit 0",
     "version:bump": "bun run scripts/version.ts",

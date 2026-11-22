@@ -218,6 +218,15 @@ bun run lint:benchmark-mdx
 bun run scripts/benchmark-matrix/index.ts --db=postgresql --tier=competitive --diagnose
 ```
 
+**Median-of-N with a drift control (for published numbers):**
+
+```bash
+bun run benchmark:median -- --db=sqlite --repeat=3
+bun run benchmark:median -- --db=postgresql --repeat=5 --control="REST list p95"
+```
+
+Each run evaluates the rolling gate; the last N samples are aggregated to median / min / max / spread. The control metric (default `REST point read p95`) is printed separately — when its spread is large, the medians describe host noise, not the product, and the script says so.
+
 Full mechanics: [Benchmark Matrix → Bottleneck Attribution](../../tests/benchmark-matrix.mdx#bottleneck-attribution-on-site).
 
 ## Mode parity (comparability rule)

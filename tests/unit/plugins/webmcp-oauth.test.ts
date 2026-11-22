@@ -25,7 +25,17 @@ import {
   handleWebMcpRevokeRequest,
   handleWebMcpTokenRequest,
 } from "@plugins/webmcp/oauth-routes.server";
+import { handleWebMcpMcpRequest } from "@plugins/webmcp/mcp-routes.server";
+import { registerServerTool } from "@plugins/webmcp/tool-registry";
 import { parts } from "@plugins/webmcp/index.server";
+
+registerServerTool({
+  name: "flow_read",
+  description: "Read-only tool used to prove the OAuth token authenticates the MCP transport",
+  capability: "read",
+  invoke: () => ({ success: true, value: "flow-ok" }),
+  handler: () => ({ success: true, value: "flow-ok" }),
+});
 
 const licenseMock = vi.fn();
 vi.mock("@src/utils/license-manager", () => ({
@@ -599,6 +609,87 @@ describe("WebMCP OAuth client credentials", () => {
       if (created.success) throw new Error("expected provisioning to fail");
       expect(created.error.code).toBe("INVALID_SCOPE");
       expect(state.inserted).toHaveLength(0);
+    });
+  });
+
+  describe("OAuth token → MCP transport flow", () => {
+    it("authenticates a tools/call with the token the token endpoint issued", async () => {
+      const tokenResponse = await handleWebMcpTokenRequest(
+        makeEvent(db, {
+          grant_type: "client_credentials",
+          client_id: CLIENT_ID,
+          client_secret: CLIENT_SECRET,
+          scope: "webmcp:read",
+        }),
+      );
+      expect(tokenResponse.status).toBe(200);
+      const issued = await readJson<TokenResponse>(tokenResponse);
+
+      const mcpResponse = await handleWebMcpMcpRequest({
+        request: new Request("http://localhost/api/webmcp/mcp", {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${issued.access_token}`,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: { name: "flow_read", arguments: {} },
+          }),
+        }),
+        locals: { dbAdapter: db, tenantId: null },
+      } as unknown as RequestEvent);
+
+      expect(mcpResponse.status).toBe(200);
+      const body = (await mcpResponse.json()) as {
+        result?: { content?: Array<{ text?: string }>; isError?: boolean };
+        error?: { code?: number };
+      };
+      expect(body.error).toBeUndefined();
+      expect(body.result?.isError).toBe(false);
+      expect(body.result?.content?.[0]?.text).toContain("flow-ok");
+    });
+
+    it("denies a write tool to a read-only token issued by the same endpoint", async () => {
+      registerServerTool({
+        name: "flow_write",
+        description: "Write tool used to prove the read scope is enforced",
+        capability: "write",
+        invoke: () => ({ success: true }),
+        handler: () => ({ success: true }),
+      });
+
+      const tokenResponse = await handleWebMcpTokenRequest(
+        makeEvent(db, {
+          grant_type: "client_credentials",
+          client_id: CLIENT_ID,
+          client_secret: CLIENT_SECRET,
+          scope: "webmcp:read",
+        }),
+      );
+      const issued = await readJson<TokenResponse>(tokenResponse);
+
+      const mcpResponse = await handleWebMcpMcpRequest({
+        request: new Request("http://localhost/api/webmcp/mcp", {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${issued.access_token}`,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 2,
+            method: "tools/call",
+            params: { name: "flow_write", arguments: {} },
+          }),
+        }),
+        locals: { dbAdapter: db, tenantId: null },
+      } as unknown as RequestEvent);
+
+      const body = (await mcpResponse.json()) as { error?: { code?: number } };
+      expect(body.error?.code).toBe(-32003);
     });
   });
 });
