@@ -495,6 +495,14 @@ export const SECURITY_TARGETS: readonly Mutation[] = [
     tests: ["tests/unit/security/test-mode-gate.test.ts"],
   },
   {
+    id: "security-files-attachment-mime",
+    file: "src/routes/files/[...path]/+server.ts",
+    description: "headersForMime: scriptable document types are served inline",
+    find: "  if (ATTACHMENT_ONLY_MIME.has(normalized)) {",
+    replace: "  if (false) {",
+    tests: ["tests/unit/media/files-route-transform.test.ts"],
+  },
+  {
     id: "security-redirect-backslash",
     file: "src/utils/security/safe-redirect.ts",
     description: "safeRedirect: `/\\evil.com` is accepted as an internal path",

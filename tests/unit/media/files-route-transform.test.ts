@@ -341,6 +341,20 @@ describe("/files on-demand transform — fallbacks", () => {
     expect(encodeCount()).toBe(0);
   });
 
+  it("serves scriptable document types as attachments with a locked-down CSP", async () => {
+    const htmlRel = `${TENANT}/${"e".repeat(64)}/original/page-${"e".repeat(64)}.html`;
+    const htmlBytes = Buffer.from("<!doctype html><script>alert(1)</script>", "utf-8");
+    await writeSource(htmlRel, htmlBytes);
+
+    const response = await GET(fileEvent(htmlRel));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-disposition")).toBe("attachment");
+    expect(response.headers.get("content-security-policy")).toBe("default-src 'none'; sandbox");
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+    await response.body?.cancel();
+  });
+
   it("never transforms GIF sources", async () => {
     const gifRel = `${TENANT}/${"d".repeat(64)}/original/anim-${"d".repeat(64)}.gif`;
     const gifBytes = Buffer.concat([Buffer.from("GIF89a", "ascii"), Buffer.alloc(24)]);
