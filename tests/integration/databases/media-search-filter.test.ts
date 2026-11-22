@@ -11,12 +11,13 @@
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ensureFullInitialization, getDb } from "@src/databases/db";
-import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { generateUUID } from "@utils/native-utils";
 import { criteriaToQueryFilter } from "@src/utils/media/media-query-filters";
 
 const ENGINE = (process.env.DB_TYPE ?? "sqlite").toLowerCase();
-const TENANT = "mediasearch-tenant";
+// Unique per run: the fixture can never collide with, or clean up, another
+// tenant's media — including a developer's live rows if the harness is bypassed.
+const TENANT = `mediasearch-${generateUUID().slice(0, 8)}`;
 
 let db: any = null;
 
@@ -72,18 +73,13 @@ describe(`Media search pushdown — ${ENGINE}`, () => {
     db = getDb();
     if (!db) throw new Error("Database not initialized");
 
-    await db.crud
-      .deleteMany("media", {}, withSystemScope("testing", { permanent: true, confirmWipe: true }))
-      .catch(() => {});
-
     const inserted = await db.crud.insertMany("media", ROWS, { tenantId: TENANT });
     if (!inserted.success) throw new Error(`media fixture insert failed: ${inserted.message}`);
   }, 120_000);
 
   afterAll(async () => {
-    await db?.crud
-      .deleteMany("media", {}, withSystemScope("testing", { permanent: true, confirmWipe: true }))
-      .catch(() => {});
+    // Scoped to this run's tenant — never a library-wide wipe.
+    await db?.crud.deleteMany("media", {}, { tenantId: TENANT }).catch(() => {});
   });
 
   it("matches a filename case-insensitively", async () => {
