@@ -44,6 +44,8 @@ import {
   transformVariantExists,
 } from "@src/services/media/image-variant-storage";
 import { resolveConfiguredMediaFolder } from "@src/utils/media/storage-adapters";
+import { decideMediaAccess, type MediaAccessValue } from "@src/utils/media/media-access";
+import { FastLRU } from "@utils/native-utils";
 import { resolveMimeTypeFromPath } from "@src/utils/media/slim-sniffer.server";
 import { getMimeType } from "@src/utils/media/media-utils";
 import { apiHandler } from "@utils/api-handler";
@@ -58,6 +60,45 @@ const _baseHeaders = {
   "Cache-Control": "public, max-age=31536000, immutable",
   "Accept-Ranges": "bytes",
 };
+
+/**
+ * Cached `access` lookup for the private-media gate (opt-in). Keyed by
+ * `tenant:hash`; the 60 s TTL bounds staleness after a metadata edit and `max`
+ * bounds memory on a large library. The lookup never runs while
+ * `MEDIA_ENFORCE_PRIVATE_ACCESS` is off, so default deployments pay nothing.
+ */
+type CachedAccess = MediaAccessValue | "unmarked";
+const mediaAccessCache = new FastLRU<string, CachedAccess>({ max: 5000, ttl: 60_000 });
+
+async function resolveMediaAccess(
+  pathTenant: string,
+  relativePath: string,
+): Promise<MediaAccessValue> {
+  const hash = relativePath.split("/")[1];
+  if (!hash) return undefined;
+  const key = `${pathTenant}:${hash}`;
+  const cached = mediaAccessCache.get(key);
+  if (cached !== undefined) return cached === "unmarked" ? undefined : cached;
+
+  let value: MediaAccessValue;
+  try {
+    const { dbAdapter } = await import("@src/databases/db");
+    const result = await dbAdapter.media.files.getByHash(
+      hash,
+      pathTenant === "global" ? undefined : ({ tenantId: pathTenant } as never),
+    );
+    const stored = result && result.success ? result.data?.access : undefined;
+    value =
+      stored === "private" || stored === "protected" || stored === "public" ? stored : undefined;
+  } catch (err) {
+    // A metadata outage must not become a 500 for every image; treat the asset as
+    // unmarked (served as before) and record why.
+    logger.debug("[files] private-access lookup failed; treating as unmarked", err);
+    value = undefined;
+  }
+  mediaAccessCache.set(key, value ?? "unmarked");
+  return value;
+}
 
 /**
  * Normalize a media type: strip RFC 7231 parameters and lowercase, so
@@ -488,8 +529,13 @@ export const GET = apiHandler(async ({ params, request, locals }) => {
   const pathTenant = normalizedRelative.split("/")[0];
   if (isMultiTenantEnabled() && pathTenant && pathTenant !== "global") {
     const userTenantId = locals.tenantId;
-    // Reject when: no tenantId (undefined/null), OR tenantId doesn't match path tenant and isn't "global" bypass
-    if (!userTenantId || (userTenantId !== pathTenant && userTenantId !== "global")) {
+    // The `global` tenant is the system/bootstrap scope: only a caller that is
+    // *also* a system admin may use it to read another tenant's files. An ordinary
+    // user row whose tenant happens to be `global` must not become a cross-tenant
+    // reader (the tenant gate below is the only access control on this path).
+    const isGlobalAdmin = userTenantId === "global" && locals.isAdmin === true;
+    // Reject when: no tenantId (undefined/null), OR tenantId doesn't match the path tenant
+    if (!userTenantId || (userTenantId !== pathTenant && !isGlobalAdmin)) {
       logger.warn("Cross-tenant file access blocked", {
         requested: filePath,
         userTenant: userTenantId,
@@ -512,6 +558,31 @@ export const GET = apiHandler(async ({ params, request, locals }) => {
         reason: validation.reason,
       });
       raise(403, "Signed URL required or invalid", "SIGNATURE_REQUIRED");
+    }
+  }
+
+  // 🛡️ Private-media enforcement (opt-in via MEDIA_ENFORCE_PRIVATE_ACCESS)
+  // The stored `access` field is authoritative only when this flag is on: uploads
+  // default to `public`, and the migration script (scripts/media/mark-media-public.ts)
+  // re-marks pre-existing `private` rows before the flag is enabled.
+  if (getPublicSettingSync("MEDIA_ENFORCE_PRIVATE_ACCESS")) {
+    const storedAccess = await resolveMediaAccess(pathTenant, normalizedRelative);
+    const decision = decideMediaAccess({
+      access: storedAccess,
+      authenticated: Boolean(locals.user),
+      callerTenantId: (locals.tenantId as string | null | undefined) ?? null,
+      pathTenant,
+      isAdmin: locals.isAdmin === true,
+      // A non-global path that reached this point already passed the signed-URL check
+      // when the feature is enabled (it raises above); global paths are never signed.
+      signedUrlValid: Boolean(signedUrlEnabled) && pathTenant !== "global",
+    });
+    if (!decision.allowed) {
+      logger.warn("[files] Private media access denied", {
+        requested: filePath,
+        reason: decision.reason,
+      });
+      raise(403, "Authentication required for private media", "PRIVATE_MEDIA_AUTH_REQUIRED");
     }
   }
 

@@ -312,7 +312,7 @@ export async function createTusSession(input: TusCreateInput): Promise<TusSessio
     size: input.size,
     offset: 0,
     folder: input.folder || "global",
-    access: input.access === "public" ? "public" : "private",
+    access: input.access === "private" ? "private" : "public",
     createdAt: now,
     updatedAt: now,
     expiresAt: dateToISODateString(new Date(Date.now() + TUS_DEFAULT_TTL_MS)),

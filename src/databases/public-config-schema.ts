@@ -144,6 +144,14 @@ export const publicConfigSchema = object({
 
   // --- Signed Media URLs ---
   MEDIA_SIGNED_URL_ENABLED: optional(boolean()),
+
+  /**
+   * Opt-in: enforce the stored `access` field on `/files/**`. When on, an asset
+   * whose media record says `private` requires an authenticated caller that owns
+   * it (same tenant) or a system admin; a valid signed URL still works. Uploads
+   * default to `public`, so enabling this does not lock out new media.
+   */
+  MEDIA_ENFORCE_PRIVATE_ACCESS: optional(boolean()),
 });
 
 export type PublicConfig = InferOutput<typeof publicConfigSchema>;

@@ -421,6 +421,26 @@ GET /files/tenant-a/9f2c…/original/hero-9f2c….jpg?sig=…&exp=…&w=640   # 
 
 **Permissions**: none beyond the route's existing access rules — public/global assets stay public, tenant assets still require the matching `tenantId`, and `MEDIA_SIGNED_URL_ENABLED` still requires `sig`/`exp` (the signature is not part of the variant key).
 
+### `access` — private media (opt-in enforcement)
+
+Uploads default to `access: "public"` (SDK, TUS, direct upload, media-upload widget). Pass `access: "private"` explicitly to restrict an asset.
+
+| Setting                        | Effect                                                                                                                                                                                                                               |
+| :----------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MEDIA_ENFORCE_PRIVATE_ACCESS` | Off by default. When on, `/files/**` resolves the media record by content hash (60 s LRU) and allows a `private`/`protected` asset only for a caller in the owning tenant, a system admin, or a request carrying a valid signed URL. |
+
+> [!IMPORTANT]
+> **Run the migration before enabling the flag.** Rows created before the default flip were stored `private` and would become unreachable:
+>
+> ```bash
+> bun run scripts/media/mark-media-public.ts              # dry run: how many rows would change
+> bun run scripts/media/mark-media-public.ts --apply      # write access="public"
+> ```
+>
+> Use `--tenant=<id>` / `--limit=<n>` to scope a large library. `global/` assets marked `private` require an authenticated system admin — signed URLs are not issued for the global scope.
+
+While the flag is off, `access` is advisory: a private asset is protected by content-hash unguessability plus `MEDIA_SIGNED_URL_ENABLED`, exactly as before.
+
 ---
 
 ## 6. Lifecycle — Processing Status, Retention & Cleanup

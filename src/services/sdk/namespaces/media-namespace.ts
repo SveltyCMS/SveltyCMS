@@ -287,7 +287,7 @@ export class MediaNamespace {
   async upload(file: File, options: UploadOptions): Promise<DatabaseResult<MediaItem>> {
     const {
       userId,
-      access = "private",
+      access = "public",
       tenantId,
       watermarkOptions,
       folder = "global",
@@ -315,7 +315,7 @@ export class MediaNamespace {
   }
 
   async remote(url: string, options: RemoteOptions): Promise<DatabaseResult<MediaItem>> {
-    const { userId, access = "private", tenantId } = options;
+    const { userId, access = "public", tenantId } = options;
     return safeCall(async () => {
       if (!url) throw new AppError("URL is required", 400);
       if (!userId) throw new AppError("User ID is required", 400);

@@ -11,7 +11,7 @@
  */
 
 import { AuthGuardService } from "@src/services/security/auth-guard";
-import { isAdmin, getRequestFlags, isPublicRoute } from "@utils/hook-utils";
+import { isAdmin, getRequestFlags, isPublicRoute, IS_TEST_MODE } from "@utils/hook-utils";
 import { SetupState } from "@utils/server/setup-check";
 import { isSecureCookieContext } from "@src/databases/auth/constants";
 import { readSessionCookie } from "@utils/security/session-cookie";
@@ -40,10 +40,11 @@ import { lazyModule } from "@utils/lazy-module";
 
 const IS_BUN_TEST =
   typeof globalThis !== "undefined" && !!(globalThis as any).process?.env?.BUN_TEST;
-const IS_TEST_MODE =
-  typeof globalThis !== "undefined" &&
-  ((globalThis as any).process?.env?.TEST_MODE === "true" ||
-    (globalThis as any).process?.env?.VITE_TEST_MODE === "true");
+// 🛡️ `IS_TEST_MODE` is imported from `hook-utils` — the single source of truth that
+// production-gates the flag on `TEST_API_SECRET` / `ALLOW_TEST_MODE_IN_PROD`. This
+// module previously re-derived it from `TEST_MODE`/`VITE_TEST_MODE` with no
+// production guard, which made a stray `VITE_TEST_MODE=true` disable the whole
+// `/api` authorization path (skip `checkEndpointPermission` + MFA) on a live server.
 
 // Bounded capacity — per-tenant keys must never grow without bound in
 // multi-tenant deployments (FastLRU evicts least-recently-used at capacity).

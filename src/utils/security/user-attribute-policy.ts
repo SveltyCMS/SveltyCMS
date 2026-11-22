@@ -73,6 +73,54 @@ export type PrivilegedUserField = (typeof PRIVILEGED_USER_FIELDS)[number];
 const ESCALATION_SET = new Set<string>(PRIVILEGE_ESCALATION_FIELDS);
 const PRIVILEGED_SET = new Set<string>(PRIVILEGED_USER_FIELDS);
 
+/**
+ * Keys that can rewrite the prototype chain when a client body is spread/assigned
+ * downstream (`{...body}`, `Object.assign`, a Mongo driver merge). `JSON.parse`
+ * creates `__proto__` as an own property, so it survives the spread and only
+ * pollutes when a consumer assigns it — the guard has to run on the parsed body.
+ */
+const UNSAFE_OBJECT_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
+/**
+ * Mongo-style operators (`$set`, `$unset`, `$rename`, `$where`) must never arrive
+ * from a user attribute patch: the MongoDB adapter hands the patch to the driver,
+ * where a `$`-prefixed key is an instruction, not data.
+ */
+function isUnsafeKey(key: string): boolean {
+  return UNSAFE_OBJECT_KEYS.has(key) || key.startsWith("$");
+}
+
+/**
+ * Identity and audit columns are server-owned. They are dropped for **every**
+ * caller (admin included) — a tenant placement is an explicit option on the write
+ * (`createUser(..., { tenantId })`), never a body field, so a tenant-scoped admin
+ * cannot move a record (or a user) into another tenant through the patch body.
+ */
+const SERVER_OWNED_FIELDS = ["_id", "id", "tenantId", "createdAt", "updatedAt"] as const;
+
+/** Depth cap for the recursive guard — beyond it the value is dropped (fail-closed). */
+const MAX_SANITIZE_DEPTH = 8;
+
+/**
+ * Recursively drop prototype-pollution keys and `$` operators at any depth.
+ * Mutates in place; arrays are walked because `[{ $set: … }]` reaches the driver too.
+ */
+function stripUnsafeKeysDeep(node: unknown, depth = 0): void {
+  if (node === null || typeof node !== "object") return;
+  if (Array.isArray(node)) {
+    for (const item of node) stripUnsafeKeysDeep(item, depth + 1);
+    return;
+  }
+  const record = node as Record<string, unknown>;
+  for (const key of Object.keys(record)) {
+    if (depth >= MAX_SANITIZE_DEPTH || isUnsafeKey(key)) {
+      delete record[key];
+      continue;
+    }
+    stripUnsafeKeysDeep(record[key], depth + 1);
+  }
+}
+
 function stripKeys<T extends Record<string, unknown>>(updates: T, keys: Set<string>): T {
   for (const key of Object.keys(updates)) {
     if (keys.has(key)) {
@@ -141,7 +189,9 @@ export function isAdminCaller(
 
 /**
  * Sanitize a client JSON body for user attribute updates.
- * - Always drops password verification-only / identity rewrite keys
+ * - Always drops prototype-pollution keys and `$` operators, at any depth
+ * - Always drops server-owned identity / tenant / timestamp fields
+ * - Always drops password verification-only keys
  * - Non-admin: full privileged denylist
  * - Admin: keeps role/isAdmin (caller must pass allowPrivilegeEscalation to the DB layer)
  */
@@ -150,12 +200,14 @@ export function sanitizeClientUserAttributePatch(
   options: { isAdmin: boolean },
 ): Record<string, unknown> {
   const updates = { ...raw };
+  // Run the deep guard before any field decision: a nested `{ profile: { "$set": … } }`
+  // or `{ __proto__: { isAdmin: true } }` must not survive into the adapter.
+  stripUnsafeKeysDeep(updates);
+  for (const field of SERVER_OWNED_FIELDS) delete updates[field];
   // Never accept identity rewrite or password confirmation noise
   delete updates.user_id;
   delete updates.currentPassword;
   delete updates.confirmPassword;
-  delete updates._id;
-  delete updates.id;
 
   if ("password" in updates && (!updates.password || String(updates.password).trim() === "")) {
     delete updates.password;

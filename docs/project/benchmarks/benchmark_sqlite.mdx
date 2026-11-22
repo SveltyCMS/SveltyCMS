@@ -42,7 +42,7 @@ tags:
 
 <!-- EXECUTIVE_FIX_NOTES_END -->
 
-(21/11/2026, 23:33:34)
+(22/11/2026, 01:00:20)
 
 **✅ PASS** · 62/62 tests · **SQLITE** · Bun 1.4.2
 
@@ -50,7 +50,7 @@ tags:
 
 | Dimension      | Tests | Status | Worst Δ | Issues |
 | -------------- | ----: | ------ | ------- | ------ |
-| **Core**       |    22 | 🟢     | -6%     | 0      |
+| **Core**       |    22 | 🟢     | -20%    | 0      |
 | **API**        |    16 | 🟢     | —       | 0      |
 | **Scale**      |    19 | 🟢     | —       | 0      |
 | **Resilience** |     5 | 🟢     | —       | 0      |
@@ -89,6 +89,22 @@ xychart-beta
 ```
 
 </details>
+<details>
+<summary>📊 Regression severity matrix (quadrant)</summary>
+
+```mermaid
+quadrantChart
+  title "Regression severity (impact vs delta)"
+  x-axis Low latency impact --> High latency impact
+  y-axis Low delta --> High delta
+  quadrant-1 Monitor
+  quadrant-2 Investigate soon
+  quadrant-3 Acceptable variance
+  quadrant-4 Critical — fix first
+    COMPETITIVE 9-WORKLOAD REPLI: [0.06, 0.95]
+```
+
+</details>
 
 <!-- EXECUTIVE_PARTIAL_WATERMARK -->
 
@@ -100,76 +116,60 @@ xychart-beta
 
 ### 🔴 Top Regressions
 
-> **🔴 hooks-performance [Full Security + Auth Pipeline]** (sqlite): +30% | 0.10ms vs 0.08ms baseline
-> **🔴 cache-performance [Cache Hit (L1 Warm)]** (sqlite): +27% | 0.10ms vs 0.08ms baseline
-> **🔴 virtual-query-federation [Virtual Read Passthrough (live WordPress REST)]** (sqlite): +20% | 0.32ms vs 0.27ms baseline
-> **🟠 rest-api-performance [Collection Schema Metadata]** (sqlite): +18% | 0.14ms vs 0.12ms baseline
-> **🟠 hooks-performance [Mutation (audit logging disabled)]** (sqlite): +18% | 0.61ms vs 0.52ms baseline
+> ✅ None — no latency metric is more than 10 % above its baseline.
 
 ### 🟢 Top Improvements
 
-> **database-performance [COUNT ESTIMATE]** (sqlite): -89% | 0.05ms vs 0.46ms baseline
-> **hooks-performance [REST with API Caching]** (sqlite): -27% | 0.08ms vs 0.11ms baseline
-> **transaction-acid [TX Commit]** (sqlite): -17% | 0.01ms vs 0.01ms baseline
+> **competitive-workload-replica [listFilterSort (Warm Sequential)]** (sqlite): -53% | 0.13ms vs 0.27ms baseline
+> **competitive-workload-replica [findByIdRandom (Warm Concurrent 8c)]** (sqlite): -45% | 0.18ms vs 0.33ms baseline
+> **competitive-workload-replica [listLarge (Warm Sequential)]** (sqlite): -44% | 0.28ms vs 0.51ms baseline
+> **competitive-workload-replica [listPopulated (Warm Sequential)]** (sqlite): -44% | 0.12ms vs 0.21ms baseline
+> **competitive-workload-replica [findMissing (Warm Concurrent 8c)]** (sqlite): -44% | 0.17ms vs 0.31ms baseline
 
 <!-- EXECUTIVE_ALERTS_END --><!-- EXECUTIVE_END -->
 
 <!-- SUMMARY_START -->
 <!-- SUMMARY_RUN_OVERLAY_START -->
 
-### Current Run Summary (2026-11-21)
+### Current Run Summary (2026-11-22)
 
 > **Scope:** Only tests that ran in THIS invocation.
 
-**Run ID:** `73bb421a-2717-4105-8a6c-b2d03ed3ebf5` · **Tests invoked:** 7 · **Metrics:** 39 · **DB:** sqlite
+**Run ID:** `e9152069-ea9b-452d-b634-f2b9d1668dad` · **Tests invoked:** 1 · **Metrics:** 25 · **DB:** sqlite
 
-| Test                     | Metric                                         | Avg (ms) | p95 (ms) | RPS    | Trend | Detail                            |
-| ------------------------ | ---------------------------------------------- | -------- | -------- | ------ | ----- | --------------------------------- |
-| Cache Performance        | Cache Miss (Bypass)                            | 0.163    | 0.281    | 5830   | 🟢    | ⚪ established at 0.163ms (1 run) |
-| Cache Performance        | Cache Hit (L1 Warm)                            | 0.103    | 0.199    | 9185   | 🟢    | ⚪ established at 0.103ms (1 run) |
-| Database Performance     | INSERT                                         | 0.108    | 0.277    | 8310   | 🟢    | ⚪ established at 0.108ms (1 run) |
-| Database Performance     | FIND ONE                                       | 0.005    | 0.010    | 149598 | 🟢    | ⚪ established at 0.005ms (1 run) |
-| Database Performance     | FIND MANY (limit 50)                           | 0.065    | 0.082    | 14722  | 🟢    | ⚪ established at 0.065ms (1 run) |
-| Database Performance     | FILTER (blob field, 1 match)                   | 0.202    | 0.239    | 4799   | 🟢    | ⚪ established at 0.202ms (1 run) |
-| Database Performance     | QUERY BUILDER LIST (50)                        | 0.065    | 0.078    | 14905  | 🟢    | ⚪ established at 0.065ms (1 run) |
-| Database Performance     | FIND PAGE (50 hasMore)                         | 0.072    | 0.103    | 12592  | 🟢    | ⚪ established at 0.072ms (1 run) |
-| Database Performance     | FIND PAGE keyset                               | 0.053    | 0.068    | 17715  | 🟢    | ⚪ established at 0.053ms (1 run) |
-| Database Performance     | FIND MANY offset 50                            | 0.035    | 0.048    | 26346  | 🟢    | ⚪ established at 0.035ms (1 run) |
-| Database Performance     | LIST+COUNT (legacy)                            | 0.153    | 0.181    | 6299   | 🟢    | ⚪ established at 0.153ms (1 run) |
-| Database Performance     | UPDATE                                         | 0.028    | 0.039    | 33348  | 🟢    | ⚪ established at 0.028ms (1 run) |
-| Database Performance     | UPDATE (no-returning)                          | 0.025    | 0.036    | 37156  | 🟢    | ⚪ established at 0.025ms (1 run) |
-| Database Performance     | NATIVE UPSERT                                  | 0.060    | 0.085    | 15685  | 🟢    | ⚪ established at 0.060ms (1 run) |
-| Database Performance     | COUNT                                          | 0.475    | 0.516    | 2074   | 🟢    | ⚪ established at 0.475ms (1 run) |
-| Database Performance     | COUNT ESTIMATE                                 | 0.050    | 0.453    | 12462  | 🟢    | ⚪ established at 0.050ms (1 run) |
-| Database Performance     | COUNT CACHED                                   | 0.001    | 0.002    | 712657 | 🟢    | ⚪ established at 0.001ms (1 run) |
-| Database Performance     | DELETE (Active Rows)                           | 0.038    | 0.056    | 20602  | 🟢    | ⚪ established at 0.038ms (1 run) |
-| Database Performance     | BULK INSERT (100)                              | 0.929    | 1.254    | 1014   | 🟢    | ⚪ established at 0.929ms (1 run) |
-| Database Performance     | BULK UPDATE (100 heterogeneous)                | 0.753    | 0.917    | 1260   | 🟢    | ⚪ established at 0.753ms (1 run) |
-| Database Performance     | BULK UPDATE (100 homogeneous)                  | 0.507    | 0.638    | 1848   | 🟢    | ⚪ established at 0.507ms (1 run) |
-| Hooks Performance        | Static Asset (No Middleware)                   | 0.618    | 1.029    | 1416   | 🟢    | ⚪ established at 0.618ms (1 run) |
-| Hooks Performance        | Turbo Pipeline (Light)                         | 0.227    | 0.347    | 4023   | 🟢    | ⚪ established at 0.227ms (1 run) |
-| Hooks Performance        | Full Security + Auth Pipeline                  | 0.100    | 0.154    | 9855   | 🟢    | ⚪ established at 0.100ms (1 run) |
-| Hooks Performance        | REST with API Caching                          | 0.082    | 0.151    | 11035  | 🟢    | ⚪ established at 0.082ms (1 run) |
-| Hooks Performance        | Mutation (audit logging disabled)              | 0.615    | 0.748    | 1601   | 🟢    | ⚪ established at 0.615ms (1 run) |
-| Rest Api Performance     | System Health Check                            | 0.539    | 0.817    | 6836   | 🟢    | ⚪ established at 0.539ms (1 run) |
-| Rest Api Performance     | Collection Schema Metadata                     | 0.137    | 0.208    | 27143  | 🟢    | ⚪ established at 0.137ms (1 run) |
-| Rest Api Performance     | Single Document Read                           | 0.114    | 0.197    | 32238  | 🟢    | ⚪ established at 0.114ms (1 run) |
-| Rest Api Performance     | Collection Find (List Limit 20)                | 0.127    | 0.269    | 26781  | 🟢    | ⚪ established at 0.127ms (1 run) |
-| Rest Api Performance     | Collection Search Query                        | 0.136    | 0.316    | 24702  | 🟢    | ⚪ established at 0.136ms (1 run) |
-| Transaction Acid         | TX Commit                                      | 0.005    | 0.017    | 206101 | 🟢    | ⚪ established at 0.005ms (1 run) |
-| Transaction Acid         | TX Rollback Integrity                          | 0.014    | 0.022    | 68459  | 🟢    | ⚪ established at 0.014ms (1 run) |
-| Truth Latency            | Logic Baseline                                 | 0.000    | 0.000    | 354526 | 🟢    | ⚪ established at 0ms (1 run)     |
-| Truth Latency            | Local SDK (Full)                               | 0.006    | 0.011    | 1956   | 🟢    | ⚪ established at 0.006ms (1 run) |
-| Truth Latency            | HTTP End-to-End                                | 0.126    | 0.201    | 7832   | 🟢    | ⚪ established at 0.126ms (1 run) |
-| Truth Latency            | HTTP Cold (Cache-Busted)                       | 0.248    | 0.345    | 4017   | 🟢    | ⚪ established at 0.248ms (1 run) |
-| Virtual Query Federation | Virtual Read Passthrough (live WordPress REST) | 0.319    | 0.461    | 3041   | 🟢    | ⚪ established at 0.319ms (1 run) |
-| Virtual Query Federation | Virtual Read Passthrough (mock REST)           | 0.043    | 0.061    | 20511  | 🟢    | ⚪ established at 0.043ms (1 run) |
+| Test                         | Metric                                  | Avg (ms) | p95 (ms) | RPS   | Trend | Detail                                       |
+| ---------------------------- | --------------------------------------- | -------- | -------- | ----- | ----- | -------------------------------------------- |
+| Competitive Workload Replica | findById (Warm Sequential)              | 0.080    | 0.127    | 12380 | 🟢    | ⚪ stable at 0.135ms (±0.083ms) (7 runs)     |
+| Competitive Workload Replica | findById (Warm Concurrent 8c)           | 0.174    | 0.253    | 45452 | 🟢    | ⚪ stable at 0.277ms (±0.079ms) (7 runs)     |
+| Competitive Workload Replica | findByIdRandom (Warm Sequential)        | 0.079    | 0.134    | 12538 | 🟢    | ⚪ stable at 0.135ms (±0.069ms) (7 runs)     |
+| Competitive Workload Replica | listFilterSort (Warm Sequential)        | 0.125    | 0.189    | 7955  | 🟢    | ⚪ stable at 0.184ms (±0.166ms) (7 runs)     |
+| Competitive Workload Replica | listFilterSort (Warm Concurrent 8c)     | 0.322    | 0.422    | 24420 | 🟢    | ⚪ stable at 0.473ms (±0.176ms) (7 runs)     |
+| Competitive Workload Replica | listLarge (Warm Sequential)             | 0.282    | 0.359    | 3521  | 🟢    | ⚪ stable at 0.332ms (±0.216ms) (7 runs)     |
+| Competitive Workload Replica | listLarge (Warm Concurrent 8c)          | 1.030    | 1.732    | 7660  | 🟢    | ⚪ stable at 1.08ms (±0.524ms) (7 runs)      |
+| Competitive Workload Replica | listPlain (Warm Sequential)             | 0.141    | 0.206    | 7061  | 🟢    | ⚪ stable at 0.188ms (±0.101ms) (7 runs)     |
+| Competitive Workload Replica | listPlain (Warm Concurrent 8c)          | 0.228    | 0.333    | 34420 | 🟢    | ⚪ stable at 0.360ms (±0.132ms) (7 runs)     |
+| Competitive Workload Replica | listPopulated (Warm Sequential)         | 0.119    | 0.192    | 8354  | 🟢    | ⚪ stable at 0.213ms (±0.109ms) (7 runs)     |
+| Competitive Workload Replica | listPopulated (Warm Concurrent 8c)      | 0.252    | 0.375    | 31112 | 🟢    | ⚪ stable at 0.418ms (±0.188ms) (7 runs)     |
+| Competitive Workload Replica | listPopulatedLarge (Warm Sequential)    | 0.146    | 0.201    | 6832  | 🟢    | ⚪ stable at 0.251ms (±0.147ms) (6 runs)     |
+| Competitive Workload Replica | findMissing (Warm Sequential)           | 0.078    | 0.144    | 12656 | 🟢    | ⚪ stable at 0.129ms (±0.060ms) (7 runs)     |
+| Competitive Workload Replica | create (Warm Sequential)                | 0.528    | 0.656    | 1888  | 🟢    | ⚪ stable at 0.792ms (±0.244ms) (7 runs)     |
+| Competitive Workload Replica | create (Warm Concurrent 8c)             | 1.476    | 1.935    | 5375  | 🟢    | ⚪ stable at 2.17ms (±0.999ms) (7 runs)      |
+| Competitive Workload Replica | update (Warm Sequential)                | 0.370    | 0.436    | 2695  | 🟢    | ⚪ stable at 0.534ms (±0.185ms) (7 runs)     |
+| Competitive Workload Replica | update (Warm Concurrent 8c)             | 1.037    | 1.566    | 7706  | 🟢    | ⚪ stable at 1.53ms (±0.771ms) (7 runs)      |
+| Competitive Workload Replica | graphql (Warm Sequential)               | 0.202    | 0.237    | 4922  | 🟢    | ⚪ stable at 0.347ms (±0.193ms) (7 runs)     |
+| Competitive Workload Replica | graphql (Warm Concurrent 8c)            | 0.429    | 0.574    | 18276 | 🟢    | ⚪ stable at 0.874ms (±0.463ms) (7 runs)     |
+| Competitive Workload Replica | mixed (Warm Sequential)                 | 0.394    | 0.987    | 2525  | 🟢    | ⚪ stable at 0.723ms (±0.284ms) (7 runs)     |
+| Competitive Workload Replica | mixed (Warm Concurrent 8c)              | 2.238    | 3.535    | 3499  | 🟢    | ⚪ stable at 3.71ms (±1.79ms) (7 runs)       |
+| Competitive Workload Replica | Seed Burst (500 docs, HTTP)             | 0.063    | 0.063    | 15901 | 🟢    | ⚪ stable at 0.078ms (±0.035ms) (7 runs)     |
+| Competitive Workload Replica | findByIdRandom (Warm Concurrent 8c)     | 0.181    | 0.247    | 43769 | ⚪    | 🟢 faster: 0.304ms → 0.181ms (-40%) (7 runs) |
+| Competitive Workload Replica | listPopulatedLarge (Warm Concurrent 8c) | 0.265    | 0.393    | 29077 | ⚪    | 🟢 faster: 0.487ms → 0.265ms (-46%) (6 runs) |
+| Competitive Workload Replica | findMissing (Warm Concurrent 8c)        | 0.174    | 0.264    | 44841 | ⚪    | 🟢 faster: 0.309ms → 0.174ms (-44%) (7 runs) |
 
 <!-- SUMMARY_RUN_OVERLAY_END -->
 
 <!-- SUMMARY_HISTORY_START -->
 
-### Historical Trends (2026-11-21)
+### Historical Trends (2026-11-22)
 
 > **Mode:** production-parity matrix runs only (`run_mode='matrix'` + `server_mode='production'` — `NODE_ENV=production`, no `TEST_MODE`). Standalone/mode-variant samples are recorded but never trended here.
 
@@ -182,7 +182,7 @@ xychart-beta
 | Metric                              | Trend | Sparkline (last 7) | Latest  |
 | ----------------------------------- | ----- | ------------------ | ------- |
 | CACHE PERFORMANCE (warm)            | 🟢    | `▁█`               | 0.103ms |
-| COMPETITIVE WORKLOAD REPLICA (warm) | 🟢    | `▁█▆▃▇▁▂`          | 0.074ms |
+| COMPETITIVE WORKLOAD REPLICA (warm) | 🟢    | `█▆▃▇▁▃▁`          | 0.063ms |
 | DATABASE PERFORMANCE (warm)         | 🟢    | `▁▁`               | 0.005ms |
 | HOOKS PERFORMANCE (warm)            | 🟢    | `▁█`               | 0.100ms |
 | REST API PERFORMANCE (warm)         | 🟢    | `█▁`               | 0.114ms |
@@ -1695,7 +1695,7 @@ Throughput dropped 74% — check connection pool saturation or lock contention.
 
 <!-- SECTION:COMPETITIVE:START -->
 <details id="section-competitive">
-<summary><strong>🏷️ COMPETITIVE 9-WORKLOAD REPLICA</strong> · ⚪ 0.074ms · ↘️ — · <a href="../../../tests/benchmarks/competitive-workload-replica.test.ts">source</a></summary>
+<summary><strong>🏷️ COMPETITIVE 9-WORKLOAD REPLICA</strong> · ⚪ 0.063ms · ↘️ — · <a href="../../../tests/benchmarks/competitive-workload-replica.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
 > **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.

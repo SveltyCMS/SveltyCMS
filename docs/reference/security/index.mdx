@@ -86,6 +86,14 @@ A penetration test is a dated report by someone outside the project who attacks 
 | Body limit             | A declared `Content-Length` above 15 MiB is rejected with 413 before the body is read.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | `src/utils/api-body-limits.ts`                                                                                                                             |
 | Disclosure             | Reports go to security@sveltycms.com or a [GitHub Security Advisory](https://github.com/SveltyCMS/SveltyCMS/security/advisories). [SECURITY.md](https://github.com/SveltyCMS/SveltyCMS/blob/next/SECURITY.md) states a reply within 48 hours and a critical fix within 7 days (high 30 days, medium and low 90 days).                                                                                                                                                                                                                                                                              | [Incident response](./incident-response.mdx)                                                                                                               |
 
+> [!WARNING]
+> **`VITE_TEST_MODE` is not a production switch.** The `VITE_` prefix is exposed to the client bundle
+> by Vite convention, so operators set it for frontend work. It never opens a server bypass by
+> itself: the `/api/testing` route always requires a timing-safe `x-test-secret`, and
+> `handle-authorization` honours any test flag only when a non-empty `TEST_API_SECRET` (or
+> `ALLOW_TEST_MODE_IN_PROD=true`) is present. `tests/unit/hooks/authorization-test-mode-gate.test.ts`
+> pins that behaviour.
+
 ## How a request is checked
 
 `classifyRequest` in `src/hooks.server.ts` picks the pipeline after setup is complete.

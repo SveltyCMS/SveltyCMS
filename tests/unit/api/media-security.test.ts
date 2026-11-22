@@ -570,10 +570,12 @@ describe("Media API Security Unit Tests", () => {
 
       await mediaProcessHandler.POST(event as any);
 
+      // Uploads default to `public`: the private-media gate
+      // (`MEDIA_ENFORCE_PRIVATE_ACCESS`) treats `private` as an explicit choice.
       expect(mockMediaService.saveMedia).toHaveBeenCalledWith(
         expect.any(File),
         user._id,
-        "private",
+        "public",
         tenantId,
         "global",
         undefined,
