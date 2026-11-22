@@ -169,6 +169,8 @@ The media gallery needs an interactive trail: every crumb is a drop target, and 
 
 `src/components/ui/select.svelte`. A native `<select>`. A list the user can search is `Combobox`, exported from the same barrel.
 
+`Combobox` ignores `Enter` while an IME composition is active (`event.isComposing` or keyCode 229), so confirming a Japanese/Chinese/Korean candidate does not select the active option or commit a half-typed custom value.
+
 ```svelte
 <Select
   label="Timezone"

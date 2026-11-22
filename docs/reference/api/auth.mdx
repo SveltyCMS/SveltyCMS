@@ -80,6 +80,7 @@ Standard authentication uses secure `HttpOnly` cookies to maintain session state
 - **Login**: `POST /api/auth/login` — Validates credentials (email + password), starts a session, sets `__Host-auth_sessions` cookie, and rotates the CSRF token.
 - **Logout**: `POST /api/auth/logout` — Invalidates the current session, clears cookies, and invalidates the session cache.
 - **Current User**: `GET /api/auth` — Returns the authenticated user object and their assigned permissions.
+- **Account protection**: a password change revokes every other session **and** clears `twoFactorTrustedDevices`, so a trusted-device cookie cannot outlive the credential change. Deleting or blocking the last administrator in a tenant (or the last system admin for the global scope) is refused with `409 LAST_ADMIN`; a blocked admin does not count as remaining.
 
 ### Profile Management
 

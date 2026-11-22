@@ -49,6 +49,8 @@ flowchart LR
 3. **Awareness (presence/cursors)**: throttled (10/s) POSTs to the same endpoint with `awareness: true`; `yjsService` applies the update and broadcasts `yjs:awareness` over SSE — remote editors' cursors/presence update in real time. Clients apply remote state with `origin: "server"`, which the send-path skips (no echo loop).
 4. **Transport client**: `SseProvider` (`src/services/collaboration/sse-provider.svelte.ts`) — EventSource + batched POSTs.
 
+> **Per-event authorization (2026-11):** the stream is not authorized once at connect time. `isSseEventAllowed()` (`src/routes/api/[...path]/handlers/sse-authorization.ts`) checks every `yjs:sync`, `yjs:awareness` and collection event against the subscriber's role and tenant before it is written; a subscriber who loses access stops receiving events on the same connection. See `tests/unit/api/sse-authorization.test.ts`.
+
 ### Transport 2 — WebSocket `/ws` (optional)
 
 - **Server**: `src/services/collaboration/yjs-sync-server.ts` — `ws` + `y-protocols` sync + awareness, multi-document `tenantId:docId` isolation, graceful shutdown.

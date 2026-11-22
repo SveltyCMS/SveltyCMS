@@ -337,6 +337,8 @@ Retrieve storage breakdowns, insights, and growth trends.
 
 **Admin UI**: Dashboard widget `media-storage-analytics/index.svelte` polls this endpoint every 60 seconds. Add it from the dashboard widget picker.
 
+`total`, `byType` (grouped by `mimeType` and bucketed into image/video/audio/document), `byFolder`, `byUser` and the monthly trend are computed by the database through `crud.aggregate()` with a tenant `$match` — the handler does not load the media library into memory. The two insight cards (`large files`, `old files`) run bounded, condition-targeted 500-row queries because they must return matching asset ids; their counts are exact up to that cap. An unavailable aggregate logs and degrades instead of failing the dashboard.
+
 ### Version History
 
 Track, compare, and restore file versions over time.

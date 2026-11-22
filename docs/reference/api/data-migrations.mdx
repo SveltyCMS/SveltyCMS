@@ -285,8 +285,9 @@ To prevent concurrent migration conflicts, the system acquires a **migration loc
 
 - **Acquired**: At the start of `POST /api/migrations/apply`
 - **Held for**: Duration of the apply operation plus verification
-- **Released**: Automatically on completion, failure, or timeout (configurable, default: 5 minutes)
-- **Conflict behavior**: If a lock is already held, subsequent apply requests return `423 Locked`
+- **Released**: Automatically on completion, failure, or timeout (default: 10 minutes, `MIGRATION_LOCK_TTL_MS`)
+- **Stale lock**: a lock older than the TTL is treated as abandoned (the owning instance crashed). The next apply atomically steals it, so a dead process cannot block schema provisioning forever; SQLite uses the same TTL against its lock file.
+- **Conflict behavior**: If a live lock is still held, subsequent apply requests return `423 Locked`
 
 ```json
 {

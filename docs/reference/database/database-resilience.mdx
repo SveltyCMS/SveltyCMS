@@ -134,6 +134,17 @@ For network-attached databases (PostgreSQL and MariaDB), sudden concurrent traff
 
 ---
 
+## Transaction Retry (Deadlocks)
+
+`TransactionModule.execute()` (`src/databases/postgresql/transaction-module.ts`) replays the whole transaction when PostgreSQL aborts it with SQLSTATE `40P01` (deadlock detected) or `40001` (serialization failure):
+
+- **Why whole-transaction replay is safe**: PostgreSQL has already rolled the transaction back when it raises either code, so the callback cannot double-apply a write.
+- **Budget**: 3 attempts by default (`maxAttempts`, capped at 5) with deterministic exponential backoff (8 ms → 64 ms). `maxAttempts: 1` disables the retry.
+- **Never retried**: application errors, unique/foreign-key violations, connection loss and intentional rollbacks. Deadlock detection is SQLSTATE-first (the Drizzle `cause` chain is walked) with a message fallback for drivers that drop the code.
+- **Cost**: zero on the success path — the loop only iterates after an abort.
+
+---
+
 ## Read-Replica Splitting & Read-Your-Writes (RYW) Consistency
 
 `ReplicaRouterAdapter` (`src/databases/core/replica-router.ts`) scales database read workloads horizontally by distributing queries across one or more read replicas while strictly maintaining transaction semantics and data consistency.

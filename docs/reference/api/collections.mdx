@@ -176,6 +176,23 @@ GET /api/collections/articles?filter[titel]=Hello
 
 Unknown root keys and unaddressable nested paths return **`400`** naming every rejected key, instead of a silently empty list or an engine-specific error. The allow-list is cached per schema revision, so valid queries pay nothing.
 
+### Filter operators
+
+Bracket syntax and the JSON `filter={…}` form accept the same operator set; the URL may use the bare name (`filter[title][ieq]`) or the Directus `_`-prefixed spelling (`filter[title][_ieq]`).
+
+| Operator                        | URL alias                         | Meaning                                                                |
+| :------------------------------ | :-------------------------------- | :--------------------------------------------------------------------- |
+| `$eq` / `$ne`                   | `eq` / `ne`                       | Equality / inequality (type-aware)                                     |
+| `$contains`                     | `contains`                        | Case-insensitive substring; `%`/`_` in the term are matched literally  |
+| `$ieq` / `$nieq`                | `ieq` / `nieq` / `_ieq` / `_nieq` | Case-insensitive equality / inequality                                 |
+| `$nicontains`                   | `nicontains` / `_nicontains`      | Negated case-insensitive substring                                     |
+| `$in` / `$nin`                  | `in` / `nin`                      | Comma-separated membership                                             |
+| `$gt` / `$gte` / `$lt` / `$lte` | same                              | Range comparison                                                       |
+| `$regex` + `$options`           | —                                 | Mongo-style regex; `$options: "i"` is case-insensitive on every engine |
+| `$exists`                       | —                                 | Field presence                                                         |
+
+Case-insensitive operators are index-eligible when the field is marked `indexed: true`: SQLite gets a `COLLATE NOCASE` btree, PostgreSQL a `lower(col)` btree plus a `pg_trgm` GIN for substring, and MariaDB uses its CI collation with the existing btree. Unindexed fields fall back to a scan with identical results.
+
 ### Streamed export
 
 **Endpoint**: `GET /api/collections/{collectionId}/export`

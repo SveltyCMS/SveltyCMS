@@ -24,6 +24,8 @@ Primary table for collection **view mode**. Data comes from `+page.server.ts` pr
 
 > **Platform**: Built on the unified [Smart Table](./smart-table.mdx) (`createSmartTable` server mode) + [Collection Filtering](../architecture/collection-filtering.mdx). Design-system tables share the same headless controller, multi-column sorting, and pagination primitive.
 
+> **Empty cells**: a non-title cell with no value renders a decorative en dash (`aria-hidden`) beside a localized `No value` accessible label, so a screen reader does not announce “dash” for every blank cell. Title/name cells keep the `Untitled` fallback. The placeholder is display-only and is never written back into the entry.
+
 ---
 
 ## Architecture
