@@ -95,6 +95,8 @@ test.describe("Unified Data Hub — always-on", () => {
     }
     test.skip(!pluginAvailable, "Unified Data Hub plugin not registered in this install");
     await page.goto("/config/extensions");
+    // Plugin cards render in the plugins panel; the page opens on the widgets tab.
+    await page.getByTestId("extensions-tab-plugins").click();
     await expect(
       page
         .getByTestId("extensions-page")

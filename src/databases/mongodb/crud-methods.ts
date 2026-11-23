@@ -95,6 +95,62 @@ function toMongoSortSpec(sort: unknown): Record<string, 1 | -1> {
   return out;
 }
 
+/**
+ * ISO-STRING DATE COLUMNS - coerce a JS `Date` filter value to the stored form.
+ *
+ * Mongo stores most date-ish fields as ISO strings (`schema.ts`: `type: String`,
+ * default `nowISODateString()`), while a few are real Dates (auth-session
+ * `expires`, auth-user `expiresAt`). Comparing a Date against a String field
+ * matches nothing (BSON type order: String 2 < Date 9), so a media filter such as
+ * `{createdAt: {$gte: new Date(...)}}` silently returns [].
+ *
+ * The SQL side solves this per column in `coerceDateColumnValue`
+ * (drizzle-sql-helpers.ts). This is the Mongo twin: coerce ONLY when the model's
+ * schema path is a String - genuine Date paths keep the Date object.
+ */
+function coerceFilterDates(model: unknown, filter: Record<string, unknown>): void {
+  const pathOf = (
+    model as { schema?: { path?: (name: string) => { instance?: string } | null } } | null
+  )?.schema?.path;
+  const walk = (node: Record<string, unknown>): void => {
+    for (const key of Object.keys(node)) {
+      const value = node[key];
+      if (key === "$and" || key === "$or" || key === "$nor") {
+        if (Array.isArray(value)) {
+          for (const sub of value) {
+            if (sub && typeof sub === "object") walk(sub as Record<string, unknown>);
+          }
+        }
+        continue;
+      }
+      if (key.startsWith("$")) continue;
+      const isStringPath = pathOf?.(key)?.instance === "String";
+      if (!isStringPath) {
+        if (value && typeof value === "object" && !Array.isArray(value)) {
+          walk(value as Record<string, unknown>);
+        }
+        continue;
+      }
+      if (value instanceof Date) {
+        node[key] = value.toISOString();
+        continue;
+      }
+      if (value && typeof value === "object" && !Array.isArray(value)) {
+        const ops = value as Record<string, unknown>;
+        for (const op of Object.keys(ops)) {
+          if (!op.startsWith("$")) continue;
+          const opValue = ops[op];
+          if (opValue instanceof Date) ops[op] = opValue.toISOString();
+          else if (Array.isArray(opValue)) {
+            ops[op] = opValue.map((i: unknown) => (i instanceof Date ? i.toISOString() : i));
+          }
+        }
+      }
+    }
+  };
+  walk(filter);
+}
+
 export class MongoCrudMethods<T extends BaseEntity> {
   public readonly model: Model<T>;
   protected readonly adapter: any;
@@ -238,6 +294,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
           bypassSafeQuery: options.bypassSafeQuery,
         }),
       );
+      // Date -> ISO string for String-typed date columns (see coerceFilterDates).
+      coerceFilterDates(this.model, secureQuery as Record<string, unknown>);
 
       const queryOptions: any = {};
       if (options.hints?.mongo?.readConcern) {

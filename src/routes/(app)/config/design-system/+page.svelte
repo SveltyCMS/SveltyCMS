@@ -949,7 +949,10 @@ Deep links: /config/design-system?tab=themes|customizer|preview|overrides
 			{#if !loadingThemes}
 				{@const current = activeTheme()}
 				{#if current}
-					<AdminCard class="flex items-center gap-2.5 sm:gap-3 flex-wrap px-3 py-2 sm:p-4">
+					<AdminCard
+						data-testid="appearance-live-chrome"
+						class="flex items-center gap-2.5 sm:gap-3 flex-wrap px-3 py-2 sm:p-4"
+					>
 						<iconify-icon
 							icon="mdi:theme-light-dark"
 							class="text-xl sm:text-2xl text-tertiary-500 dark:text-primary-500"

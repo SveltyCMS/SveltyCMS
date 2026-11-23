@@ -1076,7 +1076,7 @@
 				</Tooltip>
 				{#if presetsOpen}
 					<div
-						class="presets-dropdown absolute inset-e-0 z-30 mt-2 w-72 max-w-[calc(100vw-1.5rem)] rounded-(--admin-radius-card) border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) p-1.5 shadow-2xl dark:border-surface-500/40 dark:bg-surface-900"
+						class="presets-dropdown absolute start-0 end-auto z-30 mt-2 w-72 max-w-[calc(100vw-1.5rem)] rounded-(--admin-radius-card) border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) p-1.5 shadow-2xl dark:border-surface-500/40 dark:bg-surface-900"
 						role="menu"
 						data-testid="dashboard-presets-menu"
 					>

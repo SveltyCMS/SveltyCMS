@@ -1503,6 +1503,12 @@ export abstract class AdapterCore extends SqlAdapterCore {
     if (options?.transaction && !txnConn) {
       return super.update(collection, id, data, options);
     }
+    // ENTERPRISE `_id` CONTRACT: this override replaces the base `update()` in
+    // SqlAdapterCore, which is where `validateEntryId()` runs. Without the call
+    // here a non-UUID id reaches SQL, matches no row and surfaces as
+    // UPDATE_NOT_FOUND instead of INVALID_ID_FORMAT (adapter-parity contract).
+    const invalidId = this.validateEntryId(collection, id);
+    if (invalidId) return invalidId;
     const rawExec = this.getRawExec(options);
     try {
       const d =

@@ -32,6 +32,10 @@ test.describe("Extension Management", () => {
     await expect(page.getByTestId("extensions-tab-plugins")).toBeVisible();
     await expect(page.getByTestId("extensions-tab-widgets")).toBeVisible();
     await expect(page.getByTestId("extensions-tab-marketplace")).toBeVisible();
+    // The page now opens on the widgets tab and the panel testid is derived from
+    // it, so select the plugins panel explicitly before asserting it.
+    await expect(page.getByTestId("extensions-panel-widgets")).toBeVisible();
+    await page.getByTestId("extensions-tab-plugins").click();
     await expect(page.getByTestId("extensions-panel-plugins")).toBeVisible();
     await expect(page.getByTestId("plugins-view")).toBeVisible();
   });
@@ -50,6 +54,7 @@ test.describe("Extension Management", () => {
 
   test("plugins grid or empty state is present", async ({ page }) => {
     await goExtensions(page);
+    await page.getByTestId("extensions-tab-plugins").click();
     await expect(
       page.getByTestId("plugins-grid").or(page.getByTestId("plugins-empty")).first(),
     ).toBeVisible({ timeout: ACTION_TIMEOUT });

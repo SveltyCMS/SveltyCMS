@@ -91,7 +91,9 @@ test.describe("Design System discard", () => {
     const discard = page.getByTestId("appearance-theme-discard");
     await expect(discard).toHaveCount(0);
 
-    const tabsCard = page.locator("div.card").filter({ has: page.getByTestId("appearance-tabs") });
+    // The appearance tab strip moved out of its card (config UX rework); the
+    // live-chrome witness is the header card that consumes the theme tokens.
+    const tabsCard = page.getByTestId("appearance-live-chrome");
     await expect(tabsCard).toHaveCount(1);
 
     const savedVariant = await variantSelect.inputValue();

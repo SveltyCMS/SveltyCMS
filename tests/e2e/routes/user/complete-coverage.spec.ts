@@ -175,7 +175,9 @@ test.describe("User Editing", () => {
     // hydrates is a silent no-op (this shard failed its flake budget on that gap).
     await expect(async () => {
       if (await editDialog.isVisible().catch(() => false)) return;
-      await page.getByRole("button", { name: /Edit User Settings/i }).click({ timeout: 2_000 });
+      const editBtnProbe = page.getByTestId("edit-user-settings-btn");
+      await expect(editBtnProbe).toBeEnabled({ timeout: ACTION_TIMEOUT });
+      await editBtnProbe.click({ timeout: 2_000 });
       await expect(editDialog).toBeVisible({ timeout: 3_000 });
     }).toPass({ timeout: ACTION_TIMEOUT, intervals: [500, 1_000, 2_000] });
 
@@ -200,7 +202,9 @@ test.describe("User Editing", () => {
   });
 
   test("email field is disabled in edit modal", async ({ page }) => {
-    await page.getByRole("button", { name: /Edit User Settings/i }).click();
+    const editBtnProbe = page.getByTestId("edit-user-settings-btn");
+    await expect(editBtnProbe).toBeEnabled({ timeout: ACTION_TIMEOUT });
+    await editBtnProbe.click();
 
     const editDialog = page.getByRole("dialog", { name: /Edit User Data/i });
     await expect(editDialog).toBeVisible({ timeout: ACTION_TIMEOUT });
@@ -216,7 +220,9 @@ test.describe("User Editing", () => {
   test("own profile shows role info with 'cannot change your own role' message", async ({
     page,
   }) => {
-    await page.getByRole("button", { name: /Edit User Settings/i }).click();
+    const editBtnProbe = page.getByTestId("edit-user-settings-btn");
+    await expect(editBtnProbe).toBeEnabled({ timeout: ACTION_TIMEOUT });
+    await editBtnProbe.click();
 
     const editDialog = page.getByRole("dialog", { name: /Edit User Data/i });
     await expect(editDialog).toBeVisible({ timeout: ACTION_TIMEOUT });
@@ -634,7 +640,7 @@ test.describe("Responsive Viewports", () => {
     });
 
     // The Edit User Settings button should be visible (may need scroll)
-    const editBtn = page.getByRole("button", { name: /Edit User Settings/i });
+    const editBtn = page.getByTestId("edit-user-settings-btn");
     if (await editBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
       await expect(editBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
     }
@@ -749,7 +755,9 @@ test.describe("Error States", () => {
   });
 
   test("submit edit form with empty username shows validation error", async ({ page }) => {
-    await page.getByRole("button", { name: /Edit User Settings/i }).click();
+    const editBtnProbe = page.getByTestId("edit-user-settings-btn");
+    await expect(editBtnProbe).toBeEnabled({ timeout: ACTION_TIMEOUT });
+    await editBtnProbe.click();
 
     const editDialog = page.getByRole("dialog", { name: /Edit User Data/i });
     await expect(editDialog).toBeVisible({ timeout: ACTION_TIMEOUT });
@@ -873,7 +881,7 @@ test.describe("Page Completeness", () => {
   });
 
   test("Edit User Settings button is accessible", async ({ page }) => {
-    const editBtn = page.getByRole("button", { name: /Edit User Settings/i });
+    const editBtn = page.getByTestId("edit-user-settings-btn");
     await expect(editBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
     // Verify it has an accessible name (via aria-label or visible text content)
     const accessibleName = await editBtn.getAttribute("aria-label");

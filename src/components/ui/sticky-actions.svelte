@@ -23,12 +23,17 @@ in their original position as the fallback.
 	let { children }: { children: import('svelte').Snippet } = $props();
 
 	const theme = getThemeContext();
+	// Rendered in place on the server and before hydration: a page action that
+	// only exists in the client-registered sticky bar is invisible to a no-JS
+	// reader and missing from the SSR contract (hydration-contract.spec.ts).
+	let mounted = $state(false);
 	// When the theme's sticky action bar is enabled, the layout renders the
 	// registered content at the viewport bottom — rendering it in place too
 	// would duplicate the actions (settings pages showed the same bar twice).
 	const stickyBarEnabled = $derived(theme?.features?.stickyActionBar ?? false);
 
 	onMount(() => {
+		mounted = true;
 		ui.stickyActionContent = children;
 		return () => {
 			ui.stickyActionContent = null;
@@ -36,6 +41,6 @@ in their original position as the fallback.
 	});
 </script>
 
-{#if !stickyBarEnabled}
+{#if !(stickyBarEnabled && mounted)}
 	{@render children()}
 {/if}
