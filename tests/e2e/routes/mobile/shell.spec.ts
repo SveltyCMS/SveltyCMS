@@ -109,7 +109,10 @@ test.describe("mobile admin shell", () => {
     const close = page.getByRole("button", { name: "Close navigation overlay" });
     await expect(close).toBeVisible({ timeout: ACTION_TIMEOUT });
 
-    await close.click();
+    // The close control IS the full-screen backdrop; its centre sits under the
+    // radial menu, so a click there is intercepted by the ring. A user taps
+    // empty space — do the same: click the backdrop near the top-left corner.
+    await close.click({ position: { x: 8, y: 8 } });
     await expect(close).toHaveCount(0, { timeout: ACTION_TIMEOUT });
   });
 
