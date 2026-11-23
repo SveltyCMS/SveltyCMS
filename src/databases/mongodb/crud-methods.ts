@@ -127,8 +127,12 @@ function coerceFilterDates(model: unknown, filter: Record<string, unknown>): voi
         continue;
       }
       if (key.startsWith("$")) continue;
-      const isStringPath = pathOf?.(key)?.instance === "String";
-      if (!isStringPath) {
+      // Coerce UNLESS the model declares a real Date path: mongo storage in this
+      // codebase is ISO strings by default (schema.ts `type: String`), and the
+      // declared exceptions are the auth session/user expiry fields. An unknown
+      // path (native wrapper without a mongoose schema) is treated as string.
+      const isDatePath = pathOf?.(key)?.instance === "Date";
+      if (isDatePath) {
         if (value && typeof value === "object" && !Array.isArray(value)) {
           walk(value as Record<string, unknown>);
         }
@@ -534,6 +538,18 @@ export class MongoCrudMethods<T extends BaseEntity> {
         }),
       );
 
+      // Date -> ISO string for date columns stored as strings (see coerceFilterDates).
+      if (process.env.SVELTY_DBG_FILTER && this.model.collection?.name === "media") {
+        const cq = secureQuery as Record<string, any>;
+        console.log(
+          "[dbg-filter]",
+          JSON.stringify(cq),
+          "| createdAt type:",
+          typeof cq?.createdAt,
+          JSON.stringify(cq?.createdAt),
+        );
+      }
+      coerceFilterDates(this.model, secureQuery as Record<string, unknown>);
       // Convert sort options if they exist
       const sort = options.sort as any;
 

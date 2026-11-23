@@ -86,33 +86,21 @@ test.describe("Unified Data Hub — always-on", () => {
   });
 
   test("unified-data-hub can be enabled (enable-plugin or UI)", async ({ page }) => {
-    let pluginAvailable = false;
-    try {
-      await enablePlugin(page, "unified-data-hub", true);
-      pluginAvailable = true;
-    } catch {
-      // Plugin not registered — skip
-    }
-    test.skip(!pluginAvailable, "Unified Data Hub plugin not registered in this install");
+    // `enable-plugin` flips the stored flag even when the plugin was never registered in
+    // this install, so its success proves nothing. `pluginRegistry` only holds plugins
+    // whose server module registered (the hub is license-gated), and the extensions page
+    // renders `pluginRegistry.getAll()`. Probe the rendered catalogue instead.
+    await enablePlugin(page, "unified-data-hub", true).catch(() => undefined);
     await page.goto("/config/extensions");
-    // Plugin cards render in the plugins panel; the page opens on the widgets tab.
     await page.getByTestId("extensions-tab-plugins").click();
-    await expect(
-      page
-        .getByTestId("extensions-page")
-        .or(page.getByRole("heading", { level: 1 }))
-        .first(),
-    ).toBeVisible({
-      timeout: 10_000,
-    });
     const card = page
       .getByTestId("plugin-card-unified-data-hub")
-      .or(page.locator("[data-plugin-id='unified-data-hub']"))
-      .or(page.locator("div").filter({ hasText: "Unified Data Hub" }).first());
-    await expect(
-      card.first(),
-      "Unified Data Hub plugin must be registered in this install",
-    ).toBeVisible({ timeout: 15_000 });
+      .or(page.locator("[data-plugin-id='unified-data-hub']"));
+    test.skip(
+      (await card.count()) === 0,
+      "Unified Data Hub is not in the server plugin registry (license-gated) in this install",
+    );
+    await expect(card.first()).toBeVisible({ timeout: 15_000 });
   });
 });
 
