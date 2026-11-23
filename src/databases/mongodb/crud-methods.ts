@@ -758,11 +758,17 @@ export class MongoCrudMethods<T extends BaseEntity> {
           bypassSafeQuery: options.bypassSafeQuery,
         });
 
+        // Preserve an explicitly supplied timestamp: bulk imports (migration,
+        // smart-importer) and the parity suite hand over createdAt/updatedAt and
+        // every other adapter keeps them. Stamping `now` here made mongo diverge
+        // from sqlite/mariadb/postgres and broke the media date-floor pushdown.
+        const createdAt = (secureData.createdAt as string | undefined) ?? now;
+        const updatedAt = (secureData.updatedAt as string | undefined) ?? createdAt;
         const doc = {
           ...secureData,
           _id: (secureData._id as string) || generateId(),
-          createdAt: now,
-          updatedAt: now,
+          createdAt,
+          updatedAt,
           isDeleted: false,
         };
         return { insertOne: { document: doc } };
