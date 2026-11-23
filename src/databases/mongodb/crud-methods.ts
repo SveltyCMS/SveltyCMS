@@ -539,16 +539,6 @@ export class MongoCrudMethods<T extends BaseEntity> {
       );
 
       // Date -> ISO string for date columns stored as strings (see coerceFilterDates).
-      if (process.env.SVELTY_DBG_FILTER && this.model.collection?.name === "media") {
-        const cq = secureQuery as Record<string, any>;
-        console.log(
-          "[dbg-filter]",
-          JSON.stringify(cq),
-          "| createdAt type:",
-          typeof cq?.createdAt,
-          JSON.stringify(cq?.createdAt),
-        );
-      }
       coerceFilterDates(this.model, secureQuery as Record<string, unknown>);
       // Convert sort options if they exist
       const sort = options.sort as any;
