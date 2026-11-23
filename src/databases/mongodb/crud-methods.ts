@@ -109,9 +109,12 @@ function toMongoSortSpec(sort: unknown): Record<string, 1 | -1> {
  * schema path is a String - genuine Date paths keep the Date object.
  */
 function coerceFilterDates(model: unknown, filter: Record<string, unknown>): void {
-  const pathOf = (
-    model as { schema?: { path?: (name: string) => { instance?: string } | null } } | null
-  )?.schema?.path;
+  // Bound call: `schema.path` reads `this.paths`, so an unbound reference throws
+  // a TypeError for every findMany (500s across the mongo suite).
+  const pathOf = (name: string): { instance?: string } | null | undefined =>
+    (
+      model as { schema?: { path?: (n: string) => { instance?: string } | null } } | null
+    )?.schema?.path?.(name);
   const walk = (node: Record<string, unknown>): void => {
     for (const key of Object.keys(node)) {
       const value = node[key];
