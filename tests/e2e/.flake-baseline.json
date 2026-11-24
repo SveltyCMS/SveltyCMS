@@ -1,0 +1,5 @@
+{
+  "at": "2026-11-24T06:30:00.000Z",
+  "sha": "579ce8b07e61318a9933ac53faa2c0bb77bd50b3",
+  "reason": "post-fix baseline: the 5 flaky / 30 failed recorded 17.-21.11. belong to the tree that still carried the mongo insertMany timestamp bug, the mariadb validateEntryId gap, the /config/sync 500 and the mobile overlay interception fixed in 579ce8b07; the three probes after those commits measured 0 flaky / 0 failed (960 executed)"
+}

@@ -10,12 +10,15 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  applyBaseline,
   entriesInWindow,
   evaluateTrend,
+  parseBaselineContent,
   parseHistoryContent,
   parsePlaywrightReport,
   summariseWindow,
   type HistoryEntry,
+  type TrendBaseline,
   type WindowStats,
 } from "../../../scripts/check/check-flake-trend";
 
@@ -139,6 +142,74 @@ describe("parseHistoryContent", () => {
   it("returns nothing for an empty file", () => {
     expect(parseHistoryContent("")).toEqual({ entries: [], malformed: 0 });
   });
+
+  it("keeps the sha of a run when the line carries one", () => {
+    const raw = JSON.stringify({ ...entry(), sha: "579ce8b07e61318a9933ac53faa2c0bb77bd50b3" });
+
+    expect(parseHistoryContent(raw).entries[0]?.sha).toBe(
+      "579ce8b07e61318a9933ac53faa2c0bb77bd50b3",
+    );
+  });
+
+  it("omits the sha for legacy lines instead of inventing one", () => {
+    const raw = JSON.stringify({
+      at: "2026-11-12T01:00:00.000Z",
+      executed: 25,
+      flaky: 0,
+      failed: 0,
+    });
+
+    expect(parseHistoryContent(raw).entries[0]).not.toHaveProperty("sha");
+  });
+});
+
+describe("parseBaselineContent", () => {
+  it("reads at, sha and reason", () => {
+    const raw = JSON.stringify({
+      at: "2026-11-24T06:00:00.000Z",
+      sha: "579ce8b07e61318a9933ac53faa2c0bb77bd50b3",
+      reason: "post-fix baseline",
+    });
+
+    expect(parseBaselineContent(raw)).toEqual({
+      at: "2026-11-24T06:00:00.000Z",
+      sha: "579ce8b07e61318a9933ac53faa2c0bb77bd50b3",
+      reason: "post-fix baseline",
+    });
+  });
+
+  it("needs only a valid timestamp", () => {
+    expect(parseBaselineContent(JSON.stringify({ at: "2026-11-24T06:00:00.000Z" }))).toEqual({
+      at: "2026-11-24T06:00:00.000Z",
+    });
+  });
+
+  it("returns null for a missing, invalid or non-object baseline", () => {
+    expect(parseBaselineContent("")).toBeNull();
+    expect(parseBaselineContent("not json")).toBeNull();
+    expect(parseBaselineContent("[]")).toBeNull();
+    expect(parseBaselineContent(JSON.stringify({ at: "not-a-date" }))).toBeNull();
+    expect(parseBaselineContent(JSON.stringify({ sha: "579ce8b" }))).toBeNull();
+  });
+});
+
+describe("applyBaseline", () => {
+  const baseline: TrendBaseline = { at: "2026-11-20T00:00:00.000Z" };
+
+  it("drops entries recorded before the baseline and keeps the rest", () => {
+    const before = entry({ at: "2026-11-19T23:59:59.999Z", label: "before" });
+    const atBaseline = entry({ at: "2026-11-20T00:00:00.000Z", label: "at-baseline" });
+    const after = entry({ at: "2026-11-21T00:00:00.000Z", label: "after" });
+
+    expect(applyBaseline([before, atBaseline, after], baseline).map((item) => item.label)).toEqual([
+      "at-baseline",
+      "after",
+    ]);
+  });
+
+  it("keeps an empty list empty", () => {
+    expect(applyBaseline([], baseline)).toEqual([]);
+  });
 });
 
 describe("entriesInWindow", () => {
@@ -227,5 +298,20 @@ describe("evaluateTrend", () => {
 
     expect(verdict.ok).toBe(false);
     expect(verdict.reasons).toEqual(["flaky 1 > budget 0"]);
+  });
+
+  it("fails a gated window that measured nothing", () => {
+    const verdict = evaluateTrend(windowStats({ runs: 0, executed: 0 }), budget, {
+      requireRuns: true,
+    });
+
+    expect(verdict.ok).toBe(false);
+    expect(verdict.reasons).toEqual([
+      "no runs inside the window — a gate without data is not a pass",
+    ]);
+  });
+
+  it("keeps an empty window green in report-only mode", () => {
+    expect(evaluateTrend(windowStats({ runs: 0, executed: 0 }), budget).ok).toBe(true);
   });
 });

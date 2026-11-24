@@ -16,16 +16,26 @@
  *   bun run scripts/check/check-flake-trend.ts --allow-missing --check
  *
  * Features:
- * - one JSONL line per run: `{ at, label, executed, flaky, failed }`
+ * - one JSONL line per run: `{ at, sha, label, executed, flaky, failed }`
  * - rolling window (`--window-days`, default 7) with per-run + total table
  * - fail-closed only when `--check` is passed (append-only runs never gate)
+ * - `--check` also fails when the window holds no run at all: a moved baseline
+ *   must not turn "nothing measured" into a green gate
  * - tolerates a missing or corrupt history (warns, keeps the valid lines)
  * - `--allow-missing` treats an absent/unparseable report as "no new data"
  *   (the accumulated window is still gated by `--check`)
  * - appends a Markdown table to GITHUB_STEP_SUMMARY when set
  * - reads Playwright JSON with the same stats/suite-walk strategy as
  *   `check-flake-budget.ts`
- * - pure `parseHistoryContent` / `entriesInWindow` / `evaluateTrend` cores
+ * - `tests/e2e/.flake-baseline.json` moves the start of the window forward
+ *   after a fix wave: entries recorded against the tree that still contained
+ *   the bug stop counting (`--baseline=<path>` to point elsewhere,
+ *   `--no-baseline` to ignore it). The file stays the audit trail — it names
+ *   the baseline sha and the reason, and nothing is deleted from the history.
+ * - every appended line records the commit (`--sha=`, else `GITHUB_SHA`), so a
+ *   later report can attribute a flake to a tree instead of guessing
+ * - pure `parseHistoryContent` / `parseBaselineContent` / `applyBaseline` /
+ *   `entriesInWindow` / `evaluateTrend` cores
  */
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
@@ -39,6 +49,7 @@ const __dirname =
 const ROOT = join(__dirname, "../..");
 
 const DEFAULT_HISTORY = join(ROOT, "tests", "e2e", ".flake-history.jsonl");
+const DEFAULT_BASELINE = join(ROOT, "tests", "e2e", ".flake-baseline.json");
 const DAY_MS = 86_400_000;
 /** Keep the console/Markdown table readable when the window holds many shards. */
 const MAX_TABLE_ROWS = 40;
@@ -52,10 +63,27 @@ export interface Totals {
 
 export interface HistoryEntry {
   at: string;
+  /** Commit the run measured; absent on lines written before this field existed. */
+  sha?: string;
   label: string;
   executed: number;
   flaky: number;
   failed: number;
+}
+
+/**
+ * Committed marker (`tests/e2e/.flake-baseline.json`).
+ *
+ * A baseline exists because the history is append-only and spans trees: after a
+ * wave of fixes, flakes recorded against the tree that still held the bug are
+ * not evidence about the current one. Moving the baseline forward starts the
+ * window clean without deleting a single history line, and the marker carries
+ * the sha and the reason so the decision stays reviewable.
+ */
+export interface TrendBaseline {
+  at: string;
+  sha?: string;
+  reason?: string;
 }
 
 export interface WindowStats {
@@ -213,6 +241,7 @@ export function parseHistoryContent(raw: string): {
 
       entries.push({
         at,
+        ...(typeof parsed.sha === "string" && parsed.sha ? { sha: parsed.sha } : {}),
         label: typeof parsed.label === "string" && parsed.label ? parsed.label : "unknown",
         executed,
         flaky,
@@ -238,6 +267,55 @@ function readHistory(path: string): { entries: HistoryEntry[]; malformed: number
   }
 
   return parseHistoryContent(raw);
+}
+
+/**
+ * Parses the committed baseline marker.
+ *
+ * Anything unparseable yields `null` (no baseline): a broken marker must never
+ * silently widen the window, and it must never fail the gate either — the
+ * history alone then decides, exactly as before this feature existed.
+ */
+export function parseBaselineContent(raw: string): TrendBaseline | null {
+  try {
+    const parsed: unknown = JSON.parse(raw.replace(/^\uFEFF/, ""));
+    if (!isRecord(parsed)) return null;
+
+    const at = parsed.at;
+    if (typeof at !== "string" || !Number.isFinite(Date.parse(at))) return null;
+
+    return {
+      at,
+      ...(typeof parsed.sha === "string" && parsed.sha ? { sha: parsed.sha } : {}),
+      ...(typeof parsed.reason === "string" && parsed.reason ? { reason: parsed.reason } : {}),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function readBaseline(path: string): TrendBaseline | null {
+  if (!existsSync(path)) return null;
+
+  try {
+    const baseline = parseBaselineContent(readFileSync(path, "utf8"));
+    if (!baseline) {
+      console.warn(`[flake-trend] ignoring unparseable baseline ${path}`);
+    }
+    return baseline;
+  } catch (error) {
+    console.warn(`[flake-trend] cannot read baseline ${path} (${String(error)})`);
+    return null;
+  }
+}
+
+/** Drops every entry recorded before the baseline; nothing older counts. */
+export function applyBaseline(
+  entries: readonly HistoryEntry[],
+  baseline: TrendBaseline,
+): HistoryEntry[] {
+  const since = Date.parse(baseline.at);
+  return entries.filter((entry) => Date.parse(entry.at) >= since);
 }
 
 function appendEntry(path: string, entry: HistoryEntry): void {
@@ -269,8 +347,17 @@ export function summariseWindow(entries: readonly HistoryEntry[]): WindowStats {
 }
 
 /** Gate decision: a value exactly at budget passes, above it fails. */
-export function evaluateTrend(window: WindowStats, budget: TrendBudget): TrendVerdict {
+export function evaluateTrend(
+  window: WindowStats,
+  budget: TrendBudget,
+  options: { requireRuns?: boolean } = {},
+): TrendVerdict {
   const reasons: string[] = [];
+  // A gate that saw nothing must not report green: that is the shape a moved or
+  // misspelled baseline would take, and "no data" is not a clean window.
+  if (options.requireRuns && window.runs === 0) {
+    reasons.push("no runs inside the window — a gate without data is not a pass");
+  }
   if (window.flaky > budget.maxFlaky) {
     reasons.push(`flaky ${window.flaky} > budget ${budget.maxFlaky}`);
   }
@@ -289,13 +376,18 @@ function mdCell(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/\r?\n/g, " ");
 }
 
+function shortSha(entry: HistoryEntry): string {
+  return entry.sha ? entry.sha.slice(0, 9) : "—";
+}
+
 function printTable(entries: HistoryEntry[], window: WindowStats): void {
   const omitted = Math.max(0, entries.length - MAX_TABLE_ROWS);
   const shown = omitted > 0 ? entries.slice(-MAX_TABLE_ROWS) : entries;
 
-  const header = ["At", "Label", "Executed", "Failed", "Flaky", "Rate"];
+  const header = ["At", "Sha", "Label", "Executed", "Failed", "Flaky", "Rate"];
   const rows = shown.map((entry) => [
     entry.at,
+    shortSha(entry),
     entry.label,
     String(entry.executed),
     String(entry.failed),
@@ -304,6 +396,7 @@ function printTable(entries: HistoryEntry[], window: WindowStats): void {
   ]);
   rows.push([
     "TOTAL",
+    "—",
     `${window.runs} run${window.runs === 1 ? "" : "s"}`,
     String(window.executed),
     String(window.failed),
@@ -321,7 +414,7 @@ function printTable(entries: HistoryEntry[], window: WindowStats): void {
     console.log(
       row
         .map((cell, column) =>
-          column <= 1 ? cell.padEnd(widths[column]) : cell.padStart(widths[column]),
+          column <= 2 ? cell.padEnd(widths[column]) : cell.padStart(widths[column]),
         )
         .join("  "),
     );
@@ -332,14 +425,14 @@ function markdownTable(entries: HistoryEntry[], window: WindowStats, windowDays:
   const omitted = Math.max(0, entries.length - MAX_TABLE_ROWS);
   const shown = omitted > 0 ? entries.slice(-MAX_TABLE_ROWS) : entries;
   const lines = [
-    `| At | Label | Executed | Failed | Flaky | Rate |`,
-    `|---|---|---:|---:|---:|---:|`,
-    ...(omitted > 0 ? [`| … | *${omitted} earlier run(s) omitted* | | | | |`] : []),
+    `| At | Sha | Label | Executed | Failed | Flaky | Rate |`,
+    `|---|---|---|---:|---:|---:|---:|`,
+    ...(omitted > 0 ? [`| … | | *${omitted} earlier run(s) omitted* | | | | |`] : []),
     ...shown.map(
       (entry) =>
-        `| ${mdCell(entry.at)} | ${mdCell(entry.label)} | ${entry.executed} | ${entry.failed} | ${entry.flaky} | ${formatRate(rate(entry.flaky, entry.executed))} |`,
+        `| ${mdCell(entry.at)} | ${shortSha(entry)} | ${mdCell(entry.label)} | ${entry.executed} | ${entry.failed} | ${entry.flaky} | ${formatRate(rate(entry.flaky, entry.executed))} |`,
     ),
-    `| **Total** | **${window.runs} run${window.runs === 1 ? "" : "s"} / ${windowDays}d** | **${window.executed}** | **${window.failed}** | **${window.flaky}** | **${formatRate(window.rate)}** |`,
+    `| **Total** | | **${window.runs} run${window.runs === 1 ? "" : "s"} / ${windowDays}d** | **${window.executed}** | **${window.failed}** | **${window.flaky}** | **${formatRate(window.rate)}** |`,
   ];
   return lines.join("\n");
 }
@@ -358,11 +451,13 @@ function writeSummary(markdown: string): void {
 function main(): number {
   const reportArg = arg("append", "");
   const historyPath = resolve(arg("history", DEFAULT_HISTORY));
+  const baselinePath = resolve(arg("baseline", DEFAULT_BASELINE));
   const windowDays = Math.max(0, numberArg("window-days", 7));
   const maxRate = numberArg("max-rate", 1);
   const maxFlaky = numberArg("max-flaky", 0);
   const gate = hasFlag("check");
   const allowMissing = hasFlag("allow-missing");
+  const sha = arg("sha", process.env.GITHUB_SHA ?? "").trim();
   const label =
     arg("label", process.env.FLAKE_LABEL || process.env.GITHUB_JOB || "local").trim() || "local";
 
@@ -392,6 +487,7 @@ function main(): number {
           // Standalone script: `@utils/date` pulls `$app/state`, which does not
           // resolve under plain `bun` — keep the history self-contained.
           at: new Date().toISOString(),
+          ...(sha ? { sha } : {}),
           label,
           executed,
           flaky: totals.flaky,
@@ -410,12 +506,19 @@ function main(): number {
     console.warn(`[flake-trend] ignored ${malformed} corrupt line(s) in ${historyPath}`);
   }
 
-  const windowed = entriesInWindow(entries, Date.now(), windowDays);
-  const window = summariseWindow(windowed);
-  const verdict = evaluateTrend(window, { maxFlaky, maxRate });
-  const reasons = verdict.reasons;
+  // A baseline only ever shortens the window: entries recorded before it belong
+  // to a tree that no longer exists in the working set.
+  const baseline = hasFlag("no-baseline") ? null : readBaseline(baselinePath);
+  const eligible = baseline ? applyBaseline(entries, baseline) : entries;
+  const excluded = entries.length - eligible.length;
 
-  const icon = verdict.ok ? "✅" : "❌";
+  const windowed = entriesInWindow(eligible, Date.now(), windowDays);
+  const window = summariseWindow(windowed);
+  const verdict = evaluateTrend(window, { maxFlaky, maxRate }, { requireRuns: gate });
+  const reasons = verdict.reasons;
+  const ok = reasons.length === 0;
+
+  const icon = ok ? "✅" : "❌";
   console.log(
     `\n${icon} Flake trend — ${windowDays}-day window · ${window.runs} run${window.runs === 1 ? "" : "s"} · ` +
       `${window.executed} executed · ${window.flaky} flaky · ${window.failed} failed · ${formatRate(window.rate)}`,
@@ -423,6 +526,13 @@ function main(): number {
   console.log(
     `   Budget: ≤${maxFlaky} flaky · ≤${maxRate}% (${gate ? "gating" : "report only"})\n`,
   );
+  if (baseline) {
+    const origin = `${baseline.at}${baseline.sha ? ` @ ${baseline.sha.slice(0, 9)}` : ""}`;
+    console.log(
+      `   Baseline: ${origin}${baseline.reason ? ` — ${baseline.reason}` : ""}` +
+        ` (${excluded} earlier run${excluded === 1 ? "" : "s"} excluded)\n`,
+    );
+  }
 
   if (windowed.length > 0) {
     printTable(windowed, window);
@@ -436,6 +546,10 @@ function main(): number {
     (windowed.length > 0
       ? `${markdownTable(windowed, window, windowDays)}\n\n`
       : "_No runs inside the window._\n\n") +
+    (baseline
+      ? `**Baseline:** ${baseline.at}${baseline.sha ? ` @ \`${baseline.sha.slice(0, 9)}\`` : ""}` +
+        `${baseline.reason ? ` — ${baseline.reason}` : ""} · ${excluded} earlier run(s) excluded\n\n`
+      : "") +
     `**Budget:** ≤${maxFlaky} flaky · ≤${maxRate}% over ${windowDays} days — ` +
     (reasons.length > 0 ? `exceeded: ${reasons.join("; ")}` : "within budget") +
     `\n`;
