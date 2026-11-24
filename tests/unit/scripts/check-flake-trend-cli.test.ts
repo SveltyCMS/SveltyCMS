@@ -78,13 +78,24 @@ function writeBaseline(dir: string, baseline: unknown): string {
 
 /** Five flakes over five nightly runs — the shape the real window had. */
 function flakyHistory(): Line[] {
-  return [7, 6, 5, 4, 3].map((age, index) => ({
+  // Ages stay well inside the 7-day window: an entry at exactly `now - 7 days`
+  // flips in and out with the clock, which made this fixture pass locally and
+  // fail in CI by one run.
+  return [6, 5, 4, 3, 2].map((age) => ({
     at: daysAgo(age),
     label: "nightly probe",
     executed: 270,
-    flaky: index === 4 ? 2 : 1,
+    flaky: 1,
     failed: 6,
   }));
+}
+
+/** The same window plus one clean probe twelve hours ago. */
+function flakyHistoryPlusClean(): Line[] {
+  return [
+    ...flakyHistory(),
+    { at: daysAgo(0.5), label: "nightly probe", executed: 330, flaky: 0, failed: 0 },
+  ];
 }
 
 const BUDGET = ["--window-days=7", "--max-rate=1", "--max-flaky=2"];
@@ -104,12 +115,9 @@ describe("check-flake-trend CLI", () => {
 
   it("passes with a baseline that starts after those runs", () => {
     const dir = workdir();
-    const history = writeHistory(dir, [
-      ...flakyHistory(),
-      { at: daysAgo(1), label: "nightly probe", executed: 330, flaky: 0, failed: 0 },
-    ]);
+    const history = writeHistory(dir, flakyHistoryPlusClean());
     const baseline = writeBaseline(dir, {
-      at: daysAgo(2),
+      at: daysAgo(1),
       sha: "579ce8b07e61318a9933ac53faa2c0bb77bd50b3",
       reason: "test baseline",
     });
@@ -128,18 +136,15 @@ describe("check-flake-trend CLI", () => {
 
   it("keeps the runs the baseline leaves inside the window", () => {
     const dir = workdir();
-    const history = writeHistory(dir, [
-      ...flakyHistory(),
-      { at: daysAgo(1), label: "nightly probe", executed: 330, flaky: 0, failed: 0 },
-    ]);
-    const baseline = writeBaseline(dir, { at: daysAgo(2), reason: "after the fix wave" });
+    const history = writeHistory(dir, flakyHistoryPlusClean());
+    const baseline = writeBaseline(dir, { at: daysAgo(1), reason: "after the fix wave" });
     const io = capture();
 
     main(["--check", ...BUDGET, `--history=${history}`, `--baseline=${baseline}`], io, {});
 
     // one run kept, 330 executed, zero flakes: the window is not empty
     expect(output(io)).toContain("1 run · 330 executed · 0 flaky");
-    // five nightly runs inside the window were removed by the marker
+    // the five nightly runs inside the window were removed by the marker
     expect(output(io)).toContain("5 earlier runs excluded");
   });
 
