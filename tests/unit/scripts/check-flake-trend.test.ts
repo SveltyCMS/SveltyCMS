@@ -314,4 +314,15 @@ describe("evaluateTrend", () => {
   it("keeps an empty window green in report-only mode", () => {
     expect(evaluateTrend(windowStats({ runs: 0, executed: 0 }), budget).ok).toBe(true);
   });
+
+  it("lets the caller name the missing data", () => {
+    const verdict = evaluateTrend(windowStats({ runs: 0, executed: 0 }), budget, {
+      requireRuns: true,
+      noDataReason: "no report and no history — the probe produced no measurement",
+    });
+
+    expect(verdict.reasons).toEqual([
+      "no report and no history — the probe produced no measurement",
+    ]);
+  });
 });

@@ -23,7 +23,9 @@
  *   must not turn "nothing measured" into a green gate
  * - tolerates a missing or corrupt history (warns, keeps the valid lines)
  * - `--allow-missing` treats an absent/unparseable report as "no new data"
- *   (the accumulated window is still gated by `--check`)
+ *   (the accumulated window is still gated by `--check`; if the history is empty
+ *   as well the gate fails with "no report and no history" — deliberate, a probe
+ *   that measured nothing must not read as clean)
  * - appends a Markdown table to GITHUB_STEP_SUMMARY when set
  * - reads Playwright JSON with the same stats/suite-walk strategy as
  *   `check-flake-budget.ts`
@@ -104,17 +106,17 @@ export interface TrendVerdict {
   reasons: string[];
 }
 
-function arg(name: string, fallback = ""): string {
-  const hit = process.argv.find((item) => item.startsWith(`--${name}=`));
+function arg(argv: readonly string[], name: string, fallback = ""): string {
+  const hit = argv.find((item) => item.startsWith(`--${name}=`));
   return hit ? hit.slice(name.length + 3) : fallback;
 }
 
-function hasFlag(name: string): boolean {
-  return process.argv.includes(`--${name}`);
+function hasFlag(argv: readonly string[], name: string): boolean {
+  return argv.includes(`--${name}`);
 }
 
-function numberArg(name: string, fallback: number): number {
-  const value = Number.parseFloat(arg(name, String(fallback)));
+function numberArg(argv: readonly string[], name: string, fallback: number): number {
+  const value = Number.parseFloat(arg(argv, name, String(fallback)));
   return Number.isFinite(value) ? value : fallback;
 }
 
@@ -294,17 +296,26 @@ export function parseBaselineContent(raw: string): TrendBaseline | null {
   }
 }
 
-function readBaseline(path: string): TrendBaseline | null {
+function readBaseline(path: string, warn: (line: string) => void): TrendBaseline | null {
   if (!existsSync(path)) return null;
 
   try {
     const baseline = parseBaselineContent(readFileSync(path, "utf8"));
     if (!baseline) {
-      console.warn(`[flake-trend] ignoring unparseable baseline ${path}`);
+      warn(`[flake-trend] ignoring unparseable baseline ${path}`);
+      return null;
+    }
+    if (!baseline.sha) {
+      warn(`[flake-trend] baseline ${path} has no sha — it cannot be tied to a tree`);
+    } else if (!/^[0-9a-f]{7,40}$/i.test(baseline.sha)) {
+      warn(`[flake-trend] baseline ${path} sha "${baseline.sha}" is not a commit sha`);
+    }
+    if (!baseline.reason) {
+      warn(`[flake-trend] baseline ${path} has no reason — a reset without one is not reviewable`);
     }
     return baseline;
   } catch (error) {
-    console.warn(`[flake-trend] cannot read baseline ${path} (${String(error)})`);
+    warn(`[flake-trend] cannot read baseline ${path} (${String(error)})`);
     return null;
   }
 }
@@ -350,13 +361,15 @@ export function summariseWindow(entries: readonly HistoryEntry[]): WindowStats {
 export function evaluateTrend(
   window: WindowStats,
   budget: TrendBudget,
-  options: { requireRuns?: boolean } = {},
+  options: { requireRuns?: boolean; noDataReason?: string } = {},
 ): TrendVerdict {
   const reasons: string[] = [];
   // A gate that saw nothing must not report green: that is the shape a moved or
   // misspelled baseline would take, and "no data" is not a clean window.
   if (options.requireRuns && window.runs === 0) {
-    reasons.push("no runs inside the window — a gate without data is not a pass");
+    reasons.push(
+      options.noDataReason ?? "no runs inside the window — a gate without data is not a pass",
+    );
   }
   if (window.flaky > budget.maxFlaky) {
     reasons.push(`flaky ${window.flaky} > budget ${budget.maxFlaky}`);
@@ -380,7 +393,11 @@ function shortSha(entry: HistoryEntry): string {
   return entry.sha ? entry.sha.slice(0, 9) : "—";
 }
 
-function printTable(entries: HistoryEntry[], window: WindowStats): void {
+function printTable(
+  entries: HistoryEntry[],
+  window: WindowStats,
+  log: (line: string) => void,
+): void {
   const omitted = Math.max(0, entries.length - MAX_TABLE_ROWS);
   const shown = omitted > 0 ? entries.slice(-MAX_TABLE_ROWS) : entries;
 
@@ -409,9 +426,9 @@ function printTable(entries: HistoryEntry[], window: WindowStats): void {
     Math.max(...all.map((row) => (row[column] ?? "").length)),
   );
 
-  if (omitted > 0) console.log(`   … ${omitted} earlier run(s) omitted\n`);
+  if (omitted > 0) log(`   … ${omitted} earlier run(s) omitted\n`);
   for (const row of all) {
-    console.log(
+    log(
       row
         .map((cell, column) =>
           column <= 2 ? cell.padEnd(widths[column]) : cell.padStart(widths[column]),
@@ -430,55 +447,78 @@ function markdownTable(entries: HistoryEntry[], window: WindowStats, windowDays:
     ...(omitted > 0 ? [`| … | | *${omitted} earlier run(s) omitted* | | | | |`] : []),
     ...shown.map(
       (entry) =>
-        `| ${mdCell(entry.at)} | ${shortSha(entry)} | ${mdCell(entry.label)} | ${entry.executed} | ${entry.failed} | ${entry.flaky} | ${formatRate(rate(entry.flaky, entry.executed))} |`,
+        `| ${mdCell(entry.at)} | ${mdCell(shortSha(entry))} | ${mdCell(entry.label)} | ${entry.executed} | ${entry.failed} | ${entry.flaky} | ${formatRate(rate(entry.flaky, entry.executed))} |`,
     ),
     `| **Total** | | **${window.runs} run${window.runs === 1 ? "" : "s"} / ${windowDays}d** | **${window.executed}** | **${window.failed}** | **${window.flaky}** | **${formatRate(window.rate)}** |`,
   ];
   return lines.join("\n");
 }
 
-function writeSummary(markdown: string): void {
-  const target = process.env.GITHUB_STEP_SUMMARY;
+function writeSummary(
+  markdown: string,
+  env: NodeJS.ProcessEnv,
+  warn: (line: string) => void,
+): void {
+  const target = env.GITHUB_STEP_SUMMARY;
   if (target) {
     try {
       appendFileSync(target, markdown, "utf8");
     } catch (error) {
-      console.warn(`[flake-trend] cannot write GITHUB_STEP_SUMMARY (${String(error)})`);
+      warn(`[flake-trend] cannot write GITHUB_STEP_SUMMARY (${String(error)})`);
     }
   }
 }
 
-function main(): number {
-  const reportArg = arg("append", "");
-  const historyPath = resolve(arg("history", DEFAULT_HISTORY));
-  const baselinePath = resolve(arg("baseline", DEFAULT_BASELINE));
-  const windowDays = Math.max(0, numberArg("window-days", 7));
-  const maxRate = numberArg("max-rate", 1);
-  const maxFlaky = numberArg("max-flaky", 0);
-  const gate = hasFlag("check");
-  const allowMissing = hasFlag("allow-missing");
-  const sha = arg("sha", process.env.GITHUB_SHA ?? "").trim();
-  const label =
-    arg("label", process.env.FLAKE_LABEL || process.env.GITHUB_JOB || "local").trim() || "local";
+/** Console surface `main` writes to; the tests pass a recorder instead. */
+export interface TrendIo {
+  log: (line: string) => void;
+  error: (line: string) => void;
+  warn: (line: string) => void;
+}
+
+/**
+ * Entry point. Exported so the CLI contract (flags, exit codes, table shape,
+ * summary body) can be tested in-process — spawning a child from the vitest
+ * worker returns no captured output, so the process boundary is not testable
+ * here.
+ */
+export function main(
+  argv: readonly string[] = process.argv,
+  io: TrendIo = console,
+  env: NodeJS.ProcessEnv = process.env,
+): number {
+  const reportArg = arg(argv, "append", "");
+  const historyPath = resolve(arg(argv, "history", DEFAULT_HISTORY));
+  const baselinePath = resolve(arg(argv, "baseline", DEFAULT_BASELINE));
+  const windowDays = Math.max(0, numberArg(argv, "window-days", 7));
+  const maxRate = numberArg(argv, "max-rate", 1);
+  const maxFlaky = numberArg(argv, "max-flaky", 0);
+  const gate = hasFlag(argv, "check");
+  const allowMissing = hasFlag(argv, "allow-missing");
+  const sha = arg(argv, "sha", env.GITHUB_SHA ?? "").trim();
+  const label = arg(argv, "label", env.FLAKE_LABEL || env.GITHUB_JOB || "local").trim() || "local";
+  let reportSkipped = false;
 
   if (reportArg) {
     const reportPath = resolve(reportArg);
     if (!existsSync(reportPath)) {
       if (!allowMissing) {
-        console.error(`[flake-trend] report not found: ${reportPath}`);
+        io.error(`[flake-trend] report not found: ${reportPath}`);
         return 1;
       }
-      console.warn(`[flake-trend] no report at ${reportPath} — not appending`);
+      reportSkipped = true;
+      io.warn(`[flake-trend] no report at ${reportPath} — not appending`);
     } else {
       let totals: Totals | null = null;
       try {
         totals = readReport(reportPath);
       } catch (error) {
         if (!allowMissing) {
-          console.error(`[flake-trend] cannot parse ${reportPath}: ${String(error)}`);
+          io.error(`[flake-trend] cannot parse ${reportPath}: ${String(error)}`);
           return 1;
         }
-        console.warn(`[flake-trend] cannot parse ${reportPath} — not appending`);
+        reportSkipped = true;
+        io.warn(`[flake-trend] cannot parse ${reportPath} — not appending`);
       }
 
       if (totals) {
@@ -494,7 +534,7 @@ function main(): number {
           failed: totals.failed,
         };
         appendEntry(historyPath, entry);
-        console.log(
+        io.log(
           `[flake-trend] appended ${label}: ${entry.flaky} flaky / ${entry.executed} executed (${formatRate(rate(entry.flaky, entry.executed))})`,
         );
       }
@@ -503,43 +543,54 @@ function main(): number {
 
   const { entries, malformed } = readHistory(historyPath);
   if (malformed > 0) {
-    console.warn(`[flake-trend] ignored ${malformed} corrupt line(s) in ${historyPath}`);
+    io.warn(`[flake-trend] ignored ${malformed} corrupt line(s) in ${historyPath}`);
   }
 
   // A baseline only ever shortens the window: entries recorded before it belong
   // to a tree that no longer exists in the working set.
-  const baseline = hasFlag("no-baseline") ? null : readBaseline(baselinePath);
+  const baseline = hasFlag(argv, "no-baseline") ? null : readBaseline(baselinePath, io.warn);
   const eligible = baseline ? applyBaseline(entries, baseline) : entries;
-  const excluded = entries.length - eligible.length;
 
   const windowed = entriesInWindow(eligible, Date.now(), windowDays);
-  const window = summariseWindow(windowed);
-  const verdict = evaluateTrend(window, { maxFlaky, maxRate }, { requireRuns: gate });
-  const reasons = verdict.reasons;
-  const ok = reasons.length === 0;
+  // Report how much of the *window* the marker removed, not how many old lines
+  // happen to sit in the cache.
+  const excluded = baseline
+    ? entriesInWindow(entries, Date.now(), windowDays).length - windowed.length
+    : 0;
 
-  const icon = ok ? "✅" : "❌";
-  console.log(
+  const window = summariseWindow(windowed);
+  const verdict = evaluateTrend(
+    window,
+    { maxFlaky, maxRate },
+    {
+      requireRuns: gate,
+      ...(reportSkipped
+        ? { noDataReason: "no report and no history — the probe produced no measurement" }
+        : {}),
+    },
+  );
+  const reasons = verdict.reasons;
+
+  const icon = verdict.ok ? "✅" : "❌";
+  io.log(
     `\n${icon} Flake trend — ${windowDays}-day window · ${window.runs} run${window.runs === 1 ? "" : "s"} · ` +
       `${window.executed} executed · ${window.flaky} flaky · ${window.failed} failed · ${formatRate(window.rate)}`,
   );
-  console.log(
-    `   Budget: ≤${maxFlaky} flaky · ≤${maxRate}% (${gate ? "gating" : "report only"})\n`,
-  );
+  io.log(`   Budget: ≤${maxFlaky} flaky · ≤${maxRate}% (${gate ? "gating" : "report only"})\n`);
   if (baseline) {
     const origin = `${baseline.at}${baseline.sha ? ` @ ${baseline.sha.slice(0, 9)}` : ""}`;
-    console.log(
+    io.log(
       `   Baseline: ${origin}${baseline.reason ? ` — ${baseline.reason}` : ""}` +
         ` (${excluded} earlier run${excluded === 1 ? "" : "s"} excluded)\n`,
     );
   }
 
   if (windowed.length > 0) {
-    printTable(windowed, window);
+    printTable(windowed, window, io.log);
   } else {
-    console.log("   (no runs inside the window)");
+    io.log("   (no runs inside the window)");
   }
-  console.log("");
+  io.log("");
 
   const body =
     `## ${icon} Flake trend (${windowDays}-day rolling)\n\n` +
@@ -553,17 +604,17 @@ function main(): number {
     `**Budget:** ≤${maxFlaky} flaky · ≤${maxRate}% over ${windowDays} days — ` +
     (reasons.length > 0 ? `exceeded: ${reasons.join("; ")}` : "within budget") +
     `\n`;
-  writeSummary(body);
+  writeSummary(body, env, io.warn);
 
   if (!gate) return 0;
 
   if (reasons.length > 0) {
-    console.error(`[flake-trend] budget exceeded — ${reasons.join("; ")}`);
-    console.log(`::error title=Flake trend::${reasons.join("; ")}`);
+    io.error(`[flake-trend] budget exceeded — ${reasons.join("; ")}`);
+    io.log(`::error title=Flake trend::${reasons.join("; ")}`);
     return 1;
   }
 
-  console.log(`[flake-trend] within budget (${window.flaky} flaky, ${formatRate(window.rate)})`);
+  io.log(`[flake-trend] within budget (${window.flaky} flaky, ${formatRate(window.rate)})`);
   return 0;
 }
 

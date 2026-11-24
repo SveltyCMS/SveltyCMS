@@ -1341,7 +1341,7 @@ jobs:
 
       - name: Record run
         if: always()
-        run: bun run scripts/check/check-flake-trend.ts --append=tests/playwright-results.json --label="nightly probe" --allow-missing
+        run: bun run scripts/check/check-flake-trend.ts --append=tests/playwright-results.json --label="nightly probe" --sha=${{ github.sha }} --allow-missing
 
       - name: Save flake history
         if: always()

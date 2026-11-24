@@ -245,7 +245,7 @@ Seed/reset under `/api/testing` exist **only** for CI/E2E.
 | Zero-mock OIDC peer    | `tests/integration/helpers/oidc-test-server.ts` — real HTTP provider on `127.0.0.1:0` (discovery, `/authorize`, `/token` + PKCE, `/jwks`, logout-token minting) |
 | Local DB parity        | `scripts/runs/run-local-db-matrix.ts` — `bun run test:parity` (`--docker`, `--only`, `--require-all`)                                                           |
 | Flake budget           | `scripts/check/check-flake-budget.ts` — `bun run flake:budget` (reads Playwright JSON)                                                                          |
-| Flake trend            | `scripts/check/check-flake-trend.ts` — rolling 7-day rate from `tests/e2e/.flake-history.jsonl` (`--append`, `--check`)                                         |
+| Flake trend            | `scripts/check/check-flake-trend.ts` — rolling 7-day rate from `tests/e2e/.flake-history.jsonl` (`--append`, `--check`, `--baseline`, `--no-baseline`)          |
 | Nightly flake probe    | `scripts/runs/e2e-flake-nightly.ts` — `--repeat-each=3` over the 20 newest `tests/e2e` specs (`--list` to inspect)                                              |
 | **Canonical fixtures** | `tests/harness` — `ADMIN_CREDENTIALS` / `USERS` / `TEST_PASSWORD` (all layers)                                                                                  |
 | Integration harness    | `tests/integration/harness.ts` — singleton preview, private.test.ts, seed isolation                                                                             |
@@ -354,11 +354,18 @@ recovered test to be recorded as `flaky`, then `bun run flake:budget` applies th
 
 **Rolling flake rule** — the per-run budget stays as a shard-local early warning, but the
 **gate is the rolling window**: `check-flake-trend.ts --append=<json>` records
-`{ at, label, executed, flaky, failed }` in `tests/e2e/.flake-history.jsonl`, and
+`{ at, sha, label, executed, flaky, failed }` in `tests/e2e/.flake-history.jsonl`, and
 `--check` fails when the 7-day window exceeds `--max-flaky=0` / `--max-rate=1`. One flaky
 test out of 29 executed (3.45 %) no longer fails a shard; a flake that keeps recurring
 does. The history file is generated state — CI carries it with a cache keyed on the
 workflow, never a commit.
+
+**Flake baseline rule** — the history spans trees, so a fix wave can leave the window red
+on flakes that no longer exist. `tests/e2e/.flake-baseline.json` (`at`, `sha`, `reason`)
+starts the window later: nothing is deleted, the pre-baseline lines stay in the file and in
+the table, and `--no-baseline` reproduces the un-reset verdict. Moving the marker is a
+reviewed change — it names the tree it starts at and the reason, and the gate fails closed
+when the window ends up with no run at all.
 
 **Nightly repeat rule** — `e2e-flake-nightly.ts` selects the N newest specs by
 `git log -1 --format=%ct` (path ascending as tie-break, filesystem mtime for untracked
