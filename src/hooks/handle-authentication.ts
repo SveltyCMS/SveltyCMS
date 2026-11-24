@@ -35,6 +35,7 @@ import {
   readSessionCookie,
   clearAllSessionCookies as clearCookiesHelper,
 } from "@utils/security/session-cookie";
+import { Policy, hasPolicy } from "./policy";
 import type { Role, User } from "@src/databases/auth/types";
 import { isValidApiKeyFormat, hashApiKey } from "@src/databases/auth/api-keys";
 import { recordApiKeyUsage } from "@src/databases/auth/api-key-usage-accumulator";
@@ -1277,7 +1278,8 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     return await resolve(event);
   };
 
-  const turboSessionId = readSessionCookie(cookies, isSecure);
+  const stripCookies = hasPolicy((locals as { policy?: number }).policy ?? 0, Policy.STRIP_COOKIES);
+  const turboSessionId = stripCookies ? null : readSessionCookie(cookies, isSecure);
   // 🛡️ Turbo-auth only for safe methods — mutations must go through CSRF
   const method = event.request.method;
   if (turboSessionId && (method === "GET" || method === "HEAD" || method === "OPTIONS")) {
@@ -1433,7 +1435,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     const apiKey = event.request.headers.get("x-api-key");
     const websiteToken = event.request.headers.get("x-website-token");
 
-    const sessionId = readSessionCookie(cookies, isSecure);
+    const sessionId = stripCookies ? null : readSessionCookie(cookies, isSecure);
 
     // 🚀 ULTRA-FAST GUEST FAST PATH: No credentials at all on safe read request
     if (
@@ -1955,7 +1957,8 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     }
 
     // Ephemeral Guest Authentication for public API endpoints
-    const hasAuthAttempt = !!authHeader || !!readSessionCookie(cookies, isSecure);
+    const hasAuthAttempt =
+      !!authHeader || (!stripCookies && !!readSessionCookie(cookies, isSecure));
 
     // Skip ephemeral guest creation for test-mode requests — they should hit the real 401 path
     const testSecret = event.request.headers.get("x-test-secret");

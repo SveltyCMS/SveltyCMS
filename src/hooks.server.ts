@@ -106,6 +106,47 @@ import {
 import { generateUUID } from "@utils/native-utils";
 import { startCpuProfilerIfEnabled } from "@utils/cpu-profiler";
 import { installFastLanes } from "./hooks/fast-lane.server";
+import { Policy, hasPolicy } from "./hooks/policy";
+import { resolveRoutePolicy } from "./hooks/route-table";
+import { assertProductionPreflight } from "@src/server/preflight";
+import { EventLoopShedder, type RequestPriority } from "@utils/event-loop-shedder";
+
+const eventLoopShedder = new EventLoopShedder();
+if (!building) {
+  eventLoopShedder.start();
+}
+
+function classifyLoadShedPriority(
+  pathname: string,
+  method: string,
+  hasAuth: boolean,
+): RequestPriority {
+  if (method !== "GET" && method !== "HEAD") return "high";
+  if (
+    pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/api/setup") ||
+    pathname.startsWith("/setup")
+  ) {
+    return "high";
+  }
+  if (
+    !hasAuth &&
+    (pathname.startsWith("/api/search") ||
+      pathname.startsWith("/api/analytics") ||
+      pathname.startsWith("/api/telemetry"))
+  ) {
+    return "low";
+  }
+  return "normal";
+}
+
+if (!building) {
+  assertProductionPreflight(process.env, {
+    setupComplete: isSetupComplete(),
+    allowConfigFileSecrets: true,
+  });
+}
 
 // 🧠 ONE HARDWARE DETECTION AT PROCESS START: detects the host once and publishes
 // the shared profile to the global registry — every module, chunk and worker
@@ -596,6 +637,7 @@ if (!building) {
       g.__SVELTY_SHUTTING_DOWN__ = true;
 
       logger.info(`Received ${signal}. Starting graceful shutdown...`);
+      eventLoopShedder.stop();
       const shutdownTimeout = setTimeout(() => {
         logger.error(`Graceful shutdown timed out after 10s. Force exiting.`);
         process.exit(1);
@@ -901,6 +943,25 @@ export const handle: Handle = async ({ event, resolve }) => {
   }
 
   const pathname = event.url.pathname;
+  const { policy, routeId } = resolveRoutePolicy(pathname, event.request.method);
+  (event.locals as { policy?: number; routeId?: string }).policy = policy;
+  (event.locals as { policy?: number; routeId?: string }).routeId = routeId;
+
+  if (hasPolicy(policy, Policy.STRIP_COOKIES)) {
+    event.locals.user = null;
+  }
+
+  if (eventLoopShedder.isOverloaded) {
+    const hasAuth = Boolean(
+      event.locals.user ||
+      event.request.headers.get("authorization") ||
+      event.request.headers.get("cookie")?.includes("session"),
+    );
+    const shedPriority = classifyLoadShedPriority(pathname, event.request.method, hasAuth);
+    if (eventLoopShedder.shouldShed(shedPriority)) {
+      return withLane(eventLoopShedder.createShedResponse(), lane);
+    }
+  }
 
   // 🚀 Health check early-exit dispatcher: skip trace setup, context, collection checks, and full pipeline
   if (

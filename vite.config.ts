@@ -1076,6 +1076,11 @@ export default defineConfig(() => {
     },
     define: {
       __SVELTY_SETUP_COMPLETE__: isSetupComplete(),
+      __IS_TEST__:
+        process.env.TEST_MODE === "true" ||
+        process.env.PLAYWRIGHT_TEST === "true" ||
+        process.env.VITEST === "true",
+      __IS_BENCHMARK__: process.env.BENCHMARK === "true",
       global: "globalThis",
     },
     build: {

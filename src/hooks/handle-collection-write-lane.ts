@@ -20,7 +20,8 @@
 import type { RequestEvent } from "@sveltejs/kit";
 import type { Handle } from "@sveltejs/kit/hooks";
 import { RequestLane } from "./handle-request-classifier";
-import { AppError, handleApiError } from "@utils/error-handling";
+import { AppError, handleApiError, raise } from "@utils/error-handling";
+import { assertSafeJsonObject, JsonGuardError } from "@utils/security/json-guard";
 import { isSecureCookieContext, isAdmin } from "@src/databases/auth/constants";
 import { readSessionCookie } from "@utils/security/session-cookie";
 import { validateSessionMfaRequirement } from "@src/databases/auth/permissions";
@@ -492,6 +493,14 @@ async function executeWarmCollectionWrite(
   }
   const tParse = STAMP_WRITE_SPLIT ? performance.now() : 0;
   const raw = (locals as any).__parsedJsonBody || (await request.json());
+  try {
+    assertSafeJsonObject(raw);
+  } catch (err) {
+    if (err instanceof JsonGuardError) {
+      raise(400, err.message, err.code);
+    }
+    throw err;
+  }
   const data = unwrapWritePayload(raw);
   const expectedVersion = extractExpectedVersion(event, data);
   if (marks) marks.set("parse", performance.now() - tParse);

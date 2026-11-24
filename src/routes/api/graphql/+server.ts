@@ -68,6 +68,7 @@ import {
   getOrParseDocument,
   matchCollectionQuery,
 } from "./cost-analyzer";
+import { checkGraphqlQueryLimits } from "./query-guard";
 import {
   resolvePublicationFilter,
   type PublicationFilter,
@@ -422,6 +423,14 @@ const securityValidationPlugin = {
     // the standard error envelope instead of masking it as a 500.
     const query = params?.source || params?.query;
     if (typeof query === "string") {
+      const guard = checkGraphqlQueryLimits(query, {
+        exemptIntrospection: !isIntrospectionBlocked(),
+      });
+      if (!guard.allowed) {
+        throw new GraphQLError(guard.reason ?? "GraphQL query rejected by security guard.", {
+          extensions: { code: guard.code },
+        });
+      }
       const analysis = analyzeQueryCost(query);
       if (!analysis.allowed) {
         throw new GraphQLError(formatCostError(analysis.cost, 1000), {

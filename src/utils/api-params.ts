@@ -10,6 +10,9 @@
  * - Hard page-size ceiling (MAX_PAGE_SIZE) shared by REST, SDK and GraphQL read paths
  */
 
+import { guardJsonPayload } from "@utils/security/json-guard";
+import { guardQueryFilter } from "@utils/security/query-filter-guard";
+
 /**
  * Hard upper bound for a single page of results on every read path that accepts a
  * client-supplied `limit` (REST query params, GraphQL resolvers/fast path, and the
@@ -291,14 +294,18 @@ export function parseCollectionQueryParams(searchParams: URLSearchParams): Colle
       filter[field] = operators;
     } else if (key === "filter") {
       try {
-        const parsed = JSON.parse(value);
+        const parsed = guardJsonPayload(value);
         if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
           Object.assign(filter, normalizeFilterOperatorNames(parsed as Record<string, unknown>));
         }
       } catch {
-        /* ignore malformed json */
+        /* catch-allow: ignore malformed or unsafe json filter */
       }
     }
+  }
+
+  if (Object.keys(filter).length > 0) {
+    guardQueryFilter(filter);
   }
 
   return {
@@ -368,6 +375,10 @@ export function parseVirtualCollectionQueryParams(
     }
   }
 
+  if (filter && Object.keys(filter).length > 0) {
+    guardQueryFilter(filter);
+  }
+
   return {
     limit,
     offset,
@@ -422,5 +433,6 @@ export function parsePaginationQueryParams(
   }
 
   const offset = (page - 1) * limit;
+
   return { page, limit, offset, search, sort, order, raw };
 }

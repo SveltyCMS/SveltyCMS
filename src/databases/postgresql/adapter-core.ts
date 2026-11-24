@@ -989,6 +989,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
               data: convertArrayDatesToISO(rowsOut, {
                 ...this.convertDatesOptions,
                 table: collection,
+                inPlace: true,
               }) as T[],
             };
           }

@@ -81,6 +81,12 @@ export interface SqlCrudReadContext {
   >;
   escapedTableNameCache: WeakMap<object, string>;
   executeCompiled?: (sql: string, params: unknown[], options?: unknown) => Promise<unknown[]>;
+  rawFindByIdSync?<T>(
+    table: Table | unknown,
+    collection: string,
+    id: DatabaseId,
+    options: unknown,
+  ): T | null | typeof RAW_DECLINED;
   rawFindById<T>(
     table: Table | unknown,
     collection: string,
@@ -127,7 +133,7 @@ export interface SqlCrudReadContext {
     options?: unknown,
   ): Promise<unknown>;
   wrap<T>(
-    op: () => Promise<T>,
+    op: () => T | Promise<T>,
     errorCode: string,
     metricName?: string,
     opts?: { skipMeta?: boolean; bypassSafeQuery?: boolean },
@@ -139,77 +145,97 @@ export interface SqlCrudReadContext {
   ): Promise<DatabaseResult<T | null>>;
 }
 
+async function executeSqlFindByIdAsyncFallback<T extends BaseEntity>(
+  ctx: SqlCrudReadContext,
+  table: Table,
+  collection: string,
+  id: DatabaseId,
+  options: FindOptions<T>,
+  clampDeleted: boolean,
+): Promise<T | null> {
+  if (ctx.useRawFindById) {
+    const rawResult = await ctx.rawFindById<T>(table, collection, id, options);
+    if (rawResult !== RAW_DECLINED) {
+      if (rawResult !== null && clampDeleted && isSoftDeletedRow(rawResult)) return null;
+      return rawResult as T | null;
+    }
+  }
+
+  const idCol = ctx.getColumn(table, "_id") || ctx.getColumn(table, "id");
+  if (!idCol) throw new Error("ID column not found");
+
+  const conditions: SQL[] = [eq(idCol as Column, id as string)];
+  const tenantCol = ctx.getColumn(table, "tenantId");
+  applyTenantFilter(conditions, tenantCol, options);
+  const isDeletedCol = clampDeleted ? ctx.getColumn(table, "isDeleted") : null;
+  if (isDeletedCol) conditions.push(eq(isDeletedCol as Column, false));
+
+  const results = await ctx
+    .getDrizzleInstance(options)
+    .select(ctx.getProjectedSelection(table, options))
+    .from(table)
+    .where(and(...conditions))
+    .limit(1);
+
+  if (results.length === 0) return null;
+  const excludeData = ctx.shouldExcludeData(table, options);
+  return excludeData
+    ? (convertDatesToISO(results[0], {
+        ...ctx.convertDatesOptions,
+        table: collection,
+        inPlace: true,
+        skipJson: true,
+      }) as T)
+    : (convertDatesToISO(results[0], {
+        ...ctx.convertDatesOptions,
+        table: collection,
+        inPlace: true,
+      }) as T);
+}
+
 /**
  * Executes a findById point-read operation on the SQL database adapter.
+ * Sync drivers (SQLite) resolve in zero microtask hops via `rawFindByIdSync`.
  */
-export async function executeSqlFindById<T extends BaseEntity>(
+export function executeSqlFindById<T extends BaseEntity>(
   ctx: SqlCrudReadContext,
   collection: string,
   id: DatabaseId,
   options: FindOptions<T> = {},
 ): Promise<DatabaseResult<T | null>> {
   if (typeof collection !== "string") {
-    return {
+    return Promise.resolve({
       success: false,
       message: `Invalid collection: expected string, got ${typeof collection}`,
       error: {
         code: "INVALID_COLLECTION",
         message: "Collection name must be a string",
       },
-    };
+    });
   }
   if (id === undefined || id === null) {
-    return {
+    return Promise.resolve({
       success: false,
       message: `Invalid ID: ${id}`,
       error: { code: "INVALID_ID", message: "ID must be a non-null value" },
-    };
+    });
   }
   return ctx.wrap(
-    async () => {
+    () => {
       const table = ctx.getTable(collection);
       if (!table) throw new Error(`Collection table not found: ${collection}`);
 
       const clampDeleted = !options.includeDeleted && !options.bypassSafeQuery;
 
-      if (ctx.useRawFindById) {
-        const rawResult = await ctx.rawFindById<T>(table, collection, id, options);
-        if (rawResult !== RAW_DECLINED) {
-          if (rawResult !== null && clampDeleted && isSoftDeletedRow(rawResult)) return null;
-          return rawResult as T | null;
+      if (ctx.useRawFindById && ctx.rawFindByIdSync) {
+        const syncResult = ctx.rawFindByIdSync<T>(table, collection, id, options);
+        if (syncResult !== RAW_DECLINED) {
+          if (syncResult !== null && clampDeleted && isSoftDeletedRow(syncResult)) return null;
+          return syncResult as T | null;
         }
       }
 
-      const idCol = ctx.getColumn(table, "_id") || ctx.getColumn(table, "id");
-      if (!idCol) throw new Error("ID column not found");
-
-      const conditions: SQL[] = [eq(idCol as Column, id as string)];
-      const tenantCol = ctx.getColumn(table, "tenantId");
-      applyTenantFilter(conditions, tenantCol, options);
-      const isDeletedCol = clampDeleted ? ctx.getColumn(table, "isDeleted") : null;
-      if (isDeletedCol) conditions.push(eq(isDeletedCol as Column, false));
-
-      const results = await ctx
-        .getDrizzleInstance(options)
-        .select(ctx.getProjectedSelection(table, options))
-        .from(table)
-        .where(and(...conditions))
-        .limit(1);
-
-      if (results.length === 0) return null;
-      const excludeData = ctx.shouldExcludeData(table, options);
-      return excludeData
-        ? (convertDatesToISO(results[0], {
-            ...ctx.convertDatesOptions,
-            table: collection,
-            inPlace: true,
-            skipJson: true,
-          }) as T)
-        : (convertDatesToISO(results[0], {
-            ...ctx.convertDatesOptions,
-            table: collection,
-            inPlace: true,
-          }) as T);
+      return executeSqlFindByIdAsyncFallback<T>(ctx, table, collection, id, options, clampDeleted);
     },
     "FIND_BY_ID_FAILED",
     undefined,
@@ -219,22 +245,23 @@ export async function executeSqlFindById<T extends BaseEntity>(
 
 /**
  * Executes a findOne query operation on the SQL database adapter.
+ * Point `{ _id }` lookups delegate directly to `findById` without extra async hops.
  */
-export async function executeSqlFindOne<T extends BaseEntity>(
+export function executeSqlFindOne<T extends BaseEntity>(
   ctx: SqlCrudReadContext,
   collection: string,
   query: QueryFilter<T>,
   options: FindOptions<T> = {},
 ): Promise<DatabaseResult<T | null>> {
   if (typeof collection !== "string") {
-    return {
+    return Promise.resolve({
       success: false,
       message: `Invalid collection: expected string, got ${typeof collection}`,
       error: {
         code: "INVALID_COLLECTION",
         message: "Collection name must be a string",
       },
-    };
+    });
   }
 
   // 🚀 ALL-SQL ULTRA PATH: {_id} / {_id,tenantId} / + scalar status → findById
@@ -245,14 +272,17 @@ export async function executeSqlFindOne<T extends BaseEntity>(
         lookup.tenantId !== undefined && !options.tenantId
           ? { ...options, tenantId: String(lookup.tenantId) }
           : options;
-      const byId = await ctx.findById<T>(
+      const byIdPromise = ctx.findById<T>(
         collection,
         lookup.id as DatabaseId,
         fastOpts as FindOptions<T>,
       );
-      if (!byId.success || !lookup.status) return byId;
-      const matched = applyLookupStatus(byId.data, lookup);
-      return matched === byId.data ? byId : { ...byId, data: matched };
+      if (!lookup.status) return byIdPromise;
+      return byIdPromise.then((byId) => {
+        if (!byId.success) return byId;
+        const matched = applyLookupStatus(byId.data, lookup);
+        return matched === byId.data ? byId : { ...byId, data: matched };
+      });
     }
   }
 

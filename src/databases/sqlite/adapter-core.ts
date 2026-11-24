@@ -305,12 +305,21 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     return (db as { values: (q: SQL) => Promise<any[]> }).values(sqlQuery);
   }
 
+  protected override rawExecOneSync<R = Record<string, unknown>>(
+    sqlText: string,
+    params: readonly unknown[],
+    _options?: BaseQueryOptions,
+  ): R | null {
+    const rawRow = this.executePreparedStatement(sqlText, "get", params);
+    return rawRow ? (rawRow as R) : null;
+  }
+
   protected override async rawExec<R = Record<string, unknown>>(
     sqlText: string,
     params: readonly unknown[],
     _options?: BaseQueryOptions,
   ): Promise<R[] | null> {
-    const rawRow = this.prepareAndExecute(sqlText, "get", ...params);
+    const rawRow = this.executePreparedStatement(sqlText, "get", params);
     return rawRow ? [rawRow as R] : [];
   }
 
@@ -411,12 +420,13 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       }
       const params = tpl.cols.map((c) => synthesized[c]);
       const mStmt = PROFILE_WRITE_ENABLED ? profileMark("db:ins:stmt") : null;
-      await this.prepareAndExecuteWrite(tpl.sqlText, "run", ...params);
+      await this.executePreparedStatementWrite(tpl.sqlText, "run", params);
       mStmt?.();
       const mConv = PROFILE_WRITE_ENABLED ? profileMark("db:ins:conv") : null;
       const converted = convertDatesToISO(synthesized, {
         ...this.convertDatesOptions,
         table: collection,
+        inPlace: true,
       }) as T;
       mConv?.();
       return converted;
@@ -459,7 +469,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       // 🔬 Parity with the single-row `db:ins:stmt` above — one mark per executed
       // statement keeps N = Σ db:*:stmt ÷ ns:persist comparable for bulk inserts.
       const mStmt = PROFILE_WRITE_ENABLED ? profileMark("db:ins:stmt") : null;
-      const rows = await this.prepareAndExecuteWrite(rawSql, "all", ...allParams);
+      const rows = await this.executePreparedStatementWrite(rawSql, "all", allParams);
       mStmt?.();
       if (Array.isArray(rows) && rows.length > 0) {
         return convertArrayDatesToISO(rows, {
@@ -541,9 +551,12 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         this._updateSqlCache.set(cacheKey, rawSql);
       }
 
+      params.push(String(id));
+      for (let i = 0; i < tenantParams.length; i++) params.push(tenantParams[i]);
+
       if (skipReturning) {
         const mStmtR = PROFILE_WRITE_ENABLED ? profileMark("db:upd:stmt") : null;
-        await this.prepareAndExecuteWrite(rawSql, "run", ...params, String(id), ...tenantParams);
+        await this.executePreparedStatementWrite(rawSql, "run", params);
         mStmtR?.();
         const reconstructed = {
           ...values,
@@ -560,13 +573,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       }
 
       const mStmt = PROFILE_WRITE_ENABLED ? profileMark("db:upd:stmt") : null;
-      const rows = await this.prepareAndExecuteWrite(
-        rawSql,
-        "all",
-        ...params,
-        String(id),
-        ...tenantParams,
-      );
+      const rows = await this.executePreparedStatementWrite(rawSql, "all", params);
       mStmt?.();
       if (Array.isArray(rows) && rows.length > 0) {
         const mConv = PROFILE_WRITE_ENABLED ? profileMark("db:upd:conv") : null;
@@ -1103,47 +1110,56 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
             cols.add("updatedAt");
             if (cols.size > 0) {
               const colListArr = Array.from(cols);
-              const maxParams = 900;
-              const chunkSize = Math.max(1, Math.floor(maxParams / colListArr.length));
+              const colCount = colListArr.length;
+              // Modern SQLite (3.32+, bundled in Bun & Node 24) allows up to 32,766
+              // bind params; 10,000 keeps 100–800 row batches in ONE atomic INSERT
+              // (1 WAL commit instead of 2+ under the old 900-param ceiling).
+              const maxParams = 10_000;
+              const chunkSize = Math.max(1, Math.floor(maxParams / colCount));
+              const tableName = getTableName(table);
               const colList = colListArr
                 .map((c) => `"${assertSafeSqlIdentifier(c, "column")}"`)
                 .join(", ");
+              const rowPlaceholder = `(${Array.from({ length: colCount }, () => "?").join(", ")})`;
+              const nowMs = now.getTime();
+              // Precompute per-column fallback defaults once (avoids 1,000+ string compares per batch)
+              const colDefaults = colListArr.map((c) => {
+                if (c === "createdAt" || c === "updatedAt") return nowMs;
+                if (c === "isDeleted") return 0;
+                if (c === "status") return "draft";
+                if (c === "data") return "{}";
+                return null;
+              });
               const rowsOut: any[] = [];
               for (let start = 0; start < len; start += chunkSize) {
-                const chunk = batchValues.slice(start, start + chunkSize);
-                const params: any[] = [];
-                const valuesSql: string[] = [];
-                for (const row of chunk) {
-                  const rowPlaceholders: string[] = [];
-                  for (const c of colListArr) {
-                    const v = row[c];
-                    // Missing/undefined values: SQLite has no DEFAULT keyword
-                    // in VALUES, and binding undefined writes NULL — which
-                    // overrides the column default (measured: createdAt became
-                    // NULL). Fill the Drizzle-table-definition defaults
-                    // explicitly; nullable optional columns bind NULL.
+                const end = Math.min(len, start + chunkSize);
+                const chunkLen = end - start;
+                const params: unknown[] = [];
+                params.length = chunkLen * colCount;
+                let pIdx = 0;
+                for (let r = start; r < end; r++) {
+                  const row = batchValues[r];
+                  for (let c = 0; c < colCount; c++) {
+                    const v = row[colListArr[c]];
                     if (v === undefined) {
-                      if (c === "createdAt" || c === "updatedAt") params.push(now.getTime());
-                      else if (c === "isDeleted") params.push(0);
-                      else if (c === "status") params.push("draft");
-                      else if (c === "data") params.push("{}");
-                      else params.push(null);
-                      rowPlaceholders.push("?");
-                      continue;
+                      params[pIdx++] = colDefaults[c];
+                    } else if (v instanceof Date) {
+                      params[pIdx++] = v.getTime();
+                    } else if (typeof v === "boolean") {
+                      params[pIdx++] = v ? 1 : 0;
+                    } else if (v !== null && typeof v === "object" && !Array.isArray(v)) {
+                      params[pIdx++] = JSON.stringify(v);
+                    } else {
+                      params[pIdx++] = v;
                     }
-                    if (v instanceof Date) params.push(v.getTime());
-                    else if (v !== null && typeof v === "object" && !Array.isArray(v))
-                      params.push(JSON.stringify(v));
-                    else params.push(v);
-                    rowPlaceholders.push("?");
                   }
-                  valuesSql.push(`(${rowPlaceholders.join(", ")})`);
                 }
-                const sqlText = `INSERT INTO "${getTableName(table)}" (${colList}) VALUES ${valuesSql.join(", ")}${skipReturning ? "" : " RETURNING *"}`;
-                const rawRows = await this.prepareAndExecuteWrite(
+                const valuesSql = Array.from({ length: chunkLen }, () => rowPlaceholder).join(", ");
+                const sqlText = `INSERT INTO "${tableName}" (${colList}) VALUES ${valuesSql}${skipReturning ? "" : " RETURNING *"}`;
+                const rawRows = await this.executePreparedStatementWrite(
                   sqlText,
                   skipReturning ? "run" : "all",
-                  ...params,
+                  params,
                 );
                 executedChunks++;
                 if (Array.isArray(rawRows) && rawRows.length > 0) rowsOut.push(...rawRows);
@@ -1156,7 +1172,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
                 return batchValues as unknown as T[];
               }
               if (rowsOut.length === len) {
-                return convertArrayDatesToISO(rowsOut, { table: collection }) as T[];
+                return convertArrayDatesToISO(rowsOut, { table: collection, inPlace: true }) as T[];
               }
               // RETURNING mismatch after committed chunks — re-inserting via
               // the Drizzle path would duplicate the committed rows.
@@ -1224,7 +1240,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   protected _resolvedDbPath: string | null = null;
   protected connections = new Map<
     string,
-    { sqlite: SQLiteClient; db: SQLiteDB; statementCache: Map<string, any> }
+    { sqlite: SQLiteClient; db: SQLiteDB; statementCache: FastLRU<string, any> }
   >();
   /**
    * SQL text → prepared statement. A bounded LRU (not a plain Map): at the cap
@@ -1660,7 +1676,11 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       : `${base}_test_${index}.sqlite`;
     const { sqlite, db } = await this.createDriver(workerPath);
     this.applyPragmas(sqlite);
-    this.connections.set(index, { sqlite, db, statementCache: new Map() });
+    this.connections.set(index, {
+      sqlite,
+      db,
+      statementCache: new FastLRU<string, any>(1000),
+    });
   }
 
   public runInWorkerContext<T>(index: string, fn: () => T): T {
@@ -1743,7 +1763,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         let needsCoerce = false;
         for (let i = 0; i < len; i++) {
           const p = params[i];
-          if (typeof p === "boolean" || typeof p === "object") {
+          if (typeof p === "boolean" || (p !== null && typeof p === "object")) {
             needsCoerce = true;
             break;
           }
@@ -1763,11 +1783,26 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         }
       }
       let out: any;
-      if (method === "all") out = stmt.all(...bound);
-      else if (method === "get") out = stmt.get(...bound);
-      else if (method === "run") out = stmt.run(...bound);
-      else if (method === "values") out = stmt.values(...bound);
-      else out = stmt.all(...bound);
+      if (method === "get") {
+        if (len === 1) out = stmt.get(bound[0]);
+        else if (len === 2) out = stmt.get(bound[0], bound[1]);
+        else if (len === 0) out = stmt.get();
+        else out = stmt.get(...bound);
+      } else if (method === "all") {
+        if (len === 1) out = stmt.all(bound[0]);
+        else if (len === 2) out = stmt.all(bound[0], bound[1]);
+        else if (len === 0) out = stmt.all();
+        else out = stmt.all(...bound);
+      } else if (method === "run") {
+        if (len === 1) out = stmt.run(bound[0]);
+        else if (len === 2) out = stmt.run(bound[0], bound[1]);
+        else if (len === 0) out = stmt.run();
+        else out = stmt.run(...bound);
+      } else if (method === "values") {
+        out = stmt.values(...bound);
+      } else {
+        out = stmt.all(...bound);
+      }
       return out;
     } catch (err: any) {
       if (profileDb && /busy|locked/i.test(String(err?.message || ""))) {
@@ -1802,6 +1837,18 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     method: "all" | "get" | "run" | "values" = "all",
     ...params: any[]
   ): any {
+    return this.executePreparedStatementWrite(sqlText, method, params);
+  }
+
+  /**
+   * Array-taking counterpart of `prepareAndExecuteWrite` — avoids rest/spread
+   * argument copying on hot single-row and multi-row write paths.
+   */
+  public executePreparedStatementWrite(
+    sqlText: string,
+    method: "all" | "get" | "run" | "values" = "all",
+    params: readonly unknown[] = [],
+  ): any {
     const batcher = this.getWriteBatcher();
     if (
       batcher &&
@@ -1809,10 +1856,10 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       !testWorkerContext.getStore() &&
       BATCHABLE_WRITE_RE.test(sqlText)
     ) {
-      return batcher.submit(() => this.prepareAndExecute(sqlText, method, ...params));
+      return batcher.submit(() => this.executePreparedStatement(sqlText, method, params));
     }
     return SQLiteAdapterCore.writeMutex.runExclusive(() =>
-      this.prepareAndExecute(sqlText, method, ...params),
+      this.executePreparedStatement(sqlText, method, params),
     );
   }
 

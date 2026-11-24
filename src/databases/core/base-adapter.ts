@@ -293,7 +293,7 @@ export abstract class BaseAdapter {
    * eligible for the adaptive no-hop lane) from inserts/batch writes.
    */
   public wrap<T>(
-    fn: () => Promise<T>,
+    fn: () => T | Promise<T>,
     code: string,
     message?: string,
     options?: {
@@ -317,8 +317,32 @@ export abstract class BaseAdapter {
     return this.wrapInternal(fn, code, message, options);
   }
 
+  private finishTimedSuccess<T>(data: T, code: string, startTime: number): DatabaseResult<T> {
+    const latency = performance.now() - startTime;
+    this.metrics.lastLatency = latency;
+    if (latency > 500) {
+      this.metrics.slowQueryCount++;
+      const stack =
+        process.env.SVELTY_SQL_DEBUG === "1"
+          ? `\n${new Error("slow-op").stack?.split("\n").slice(2, 12).join("\n")}`
+          : "";
+      logger.warn(`Slow database operation detected: ${code} took ${latency.toFixed(2)}ms${stack}`);
+    }
+    return this.okEnvelope(data, false);
+  }
+
+  private finishError<T>(
+    error: unknown,
+    code: string,
+    message?: string,
+    suppressErrorLog?: boolean,
+  ): DatabaseResult<T> {
+    this.metrics.errorCount++;
+    return this.handleError<T>(error, code, message, { suppressErrorLog });
+  }
+
   private wrapInternal<T>(
-    fn: () => Promise<T>,
+    fn: () => T | Promise<T>,
     code: string,
     message?: string,
     options?: {
@@ -344,51 +368,29 @@ export abstract class BaseAdapter {
         if (p && typeof (p as any).then === "function") {
           return (p as Promise<T>).then(
             (data) => this.okEnvelope(data, true),
-            (error) => {
-              this.metrics.errorCount++;
-              return this.handleError<T>(error, code, message, {
-                suppressErrorLog: options?.suppressErrorLog,
-              });
-            },
+            (error) => this.finishError<T>(error, code, message, options?.suppressErrorLog),
           );
         }
         return Promise.resolve(this.okEnvelope(p as T, true));
       } catch (error) {
-        this.metrics.errorCount++;
         return Promise.resolve(
-          this.handleError<T>(error, code, message, {
-            suppressErrorLog: options?.suppressErrorLog,
-          }),
+          this.finishError<T>(error, code, message, options?.suppressErrorLog),
         );
       }
     }
 
     const startTime = performance.now();
-    const fail = (error: unknown): DatabaseResult<T> => {
-      this.metrics.errorCount++;
-      return this.handleError<T>(error, code, message, {
-        suppressErrorLog: options?.suppressErrorLog,
-      });
-    };
-    const succeed = (data: T): DatabaseResult<T> => {
-      const latency = performance.now() - startTime;
-      this.metrics.lastLatency = latency;
-      if (latency > 500) {
-        this.metrics.slowQueryCount++;
-        const stack =
-          process.env.SVELTY_SQL_DEBUG === "1"
-            ? `\n${new Error("slow-op").stack?.split("\n").slice(2, 12).join("\n")}`
-            : "";
-        logger.warn(
-          `Slow database operation detected: ${code} took ${latency.toFixed(2)}ms${stack}`,
+    try {
+      const res = traceSpan(`db:${code}`, fn);
+      if (res && typeof (res as PromiseLike<T>).then === "function") {
+        return (res as Promise<T>).then(
+          (data) => this.finishTimedSuccess(data, code, startTime),
+          (error) => this.finishError<T>(error, code, message, options?.suppressErrorLog),
         );
       }
-      return this.okEnvelope(data, false);
-    };
-    try {
-      return Promise.resolve(traceSpan(`db:${code}`, fn)).then(succeed, fail);
+      return Promise.resolve(this.finishTimedSuccess(res as T, code, startTime));
     } catch (error) {
-      return Promise.resolve(fail(error));
+      return Promise.resolve(this.finishError<T>(error, code, message, options?.suppressErrorLog));
     }
   }
 

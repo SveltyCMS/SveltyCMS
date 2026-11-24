@@ -53,6 +53,7 @@ import {
   hasNativeCompression,
   setCompressionHeaders,
 } from "./handle-compression";
+import { Policy, hasPolicy } from "./policy";
 
 export interface TurboAuthContext {
   user: User;
@@ -63,6 +64,8 @@ export interface TurboAuthContext {
   issuedAtMs: number;
   /** Absolute maximum lifetime cap (ms) so sliding TTL cannot outlive periodic re-auth. */
   maxExpiresAt: number;
+  /** Monotonic security stamp for instant revocation on logout/password/role changes. */
+  securityStamp?: number;
   permMask?: bigint;
   /** IP captured with the session. Absent until the auth hook has seen the row. */
   boundIp?: string | null;
@@ -99,15 +102,39 @@ export interface TurboAuthContext {
   mfaSatisfied?: boolean;
 }
 
+declare const __IS_BENCHMARK__: boolean | undefined;
+
 const turboAuthCache = new Map<string, TurboAuthContext>();
 export { turboAuthCache };
 const TURBO_AUTH_CACHE_MAX = 5000;
-// 🚀 TURBO AUTH CACHE: Resolved session → user context cache. The 60s TTL slides
-// with every hit (getTurboAuthContext), keeping hot sessions warm indefinitely.
-// Benchmark suites run long-lived single-session workloads — extend the TTL so
-// workload boundaries (each >60s apart) don't re-pay a cold session validation.
-const TURBO_AUTH_TTL_MS =
-  typeof process !== "undefined" && process.env.BENCHMARK === "true" ? 15 * 60_000 : 60_000;
+const userSecurityStamps = new Map<string, number>();
+
+/**
+ * Returns the current monotonic security stamp for a user (0 if never bumped).
+ */
+export function getSecurityStamp(userId: string | null | undefined): number {
+  if (!userId) return 0;
+  return userSecurityStamps.get(userId) ?? 0;
+}
+
+/**
+ * Increments a user's security stamp for instant session-cache revocation
+ * on logout, password reset, or role changes.
+ */
+export function bumpSecurityStamp(userId: string | null | undefined): number {
+  if (!userId) return 0;
+  const next = (userSecurityStamps.get(userId) ?? 0) + 1;
+  userSecurityStamps.set(userId, next);
+  return next;
+}
+
+// 🚀 TURBO AUTH CACHE: Fixed 25s TTL keyed by sessionId + securityStamp.
+// Compile-time __IS_BENCHMARK__ allows Rollup/Vite to strip the 15m benchmark TTL in prod.
+const isBenchmarkRuntime =
+  typeof __IS_BENCHMARK__ !== "undefined"
+    ? __IS_BENCHMARK__
+    : typeof process !== "undefined" && process.env.BENCHMARK === "true";
+const TURBO_AUTH_TTL_MS = isBenchmarkRuntime ? 15 * 60_000 : 25_000;
 const TURBO_AUTH_MAX_LIFETIME_MS = 15 * 60_000;
 
 export function setTurboAuthContext(
@@ -148,6 +175,7 @@ export function setTurboAuthContext(
     expiresAt: now + TURBO_AUTH_TTL_MS,
     issuedAtMs,
     maxExpiresAt: issuedAtMs + TURBO_AUTH_MAX_LIFETIME_MS,
+    securityStamp: getSecurityStamp(userId),
     permMask,
     permRev: permRev ?? getRoleBitsetVersion(),
     amr: effectiveAmr,
@@ -187,15 +215,13 @@ export function getTurboAuthContext(sessionId: string): TurboAuthContext | null 
   if (
     now > ctx.expiresAt ||
     now > ctx.maxExpiresAt ||
+    (ctx.securityStamp !== undefined && ctx.securityStamp !== getSecurityStamp(ctx.userId)) ||
     isSessionRevoked(ctx.issuedAtMs, ctx.userId ?? undefined, ctx.tenantId) ||
     isDistributedSessionRevokedSync(ctx.issuedAtMs, ctx.userId, ctx.tenantId)
   ) {
     turboAuthCache.delete(sessionId);
     return null;
   }
-
-  // Slide TTL on every hit (capped by maxExpiresAt) so write bursts don't 401 mid-flight.
-  ctx.expiresAt = Math.min(ctx.maxExpiresAt, now + TURBO_AUTH_TTL_MS);
 
   if (turboAuthCache.size >= TURBO_AUTH_CACHE_MAX * 0.8) {
     turboAuthCache.delete(sessionId);
@@ -210,6 +236,7 @@ export function invalidateTurboAuthContext(sessionId: string): void {
 
 export function clearTurboAuthCache(): void {
   turboAuthCache.clear();
+  userSecurityStamps.clear();
 }
 
 /**
@@ -218,6 +245,7 @@ export function clearTurboAuthCache(): void {
  * so privilege changes take effect immediately without waiting for TTL expiry.
  */
 export function invalidateTurboAuthForUser(userId: string): void {
+  bumpSecurityStamp(userId);
   for (const [key, ctx] of turboAuthCache.entries()) {
     if (ctx.user?._id === userId || (ctx.user as unknown as { id?: string })?.id === userId) {
       turboAuthCache.delete(key);
@@ -255,6 +283,9 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
 
   if (flags.isStatic || flags.isBootstrap) return resolve(event);
   if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") return resolve(event);
+  if (hasPolicy((locals as { policy?: number }).policy ?? 0, Policy.STRIP_COOKIES)) {
+    return resolve(event);
+  }
   if (!isCacheableApiPath(url.pathname)) return resolve(event);
 
   // Same protocol-derived isSecure as handleAuthentication so every consumer

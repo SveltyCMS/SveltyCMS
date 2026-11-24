@@ -65,13 +65,13 @@ import { type SQL } from "drizzle-orm";
 import {
   applyTenantFilter,
   assertSafeSqlIdentifier,
-  buildRawTenantClause,
   convertArrayDatesToISO,
   convertDatesToISO,
   convertISOToDates,
   getEffectiveTenantId,
   registerNestedDataTable,
   registerTableSchema,
+  shouldBypassTenantCheck,
   validateId,
 } from "./relational-utils";
 import { RelationalAuthModule } from "./relational-auth";
@@ -863,6 +863,145 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
    * and projection skipping of JSON blob. Returns RAW_DECLINED on driver error
    * or when transactions decline raw execution.
    */
+  /**
+   * Optional synchronous single-row fast path (implemented by SQLite) so
+   * `rawFindById` avoids a Promise + `[row]` array allocation per point read.
+   * Returns `undefined` when the adapter only supports async `rawExec`.
+   */
+  protected rawExecOneSync<R = Record<string, unknown>>(
+    _sqlText: string,
+    _params: readonly unknown[],
+    _options?: BaseQueryOptions,
+  ): R | null | undefined {
+    return undefined;
+  }
+
+  private prepareRawFindByIdQuery<T extends BaseEntity>(
+    table: unknown,
+    collection: string,
+    id: DatabaseId,
+    options: FindOptions<T>,
+  ): { sqlText: string; params: unknown[]; wantsData: boolean } {
+    if (!this._registeredSchemas.has(collection)) {
+      this.ensureTableSchemaRegistered(table, collection);
+      this._registeredSchemas.add(collection);
+    }
+
+    const fields = options?.fields;
+    const wantsData =
+      !Array.isArray(fields) ||
+      fields.length === 0 ||
+      fields.some((f) => {
+        if (f === "data") return true;
+        if (
+          f === "_id" ||
+          f === "id" ||
+          f === "tenantId" ||
+          f === "status" ||
+          f === "createdAt" ||
+          f === "updatedAt" ||
+          f === "isDeleted"
+        )
+          return false;
+        return !this.getColumn(table, String(f));
+      });
+
+    const tableObj = table as object;
+    let cachedSql = this._rawFindByIdSqlCache.get(tableObj);
+    if (!cachedSql) {
+      const tableName = getTableName(table as any);
+      if (!tableName) throw new Error("Table name could not be resolved");
+      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+      const idColName = idCol?.name || "_id";
+
+      const safeTable = this.quoteIdentifier(assertSafeSqlIdentifier(tableName, "table"));
+      const safeIdCol = this.quoteIdentifier(assertSafeSqlIdentifier(idColName, "column"));
+      const safeTenantCol = this.quoteIdentifier("tenantId");
+
+      const selectWithData =
+        this.sqlDialect.id === "sqlite"
+          ? "*"
+          : this.getRawFindByIdCols(table, true)
+              .map((c) => this.quoteIdentifier(assertSafeSqlIdentifier(c, "column")))
+              .join(", ");
+      const selectWithoutData = this.getRawFindByIdCols(table, false)
+        .map((c) => this.quoteIdentifier(assertSafeSqlIdentifier(c, "column")))
+        .join(", ");
+
+      const p1 = this.sqlDialect.bindAt(0);
+      const p2 = this.sqlDialect.bindAt(1);
+
+      cachedSql = {
+        withData: `SELECT ${selectWithData} FROM ${safeTable} WHERE ${safeIdCol} = ${p1} LIMIT 1`,
+        withoutData: `SELECT ${selectWithoutData} FROM ${safeTable} WHERE ${safeIdCol} = ${p1} LIMIT 1`,
+        withDataTenant: `SELECT ${selectWithData} FROM ${safeTable} WHERE ${safeIdCol} = ${p1} AND ${safeTenantCol} = ${p2} LIMIT 1`,
+        withoutDataTenant: `SELECT ${selectWithoutData} FROM ${safeTable} WHERE ${safeIdCol} = ${p1} AND ${safeTenantCol} = ${p2} LIMIT 1`,
+        withDataNull: `SELECT ${selectWithData} FROM ${safeTable} WHERE ${safeIdCol} = ${p1} AND ${safeTenantCol} IS NULL LIMIT 1`,
+        withoutDataNull: `SELECT ${selectWithoutData} FROM ${safeTable} WHERE ${safeIdCol} = ${p1} AND ${safeTenantCol} IS NULL LIMIT 1`,
+        selectWithData,
+        selectWithoutData,
+      };
+      this._rawFindByIdSqlCache.set(tableObj, cachedSql);
+    }
+
+    let sqlText: string;
+    let params: unknown[];
+    if (shouldBypassTenantCheck(options)) {
+      sqlText = wantsData ? cachedSql.withData : cachedSql.withoutData;
+      params = [String(id)];
+    } else {
+      const tenantId = getEffectiveTenantId(options);
+      if (tenantId === undefined) {
+        sqlText = wantsData ? cachedSql.withData : cachedSql.withoutData;
+        params = [String(id)];
+      } else if (tenantId === null) {
+        sqlText = wantsData ? cachedSql.withDataNull : cachedSql.withoutDataNull;
+        params = [String(id)];
+      } else {
+        sqlText = wantsData ? cachedSql.withDataTenant : cachedSql.withoutDataTenant;
+        params = [String(id), String(tenantId)];
+      }
+    }
+
+    return { sqlText, params, wantsData };
+  }
+
+  /**
+   * Synchronous raw findById fast path for sync drivers (SQLite).
+   * Returns `RAW_DECLINED` on async drivers (PostgreSQL/MariaDB) so callers
+   * seamlessly fall into the async `rawFindById` path.
+   */
+  protected rawFindByIdSync<T extends BaseEntity>(
+    table: unknown,
+    collection: string,
+    id: DatabaseId,
+    options: FindOptions<T>,
+  ): RawFindResult<T> {
+    try {
+      const { sqlText, params, wantsData } = this.prepareRawFindByIdQuery(
+        table,
+        collection,
+        id,
+        options,
+      );
+      const syncRow = this.rawExecOneSync<Record<string, unknown>>(sqlText, params, options);
+      if (syncRow === undefined) return RAW_DECLINED;
+      if (syncRow === null) return null;
+      return convertDatesToISO(syncRow, {
+        ...this.convertDatesOptions,
+        table: collection,
+        skipJson: !wantsData,
+        inPlace: true,
+      }) as unknown as T;
+    } catch (rawErr: unknown) {
+      logger.debug(
+        `[${this.type} raw findByIdSync] falling back to Drizzle:`,
+        (rawErr as Error)?.message,
+      );
+      return RAW_DECLINED;
+    }
+  }
+
   protected async rawFindById<T extends BaseEntity>(
     table: unknown,
     collection: string,
@@ -870,120 +1009,36 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     options: FindOptions<T>,
   ): Promise<RawFindResult<T>> {
     try {
-      // 1. Read-path schema registration: raw reads must normalize timestamps to
-      // ISODateString even on read-only workloads.
-      if (!this._registeredSchemas.has(collection)) {
-        this.ensureTableSchemaRegistered(table, collection);
-        this._registeredSchemas.add(collection);
-      }
+      const { sqlText, params, wantsData } = this.prepareRawFindByIdQuery(
+        table,
+        collection,
+        id,
+        options,
+      );
 
-      const tableName = getTableName(table as any);
-      if (!tableName) throw new Error("Table name could not be resolved");
-      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
-      const idColName = idCol?.name || "_id";
-
-      // 2. Projection check: when fields are all physical columns, skip the data blob
-      // (avoids JSON.parse + flattenDataColumn on the hot read path).
-      const fields = options?.fields;
-      const wantsData =
-        !Array.isArray(fields) ||
-        fields.length === 0 ||
-        fields.some((f) => {
-          if (f === "data") return true;
-          if (
-            f === "_id" ||
-            f === "id" ||
-            f === "tenantId" ||
-            f === "status" ||
-            f === "createdAt" ||
-            f === "updatedAt" ||
-            f === "isDeleted"
-          )
-            return false;
-          return !this.getColumn(table, String(f));
-        });
-
-      // 3. Statement caching & SQL generation
-      const tableObj = table as object;
-      let cachedSql = this._rawFindByIdSqlCache.get(tableObj);
-      if (!cachedSql) {
-        const safeTable = this.quoteIdentifier(assertSafeSqlIdentifier(tableName, "table"));
-        const safeIdCol = this.quoteIdentifier(assertSafeSqlIdentifier(idColName, "column"));
-        const safeTenantCol = this.quoteIdentifier("tenantId");
-
-        const selectWithData =
-          this.sqlDialect.id === "sqlite"
-            ? "*"
-            : this.getRawFindByIdCols(table, true)
-                .map((c) => this.quoteIdentifier(assertSafeSqlIdentifier(c, "column")))
-                .join(", ");
-        const selectWithoutData = this.getRawFindByIdCols(table, false)
-          .map((c) => this.quoteIdentifier(assertSafeSqlIdentifier(c, "column")))
-          .join(", ");
-
-        const p1 = this.sqlDialect.bindAt(0);
-        const p2 = this.sqlDialect.bindAt(1);
-
-        cachedSql = {
-          withData: `SELECT ${selectWithData} FROM ${safeTable} WHERE ${safeIdCol} = ${p1} LIMIT 1`,
-          withoutData: `SELECT ${selectWithoutData} FROM ${safeTable} WHERE ${safeIdCol} = ${p1} LIMIT 1`,
-          withDataTenant: `SELECT ${selectWithData} FROM ${safeTable} WHERE ${safeIdCol} = ${p1} AND ${safeTenantCol} = ${p2} LIMIT 1`,
-          withoutDataTenant: `SELECT ${selectWithoutData} FROM ${safeTable} WHERE ${safeIdCol} = ${p1} AND ${safeTenantCol} = ${p2} LIMIT 1`,
-          withDataNull: `SELECT ${selectWithData} FROM ${safeTable} WHERE ${safeIdCol} = ${p1} AND ${safeTenantCol} IS NULL LIMIT 1`,
-          withoutDataNull: `SELECT ${selectWithoutData} FROM ${safeTable} WHERE ${safeIdCol} = ${p1} AND ${safeTenantCol} IS NULL LIMIT 1`,
-          selectWithData,
-          selectWithoutData,
-        };
-        this._rawFindByIdSqlCache.set(tableObj, cachedSql);
-      }
-
-      // 4. Dialect-specific tenant clause
-      const dialectName =
-        this.sqlDialect.id === "mariadb"
-          ? "mysql"
-          : this.sqlDialect.id === "postgresql"
-            ? "postgres"
-            : "sqlite";
-      const tenantClause = buildRawTenantClause(options, dialectName, { paramIndex: 2 });
-      const hasTenantParam = tenantClause.params.length > 0;
-      const hasTenantClause = tenantClause.sql !== "";
-
-      const p1 = this.sqlDialect.bindAt(0);
-      const p2 = this.sqlDialect.bindAt(1);
-      const safeTenantCol = this.quoteIdentifier("tenantId");
-
-      let sqlText: string;
-      if (hasTenantClause) {
-        if (hasTenantParam && tenantClause.sql === ` AND ${safeTenantCol} = ${p2}`) {
-          sqlText = wantsData ? cachedSql.withDataTenant : cachedSql.withoutDataTenant;
-        } else if (!hasTenantParam && tenantClause.sql === ` AND ${safeTenantCol} IS NULL`) {
-          sqlText = wantsData ? cachedSql.withDataNull : cachedSql.withoutDataNull;
-        } else {
-          const selectCols = wantsData ? cachedSql.selectWithData : cachedSql.selectWithoutData;
-          const safeTable = this.quoteIdentifier(assertSafeSqlIdentifier(tableName, "table"));
-          const safeIdCol = this.quoteIdentifier(assertSafeSqlIdentifier(idColName, "column"));
-          sqlText = `SELECT ${selectCols} FROM ${safeTable} WHERE ${safeIdCol} = ${p1}${tenantClause.sql} LIMIT 1`;
-        }
+      // Driver execution hook (sync fast path on SQLite; async rawExec on PG/MariaDB)
+      const syncRow = this.rawExecOneSync<Record<string, unknown>>(sqlText, params, options);
+      let row: Record<string, unknown> | null;
+      if (syncRow !== undefined) {
+        row = syncRow;
       } else {
-        sqlText = wantsData ? cachedSql.withData : cachedSql.withoutData;
+        const rows = await this.rawExec<Record<string, unknown>>(sqlText, params, options);
+        if (rows === null) {
+          return RAW_DECLINED;
+        }
+        row = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
       }
 
-      const params = [String(id), ...tenantClause.params];
-
-      // 5. Driver execution hook
-      const rows = await this.rawExec(sqlText, params, options);
-      if (rows === null) {
-        return RAW_DECLINED;
-      }
-      if (!Array.isArray(rows) || rows.length === 0) {
+      if (row === null) {
         return null;
       }
 
-      // 6. Normalization
-      return convertDatesToISO(rows[0], {
+      // Normalization — `row` is freshly returned by the driver, safe to convert in-place
+      return convertDatesToISO(row, {
         ...this.convertDatesOptions,
         table: collection,
         skipJson: !wantsData,
+        inPlace: true,
       }) as unknown as T;
     } catch (rawErr: unknown) {
       logger.debug(
@@ -1553,7 +1608,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     return { ...(query as Record<string, unknown>), isDeleted: false } as QueryFilter<T>;
   }
 
-  async findOne<T extends BaseEntity>(
+  findOne<T extends BaseEntity>(
     collection: string,
     query: QueryFilter<T>,
     options: FindOptions<T> = {},
@@ -1677,7 +1732,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   // CRUD: findById
   // --------------------------------------------------------------------------
 
-  async findById<T extends BaseEntity>(
+  findById<T extends BaseEntity>(
     collection: string,
     id: DatabaseId,
     options: FindOptions<T> = {},

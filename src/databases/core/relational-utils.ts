@@ -610,73 +610,39 @@ export function convertDatesToISO(
   const skipJson = options?.skipJson === true;
 
   if (options?.inPlace && hasSchema && dateCols) {
-    // 🚀 ZERO-WORK FAST PATH: if the row carries no Date instances, no epoch-ms
-    // timestamps and no JSON-string columns (content collections store ISO
-    // strings + already parsed objects), the conversion is a no-op — return
-    // the row untouched.
-    let needsWork = false;
-    for (let i = 0; i < dateCols.length; i++) {
-      const v = row[dateCols[i]];
-      if (
-        v instanceof Date ||
-        isDateLike(v) ||
-        isEpochMs(v) ||
-        isPgTimestampString(v) ||
-        isSqlTimestampString(v)
-      ) {
-        needsWork = true;
-        break;
-      }
-    }
-    if (!needsWork && !skipJson && jsonCols && jsonCols.length > 0) {
-      for (let i = 0; i < jsonCols.length; i++) {
-        const v = row[jsonCols[i]];
-        if (typeof v === "string" && isJsonString(v)) {
-          needsWork = true;
-          break;
-        }
-      }
-    }
-    if (!needsWork) {
-      // Zero-work fast path — but an already-parsed blob (PostgreSQL jsonb
-      // arrives as an object, not a string) still needs its fields flattened
-      // into the row; skipping it left blob fields invisible on PG reads.
-      if (!skipJson && !nestedData && jsonCols && jsonCols.length > 0) {
-        for (let i = 0; i < jsonCols.length; i++) {
-          const k = jsonCols[i];
-          const v = row[k];
-          if (v !== null && typeof v === "object" && !Array.isArray(v) && !(v instanceof Date)) {
-            flattenDataColumn(row, k, v, skipMerge);
-          }
-        }
-      }
-      coerceBooleanCols(row, table, bools);
-      return row;
-    }
-
+    // 🚀 SINGLE-PASS IN-PLACE FAST PATH: mutates only columns that need
+    // conversion without a redundant pre-scan pass across all date/JSON fields.
     for (let i = 0; i < dateCols.length; i++) {
       const k = dateCols[i];
       const v = row[k];
-      if (v instanceof Date) {
+      if (v === null || v === undefined) continue;
+      if (typeof v === "number") {
+        if (isEpochMs(v)) row[k] = new Date(v).toISOString();
+      } else if (typeof v === "string") {
+        if (isPgTimestampString(v)) row[k] = pgTimestampToIso(v);
+        else if (isSqlTimestampString(v)) row[k] = sqlTimestampToIso(v);
+      } else if (v instanceof Date) {
         row[k] = v.toISOString();
-      } else if (v && typeof v === "object" && typeof (v as any).getTime === "function") {
+      } else if (typeof v === "object" && typeof (v as any).getTime === "function") {
         row[k] = new Date((v as any).getTime()).toISOString();
-      } else if (isEpochMs(v)) {
-        // SQLite raw reads return INTEGER ms — normalize to ISODateString.
-        row[k] = new Date(v).toISOString();
-      } else if (isPgTimestampString(v)) {
-        // postgres.js timestamptz "2026-08-09 22:25:38.488+00" — normalize.
-        row[k] = pgTimestampToIso(v);
-      } else if (isSqlTimestampString(v)) {
-        // MariaDB/MySQL datetime "2026-08-09 22:25:38.488" — normalize.
-        row[k] = sqlTimestampToIso(v);
       }
     }
     if (!skipJson && jsonCols && jsonCols.length > 0) {
       for (let i = 0; i < jsonCols.length; i++) {
         const k = jsonCols[i];
-        const v = normalizeJsonFieldValue(row[k], options);
-        if (nestedData || !flattenDataColumn(row, k, v, skipMerge)) row[k] = v;
+        const raw = row[k];
+        if (raw === null || raw === undefined) continue;
+        if (typeof raw === "string") {
+          const v = normalizeJsonFieldValue(raw, options);
+          if (nestedData || !flattenDataColumn(row, k, v, skipMerge)) row[k] = v;
+        } else if (
+          !nestedData &&
+          typeof raw === "object" &&
+          !Array.isArray(raw) &&
+          !(raw instanceof Date)
+        ) {
+          flattenDataColumn(row, k, raw, skipMerge);
+        }
       }
     }
     coerceBooleanCols(row, table, bools);

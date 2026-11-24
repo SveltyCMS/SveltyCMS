@@ -77,7 +77,7 @@ export function runWithTrace<R>(traceId: string, enabled: boolean, callback: () 
 /** 🛡️ Hardened: Memory-capped trace buffer */
 const MAX_SPANS_PER_TRACE = 1000;
 
-export function traceSpan<T>(name: string, fn: () => Promise<T>): Promise<T> {
+export function traceSpan<T>(name: string, fn: () => T | Promise<T>): T | Promise<T> {
   const store = sveltyContext.getStore();
   const trace = store?.trace;
 
@@ -86,13 +86,24 @@ export function traceSpan<T>(name: string, fn: () => Promise<T>): Promise<T> {
   }
 
   const start = performance.now();
-  return fn().finally(() => {
+  const record = () => {
     trace.spans.push({
       name,
       start,
       duration: parseFloat((performance.now() - start).toFixed(3)),
     });
-  });
+  };
+  try {
+    const out = fn();
+    if (out && typeof (out as PromiseLike<T>).then === "function") {
+      return (out as Promise<T>).finally(record);
+    }
+    record();
+    return out;
+  } catch (err) {
+    record();
+    throw err;
+  }
 }
 
 export function traceSpanSync<T>(name: string, fn: () => T): T {

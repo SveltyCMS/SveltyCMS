@@ -89,6 +89,7 @@ import {
   serializeRowFast,
   STATIC_ENVELOPES,
 } from "@utils/fast-json";
+import { SingleflightGroup } from "@utils/singleflight";
 
 /**
  * Canonical tenant for content reads.
@@ -150,8 +151,7 @@ interface CoalescedCollectionRead {
   compressed?: Record<string, Uint8Array>;
 }
 
-const inflightCollectionReads = new Map<string, Promise<CoalescedCollectionRead | null>>();
-const MAX_INFLIGHT_COLLECTION_READS = 128;
+const collectionReadSingleflight = new SingleflightGroup<CoalescedCollectionRead | null>();
 
 /**
  * Stateless SDK bridge — one instance per process. `LocalCMS.getLocals()`
@@ -1002,33 +1002,10 @@ async function coalesceCollectionRefill(
   marks: Map<string, number> | null,
 ): Promise<CoalescedCollectionRead | null> {
   const flightKey = `${cacheTenant ?? ""}:${pathKey}`;
-  const inflight = inflightCollectionReads.get(flightKey);
-  if (inflight) {
-    const shared = await inflight;
-    if (!shared) return null;
-    // Response bodies are single-use — waiters rebuild from the shared string / buffer.
-    return {
-      body: shared.body,
-      etag: shared.etag,
-      buffer: shared.buffer,
-      compressed: shared.compressed,
-      miss: false,
-    };
-  }
-
-  // The executor runs synchronously, so `releaseFlight` is bound before use.
-  // (No `() => {}` placeholder: undefined + an optional call in `finally`.)
-  let releaseFlight: ((entry: CoalescedCollectionRead | null) => void) | undefined;
-  const flight = new Promise<CoalescedCollectionRead | null>((res) => {
-    releaseFlight = res;
-  });
-  if (inflightCollectionReads.size < MAX_INFLIGHT_COLLECTION_READS) {
-    inflightCollectionReads.set(flightKey, flight);
-  }
-
-  let published: CoalescedCollectionRead | null = null;
-  try {
-    published = await rebuildWarmCollectionRead(
+  let isLeader = false;
+  const shared = await collectionReadSingleflight.do(flightKey, () => {
+    isLeader = true;
+    return rebuildWarmCollectionRead(
       event,
       pathKey,
       cacheTenant,
@@ -1037,12 +1014,17 @@ async function coalesceCollectionRefill(
       listParams,
       marks,
     );
-    return published;
-  } finally {
-    // Unregistered flights have no waiters — resolving them is a no-op.
-    releaseFlight?.(published);
-    inflightCollectionReads.delete(flightKey);
-  }
+  });
+  if (!shared) return null;
+  if (isLeader) return shared;
+  // Response bodies are single-use — waiters rebuild from the shared string / buffer.
+  return {
+    body: shared.body,
+    etag: shared.etag,
+    buffer: shared.buffer,
+    compressed: shared.compressed,
+    miss: false,
+  };
 }
 
 async function rebuildWarmCollectionRead(
