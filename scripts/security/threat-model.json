@@ -14,7 +14,7 @@
         "src/databases/auth/permission-catalog.ts"
       ],
       "model": "docs/reference/security/threat-models/api-dispatch.mdx",
-      "reviewed_at": "2026-11-23",
+      "reviewed_at": "2026-11-24",
       "fingerprint": "15db70cd4df705a89ec89ebae7ae66d59da62724d3664b1b2046dd46b0e1c4ed"
     },
     {
@@ -37,7 +37,7 @@
         "src/routes/api/[...path]/handlers/scim.ts"
       ],
       "model": "docs/reference/security/threat-models/auth-session.mdx",
-      "reviewed_at": "2026-11-23",
+      "reviewed_at": "2026-11-24",
       "fingerprint": "c64a942d4ad2f8de659be7e07fa4f6de760bc25061c0f0b2bb9dd83e144ad3b8"
     },
     {
@@ -57,7 +57,7 @@
         "src/hooks/handle-collection-write-lane.ts"
       ],
       "model": "docs/reference/security/threat-models/content-write.mdx",
-      "reviewed_at": "2026-11-23",
+      "reviewed_at": "2026-11-24",
       "fingerprint": "a660340b11eb8eb0ed82da9724cf9446356b363583c2733043e0edd2d5f53b1a"
     },
     {
@@ -74,7 +74,7 @@
         "src/routes/api/[...path]/handlers/media-transcode.ts"
       ],
       "model": "docs/reference/security/threat-models/media-files.mdx",
-      "reviewed_at": "2026-11-23",
+      "reviewed_at": "2026-11-24",
       "fingerprint": "df18ae1211a4d2090525f58b9be036f4c562053aac74873e1f9fcb301ebf6efa"
     },
     {
@@ -89,7 +89,7 @@
         "src/utils/page-guards.server.ts"
       ],
       "model": "docs/reference/security/threat-models/admin-pages.mdx",
-      "reviewed_at": "2026-11-23",
+      "reviewed_at": "2026-11-24",
       "fingerprint": "cad05adac89dc4b3bb13870b53f456008c8762d8f206cf30fdd4a00b20c77344"
     },
     {
@@ -130,8 +130,8 @@
         "src/utils/test-bypass.server.ts"
       ],
       "model": "docs/reference/security/threat-models/system-ops.mdx",
-      "reviewed_at": "2026-11-23",
-      "fingerprint": "71021d169c6e6dbd39a92763766402945668a07e2e6ce24250e1861b9a66d7e7"
+      "reviewed_at": "2026-11-24",
+      "fingerprint": "fc13d0be30a6cccb9d29ed115f387d3998e7ef2f0f795ee14a65905350da7515"
     }
   ]
 }
