@@ -629,6 +629,18 @@ if (!building) {
         // In Vite dev, process exit often closes the SSR module runner *before* this
         // dynamic import runs → "Vite module runner has been closed". Swallow that;
         // OS process exit still tears down sockets/DB handles.
+        // Final WAL truncation: the periodic housekeeping checkpoints PASSIVE, which
+        // writes frames back but leaves the WAL at its high-water mark. TRUNCATE
+        // resets the file, so a stopped container carries no oversized -wal into
+        // the next boot.
+        try {
+          const { getDb } = await loadDbModule();
+          const { truncateWalBeforeShutdown } = await import("./server/wal-shutdown");
+          truncateWalBeforeShutdown(getDb() as never, logger);
+        } catch (err) {
+          if (!isViteRunnerClosedError(err)) logger.debug("WAL truncation skipped:", err);
+        }
+
         try {
           const { shutdownSystem } = await loadDbModule();
           await shutdownSystem();
