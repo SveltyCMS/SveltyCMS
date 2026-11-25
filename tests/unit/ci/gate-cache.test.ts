@@ -15,6 +15,7 @@ import { describe, expect, test } from "vitest";
 import {
   buildKey,
   headIsRecordable,
+  INDEX_UNTRACKED_GIT_ARGS,
   indexIsRecordable,
   readCache,
   writeCache,
@@ -62,6 +63,7 @@ describe("clean-tree safety", () => {
     expect(indexIsRecordable(false, "")).toBe(true);
     expect(indexIsRecordable(true, "")).toBe(false);
     expect(indexIsRecordable(false, "scripts/x.ts")).toBe(false);
+    expect(INDEX_UNTRACKED_GIT_ARGS).toContain("--exclude-standard");
   });
 });
 

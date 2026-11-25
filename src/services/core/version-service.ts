@@ -46,6 +46,11 @@ const FALLBACK_VERSION = "0.0.0";
  * covers several failed polls while still surfacing a real outage eventually.
  */
 const SUCCESS_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+/**
+ * Cooldown after rate-limit / network failures so repeated page mounts do not
+ * hammer GitHub on every SSR/client load during outages or automated suites.
+ */
+const FAILURE_COOLDOWN_MS = 10 * 60 * 1000;
 
 interface CachedUpdateCheck {
   at: number;
@@ -54,10 +59,19 @@ interface CachedUpdateCheck {
 
 /** Last successful (error-free) check, process-wide. */
 let lastSuccessfulCheck: CachedUpdateCheck | null = null;
+/** Last transient failure (403/429/5xx/network) for cooldown throttling. */
+let lastFailedCheck: CachedUpdateCheck | null = null;
 
-/** Clears the last-known-good result. Only unit tests need this seam. */
+/** Clears the cached check state. Only unit tests need this seam. */
 export function resetVersionCheckCache(): void {
   lastSuccessfulCheck = null;
+  lastFailedCheck = null;
+}
+
+function recentFailedResult(): UpdateCheckResult | null {
+  if (!lastFailedCheck) return null;
+  if (Date.now() - lastFailedCheck.at > FAILURE_COOLDOWN_MS) return null;
+  return lastFailedCheck.result;
 }
 
 /** Last successful result while it is still within the fallback window. */
@@ -204,6 +218,20 @@ export async function checkForUpdates(): Promise<UpdateCheckResult> {
   const currentVersion = readLocalVersion();
   const checkedAt = nowISODateString();
 
+  if (process.env.SVELTY_OFFLINE_VERSION_CHECK === "true") {
+    return {
+      currentVersion,
+      latestVersion: currentVersion,
+      updateAvailable: false,
+      checkedAt,
+    };
+  }
+
+  const cachedFailure = recentFailedResult();
+  if (cachedFailure && !lastKnownGoodResult()) {
+    return cachedFailure;
+  }
+
   try {
     const response = await fetch(GITHUB_RELEASES_URL, {
       headers: {
@@ -254,6 +282,7 @@ export async function checkForUpdates(): Promise<UpdateCheckResult> {
       checkedAt,
     };
     lastSuccessfulCheck = { at: Date.now(), result };
+    lastFailedCheck = null;
     return result;
   } catch (err) {
     const message = errorMessage(err);
@@ -264,7 +293,7 @@ export async function checkForUpdates(): Promise<UpdateCheckResult> {
 
 /**
  * A failure that is expected to heal: serve the last known-good result when one
- * is still within the fallback window, otherwise report the typed error.
+ * is still within the fallback window, otherwise record the cooldown result.
  */
 function transientFailure(reason: string, currentVersion: string): UpdateCheckResult {
   const cached = lastKnownGoodResult();
@@ -273,11 +302,13 @@ function transientFailure(reason: string, currentVersion: string): UpdateCheckRe
     return cached;
   }
 
-  return {
+  const failure: UpdateCheckResult = {
     currentVersion,
     latestVersion: null,
     updateAvailable: false,
     checkedAt: nowISODateString(),
     error: reason,
   };
+  lastFailedCheck = { at: Date.now(), result: failure };
+  return failure;
 }

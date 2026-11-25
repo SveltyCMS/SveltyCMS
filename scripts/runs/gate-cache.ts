@@ -212,6 +212,9 @@ export function indexIsRecordable(unstagedDiff: boolean, untracked: string): boo
   return !unstagedDiff && untracked.length === 0;
 }
 
+/** Git flags for listing unignored untracked files (`node_modules/` etc. must not block `--index` cache). */
+export const INDEX_UNTRACKED_GIT_ARGS = ["ls-files", "--others", "--exclude-standard"] as const;
+
 function main(): number {
   const [command, ...rest] = process.argv.slice(2);
   const file = cacheFile();
@@ -240,7 +243,7 @@ function main(): number {
     if (!gate) return 1;
 
     const recordable = useIndex
-      ? indexIsRecordable(!gitQuiet(["diff", "--quiet"]), git(["ls-files", "--others"]))
+      ? indexIsRecordable(!gitQuiet(["diff", "--quiet"]), git(INDEX_UNTRACKED_GIT_ARGS))
       : headIsRecordable(git(["status", "--porcelain"]));
     if (!recordable) return 0;
 

@@ -801,4 +801,38 @@ describe("ConfigService", () => {
       expect(snapshots[1]?.totalResources).toBe(3);
     });
   });
+
+  describe("SSR / devalue serializability", () => {
+    it("strips function properties like widget.validationSchema from getStatus() entities", async () => {
+      const { stringify } = await import("devalue");
+      const widgetWithFunctions = {
+        Name: "Input",
+        validationSchema: () => ({ safeParse: () => true }),
+        nestedSchema: {
+          "~run": () => true,
+        },
+      };
+      const liveCollection = makeEntity({
+        _id: "col-fn",
+        name: "live-fn-col",
+        fields: [
+          {
+            label: "Title",
+            widget: widgetWithFunctions,
+          },
+        ],
+      });
+      mockGetCollections.mockResolvedValue([liveCollection]);
+
+      const status = await service.getStatus("tenant-1");
+
+      expect(status.changes.new).toHaveLength(1);
+      expect(() => stringify(status)).not.toThrow();
+      const fields = status.changes.new[0]?.entity.fields as Array<{
+        widget: Record<string, unknown>;
+      }>;
+      expect(fields[0]?.widget.Name).toBe("Input");
+      expect("validationSchema" in fields[0]!.widget).toBe(false);
+    });
+  });
 });

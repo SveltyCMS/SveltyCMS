@@ -15,9 +15,85 @@ import {
   EDITOR_CREDENTIALS as HARNESS_EDITOR,
   TEST_PASSWORD,
 } from "../../harness/fixtures";
-import { SESSION_COOKIE_RE, sessionLooksValid, TEST_API_HEADERS, primeCsrfHeaders } from "./api";
+import {
+  clearCachedAdminSession,
+  saveCachedAdminSession,
+  SESSION_COOKIE_RE,
+  sessionLooksValid,
+  TEST_API_HEADERS,
+  tryRestoreCachedAdminSession,
+  primeCsrfHeaders,
+} from "./api";
 import { dismissCookieConsent } from "./cookie-consent";
 import { waitForHydrationMarker } from "./hydration";
+
+const ICON_CDN_ORIGINS = [
+  "https://api.iconify.design/**",
+  "https://api2.iconify.design/**",
+  "https://api.unisvg.com/**",
+  "https://api.simplesvg.com/**",
+] as const;
+
+const MAX_ICON_CACHE = 300;
+const iconCdnCache = new Map<
+  string,
+  { status: number; headers: Record<string, string>; body: Buffer }
+>();
+const iconRoutesAttached = new WeakSet<Page>();
+
+/**
+ * Caches cross-origin Iconify CDN responses per Playwright worker and attaches
+ * CORS-safe route interceptors at most once per Page.
+ */
+async function attachIconCdnCacheRoutes(page: Page): Promise<void> {
+  if (iconRoutesAttached.has(page)) return;
+  iconRoutesAttached.add(page);
+
+  for (const pattern of ICON_CDN_ORIGINS) {
+    await page.route(pattern, async (route) => {
+      const url = route.request().url();
+      const cached = iconCdnCache.get(url);
+      if (cached) {
+        await route.fulfill(cached).catch(() => {});
+        return;
+      }
+      try {
+        const response = await route.fetch({ timeout: 5_000 });
+        const body = await response.body();
+        // `response.body()` returns decompressed bytes; strip encoding/length headers so
+        // Playwright does not trigger `net::ERR_CONTENT_DECODING_FAILED` on replay.
+        const rawHeaders = response.headers();
+        const headers: Record<string, string> = {};
+        for (const [k, v] of Object.entries(rawHeaders)) {
+          const lower = k.toLowerCase();
+          if (
+            lower === "content-encoding" ||
+            lower === "content-length" ||
+            lower === "transfer-encoding"
+          ) {
+            continue;
+          }
+          headers[k] = v;
+        }
+        headers["access-control-allow-origin"] ??= "*";
+        const status = response.status();
+        if (response.ok()) {
+          if (iconCdnCache.size >= MAX_ICON_CACHE) {
+            const oldestKey = iconCdnCache.keys().next().value;
+            if (oldestKey !== undefined) iconCdnCache.delete(oldestKey);
+          }
+          iconCdnCache.set(url, { status, headers, body });
+        }
+        await route.fulfill({ status, headers, body }).catch(() => {});
+      } catch {
+        // Never stall or fail a UI test on transient external Iconify CDN slowness.
+        await route
+          .fulfill({ status: 200, contentType: "application/json", body: "{}" })
+          .catch(() => {});
+      }
+    });
+  }
+}
 
 /**
  * Login credentials — harness is source of truth; env can override in CI.
@@ -86,12 +162,21 @@ export async function prepareLoginForm(page: Page) {
   // CRITICAL: Dismiss ALL blocking modals that might interfere with login
   console.log("[Auth] Checking for blocking modals...");
 
-  // Strategy 1: Database Error Modal (HIGHEST PRIORITY - completely blocks login)
-  // Check for the exact error modal structure from error-context.md
+  // Settle once on whichever login view or modal rendered instead of burning 4× sequential timeouts.
   const dbErrorHeading = page.locator(
     'h2:has-text("Database Connection Error"), h2:has-text("Database Error")',
   );
-  if (await dbErrorHeading.isVisible({ timeout: 2000 }).catch(() => false)) {
+  await page
+    .getByTestId("signin-icon")
+    .or(page.getByTestId("signin-email"))
+    .or(page.getByTestId("signup-icon"))
+    .or(dbErrorHeading)
+    .first()
+    .waitFor({ state: "visible", timeout: 5_000 })
+    .catch(() => undefined);
+
+  // Strategy 1: Database Error Modal (HIGHEST PRIORITY - completely blocks login)
+  if (await dbErrorHeading.isVisible({ timeout: 50 }).catch(() => false)) {
     console.log("[Auth] ⚠️ Database Error Modal detected! Database empty - auto-seeding...");
 
     // CRITICAL FIX: Seed database via Testing API when empty
@@ -138,10 +223,10 @@ export async function prepareLoginForm(page: Page) {
     .getByRole("dialog")
     .filter({ hasText: /welcome/i })
     .first();
-  if (await welcomeModal.isVisible({ timeout: 1000 }).catch(() => false)) {
+  if (await welcomeModal.isVisible({ timeout: 50 }).catch(() => false)) {
     console.log("[Auth] First Login Welcome Modal detected, dismissing...");
     const skipBtn = welcomeModal.getByRole("button", { name: /skip|close|get started/i }).first();
-    if (await skipBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+    if (await skipBtn.isVisible({ timeout: 200 }).catch(() => false)) {
       await skipBtn.click();
       await welcomeModal.waitFor({ state: "hidden", timeout: 2_000 }).catch(() => {});
     }
@@ -152,14 +237,14 @@ export async function prepareLoginForm(page: Page) {
     .getByRole("dialog")
     .filter({ hasNotText: /cookie|privacy|welcome/i })
     .first();
-  if (await genericModal.isVisible({ timeout: 1000 }).catch(() => false)) {
+  if (await genericModal.isVisible({ timeout: 50 }).catch(() => false)) {
     console.log("[Auth] Generic modal detected, attempting to dismiss...");
     const anyCloseBtn = page
       .locator(
         'button:has-text("Close"), button:has-text("OK"), button:has-text("Accept"), [aria-label*="close" i]',
       )
       .first();
-    if (await anyCloseBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+    if (await anyCloseBtn.isVisible({ timeout: 200 }).catch(() => false)) {
       await anyCloseBtn.click();
       await genericModal.waitFor({ state: "hidden", timeout: 2_000 }).catch(() => {});
     }
@@ -168,7 +253,7 @@ export async function prepareLoginForm(page: Page) {
   // Strategy 4: Cookie consent banner (defense-in-depth fallback)
   // The addInitScript above should prevent this, but dismiss if still visible
   const cookieAcceptBtn = page.getByTestId("cookie-accept-all");
-  if (await cookieAcceptBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+  if (await cookieAcceptBtn.isVisible({ timeout: 50 }).catch(() => false)) {
     console.log("[Auth] Cookie consent still visible despite init script, accepting...");
     await cookieAcceptBtn.click();
     await cookieAcceptBtn.waitFor({ state: "hidden", timeout: 2_000 }).catch(() => {});
@@ -184,9 +269,9 @@ export async function prepareLoginForm(page: Page) {
     .locator('div[role="button"]:has-text("SIGN IN"), p:has-text("Sign In")')
     .first();
 
-  const signInIconVisible = await signInIcon.isVisible({ timeout: 2000 }).catch(() => false);
+  const signInIconVisible = await signInIcon.isVisible({ timeout: 250 }).catch(() => false);
   const signInButtonVisible =
-    !signInIconVisible && (await signInButton.isVisible({ timeout: 2000 }).catch(() => false));
+    !signInIconVisible && (await signInButton.isVisible({ timeout: 250 }).catch(() => false));
 
   if (signInIconVisible) {
     console.log("[Auth] Clicking SIGN IN icon...");
@@ -568,72 +653,56 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
   const email = ADMIN_CREDENTIALS.email;
   const password = ADMIN_CREDENTIALS.password;
 
-  // Intercept cross-origin icon CDN requests to strip Playwright's test headers
-  // that cause CORS failures. Applies to all icon CDNs used by iconify-icon.
-  await page.route("https://api.iconify.design/**", async (route) => {
-    try {
-      const response = await route.fetch();
-      await route.fulfill({ response });
-    } catch {
-      // Test may have ended before icon fetch completed — ignore silently
-    }
-  });
-  await page.route("https://api2.iconify.design/**", async (route) => {
-    try {
-      const response = await route.fetch();
-      await route.fulfill({ response });
-    } catch {
-      // Test may have ended before icon fetch completed — ignore silently
-    }
-  });
-  await page.route("https://api.unisvg.com/**", async (route) => {
-    try {
-      const response = await route.fetch();
-      await route.fulfill({ response });
-    } catch {
-      // Test may have ended before icon fetch completed — ignore silently
-    }
-  });
-  await page.route("https://api.simplesvg.com/**", async (route) => {
-    try {
-      const response = await route.fetch();
-      await route.fulfill({ response });
-    } catch {
-      // Test may have ended before icon fetch completed — ignore silently
-    }
-  });
+  await attachIconCdnCacheRoutes(page);
 
-  // Fast session check: context cookie + /api/user probe. No navigation, so
-  // specs with valid storageState skip the per-test page load entirely.
-  if (await sessionLooksValid(page)) {
-    console.log("[Auth] ✓ Existing session still valid (storageState)");
+  const navigateIfNeeded = async (): Promise<boolean> => {
     if (waitForUrl != null) {
       const targetUrl = typeof waitForUrl === "string" ? waitForUrl : "/dashboard";
-      await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 20_000 });
+      const currentUrl = page.url();
+      const alreadyAtTarget =
+        typeof waitForUrl === "string" &&
+        currentUrl !== "about:blank" &&
+        !currentUrl.includes("/login") &&
+        !currentUrl.includes("/setup") &&
+        (() => {
+          try {
+            const parsed = new URL(currentUrl);
+            return `${parsed.pathname}${parsed.search}` === targetUrl;
+          } catch {
+            return false;
+          }
+        })();
+      if (!alreadyAtTarget) {
+        await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 20_000 });
+      }
       await waitForHydration(page).catch(() => undefined);
       if (page.url().includes("/login") || page.url().includes("/setup")) {
-        console.log(
-          `[Auth] StorageState session lost after navigating to ${targetUrl} — re-authenticating`,
-        );
-      } else {
-        if (waitForUrl instanceof RegExp) {
-          await page.waitForURL(waitForUrl, { timeout: 10_000 }).catch(() => undefined);
-        }
-        await primeCsrfHeaders(page);
-        return;
+        console.log(`[Auth] Session lost after navigating to ${targetUrl} — re-authenticating`);
+        return false;
       }
-    } else if (page.url() === "about:blank") {
+      if (waitForUrl instanceof RegExp) {
+        await page.waitForURL(waitForUrl, { timeout: 10_000 }).catch(() => undefined);
+      }
+      await primeCsrfHeaders(page);
+      return true;
+    }
+    if (page.url() === "about:blank") {
       // No target and the tab is still blank (fresh context): land on the
       // default target so callers can rely on loginAsAdmin always ending on
       // a real page (login.spec.ts asserts non-about:blank after login).
       await page.goto("/dashboard", { waitUntil: "domcontentloaded", timeout: 20_000 });
       await waitForHydration(page).catch(() => undefined);
-      await primeCsrfHeaders(page);
-      return;
-    } else {
-      await primeCsrfHeaders(page);
-      return;
     }
+    await primeCsrfHeaders(page);
+    return true;
+  };
+
+  // Fast session check: context cookie or worker-cached admin cookie -> /api/user probe.
+  if (await sessionLooksValid(page)) {
+    await saveCachedAdminSession(page);
+    if (await navigateIfNeeded()) return;
+  } else if (await tryRestoreCachedAdminSession(page)) {
+    if (await navigateIfNeeded()) return;
   } else {
     const hasCookie = await page
       .context()
@@ -647,6 +716,7 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
 
   try {
     // Login first; seed only if admin missing. Seed must NOT wipe users.
+    clearCachedAdminSession();
     const { applySessionCookie } = await import("./test-auth");
     let loginRes = await page.request.post("/api/testing", {
       headers: TEST_API_HEADERS,
@@ -666,6 +736,7 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
       // Force cookie into browser context with port-aware origin (page.request jar
       // alone is not always enough when storageState was cleared).
       await applySessionCookie(page, loginRes);
+      await saveCachedAdminSession(page);
       console.log("[Auth] ✓ Admin session via testing API");
       const target = typeof waitForUrl === "string" ? waitForUrl : "/dashboard";
       await page.goto(target, {

@@ -282,6 +282,35 @@ describe("checkForUpdates — transient failures keep the last known-good result
     expect(result.error).toContain("403");
     expect(result.latestVersion).toBeNull();
   });
+
+  it("throttles repeated GitHub requests during the rate-limit cooldown window", async () => {
+    const fetchMock = stubFetch(
+      new Response(null, { status: 429, statusText: "Too Many Requests" }),
+    );
+
+    const first = await checkForUpdates();
+    const second = await checkForUpdates();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(first.error).toContain("429");
+    expect(second).toEqual(first);
+  });
+
+  it("skips remote HTTP calls when SVELTY_OFFLINE_VERSION_CHECK=true", async () => {
+    const fetchMock = stubFetch(releasesResponse([{ tag_name: `v${NEXT_PATCH}` }]));
+    const prev = process.env.SVELTY_OFFLINE_VERSION_CHECK;
+    process.env.SVELTY_OFFLINE_VERSION_CHECK = "true";
+    try {
+      const result = await checkForUpdates();
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(result.currentVersion).toBe(PACKAGE_VERSION);
+      expect(result.latestVersion).toBe(PACKAGE_VERSION);
+      expect(result.updateAvailable).toBe(false);
+    } finally {
+      if (prev === undefined) delete process.env.SVELTY_OFFLINE_VERSION_CHECK;
+      else process.env.SVELTY_OFFLINE_VERSION_CHECK = prev;
+    }
+  });
 });
 
 describe("readLocalVersion", () => {

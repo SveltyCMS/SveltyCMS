@@ -5,9 +5,51 @@
  * All helpers call /api/testing which delegates to the real server logic.
  * No duplicate seed logic — just thin HTTP wrappers.
  */
-import type { APIRequestContext, Page } from "@playwright/test";
+import type { APIRequestContext, Cookie, Page } from "@playwright/test";
 import { CONSENT_VALUE } from "./cookie-consent";
 import { TEST_PASSWORD, USERS } from "../../harness/fixtures";
+
+/**
+ * Worker-scoped valid admin cookies so tests do not repeat POST /api/testing login
+ * against stale static storageState files after an earlier test resets the DB.
+ */
+let cachedAdminCookies: Cookie[] | null = null;
+
+export function clearCachedAdminSession(): void {
+  cachedAdminCookies = null;
+}
+
+export async function saveCachedAdminSession(page: Page): Promise<void> {
+  try {
+    const cookies = await page.context().cookies();
+    if (cookies.some((c) => SESSION_COOKIE_RE.test(c.name))) {
+      cachedAdminCookies = cookies;
+    }
+  } catch {
+    /* ignore closed context */
+  }
+}
+
+export async function tryRestoreCachedAdminSession(page: Page): Promise<boolean> {
+  if (!cachedAdminCookies || cachedAdminCookies.length === 0) return false;
+  try {
+    const existing = await page.context().cookies();
+    const cachedSid = cachedAdminCookies.find((c) => SESSION_COOKIE_RE.test(c.name))?.value;
+    const currentSid = existing.find((c) => SESSION_COOKIE_RE.test(c.name))?.value;
+    if (cachedSid && currentSid === cachedSid) {
+      return false;
+    }
+    await page.context().addCookies(cachedAdminCookies);
+    if (await sessionLooksValid(page)) {
+      await primeCsrfHeaders(page);
+      return true;
+    }
+    cachedAdminCookies = null;
+  } catch {
+    cachedAdminCookies = null;
+  }
+  return false;
+}
 
 // ── Shared constants ───────────────────────────────────────────────────
 
@@ -84,6 +126,7 @@ async function waitForDatabaseReady(page: Page, timeoutMs = 20_000): Promise<voi
 }
 
 export async function resetAndSeedDatabase(page: Page) {
+  clearCachedAdminSession();
   await page.context().clearCookies();
   const reset = await page.request.post("/api/testing", {
     headers: TEST_API_HEADERS,
@@ -126,6 +169,7 @@ export async function resetAndSeedDatabase(page: Page) {
       throw new Error("resetAndSeedDatabase: no usable admin session after two attempts");
     }
   }
+  await saveCachedAdminSession(page);
 }
 
 /** True when the context carries a session the API accepts. */
@@ -331,10 +375,15 @@ export async function ensureAuthenticated(page: Page): Promise<void> {
     },
     { consent: CONSENT_VALUE },
   );
-  if (await sessionLooksValid(page)) return;
+  if (await sessionLooksValid(page)) {
+    await saveCachedAdminSession(page);
+    return;
+  }
+  if (await tryRestoreCachedAdminSession(page)) return;
   for (const attempt of ["login", "seed+login", "reset+seed+login"]) {
     try {
       if (attempt === "reset+seed+login") {
+        clearCachedAdminSession();
         await postTesting(page, { action: "reset" }).catch(() => null);
       }
       const res = await page.request.post("/api/testing", {
@@ -346,7 +395,10 @@ export async function ensureAuthenticated(page: Page): Promise<void> {
         },
       });
       if (res.ok()) await applySessionCookie(page, res).catch(() => false);
-      if (await sessionLooksValid(page)) return;
+      if (await sessionLooksValid(page)) {
+        await saveCachedAdminSession(page);
+        return;
+      }
     } catch {
       /* retry */
     }

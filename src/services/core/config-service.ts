@@ -99,6 +99,58 @@ function settingConfigEntity(key: string, value: unknown): Record<string, unknow
   return { key, value: decodePreferenceValue(value) };
 }
 
+/**
+ * Recursively strips non-serializable runtime values (functions such as
+ * `widget.validationSchema`, symbols, and circular references) so `ConfigEntity`
+ * payloads safely traverse SvelteKit `load()` (`devalue`), `JSON.stringify`,
+ * and database JSON columns while preserving shared acyclic references.
+ */
+function toSerializableConfigValue(value: unknown, seen = new WeakSet<object>()): unknown {
+  if (
+    value === null ||
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    return value;
+  }
+  if (typeof value === "bigint") return value.toString();
+  if (typeof value === "function" || typeof value === "symbol" || typeof value === "undefined") {
+    return undefined;
+  }
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === "object") {
+    if (seen.has(value)) return undefined;
+    seen.add(value);
+    try {
+      if (Array.isArray(value)) {
+        return value.map((item) => {
+          const clean = toSerializableConfigValue(item, seen);
+          return clean === undefined ? null : clean;
+        });
+      }
+      const out: Record<string, unknown> = {};
+      for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+        const clean = toSerializableConfigValue(entry, seen);
+        if (clean !== undefined) {
+          out[key] = clean;
+        }
+      }
+      return out;
+    } finally {
+      seen.delete(value);
+    }
+  }
+  return undefined;
+}
+
+function toSerializableConfigEntity(entity: unknown): Record<string, unknown> {
+  const cleaned = toSerializableConfigValue(entity);
+  return cleaned && typeof cleaned === "object" && !Array.isArray(cleaned)
+    ? (cleaned as Record<string, unknown>)
+    : {};
+}
+
 // ---------------------------------------------------------------------------
 // Interfaces
 // ---------------------------------------------------------------------------
@@ -868,13 +920,14 @@ export class ConfigService {
 
     const tasks = collections.map(async (collection) => {
       if (!(collection._id && collection.name)) return null;
-      const hash = await syncHash(collection);
+      const entity = toSerializableConfigEntity(collection);
+      const hash = await syncHash(entity);
       return {
         uuid: String(collection._id),
         type: "collection",
         name: collection.name,
         hash,
-        entity: collection as unknown as Record<string, unknown>,
+        entity,
       };
     });
 
@@ -1289,17 +1342,22 @@ export class ConfigService {
       deleted: ConfigEntity[];
     };
 
+    const serializeItem = (item: ConfigEntity): ConfigEntity => ({
+      ...item,
+      entity: toSerializableConfigEntity(item.entity),
+    });
+
     for (const [uuid, s] of source.entries()) {
       const a = active.get(uuid);
       if (!a) {
-        result.new.push(s);
+        result.new.push(serializeItem(s));
       } else if (s.hash !== a.hash) {
-        result.updated.push(s);
+        result.updated.push(serializeItem(s));
       }
     }
     for (const [uuid, a] of active.entries()) {
       if (!source.has(uuid)) {
-        result.deleted.push(a);
+        result.deleted.push(serializeItem(a));
       }
     }
     return result;
