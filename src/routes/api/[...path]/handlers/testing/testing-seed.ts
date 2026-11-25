@@ -506,6 +506,27 @@ export async function handleTestingSeedRoutes(ctx: TestingContext): Promise<Resp
       permanent: true,
     });
 
+    if (result.success) {
+      if (collectionId === "roles") {
+        await invalidateRoleGrantCaches(tenantId);
+      } else {
+        try {
+          const scopedTenant = tenantId ? String(tenantId) : null;
+          const { responseCache } = await import("@src/services/cache/response-cache");
+          const { evictRequestCache } =
+            await import("@src/services/sdk/namespaces/collections/request-cache");
+          evictRequestCache(collectionId, scopedTenant ?? undefined);
+          await responseCache.invalidateCollection(collectionId, scopedTenant, {
+            entryIds: [String(id)],
+          });
+          const { cacheService } = await loadCacheServiceModule();
+          await cacheService.invalidateCollection(collectionId, scopedTenant);
+        } catch (err) {
+          logger.debug("[testing-seed] delete cache invalidation suppressed error", err);
+        }
+      }
+    }
+
     return rawResponse(
       {
         success: result.success,

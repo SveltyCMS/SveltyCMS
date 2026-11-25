@@ -157,4 +157,29 @@ describe("handleTurboGet + response cache", () => {
     expect(resolve).not.toHaveBeenCalled();
     expect(res.headers.get("X-Cache")).toBe("TURBO-HIT");
   });
+
+  it.each(["bypassCache=true", "nocache=true", "refresh=true"])(
+    "bypasses responseCache and ETag short-circuit when %s is present",
+    async (param) => {
+      setTurboAuthContext(sessionId, user as any, [], null);
+      const body = JSON.stringify({ success: true, data: [{ _id: "stale-id" }] });
+      const etag = generateContentEtag(body);
+      const search = `?publicationFilter=all&${param}`;
+      const key = buildUserResponseCacheKey("/api/collections/posts", search, user._id);
+      responseCache.set(key, { body, etag }, 60_000, null);
+
+      const resolve = vi.fn(async () => new Response(JSON.stringify({ success: true, data: [] })));
+      const event = createMockEvent(`/api/collections/posts${search}`, {
+        method: "GET",
+        sessionCookie: sessionId,
+        headers: { "If-None-Match": etag },
+      });
+
+      const res = await handleTurboGet({ event, resolve } as any);
+      expect(resolve).toHaveBeenCalledOnce();
+      expect(res.status).toBe(200);
+      expect(res.headers.get("X-Cache")).toBeNull();
+      expect(await res.json()).toEqual({ success: true, data: [] });
+    },
+  );
 });

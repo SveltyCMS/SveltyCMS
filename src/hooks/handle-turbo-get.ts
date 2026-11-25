@@ -289,6 +289,14 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
     return resolve(event);
   }
   if (!isCacheableApiPath(url.pathname)) return resolve(event);
+  if (
+    url.search.length > 0 &&
+    (url.searchParams.get("refresh") === "true" ||
+      url.searchParams.get("nocache") === "true" ||
+      url.searchParams.get("bypassCache") === "true")
+  ) {
+    return resolve(event);
+  }
 
   // Same protocol-derived isSecure as handleAuthentication so every consumer
   // hits the SAME per-request WeakMap slot inside readSessionCookie — the
@@ -390,12 +398,7 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
   }
 
   const ifNoneMatchEarly = request.headers.get("if-none-match");
-  const bypassEtag =
-    url.search.length > 0 &&
-    (url.searchParams.get("refresh") === "true" ||
-      url.searchParams.get("nocache") === "true" ||
-      url.searchParams.get("bypassCache") === "true");
-  if (ifNoneMatchEarly && url.pathname.startsWith("/api/collections/") && !bypassEtag) {
+  if (ifNoneMatchEarly && url.pathname.startsWith("/api/collections/")) {
     const notModified = tryCollectionNotModified({
       pathname: url.pathname,
       search: url.search,
@@ -414,7 +417,7 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
     }
   }
 
-  const ccHeader = !bypassEtag && method === "GET" ? request.headers.get("cache-control") : null;
+  const ccHeader = method === "GET" ? request.headers.get("cache-control") : null;
   const stalePolicy = ccHeader ? parseCacheControlStalePolicy(ccHeader) : null;
   const resEntry = responseCache.get(
     pathKey,
