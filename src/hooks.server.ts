@@ -943,27 +943,9 @@ export const handle: Handle = async ({ event, resolve }) => {
   }
 
   const pathname = event.url.pathname;
-  const { policy, routeId } = resolveRoutePolicy(pathname, event.request.method);
-  (event.locals as { policy?: number; routeId?: string }).policy = policy;
-  (event.locals as { policy?: number; routeId?: string }).routeId = routeId;
 
-  if (hasPolicy(policy, Policy.STRIP_COOKIES)) {
-    event.locals.user = null;
-  }
-
-  if (eventLoopShedder.isOverloaded) {
-    const hasAuth = Boolean(
-      event.locals.user ||
-      event.request.headers.get("authorization") ||
-      event.request.headers.get("cookie")?.includes("session"),
-    );
-    const shedPriority = classifyLoadShedPriority(pathname, event.request.method, hasAuth);
-    if (eventLoopShedder.shouldShed(shedPriority)) {
-      return withLane(eventLoopShedder.createShedResponse(), lane);
-    }
-  }
-
-  // 🚀 Health check early-exit dispatcher: skip trace setup, context, collection checks, and full pipeline
+  // 🚀 Health check early-exit dispatcher: skip policy, load-shedding, trace setup,
+  // context, collection checks, and full pipeline. Probes must stay minimal and never shed.
   if (
     lane === RequestLane.HEALTH ||
     pathname === "/api/system/health" ||
@@ -1071,6 +1053,24 @@ export const handle: Handle = async ({ event, resolve }) => {
       return withLane(healthRes, lane);
     } finally {
       inFlightRequests--;
+    }
+  }
+
+  const { policy } = resolveRoutePolicy(pathname, event.request.method);
+  (event.locals as { policy?: number }).policy = policy;
+  if (hasPolicy(policy, Policy.STRIP_COOKIES)) {
+    event.locals.user = null;
+  }
+
+  if (eventLoopShedder.isOverloaded) {
+    const hasAuth = Boolean(
+      event.locals.user ||
+      event.request.headers.get("authorization") ||
+      event.request.headers.get("cookie")?.includes("session"),
+    );
+    const shedPriority = classifyLoadShedPriority(pathname, event.request.method, hasAuth);
+    if (eventLoopShedder.shouldShed(shedPriority)) {
+      return withLane(eventLoopShedder.createShedResponse(), lane);
     }
   }
 

@@ -53,7 +53,7 @@ import {
   hasNativeCompression,
   setCompressionHeaders,
 } from "./handle-compression";
-import { Policy, hasPolicy } from "./policy";
+import { Policy } from "./policy";
 
 export interface TurboAuthContext {
   user: User;
@@ -113,7 +113,7 @@ const userSecurityStamps = new Map<string, number>();
  * Returns the current monotonic security stamp for a user (0 if never bumped).
  */
 export function getSecurityStamp(userId: string | null | undefined): number {
-  if (!userId) return 0;
+  if (userSecurityStamps.size === 0 || !userId) return 0;
   return userSecurityStamps.get(userId) ?? 0;
 }
 
@@ -283,7 +283,7 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
 
   if (flags.isStatic || flags.isBootstrap) return resolve(event);
   if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") return resolve(event);
-  if (hasPolicy((locals as { policy?: number }).policy ?? 0, Policy.STRIP_COOKIES)) {
+  if ((((locals as { policy?: number }).policy ?? 0) & Policy.STRIP_COOKIES) !== 0) {
     return resolve(event);
   }
   if (!isCacheableApiPath(url.pathname)) return resolve(event);

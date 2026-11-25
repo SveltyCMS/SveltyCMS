@@ -14,8 +14,8 @@
         "src/databases/auth/permission-catalog.ts"
       ],
       "model": "docs/reference/security/threat-models/api-dispatch.mdx",
-      "reviewed_at": "2026-11-24",
-      "fingerprint": "cd055f0129fa47deb1c83a4dbb7ed9856e70ff2b11121168a68f2975334816fa"
+      "reviewed_at": "2026-11-25",
+      "fingerprint": "0679c107d74403783041421639c0d185ca23f88b9a675d4b66a95a40a015ebc3"
     },
     {
       "id": "auth-session",
@@ -37,7 +37,7 @@
         "src/routes/api/[...path]/handlers/scim.ts"
       ],
       "model": "docs/reference/security/threat-models/auth-session.mdx",
-      "reviewed_at": "2026-11-24",
+      "reviewed_at": "2026-11-25",
       "fingerprint": "6d605d2a42801598e6333da6fcd5581209d94379ed56ecd6901600e4f6c4e293"
     },
     {
@@ -57,7 +57,7 @@
         "src/hooks/handle-collection-write-lane.ts"
       ],
       "model": "docs/reference/security/threat-models/content-write.mdx",
-      "reviewed_at": "2026-11-24",
+      "reviewed_at": "2026-11-25",
       "fingerprint": "ab1acb8523b43a423eef5877a0cacc8dda8474f352b25feda8f5c707a935633e"
     },
     {
@@ -74,7 +74,7 @@
         "src/routes/api/[...path]/handlers/media-transcode.ts"
       ],
       "model": "docs/reference/security/threat-models/media-files.mdx",
-      "reviewed_at": "2026-11-24",
+      "reviewed_at": "2026-11-25",
       "fingerprint": "df18ae1211a4d2090525f58b9be036f4c562053aac74873e1f9fcb301ebf6efa"
     },
     {
@@ -89,7 +89,7 @@
         "src/utils/page-guards.server.ts"
       ],
       "model": "docs/reference/security/threat-models/admin-pages.mdx",
-      "reviewed_at": "2026-11-24",
+      "reviewed_at": "2026-11-25",
       "fingerprint": "cad05adac89dc4b3bb13870b53f456008c8762d8f206cf30fdd4a00b20c77344"
     },
     {
@@ -130,8 +130,8 @@
         "src/utils/test-bypass.server.ts"
       ],
       "model": "docs/reference/security/threat-models/system-ops.mdx",
-      "reviewed_at": "2026-11-24",
-      "fingerprint": "75fdf5117d79f0762ad2a952c120d0da54bd4a866a66c0ae2546ec2f4dfb4212"
+      "reviewed_at": "2026-11-25",
+      "fingerprint": "34e4e9f85ffce5079a0d824a1173492581a7a8fed09a80085ab054cec1a9363b"
     }
   ]
 }

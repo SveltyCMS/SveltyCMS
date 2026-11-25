@@ -33,6 +33,7 @@ export interface CompiledRouteTable {
   readonly exact: ReadonlyMap<string, CompiledRouteEntry>;
   readonly prefixBuckets: ReadonlyMap<string, readonly CompiledRouteEntry[]>;
   readonly apiBucket: readonly CompiledRouteEntry[] | undefined;
+  readonly collectionsEntry: CompiledRouteEntry | undefined;
   readonly fallback: CompiledRouteEntry;
 }
 
@@ -244,10 +245,14 @@ export function compileRouteTable(
     bucket.sort((a, b) => b.entry.pattern.length - a.entry.pattern.length);
   }
 
+  const apiBucket = prefixBuckets.get("/api");
+  const collectionsEntry = apiBucket?.find((c) => c.entry.pattern === "/api/collections/");
+
   return {
     exact,
     prefixBuckets,
-    apiBucket: prefixBuckets.get("/api"),
+    apiBucket,
+    collectionsEntry,
     fallback: compileEntry(FALLBACK_ENTRY),
   };
 }
@@ -264,6 +269,17 @@ export function resolveRoutePolicy(
   table: CompiledRouteTable = DEFAULT_TABLE,
 ): ResolvedRoutePolicy {
   const isRead = method === "GET" || method === "HEAD" || method === "OPTIONS";
+
+  // Hot-path fast bypass for `/api/collections/*`: skips exact Map hash + bucket scan.
+  if (
+    table.collectionsEntry !== undefined &&
+    pathname.length > 17 &&
+    pathname.charCodeAt(1) === 97 &&
+    pathname.charCodeAt(5) === 99 &&
+    pathname.startsWith("/api/collections/")
+  ) {
+    return isRead ? table.collectionsEntry.readResult : table.collectionsEntry.writeResult;
+  }
 
   const exactHit = table.exact.get(pathname);
   if (exactHit) {
