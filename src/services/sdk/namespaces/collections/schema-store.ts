@@ -81,6 +81,8 @@ export type SchemaHotFlags = {
   }>;
   /** True when schema has fields with field-level permissions or visibility restrictions. */
   _hasGuardedFields?: boolean;
+  /** True when schema has fields with `omit: true` (masked even for non-system admins). */
+  _hasOmittedFields?: boolean;
   /** db_fieldName of guarded fields. Empty when `_hasGuardedFields` is false. */
   _guardedFieldNames?: string[];
   /** True when at least one widget exposes a Valibot `validationSchema`. */
@@ -179,6 +181,7 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
   let hasHookFields = false;
   let hasAfterOperationHooks = false;
   let hasGuardedFields = false;
+  let hasOmittedFields = false;
   const guardedFieldNames: string[] = [];
   const fieldValidators: Array<{ key: string; name: string; schema: unknown }> = [];
 
@@ -278,6 +281,9 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
       const name = String(f.name || dbName || "unknown");
       if (key) requiredFields.push({ name, key, showIf });
     }
+    if ((f as { omit?: boolean }).omit === true) {
+      hasOmittedFields = true;
+    }
     if (fieldDeclaresGuardDeep(f)) {
       hasGuardedFields = true;
       // Include dotted child paths (`team.salary`) so filter blocking covers the
@@ -315,6 +321,7 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
   s._hasConditionallyRequiredFields = conditionallyRequiredFields.length > 0;
   s._conditionallyRequiredFields = conditionallyRequiredFields;
   s._hasGuardedFields = hasGuardedFields;
+  s._hasOmittedFields = hasOmittedFields;
   s._guardedFieldNames = guardedFieldNames;
   return s;
 }

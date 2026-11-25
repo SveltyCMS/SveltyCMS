@@ -805,8 +805,9 @@ function finalizePresentRead(
   user: LocalApiOptions["user"],
   system?: boolean,
 ): unknown {
+  const mustRedactOmitted = Boolean(hot._hasOmittedFields && !system && user?._id !== "system");
   const permitted =
-    !hot._hasGuardedFields || readerMaySeeGuardedFields(user, system)
+    (!hot._hasGuardedFields || readerMaySeeGuardedFields(user, system)) && !mustRedactOmitted
       ? decoded
       : redactReadEnvelope(decoded, schema.fields as FieldInstance[], user);
   if (system || isAdmin(user)) return permitted;

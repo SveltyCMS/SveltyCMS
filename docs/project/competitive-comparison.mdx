@@ -4,7 +4,7 @@ title: "Headless CMS Comparison 2026: SveltyCMS vs. Payload CMS vs. Strapi vs. D
 description: "Objective 2026 technical comparison of open-source headless CMS platforms: SveltyCMS, Payload CMS, Strapi, and Directus across performance, multi-tenancy, AI capabilities, and total cost of ownership."
 author: "SveltyCMS Team"
 created: "2026-03-21"
-updated: "2026-11-08"
+updated: "2026-11-25"
 tags:
   - "comparison"
   - "buyers-guide"
@@ -422,25 +422,25 @@ GEO — optimizing content to be cited by generative engines (AI Overviews, Chat
 
 ### Where SveltyCMS stands against the patterns
 
-| Pattern                                    | Status                           | SveltyCMS module / note                                                                           |
-| ------------------------------------------ | -------------------------------- | ------------------------------------------------------------------------------------------------- |
-| Config cascade (site → collection → entry) | ⬜ Roadmap                       | Widget-level `{{tokens}}` only today                                                              |
-| Tokenized title templates                  | 🏗️ Partial                       | SEO widget `modifyRequest` resolves tokens per entry                                              |
-| Schema per content type (auto)             | 🏗️ Partial                       | WebSite + BreadcrumbList auto-generated (2026-10-08); no per-type Article/WebPage auto markup yet |
-| Breadcrumbs automation                     | ✅ Shipped                       | `seo-head.ts` derives BreadcrumbList from the URL hierarchy                                       |
-| Redirect on slug change + 404 tracking     | ✅ Shipped                       | `redirect-manager` plugin (`autoRedirectOnSlugChange`) + `404_logs`                               |
-| Sitemap as configurable surface            | 🏗️ Partial                       | Paginated sitemap + hreflang; no image/news variants                                              |
-| hreflang from site languages               | ✅ Shipped                       | Head + sitemap alternates with `x-default`                                                        |
-| Readability + keyword analysis in editor   | ✅ Shipped                       | Widget analyzer + link suggestions API                                                            |
-| IndexNow on publish                        | ✅ Shipped (premium, 2026-10-08) | `indexnow.server.ts` — fire-and-forget ping; key at `/indexnow.txt`                               |
-| Auto-generated social images               | ⬜ Roadmap                       | Highest-effort item; see roadmap                                                                  |
-| AI-crawler robots directives               | ✅ Shipped (2026-10-08)          | `AI_CRAWLER_POLICY` setting → robots.txt per-crawler groups                                       |
-| llms.txt                                   | ✅ Shipped (2026-10-08)          | `/llms.txt` generated from published collections                                                  |
-| GEO citation support                       | 🏗️ Partial                       | FAQ/Article JSON-LD via the widget; no auto FAQ schema from Q&A fields                            |
+| Pattern                                    | Status                           | SveltyCMS module / note                                                                    |
+| ------------------------------------------ | -------------------------------- | ------------------------------------------------------------------------------------------ |
+| Config cascade (site → collection → entry) | ✅ Shipped (2026-11-25)          | `seo-cascade.ts` & `seo-head.ts` — entry > collection > site inheritance + `titleTemplate` |
+| Tokenized title templates                  | ✅ Shipped (2026-11-25)          | `applySeoTitleTemplate` + SEO widget `modifyRequest` token resolution                      |
+| Schema per content type (auto)             | ✅ Shipped (2026-11-05)          | `seo-head.ts` auto-emits Article, WebPage, Product, WebSite, and BreadcrumbList JSON-LD    |
+| Breadcrumbs automation                     | ✅ Shipped                       | `seo-head.ts` derives BreadcrumbList from the URL hierarchy                                |
+| Redirect on slug change + 404 tracking     | ✅ Shipped                       | `redirect-manager` plugin (`autoRedirectOnSlugChange`) + `404_logs`                        |
+| Sitemap as configurable surface            | 🏗️ Partial                       | Paginated sitemap + hreflang; no image/news variants                                       |
+| hreflang from site languages               | ✅ Shipped                       | Head + sitemap alternates with `x-default`                                                 |
+| Readability + keyword analysis in editor   | ✅ Shipped                       | Widget analyzer + link suggestions API                                                     |
+| IndexNow on publish                        | ✅ Shipped (premium, 2026-10-08) | `indexnow.server.ts` — fire-and-forget ping; key at `/indexnow.txt`                        |
+| Auto-generated social images               | ⬜ Roadmap                       | Highest-effort item; see roadmap                                                           |
+| AI-crawler robots directives               | ✅ Shipped (2026-10-08)          | `AI_CRAWLER_POLICY` setting → robots.txt per-crawler groups                                |
+| llms.txt                                   | ✅ Shipped (2026-10-08)          | `/llms.txt` generated from published collections                                           |
+| GEO citation support                       | 🏗️ Partial                       | FAQ/Article JSON-LD via the widget; no auto FAQ schema from Q&A fields                     |
 
 ### Honest read
 
-The mature stacks win on **editorial ergonomics accumulated over a decade** (cascade defaults, one-click 404 fixes, per-type auto markup); SveltyCMS already covers the technical crawlability surface (canonical, robots, sitemap, hreflang, redirects, 404 logs, breadcrumbs, llms.txt, IndexNow, AI-crawler directives) and leads on AI-visibility basics by shipping llms.txt natively. The measurable gaps are the cascade/defaults system, auto-generated social images, sitemap variants, and per-type auto schema — in that order of effort. Nothing above should be read as a claim that any single pattern guarantees rankings or generative citations; the ecosystems themselves document these as hygiene and eligibility work.
+The mature ecosystems benefit from years of third-party addon depth and UI polish; SveltyCMS covers the core technical crawlability and GEO baseline (canonical, robots, image/news sitemaps, hreflang, site → collection → entry SEO cascade, per-type JSON-LD, redirects, 404 logs, breadcrumbs, `llms.txt`, IndexNow, and AI-crawler directives). Auto-generated social OG image cards remain on the backlog. Nothing above should be read as a claim that any single pattern guarantees search rankings or generative citations; the ecosystems themselves document these as hygiene and eligibility work.
 
 ## Verdict
 

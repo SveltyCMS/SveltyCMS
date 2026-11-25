@@ -13,10 +13,12 @@
  * - Cursor-streamed NDJSON / CSV / JSON export (`GET …/export`)
  */
 
-import { AppError } from "@utils/error-handling";
+import { AppError, raise } from "@utils/error-handling";
+import { readIdempotencyKey, runIdempotentPost } from "@utils/idempotency";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId, Schema } from "@src/content/types";
+import type { User } from "@src/databases/auth/types";
 import type { ContentDraft } from "@src/databases/db-interface";
 import { StatusTypes } from "@src/content/types";
 import { prepareCollectionFields } from "@src/content/content-write-prep.server";
@@ -49,10 +51,35 @@ import { PROFILE_WRITE_ENABLED, profileSpan, profileMark } from "@utils/write-pr
 import { MAX_PAGE_SIZE, parseCollectionQueryParams } from "@utils/api-params";
 import { getUserCacheId } from "@utils/hook-utils";
 import {
+  buildPublicCdnTagHeaders,
   collectionEtagResponseHeaders,
   currentCollectionWeakEtag,
   tryCollectionNotModified,
 } from "@src/services/cache/collection-etag";
+
+function resolveCollectionGetHeaders(
+  conditionalEtag: string | null | undefined,
+  user: { isAnonymous?: boolean } | null | undefined,
+  result: { success?: boolean } | null | undefined,
+  tenantId: DatabaseId,
+  collectionId: string,
+  entryId?: string,
+): Record<string, string> | undefined {
+  const isPublicSuccess = result?.success !== false && (!user || Boolean(user.isAnonymous));
+  if (!isPublicSuccess) {
+    return typeof conditionalEtag === "string"
+      ? collectionEtagResponseHeaders(conditionalEtag)
+      : undefined;
+  }
+  const cdnTags = {
+    tenantId: tenantId ? String(tenantId) : null,
+    collectionId,
+    entryId,
+  };
+  return typeof conditionalEtag === "string"
+    ? collectionEtagResponseHeaders(conditionalEtag, cdnTags)
+    : buildPublicCdnTagHeaders(cdnTags.tenantId, cdnTags.collectionId, cdnTags.entryId);
+}
 
 /** Maximum number of items allowed in a single bulk operation to prevent memory exhaustion. */
 const MAX_BULK_ITEMS = 1000;
@@ -146,7 +173,16 @@ export async function handleCollectionsRoutes(
     // Drafts are author + tenant scoped and never surface through the entry list,
     // export, or GraphQL lane: this subroute is the only way in or out.
     if (collectionId && (entryId === "drafts" || subAction === "drafts")) {
-      return handleCollectionDrafts(event, cms, tenantId, user, collectionId, entryId, subAction);
+      return handleCollectionDrafts(
+        event,
+        cms,
+        tenantId,
+        user,
+        collectionId,
+        entryId,
+        subAction,
+        segments[4],
+      );
     }
 
     // ── Revision history ──
@@ -343,8 +379,9 @@ async function handleCollectionDrafts(
   collectionId: string,
   entryId: string | undefined,
   subAction: string | undefined,
+  draftAction?: string,
 ) {
-  // `/…/:collectionId/drafts[/:draftId]` vs `/…/:collectionId/:entryId/drafts`
+  // `/…/:collectionId/drafts[/:draftId]` vs `/…/:collectionId/:entryId/drafts[/:action]`
   const isDraftsRoot = entryId === "drafts";
   const targetEntryId = isDraftsRoot ? undefined : entryId;
   const draftId = isDraftsRoot ? subAction : undefined;
@@ -362,6 +399,27 @@ async function handleCollectionDrafts(
     }
 
     case "POST": {
+      if (targetEntryId && draftAction === "rollback") {
+        const rawRollback =
+          (event.locals as { __parsedJsonBody?: unknown })?.__parsedJsonBody ||
+          (await event.request.json());
+        const rollbackBody =
+          rawRollback && typeof rawRollback === "object"
+            ? (rawRollback as Record<string, unknown>)
+            : {};
+        const version = Number(rollbackBody.version);
+        if (!Number.isInteger(version) || version < 1) {
+          raise(400, "A positive revision version is required", "BAD_REQUEST");
+        }
+        return successResponse(
+          event,
+          await cms.drafts.rollbackDraft(collectionId, targetEntryId, version, {
+            user,
+            tenantId,
+          }),
+          200,
+        );
+      }
       if (isDraftsRoot && draftId && event.url.searchParams.get("action") === "promote") {
         return successResponse(
           event,
@@ -508,7 +566,7 @@ export async function handleCollectionFind(
     event,
     trimListEnvelope(result),
     200,
-    typeof conditional === "string" ? collectionEtagResponseHeaders(conditional) : undefined,
+    resolveCollectionGetHeaders(conditional, user, result, tenantId, collectionId),
   );
 }
 
@@ -580,27 +638,36 @@ export async function handleCollectionEntry(
   entryId: string,
 ) {
   const params = parseCollectionQueryParams(event.url.searchParams);
-  const bypassEtag = params.bypassCache || event.url.searchParams.get("refresh") === "true";
+  const rawAsOf = event.url.searchParams.get("asOf")?.trim();
+  const asOf = rawAsOf && rawAsOf.length > 0 ? rawAsOf : undefined;
+  const bypassEtag =
+    Boolean(asOf) || params.bypassCache || event.url.searchParams.get("refresh") === "true";
   const conditional = collectionConditionalGet(event, collectionId, bypassEtag);
   if (conditional instanceof Response) return conditional;
   const result = await cms.collections.findById(collectionId, entryId, {
     tenantId,
     user,
     publicationFilter: params.publicationFilter,
-    bypassCache: params.bypassCache,
+    bypassCache: Boolean(asOf) || params.bypassCache,
     populate: params.populate,
+    ...(asOf ? { asOf } : {}),
   });
   // Same shared trim as the warm read lane's MISS rebuild — the
   // BENCH_VERIFY_RAW=1 byte-identity gate compares both transports for the
   // same request, so the point-read payload must be shaped in exactly one
   // place. `trimPointReadEnvelope` copies, so the SDK request cache / L2
   // entries (which hold this very envelope) never see the trimmed row.
-  return successResponse(
-    event,
-    trimPointReadEnvelope(result),
-    200,
-    typeof conditional === "string" ? collectionEtagResponseHeaders(conditional) : undefined,
-  );
+  const headers =
+    resolveCollectionGetHeaders(conditional, user, result, tenantId, collectionId, entryId) ?? {};
+  if (asOf) {
+    headers["Cache-Control"] = "private, no-store";
+    const metaVer = (result?.data as { _revisionVersion?: unknown } | null | undefined)
+      ?._revisionVersion;
+    if (metaVer !== undefined && metaVer !== null) {
+      headers["X-Svelty-AsOf-Version"] = String(metaVer);
+    }
+  }
+  return successResponse(event, trimPointReadEnvelope(result), 200, headers);
 }
 
 // ─── Write Handlers ──────────────────────────────────────────────────────────
@@ -630,7 +697,30 @@ export async function handleCollectionCreate(
   event: RequestEvent,
   cms: LocalCMS,
   tenantId: DatabaseId,
-  user: any,
+  user: User | null | undefined,
+  collectionId: string,
+) {
+  if (readIdempotencyKey(event.request)) {
+    const locals = event.locals as unknown as { __parsedJsonBody?: unknown };
+    const rawJson =
+      locals.__parsedJsonBody !== undefined
+        ? locals.__parsedJsonBody
+        : PROFILE_WRITE_ENABLED
+          ? await profileSpan("handler:json", () => event.request.json())
+          : await event.request.json();
+    locals.__parsedJsonBody = rawJson;
+    return runIdempotentPost(event, tenantId, user, rawJson, () =>
+      executeCollectionCreate(event, cms, tenantId, user, collectionId),
+    );
+  }
+  return executeCollectionCreate(event, cms, tenantId, user, collectionId);
+}
+
+async function executeCollectionCreate(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: User | null | undefined,
   collectionId: string,
 ) {
   const rawData = unwrapWritePayload(

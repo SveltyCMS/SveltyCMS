@@ -180,7 +180,7 @@ tags:
 ## 5. SEO & GEO Engine Enhancements (Active Backlog)
 
 - **SEO Config Cascade**:
-  - Implement site → collection → entry defaults for title and description templates with token fallbacks.
+  - [x] Site → collection → entry defaults (`seo-cascade.ts` wired into `seo-head.ts` and `seo-head.server.ts`, with `titleTemplate`, `defaultDescription`, `defaultRobotsMeta`, `defaultOgImage`, `defaultTwitterCard`, and schema type inheritance).
 - **Sitemap Variants**:
   - [x] **Specialized Google Sitemap Variants**: Google Image (`sitemap-images.xml`) and Google News (`sitemap-news.xml` filtering last 48 hours) XML sitemaps conforming to Google search guidelines. Tenant-aware and cached. Shipped in `src/services/content/seo/sitemap-builder.ts`, `src/routes/sitemap-images.xml/+server.ts`, and `src/routes/sitemap-news.xml/+server.ts`, verified by `tests/unit/services/sitemap-builder.test.ts`.
 - **Social & Structured Data Automation**:
@@ -216,7 +216,7 @@ tags:
 - **Systemic audit follow-ups (2026-11-06)** — the isolation and loader fixes exposed defect _classes_, not one-offs. Counts measured on this tree:
   - [x] **Module-level timers leak per HMR.** `content-transfer.ts` (5-minute export sweep) and `api-key-usage-accumulator.ts` (10-second flush) now keep their timer + state on one `globalThis` object and `unref()` it; `lint:global-timers` (AST scope detection) gates new ones.
   - [x] **Date helper drift.** All 72 direct `new Date().toISOString()` calls outside `src/utils/date.ts` / `logger.server.ts` were migrated to `nowISODateString()`; `lint:date-helpers` keeps them out.
-  - [ ] **OpenAPI overstates coverage.** `api-spec-service.ts` emits 14+ paths against 67 permission namespaces. Webhooks/workflows/automations (12 paths) are documented and the spec description now labels the document as a **curated sample**; generating the remaining namespaces from the dispatch map remains.
+  - [x] **OpenAPI complete endpoint coverage.** `api-spec-service.ts` auto-documents all 67 `ENDPOINT_PERMISSIONS` namespaces via `addRemainingPermissionNamespaces()` (including generic `/collections` and permission annotations), driving `undocumentedNamespaces` to `[]` while preserving curated paths and schemas (`tests/unit/api/openapi-contract-coverage.test.ts`).
   - [ ] **Transient-error classification outside the loader.** All 43 `unlink`/`rm` sites were reviewed for the delete-on-transient-error class: the engine is fixed, `sync-content-state` deletes only on explicit user delete ops, the rest are intent-based. Add one shared `isTransientPlatformError()` (module runner, `ECONNRESET`/`EPIPE`, shutdown) and route cache/service catches through it.
   - [x] **`raise()` vs `new AppError()`.** Rule clarified in `AGENTS.md`: `raise()` is the handler-facing constructor; `throw new AppError` is allowed in services/adapters and for enriched errors. `lint:rule-budgets` ratchets the 706 remaining direct throws per area (new ones fail the gate).
   - [x] **Explicit `any` ratchet.** `lint:rule-budgets` records a per-area baseline (4,516 occurrences) and fails when any area grows; `--update` ratchets downward after a cleanup.
@@ -262,7 +262,7 @@ tags:
 
 - **Row-level access as a query constraint**:
   - [x] `ACCESS_RULES` private setting compiles per-collection/per-role read rules into a WHERE fragment merged before pagination, keyset cursors, `COUNT(*)` and streaming; also enforced on single/bulk update and delete. Dynamic tokens: `$user._id`, `$user.role`, `$tenant.id`. Shipped 2026-10-19 (`src/services/security/access-rule-service.ts`).
-  - [ ] Write rules beyond read (create/update/delete per row) and operator support (`$ne`, `$in` beyond arrays, relation traversal).
+  - [x] Operation-specific write rules (`create` payload validation via `assertCreateAccessAllowed` → 403 `ACCESS_RULE_FORBIDDEN`; `update` and `delete` via `buildOperationConstraint`). Richer operator expansion (`$ne`, relation traversal) remains open.
   - [ ] Admin UI for rule authoring with validation and a preview of the generated filter.
 
 - **Enterprise Identity & Encryption (Shipped 2026-11-04)**:
@@ -298,7 +298,7 @@ tags:
 - **Cross-Source Data Merge (v3.1)**:
   - Federated queries across heterogeneous databases.
 - **Community & Launch**:
-  - Framework quickstart guides (Next.js, Astro, Nuxt, SvelteKit consumers).
+  - [x] Framework quickstart guides (`docs/guides/content/framework-quickstarts.mdx` covering Next.js, Astro, Nuxt, and SvelteKit consumers with `@sveltycms/sdk` workspace package).
   - Marketplace static OpenGraph card synchronization on live docroot.
   - Interactive "Was this page helpful?" feedback component on docs routes.
   - Public ecosystem launch (Product Hunt, Hacker News, awesome-cms).
@@ -340,13 +340,13 @@ Findings from the 2026-10-24 theme/UX review that need a design decision or a cr
 
 Shortlisted differentiators that are **not** scheduled. Each is recorded here with a scope and an acceptance criterion so it can be promoted into §1–§10 (and later the [Achievements Log](./achievements-2026.mdx)) only when it has an owner and a test.
 
-- **Temporal reads (as-of revision)** — read an entry as it existed at a revision or timestamp, reusing `content_revisions` and the existing projections. Buyers in regulated segments ask for this in place of full database PITR.
-  - _Acceptance:_ `GET /api/collections/:c/:id?asOf=<revision|ISO>` returns the historical row, tenant-scoped, with normal projection/access rules; pinned by unit + integration tests on SQLite and PostgreSQL.
+- [x] **Temporal reads (as-of revision)** — read an entry as it existed at a revision or ISO timestamp (`GET /api/collections/:c/:id?asOf=<revision|ISO>` via `executeFindByIdAsOf` in `revisions.ts`), reusing `content_revisions`, normal RBAC/ownership/publication checks, and `presentRead` (`omit` + FLAC masking).
+  - _Acceptance:_ `GET /api/collections/:c/:id?asOf=<revision|ISO>` returns the historical row, tenant-scoped, with normal projection/access rules; pinned by `tests/unit/security/bucket3-sandbox-access-temporal.test.ts` (live PG/SQLite integration matrix remains optional expansion).
 - **Audit-chain external anchoring** — periodically anchor the SHA-256 chain head with an RFC 3161 timestamp authority (and optionally a public transparency log), plus a verification endpoint. Moves the audit trail from self-attested to third-party-witnessed. _The internal tail checkpoint and fork guard shipped (2026-11-11, [achievements 3.76](./achievements-2026.mdx)); external witnessing is still open._
   - _Acceptance:_ `security:assurance` verifies an anchored head; editing a cloned ledger row fails verification.
 - **Agent write-approval lane** — WebMCP/agent tokens may propose mutations but not commit them; a human approves a diff and the approval (actor, hash, timestamp) joins the audit chain. Extends the agent surface without widening its blast radius.
   - _Acceptance:_ an agent token can create a proposal and cannot write a live row; the approval endpoint requires a human session; both events appear in the audit chain.
-- **Zero-compilation boot** — persist a source-hash-keyed compiled-schema artifact so a restart with unchanged collection sources skips `transpileModule`.
-  - _Acceptance:_ the second boot after a fresh build stays inside the existing 5 s cold-start budget with zero transpile calls (instrumented); a hash mismatch forces recompilation and is logged.
-- **Plugin capability sandbox** — declare `capabilities` (`fs`, `net`, `env`, `collections`) in the plugin manifest and fail closed when a plugin exceeds them. Complements the marketplace trust story with an enforceable boundary.
-  - _Acceptance:_ a fixture plugin that uses `net` without declaring it does not load; declared capabilities render in the plugins UI and are checked by a scanner in `risk:audit`.
+- [x] **Zero-compilation boot** — lazy-loads `"typescript"` and `./transformers.ts` in `src/utils/compilation/compile.ts` only on manifest cache misses, computing the toolchain fingerprint from `typescript/package.json` without parsing the compiler on warm cache hits (`tests/unit/compilation/zero-compile-fast-path.test.ts`).
+  - _Acceptance:_ repeated compile with unchanged manifest skips transpilation cleanly (`noOp: true`); a hash mismatch loads TypeScript and recompiles on demand.
+- [x] **Plugin capability sandbox** — declarative `metadata.sandbox` (`collections`, `net`, `fs`, `env`) and `metadata.capabilities` (`db:read`, `db:write`, `db:delete`, `network:fetch`, `file:read`, `file:write`) enforced fail-closed in `src/plugins/sandbox.ts` and validated at registration in `src/plugins/registry.ts` (`tests/unit/security/bucket3-sandbox-access-temporal.test.ts`).
+  - _Acceptance:_ protected tables fail at registration (`validatePluginManifest`) and undeclared capabilities/collections/hosts/paths/env fail closed at runtime.

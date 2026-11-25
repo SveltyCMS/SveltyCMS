@@ -129,11 +129,13 @@ export function bumpSecurityStamp(userId: string | null | undefined): number {
 }
 
 // 🚀 TURBO AUTH CACHE: Fixed 25s TTL keyed by sessionId + securityStamp.
-// Compile-time __IS_BENCHMARK__ allows Rollup/Vite to strip the 15m benchmark TTL in prod.
+// Compile-time __IS_BENCHMARK__ is false in plain production builds so Rollup
+// strips the 15m benchmark TTL completely, while harness builds (COMPILE_ALL_ADAPTERS=true)
+// still honor runtime BENCHMARK=true so long benchmark runs don't expire at 25s.
 const isBenchmarkRuntime =
-  typeof __IS_BENCHMARK__ !== "undefined"
-    ? __IS_BENCHMARK__
-    : typeof process !== "undefined" && process.env.BENCHMARK === "true";
+  (typeof __IS_BENCHMARK__ !== "undefined" ? __IS_BENCHMARK__ : true) &&
+  typeof process !== "undefined" &&
+  process.env.BENCHMARK === "true";
 const TURBO_AUTH_TTL_MS = isBenchmarkRuntime ? 15 * 60_000 : 25_000;
 const TURBO_AUTH_MAX_LIFETIME_MS = 15 * 60_000;
 

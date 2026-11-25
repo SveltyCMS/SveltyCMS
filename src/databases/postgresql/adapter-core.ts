@@ -89,6 +89,9 @@ import {
 } from "./pg19-features";
 export { PG_TEXT_DATE_TYPES, pgConnectionParameters, pgIdleTimeout, pgSafeIndexName };
 
+export const PG_CACHE_INVALIDATION_CHANNEL = "svelty_cache_invalidation";
+const MAX_PG_NOTIFY_PAYLOAD_BYTES = 7500;
+
 export abstract class PostgresAdapterCore extends SqlAdapterCore {
   public type = "postgresql";
   public capabilities: DatabaseCapabilities = {
@@ -132,6 +135,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   protected _readDb: PostgresJsDatabase<typeof schema> | null = null;
   private replicaSqls = new Map<string, ReturnType<typeof postgres>>();
   private allReplicaSqls: ReturnType<typeof postgres>[] = [];
+  private _pgListenHandle: { unlisten?: () => Promise<void> } | null = null;
   protected _rawConnectionConfig?: { finalConnection: any; options: any };
   /** Numeric PostgreSQL `server_version_num` captured at connect (e.g. `190000` for PG 19.0). */
   protected _serverVersionNum = 0;
@@ -1815,6 +1819,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         ? `Connected to PostgreSQL ${this.pgMajorVersion}${this.supportsPg19Features ? " (PG19+ native features enabled)" : ""}`
         : "Connected to PostgreSQL",
     );
+    void this.startCacheInvalidationBus(this._rawConnectionConfig?.finalConnection);
     return { success: true, data: undefined };
   }
 
@@ -1862,11 +1867,85 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     }
   }
 
+  /**
+   * Wire PostgreSQL LISTEN/NOTIFY as the cross-node L1 cache invalidation bus
+   * fallback when Redis L2 is unavailable.
+   */
+  private async startCacheInvalidationBus(finalConnection: unknown): Promise<void> {
+    if (
+      process.env.BENCHMARK === "true" ||
+      process.env.TEST_MODE === "true" ||
+      process.env.SVELTY_PG_CACHE_BUS === "0" ||
+      !this.sql ||
+      !this.connected
+    ) {
+      return;
+    }
+    if (typeof finalConnection === "string" && finalConnection.includes("pgbouncer=true")) {
+      return;
+    }
+
+    try {
+      const { cacheService } = await import("@src/databases/cache/cache-service");
+      if (!this.sql || !this.connected) return;
+
+      cacheService.registerFallbackInvalidationTransport({
+        publish: async (payload: string) => {
+          if (!this.sql || !this.connected) return;
+          const wirePayload =
+            Buffer.byteLength(payload, "utf8") <= MAX_PG_NOTIFY_PAYLOAD_BYTES
+              ? payload
+              : JSON.stringify({ pattern: "*", nodeId: "overflow", timestamp: Date.now() });
+          await this.sql`SELECT pg_notify(${PG_CACHE_INVALIDATION_CHANNEL}, ${wirePayload})`;
+        },
+        close: async () => {
+          const handle = this._pgListenHandle;
+          this._pgListenHandle = null;
+          if (handle && typeof handle.unlisten === "function") {
+            await handle.unlisten();
+          }
+        },
+      });
+
+      if (typeof this.sql.listen === "function") {
+        this._pgListenHandle = await this.sql.listen(
+          PG_CACHE_INVALIDATION_CHANNEL,
+          (payload: string) => {
+            cacheService.handleInvalidationPayload(payload);
+          },
+        );
+      }
+    } catch (err) {
+      logger.debug(
+        `[PostgreSQL] Cache LISTEN/NOTIFY fallback inactive: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  private async stopCacheInvalidationBus(): Promise<void> {
+    const handle = this._pgListenHandle;
+    this._pgListenHandle = null;
+    try {
+      const { cacheService } = await import("@src/databases/cache/cache-service");
+      cacheService.registerFallbackInvalidationTransport(null);
+    } catch (err) {
+      logger.debug("[PostgreSQL] Failed unregistering cache fallback transport", err);
+    }
+    if (handle && typeof handle.unlisten === "function") {
+      try {
+        await handle.unlisten();
+      } catch (err) {
+        logger.debug("[PostgreSQL] Failed stopping cache LISTEN handle", err);
+      }
+    }
+  }
+
   async disconnect(): Promise<DatabaseResult<void>> {
     // Mark as intentional so resilience hooks don't trigger reconnection
     (this as any).__intentionalDisconnect__ = true;
     // Clean up any per-tenant dedicated pools
     await this.closeAllTenantPools();
+    await this.stopCacheInvalidationBus();
 
     if (this.queueGate) {
       this.queueGate.clear("PostgreSQL disconnected");

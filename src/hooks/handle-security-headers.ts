@@ -126,6 +126,24 @@ function addVaryHeader(headers: Headers, value: string): void {
   headers.set("Vary", `${current}, ${value}`);
 }
 
+const CORS_HEADERS_PAIR_CACHE = new WeakMap<Record<string, string>, readonly [string, string][]>();
+
+function getCorsHeaderPairs(origin: string | null): readonly [string, string][] {
+  const corsHeaders = getCorsHeaders(origin, true);
+  if (!corsHeaders) return [];
+  let pairs = CORS_HEADERS_PAIR_CACHE.get(corsHeaders);
+  if (!pairs) {
+    const built: [string, string][] = [];
+    for (const name of Object.keys(corsHeaders)) {
+      const value = corsHeaders[name];
+      if (value !== undefined) built.push([name, value]);
+    }
+    CORS_HEADERS_PAIR_CACHE.set(corsHeaders, built);
+    pairs = built;
+  }
+  return pairs;
+}
+
 export function applyAllSecurityHeaders(
   headers: Headers,
   isHttps: boolean,
@@ -160,13 +178,10 @@ export function applyAllSecurityHeaders(
       headers.set("Cross-Origin-Embedder-Policy", "require-corp");
     }
 
-    const corsHeaders = getCorsHeaders(origin, true);
-    if (corsHeaders) {
-      for (const key in corsHeaders) {
-        if (Object.prototype.hasOwnProperty.call(corsHeaders, key)) {
-          headers.set(key, corsHeaders[key]);
-        }
-      }
+    const corsPairs = getCorsHeaderPairs(origin);
+    for (let i = 0; i < corsPairs.length; i++) {
+      const pair = corsPairs[i];
+      headers.set(pair[0], pair[1]);
     }
     addVaryHeader(headers, "Origin");
   }

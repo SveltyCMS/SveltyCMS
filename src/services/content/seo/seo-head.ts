@@ -24,8 +24,16 @@
  */
 
 import { decodeStoredHtmlEntities, isSeoLocaleData, pickSeoLocaleData } from "./seo-head-core";
+import { mergeSeoCascade, type SeoDefaultsConfig } from "./seo-cascade";
 
 export { decodeStoredHtmlEntities, pickSeoLocaleData, pickSeoPageTitle } from "./seo-head-core";
+export {
+  applySeoTitleTemplate,
+  mergeSeoCascade,
+  type SeoDefaultsConfig,
+  type MergeSeoCascadeInput,
+  type MergedSeoDefaults,
+} from "./seo-cascade";
 
 /**
  * One locale's data inside the SEO widget's stored value.
@@ -156,6 +164,10 @@ export interface BuildSeoHeadOptions {
   article?: SeoArticleData;
   /** Structured data options for Product / E-commerce pages. */
   product?: SeoProductData;
+  /** Site-level SEO defaults (`entry > collection > site` cascade). */
+  siteDefaults?: SeoDefaultsConfig | null;
+  /** Collection-level SEO defaults (`entry > collection > site` cascade). */
+  collectionDefaults?: SeoDefaultsConfig | null;
 }
 
 /** Matches BCP-47-ish language tags (`en`, `de`, `pt-BR`, `zh-Hant`). */
@@ -382,13 +394,26 @@ export function buildSeoHead(options: BuildSeoHeadOptions): SeoHeadResult {
     origin,
     pathname,
     titleFallback,
-    siteName,
+    siteName: explicitSiteName,
     noindex,
     ogImageUrl,
     twitterImageUrl,
+    siteDefaults,
+    collectionDefaults,
   } = options;
 
-  const data = pickSeoLocaleData(seo, lang, defaultLang);
+  const rawLocaleData = pickSeoLocaleData(seo, lang, defaultLang);
+  const cascaded =
+    siteDefaults || collectionDefaults
+      ? mergeSeoCascade({
+          siteDefaults,
+          collectionDefaults,
+          entryData: rawLocaleData,
+          fallbackTitle: titleFallback,
+        })
+      : null;
+  const data = cascaded ? cascaded.effectiveData : rawLocaleData;
+  const siteName = explicitSiteName ?? cascaded?.siteName;
 
   const clean = (value: string | undefined): string | undefined => {
     const trimmed = value?.trim();
@@ -417,7 +442,7 @@ export function buildSeoHead(options: BuildSeoHeadOptions): SeoHeadResult {
 
   const ogTitle = plain(data?.ogTitle) || title;
   const ogDescription = plain(data?.ogDescription) || description;
-  const ogImage = ogImageUrl ?? undefined;
+  const ogImage = ogImageUrl ?? clean(data?.ogImage) ?? undefined;
 
   const twitterCard: "summary" | "summary_large_image" =
     data?.twitterCard === "summary_large_image" ? "summary_large_image" : "summary";

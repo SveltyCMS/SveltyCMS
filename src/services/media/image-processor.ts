@@ -29,7 +29,7 @@
 
 import { logger } from "@utils/logger";
 import { saveVariant } from "./image-variant-storage";
-import { getSharp, MAX_INPUT_PIXELS } from "@utils/media/sharp-loader.server";
+import { getSharp, MAX_INPUT_PIXELS, runWithSharpSlot } from "@utils/media/sharp-loader.server";
 import type { SharpFactory } from "@utils/media/sharp-loader.server";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -211,10 +211,12 @@ export async function processImage(
     return [];
   }
 
-  const meta = await sharp(buffer, {
-    limitInputPixels: MAX_INPUT_PIXELS,
-    failOn: "warning",
-  }).metadata();
+  const meta = await runWithSharpSlot(() =>
+    sharp(buffer, {
+      limitInputPixels: MAX_INPUT_PIXELS,
+      failOn: "warning",
+    }).metadata(),
+  );
   const originalWidth = meta.width ?? 0;
   const originalHeight = meta.height ?? 0;
 
@@ -328,10 +330,12 @@ export async function processImageWithPresets(
   if (pairs.size === 0) return allVariants;
 
   const sharp = await getSharp();
-  const meta = await sharp(buffer, {
-    limitInputPixels: MAX_INPUT_PIXELS,
-    failOn: "warning",
-  }).metadata();
+  const meta = await runWithSharpSlot(() =>
+    sharp(buffer, {
+      limitInputPixels: MAX_INPUT_PIXELS,
+      failOn: "warning",
+    }).metadata(),
+  );
   const originalWidth = meta.width ?? 0;
   const originalHeight = meta.height ?? 0;
 
@@ -411,21 +415,22 @@ async function generateVariant(
   const height = Math.round((safeWidth / originalWidth) * originalHeight);
   // The preset name is determined by resolvePresetName below
 
-  // Build the sharp pipeline
-  const pipeline = applyEncoder(
-    sharp(buffer, { limitInputPixels: MAX_INPUT_PIXELS, failOn: "warning" })
-      // Auto-fix orientation from EXIF
-      .rotate()
-      // Resize preserving aspect ratio, capped at MAX_OUTPUT_DIMENSION
-      .resize(safeWidth, null, { fit: "inside", withoutEnlargement: true }),
-    format,
-    cfg.quality,
-    targetWidth,
-  );
+  // Build and execute the sharp pipeline inside the shared concurrency slot
+  const { data, info } = await runWithSharpSlot(() => {
+    const pipeline = applyEncoder(
+      sharp(buffer, { limitInputPixels: MAX_INPUT_PIXELS, failOn: "warning" })
+        // Auto-fix orientation from EXIF
+        .rotate()
+        // Resize preserving aspect ratio, capped at MAX_OUTPUT_DIMENSION
+        .resize(safeWidth, null, { fit: "inside", withoutEnlargement: true }),
+      format,
+      cfg.quality,
+      targetWidth,
+    );
+    return pipeline.toBuffer({ resolveWithObject: true });
+  });
 
   const outputFormat = format === "jpg" ? "jpeg" : format;
-
-  const { data, info } = await pipeline.toBuffer({ resolveWithObject: true });
 
   // Determine preset name for path
   const presetName = resolvePresetName(targetWidth, originalWidth);
@@ -659,18 +664,20 @@ export function isAnimatedRaster(head: Buffer, mime: string): boolean {
  */
 export async function renderTransformVariant(source: Buffer, plan: TransformPlan): Promise<Buffer> {
   const sharp = await getSharp();
-  const pipeline: SharpPipeline = applyEncoder(
-    sharp(source, { limitInputPixels: MAX_INPUT_PIXELS, failOn: "warning" })
-      .rotate()
-      .resize(plan.width || null, plan.height || null, {
-        fit: "inside",
-        withoutEnlargement: true,
-      }),
-    plan.format,
-    plan.quality,
-    plan.width || plan.height,
-  );
-  return await pipeline.toBuffer();
+  return runWithSharpSlot(() => {
+    const pipeline: SharpPipeline = applyEncoder(
+      sharp(source, { limitInputPixels: MAX_INPUT_PIXELS, failOn: "warning" })
+        .rotate()
+        .resize(plan.width || null, plan.height || null, {
+          fit: "inside",
+          withoutEnlargement: true,
+        }),
+      plan.format,
+      plan.quality,
+      plan.width || plan.height,
+    );
+    return pipeline.toBuffer();
+  });
 }
 
 // ─── Encoder settings (shared by upload-time + on-demand variants) ─────────

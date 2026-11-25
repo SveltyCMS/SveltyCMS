@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:chart-box-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-11-22"
+updated: "2026-11-25"
 tags:
   - "achievements"
   - "log"
@@ -2481,6 +2481,13 @@ Follow-through on the competitor audit's remaining ADOPT items, each re-implemen
 - **Index cost is a deployment choice on SQLite.** `SVELTY_SQLITE_CI_INDEX=0` drops the NOCASE tree (and the legacy `lower()` tree) for write-heavy deployments; the default keeps `$ieq`/`$nieq` indexable.
 - **Release provenance is attested.** `auto-release.yaml` now runs `npm pack`, attests the tarball with `actions/attest-build-provenance` (pinned SHA), and publishes that same tarball, so the SLSA subject is the artifact consumers install. Verification: `gh attestation verify <tarball> --repo SveltyCMS/SveltyCMS`. The JSON status stays `pending` until a release produces a verifiable attestation; the advisory process now documents how a real record is written.
 - **Node floor is 24.22.3.** `engines.node` and every CI job pin `24.22.3`. A local runtime below the floor fails `check-node-runtime.ts`; `SKIP_NODE_RUNTIME_CHECK=true` is the explicit local-only override.
+
+### 3.85 November 2026 — Edge Resilience, Fine-Detail Performance, Governance & Workspace SDK (2026-11-25)
+
+- **Hardening, idempotency & retention:** `src/hooks.ws.ts` enforces fail-closed Bearer authentication (`resolveBearerTokenForWebSocket`) when WebSocket requests carry an empty `Origin`; `src/utils/idempotency.ts` caches `POST` collection mutations by `Idempotency-Key` + SHA-256 canonical body hash for 24h (`409 IDEMPOTENCY_KEY_REUSE` on mismatch, zero allocation when header absent); `src/services/background/jobs/retention-sweep.ts` runs bounded 100-row batch purging of expired soft-deleted rows and old media versions.
+- **Scale, chunking & runtime optimizations:** PostgreSQL `LISTEN/NOTIFY` cross-node cache invalidation fallback in `cache-service.ts` and `postgresql/adapter-core.ts`; `Surrogate-Key` / `Cache-Tag` CDN headers on anonymous collection GETs; Paraglide `message-modules` output removing the monolithic `1.61 MB` shared client chunk plus lazy `Fields`/`WorkflowActions` editor loading (`nodes/8` `129.8 kB` → `98.9 kB`); zero-alloc `/api/system/health` response path (`~0.61 ms` → `~0.42 ms` measured locally); re-entrant `AsyncLocalStorage` `runWithSharpSlot` semaphore gating libvips workloads; 2048-slot ring buffer logger with 1s timestamp memoization; zero-compilation boot fast path in `src/utils/compilation/compile.ts` (lazy-loading `"typescript"` and `./transformers.ts` only on manifest cache misses) alongside deferred post-ready GraphQL/write pre-warming; and Redis/peer multi-worker `pubSub` bridge (`src/services/background/pub-sub.ts`) with CSPRNG echo suppression.
+- **Competitor-parity schemas & OpenAPI completeness:** `ApiSpecService` (`addRemainingPermissionNamespaces`) now auto-documents all 67 `ENDPOINT_PERMISSIONS` namespaces (`undocumentedNamespaces: []` pinned by `tests/unit/api/openapi-contract-coverage.test.ts`); schemas gained `omit: true` projection masking (`canAccessField` / `schema-store.ts`), bounded relational `onDelete` integrity (`restrict` 409 / `setNull` / cycle-safe `cascade` capped at fanout 100 in `relation-integrity.ts`), `site → collection → entry` SEO defaults cascade (`seo-cascade.ts`), and `DraftsNamespace.rollbackDraft` (`POST /api/collections/:c/:id/drafts/rollback`).
+- **Governance, temporal reads & standalone SDK workspace:** Declarative `metadata.sandbox` + `metadata.capabilities` enforcement in `src/plugins/sandbox.ts` and `src/plugins/registry.ts`; row-level `create`/`update`/`delete` rules in `src/services/security/access-rule-service.ts`; temporal point-in-time reads (`GET /api/collections/:c/:id?asOf=<revision|ISO>` via `executeFindByIdAsOf`); standalone Bun workspace client SDK package `packages/sdk` (`@sveltycms/sdk`) with Next.js, Astro, Nuxt, and SvelteKit guides in [Framework Quickstarts](../guides/content/framework-quickstarts.mdx). TypeScript remains pinned at `6.0.3` until upstream `svelte-check` adds TS 7 support.
 
 ## Related
 

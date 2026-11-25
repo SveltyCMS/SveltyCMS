@@ -36,6 +36,28 @@ export type PluginCapability =
   | "event:publish"; // Publish system events
 
 /**
+ * Declarative sandbox manifest for fail-closed plugin runtime confinement.
+ */
+export interface PluginSandboxManifest {
+  /** Collection allowlists beyond `plugin_<id>_*` (protected collections remain blocked). */
+  collections?: {
+    read?: string[];
+    write?: string[];
+  };
+  /** Allowed outbound hostnames when making network requests. */
+  net?: {
+    allowHosts?: string[];
+  };
+  /** Allowed storage-relative paths for filesystem access. */
+  fs?: {
+    readPaths?: string[];
+    writePaths?: string[];
+  };
+  /** Explicit environment variable names accessible inside the plugin sandbox. */
+  env?: string[];
+}
+
+/**
  * Plugin metadata and registration info
  */
 export interface PluginMetadata {
@@ -44,6 +66,9 @@ export interface PluginMetadata {
 
   /** Declared capabilities — enforced at runtime by the RBAC dispatcher */
   capabilities?: PluginCapability[];
+
+  /** Optional fine-grained sandbox bounds for collections, network, filesystem, and env */
+  sandbox?: PluginSandboxManifest;
 
   /** Short description of plugin functionality */
   description: string;

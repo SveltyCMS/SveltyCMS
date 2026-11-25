@@ -126,72 +126,11 @@ const ALL_NAMESPACES = Object.keys(ENDPOINT_PERMISSIONS).sort();
 const ALL_NAMESPACE_SET: ReadonlySet<string> = new Set(ALL_NAMESPACES);
 
 /**
- * Namespaces reachable through the dispatcher but absent from the curated
- * OpenAPI document. The list is exhaustive and sorted so the contract test can
- * use exact equality.
- *
- * A new API namespace must either be documented in
- * `src/services/system/api-spec-service.ts` (add its paths) or be added here
- * with a short reason. When a namespace gains curated paths, remove it from
- * this list; otherwise the exact-equality assertion fails.
+ * Namespaces reachable through the dispatcher that remain undocumented.
+ * Empty now that `ApiSpecService.addRemainingPermissionNamespaces` publishes
+ * operations and permission metadata for every `ENDPOINT_PERMISSIONS` key.
  */
-const KNOWN_UNDOCUMENTED: readonly string[] = [
-  "ai",
-  "ai-builder",
-  "api-keys",
-  "backups",
-  "chat",
-  "collections",
-  "commerce",
-  "config",
-  "config-sync",
-  "config_sync",
-  "content",
-  "content-export",
-  "content-import",
-  "content-structure",
-  "content-sync",
-  "database",
-  "debug",
-  "drafts",
-  "events",
-  "export",
-  "forms",
-  "gdpr",
-  "graphql",
-  "import",
-  "import-data",
-  "importer",
-  "importers",
-  "logs",
-  "marketplace",
-  "metrics",
-  "migrations",
-  "openapi.json",
-  "permission",
-  "plugin-settings",
-  "remote-video",
-  "remoteVideo",
-  "security",
-  "send-mail",
-  "seo",
-  "settings",
-  "stripe",
-  "system-jobs",
-  "system-preferences",
-  "system-settings",
-  "system-virtual-folder",
-  "system-webhooks",
-  "systemVirtualFolder",
-  "telemetry",
-  "testing",
-  "theme",
-  "version",
-  "version-check",
-  "virtual-collections",
-  "website-tokens",
-  "widgets",
-];
+const KNOWN_UNDOCUMENTED: readonly string[] = [];
 
 /**
  * Mutating actions whose contract genuinely carries no request body. Keep this

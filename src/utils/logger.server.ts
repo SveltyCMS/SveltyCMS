@@ -35,7 +35,7 @@ import { join } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { createGzip } from "node:zlib";
 
-import { logger as coreLogger, mask } from "./logger";
+import { registerLogSinkHook } from "./logger";
 import type { LogLevel } from "./logger";
 import { nowISODateString } from "@utils/date";
 
@@ -77,14 +77,14 @@ function chainHash(prev: string, content: string): string {
 /**
  * Cycle-safe JSON stringifier to prevent V8 crashes on recursive objects
  * or un-stringifiable native objects (like HTTP Requests/Errors).
- * File lines get the same key/email masking as console output.
+ * File lines receive already-masked arguments from the core logger hook.
  */
 function safeStringify(args: unknown[]): string {
   if (args.length === 0) return "";
   const seen = new WeakSet();
   return (
     " " +
-    JSON.stringify(mask(args), (_, v) => {
+    JSON.stringify(args, (_, v) => {
       if (v instanceof Error) return { message: v.message, name: v.name, stack: v.stack };
       if (typeof v === "object" && v !== null) {
         if (seen.has(v)) return "[Circular]";
@@ -185,26 +185,79 @@ async function rotate() {
   }
 }
 
-// ── Queue & Flush ──
+// ── Circular Ring Buffer & Batch Flush ──
 
-const queue: { level: LogLevel; msg: string; args: unknown[] }[] = [];
+interface LogQueueEntry {
+  level: LogLevel;
+  msg: string;
+  args: unknown[];
+}
+
+const LOG_RING_CAPACITY = 2048;
+const ringBuffer = Array.from<LogQueueEntry | undefined>({ length: LOG_RING_CAPACITY });
+let ringHead = 0;
+let ringTail = 0;
+let ringCount = 0;
+let ringDropped = 0;
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 let flushing = false;
+let lastUtcSec = -1;
+let lastUtcStr = "";
+
+function cachedUtcTimestamp(): string {
+  const sec = Math.floor(Date.now() / 1000);
+  if (sec !== lastUtcSec) {
+    lastUtcSec = sec;
+    lastUtcStr = nowISODateString().slice(0, 19).replace("T", " ");
+  }
+  return lastUtcStr;
+}
+
+function pushRing(entry: LogQueueEntry): void {
+  if (ringCount === LOG_RING_CAPACITY) {
+    ringHead = (ringHead + 1) % LOG_RING_CAPACITY;
+    ringCount--;
+    ringDropped++;
+  }
+  ringBuffer[ringTail] = entry;
+  ringTail = (ringTail + 1) % LOG_RING_CAPACITY;
+  ringCount++;
+}
+
+function drainRing(): LogQueueEntry[] {
+  const batch: LogQueueEntry[] = [];
+  while (ringCount > 0) {
+    const item = ringBuffer[ringHead];
+    ringBuffer[ringHead] = undefined;
+    ringHead = (ringHead + 1) % LOG_RING_CAPACITY;
+    ringCount--;
+    if (item) batch.push(item);
+  }
+  return batch;
+}
 
 async function flush() {
-  if (!queue.length || flushing) return;
+  if (ringCount === 0 || flushing) return;
   flushing = true;
 
-  const batch = queue.splice(0, queue.length);
+  const batch = drainRing();
+  const dropped = ringDropped;
+  ringDropped = 0;
 
   try {
     const s = await ensureStream();
     await rotate();
 
     let batchBuffer = "";
+    const ts = cachedUtcTimestamp();
+
+    if (dropped > 0) {
+      const dropPlain = `${ts} [WARN ] [Logger] Ring buffer overflow dropped ${dropped} oldest log entries`;
+      lastHash = chainHash(lastHash, dropPlain);
+      batchBuffer += `${dropPlain} [CHAIN:${lastHash}]\n`;
+    }
 
     for (const e of batch) {
-      const ts = nowISODateString().slice(0, 19).replace("T", " ");
       const argsStr = safeStringify(e.args);
       const plain = `${ts} [${e.level.toUpperCase().padEnd(5)}] ${e.msg}${argsStr}`;
 
@@ -219,11 +272,12 @@ async function flush() {
     currentFileSize += Buffer.byteLength(batchBuffer);
   } catch (err: any) {
     console.error("[Logger] Flush failed:", err.message);
-    // Rescue lost logs on failure — put batch back at front
-    queue.unshift(...batch);
+    for (let i = 0; i < batch.length; i++) {
+      pushRing(batch[i]);
+    }
   } finally {
     flushing = false;
-    if (queue.length > 0 && !flushTimer) {
+    if (ringCount > 0 && !flushTimer) {
       flushTimer = setTimeout(() => {
         flushTimer = null;
         flush();
@@ -233,8 +287,8 @@ async function flush() {
 }
 
 function enqueue(level: LogLevel, msg: string, args: unknown[]) {
-  queue.push({ level, msg, args });
-  if (queue.length >= 100) {
+  pushRing({ level, msg, args });
+  if (ringCount >= 100) {
     if (flushTimer) {
       clearTimeout(flushTimer);
       flushTimer = null;
@@ -250,35 +304,19 @@ function enqueue(level: LogLevel, msg: string, args: unknown[]) {
 
 // Graceful exit hook — prevents data loss on server shutdown
 process.on("beforeExit", () => {
-  if (queue.length > 0 && stream) {
-    for (const e of queue) {
-      const ts = nowISODateString().slice(0, 19).replace("T", " ");
+  if (ringCount > 0 && stream) {
+    const batch = drainRing();
+    const ts = cachedUtcTimestamp();
+    for (const e of batch) {
       const argsStr = safeStringify(e.args);
       const plain = `${ts} [${e.level.toUpperCase().padEnd(5)}] ${e.msg}${argsStr}`;
       lastHash = chainHash(lastHash, plain);
       stream.write(`${plain} [CHAIN:${lastHash}]\n`);
     }
-    queue.length = 0;
   }
 });
 
-// ── Patch core logger to also write to file ──
-// Every level (incl. debug/trace) reaches the file sink, but only when the level
-// gate passes — QUIET/BENCHMARK and LOG_LEVEL=error keep the file quiet too, and
-// `once()` boot banners are captured when they actually emit.
-const FILE_LEVELS = ["fatal", "error", "warn", "info", "debug", "trace"] as const;
-
-for (const level of FILE_LEVELS) {
-  const original = coreLogger[level];
-  coreLogger[level] = (m: string, ...a: unknown[]) => {
-    original(m, ...a);
-    if (coreLogger.isEnabled(level)) enqueue(level, m, a);
-  };
-}
-
-const _once = coreLogger.once;
-coreLogger.once = (key, level, m, ...a) => {
-  const emitted = _once(key, level, m, ...a);
-  if (emitted) enqueue(level, m, a);
-  return emitted;
-};
+// Single-pass hook: console logger masks args once and delivers them directly here.
+registerLogSinkHook((level, msg, maskedArgs) => {
+  enqueue(level, msg, maskedArgs);
+});

@@ -1002,6 +1002,180 @@ export async function resolveSessionForWebSocket(
 }
 
 /**
+ * Resolve an `Authorization: Bearer <token>` credential during a WebSocket upgrade.
+ * Supports `sck_...` API keys and website tokens using the shared auth caches and
+ * tenant-isolation checks. Non-browser upgrades without an Origin must authenticate
+ * through this path instead of cookies.
+ */
+export async function resolveBearerTokenForWebSocket(
+  tokenValue: string,
+  opts: { tenantId?: DatabaseId | null; clientIp?: string | null } = {},
+): Promise<{ ok: true; user: User; tenantId: string | null } | { ok: false }> {
+  const token = tokenValue.trim();
+  if (!token) return { ok: false };
+  const scopedTenant = opts.tenantId ?? null;
+
+  if (isValidApiKeyFormat(token)) {
+    let hash: string;
+    try {
+      hash = hashApiKey(token);
+    } catch (err) {
+      logger.debug("[WS Auth] Failed to hash API key", err);
+      return { ok: false };
+    }
+
+    if (isApiKeyAuthNegativeHit(hash, scopedTenant)) {
+      return { ok: false };
+    }
+
+    const cached = getApiKeyAuthCacheSync(hash, scopedTenant);
+    if (cached) {
+      if (cached.revoked) return { ok: false };
+      if (cached.expiresAt && new Date(cached.expiresAt).getTime() <= Date.now()) {
+        return { ok: false };
+      }
+      if (scopedTenant && cached.tenantId && cached.tenantId !== scopedTenant) {
+        return { ok: false };
+      }
+      const cachedUser = cached.user as unknown as User & { scopes?: unknown };
+      if (!isApiKeyScopeAllowed(cachedUser.scopes, "GET", "/ws")) {
+        return { ok: false };
+      }
+      return {
+        ok: true,
+        user: cachedUser,
+        tenantId: cached.tenantId || scopedTenant || null,
+      };
+    }
+
+    if (!isDbConnected() || !dbAdapter?.auth?.getApiKey) {
+      return { ok: false };
+    }
+
+    const res = await dbAdapter.auth.getApiKey(
+      hash,
+      scopedTenant ? { tenantId: scopedTenant } : withSystemScope("auth-bootstrap"),
+    );
+    if (!res.success || !res.data) {
+      recordApiKeyAuthMiss(hash, scopedTenant);
+      return { ok: false };
+    }
+
+    const apiKey = res.data;
+    if (apiKey.revoked) return { ok: false };
+    if (apiKey.expiresAt && new Date(apiKey.expiresAt).getTime() <= Date.now()) {
+      return { ok: false };
+    }
+    if (scopedTenant && apiKey.tenantId && apiKey.tenantId !== scopedTenant) {
+      return { ok: false };
+    }
+    if (!isApiKeyScopeAllowed(apiKey.scopes, "GET", "/ws")) {
+      return { ok: false };
+    }
+
+    const resolvedTenant = (apiKey.tenantId ?? scopedTenant ?? null) as string | null;
+    const user = toSafeSessionUser({
+      _id: `apikey:${apiKey._id}` as DatabaseId,
+      email: `apikey:${apiKey.prefix}@system.internal`,
+      role: "guest",
+      isAdmin: false,
+      permissions: Array.isArray(apiKey.permissions) ? apiKey.permissions : [],
+      scopes: apiKey.scopes,
+      userId: apiKey.userId,
+      tenantId: resolvedTenant ?? undefined,
+      lastAuthMethod: "api-key",
+    } as User & { scopes?: unknown; userId?: DatabaseId });
+
+    setApiKeyAuthCache(
+      hash,
+      {
+        user: user as unknown as Record<string, unknown>,
+        tenantId: resolvedTenant ?? "",
+        expiresAt: apiKey.expiresAt ?? null,
+        revoked: apiKey.revoked,
+      },
+      String(apiKey._id),
+      scopedTenant,
+    ).catch((err) => logger.debug("[WS Auth] Failed to cache API key", err));
+
+    recordApiKeyUsage(
+      String(apiKey._id),
+      opts.clientIp || "127.0.0.1",
+      (apiKey.tenantId ?? scopedTenant) as DatabaseId,
+    );
+
+    return { ok: true, user, tenantId: resolvedTenant };
+  }
+
+  const tokenHash = hashCredentialSha256HexSync(token);
+  if (isWebsiteTokenAuthNegativeHit(tokenHash, scopedTenant)) {
+    return { ok: false };
+  }
+
+  const cachedToken = getWebsiteTokenAuthCacheSync(tokenHash, scopedTenant);
+  if (cachedToken) {
+    if (cachedToken.revoked) return { ok: false };
+    if (cachedToken.expiresAt && new Date(cachedToken.expiresAt).getTime() <= Date.now()) {
+      return { ok: false };
+    }
+    if (scopedTenant && cachedToken.tenantId && cachedToken.tenantId !== scopedTenant) {
+      return { ok: false };
+    }
+    return {
+      ok: true,
+      user: cachedToken.user as unknown as User,
+      tenantId: cachedToken.tenantId || scopedTenant || null,
+    };
+  }
+
+  if (!isDbConnected() || !dbAdapter?.system?.websiteTokens?.getByTokenHash) {
+    return { ok: false };
+  }
+
+  const res = await dbAdapter.system.websiteTokens.getByTokenHash(
+    tokenHash,
+    scopedTenant ? { tenantId: scopedTenant } : withSystemScope("auth-bootstrap"),
+  );
+  if (!res.success || !res.data) {
+    recordWebsiteTokenAuthMiss(tokenHash, scopedTenant);
+    return { ok: false };
+  }
+
+  const wt = res.data;
+  if (wt.expiresAt && new Date(wt.expiresAt).getTime() <= Date.now()) {
+    return { ok: false };
+  }
+  if (scopedTenant && wt.tenantId && wt.tenantId !== scopedTenant) {
+    return { ok: false };
+  }
+
+  const resolvedTenant = (wt.tenantId ?? scopedTenant ?? null) as string | null;
+  const tokenType = wt.type === "admin-api" ? "admin-api" : "content-api";
+  const user = toSafeSessionUser({
+    _id: `token:${wt._id}` as DatabaseId,
+    email: `token:${wt.name}@system.internal`,
+    role: tokenType === "admin-api" ? "admin" : "guest",
+    isAdmin: tokenType === "admin-api",
+    permissions: Array.isArray(wt.permissions) ? wt.permissions : [],
+    tenantId: resolvedTenant ?? undefined,
+    lastAuthMethod: "website-token",
+  } as User);
+
+  setWebsiteTokenAuthCache(
+    tokenHash,
+    {
+      user: user as unknown as Record<string, unknown>,
+      tenantId: resolvedTenant ?? "",
+      expiresAt: wt.expiresAt ?? null,
+    },
+    String(wt._id),
+    scopedTenant,
+  ).catch((err) => logger.debug("[WS Auth] Failed to cache website token", err));
+
+  return { ok: true, user, tenantId: resolvedTenant };
+}
+
+/**
  * Handles automatic session rotation for security.
  */
 async function handleSessionRotation(

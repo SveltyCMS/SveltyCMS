@@ -154,7 +154,8 @@ export function serializeRowFast(row: unknown): string {
   let out = "{";
   let first = true;
   for (const k of keys) {
-    if (INTEGER_KEY_RE.test(k)) return JSON.stringify(row);
+    const k0 = k.charCodeAt(0);
+    if (k0 >= 48 && k0 <= 57 && INTEGER_KEY_RE.test(k)) return JSON.stringify(row);
     const v = record[k];
     let s: string | undefined;
     switch (typeof v) {
@@ -180,7 +181,7 @@ export function serializeRowFast(row: unknown): string {
         // function / symbol / bigint — keep exact JSON.stringify semantics.
         return JSON.stringify(row);
     }
-    out += (first ? "" : ",") + `"${fastEscapeString(k)}":${s}`;
+    out += `${first ? "" : ","}"${fastEscapeString(k)}":${s}`;
     first = false;
   }
   return out + "}";

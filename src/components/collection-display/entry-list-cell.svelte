@@ -11,7 +11,7 @@ Falls back to Sanitize/string rendering for system fields and legacy values.
 	import { widgets } from '@src/stores/widget-store.svelte';
 	import { getCachedWidgetDisplayLoader } from '@widgets/widget-loader-registry';
 	import { unwrapLocaleLayers } from '@utils/locale-map';
-	import { m } from '@src/paraglide/messages';
+	import { table_no_value } from '@src/paraglide/messages';
 
 	interface Props {
 		widgetName?: string;
@@ -82,7 +82,7 @@ Falls back to Sanitize/string rendering for system fields and legacy values.
 </script>
 
 {#if isEmptyCell}
-	<span aria-label={m.table_no_value()}><span aria-hidden="true">–</span></span>
+	<span aria-label={table_no_value()}><span aria-hidden="true">–</span></span>
 {:else if DisplayComponent && !loadFailed}
 	{const Component = DisplayComponent}
 	<Component

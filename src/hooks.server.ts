@@ -352,6 +352,17 @@ const HEALTH_HEADERS = {
   Pragma: "no-cache",
   Expires: "0",
 };
+const HEALTH_HEADERS_WITH_LANE = {
+  ...HEALTH_HEADERS,
+  "x-svelty-lane": "HEALTH",
+} as const;
+
+let cachedHealthUptimeAt = -1;
+let cachedHealthUptimeStr = "0";
+let cachedHealthDbType = "";
+let cachedHealthDbTypeJson = '"unknown"';
+let cachedHealthState = "";
+let cachedHealthStateJson = '"SETUP"';
 
 // --- Server Startup Logic ---
 if (!building) {
@@ -383,30 +394,64 @@ if (!building) {
         logger.info(`[System] ${describeHardware(hw)}`);
 
         // ✨ Parallel Service Initialization (Optimized for Cold Start)
-        // 🧠 PRE-WARM heavy modules used lazily inside request hooks so the first
-        // request never pays a dynamic-import stall:
-        // - `graphql`            → handle-security's GraphQL complexity shield
-        // - settings-service     → turbo-pipeline CORS preflight (getCorsHeadersInline)
-        import("graphql")
-          .catch((err) => logger.error("[System] GraphQL pre-warm failed", err))
-          .then(() => import("@src/services/core/settings-service"))
-          .catch((err) => logger.error("[System] Settings service pre-warm failed", err));
+        // Pre-build the cached middleware pipelines so the first request skips
+        // sequence() assembly. Do not invoke them here: SvelteKit's sequence()
+        // reads the request AsyncLocalStorage, and a synthetic event has no
+        // store ("Could not get the request store"). The handlers compile on
+        // the first real request.
+        try {
+          await Promise.all([
+            getPipeline(RequestLane.API_READ),
+            getPipeline(RequestLane.API_WRITE),
+            getPipeline(RequestLane.APP_SSR),
+          ]);
+          logger.debug("[System] Middleware pipelines pre-built");
+        } catch (err) {
+          logger.warn("[System] Pipeline pre-build failed (non-fatal):", err);
+        }
 
-        // 🚀 GRAPHQL PRE-WARM: build the Yoga schema once at boot
-        // (registerCollections + createSchema JIT ≈ 20ms) so the first
-        // GraphQL query never pays it. The schema cache is version-keyed
-        // and rebuilt on content-structure changes — this only moves the
-        // initial build off the request path.
-        import("@src/routes/api/graphql/+server")
-          .then(async ({ _getYogaApp }) => {
-            const { getDb } = await loadDbModule();
-            const adapter = getDb();
-            if (adapter && typeof adapter.isConnected === "function" && adapter.isConnected()) {
-              await _getYogaApp(adapter, "global");
-              logger.debug("[GraphQL] Schema pre-warmed at boot");
-            }
-          })
-          .catch((err) => logger.error("[System] GraphQL schema pre-warm failed", err));
+        // 🚀 DEFERRED PRE-WARM (cold start): defer heavy dynamic-import graphs
+        // (`graphql`, Yoga JIT schema, write-path lazy modules) past the boot
+        // promise so the HTTP server answers health probes and reads without
+        // parsing ~10+ MB of cold modules synchronously during startup.
+        scheduleBackgroundBoot(async () => {
+          import("graphql")
+            .catch((err) => logger.error("[System] GraphQL pre-warm failed", err))
+            .then(() => import("@src/services/core/settings-service"))
+            .catch((err) => logger.error("[System] Settings service pre-warm failed", err));
+
+          import("@src/routes/api/graphql/+server")
+            .then(async ({ _getYogaApp }) => {
+              const { getDb } = await loadDbModule();
+              const adapter = getDb();
+              if (adapter && typeof adapter.isConnected === "function" && adapter.isConnected()) {
+                await _getYogaApp(adapter, "global");
+                logger.debug("[GraphQL] Schema pre-warmed at boot");
+              }
+            })
+            .catch((err) => logger.error("[System] GraphQL schema pre-warm failed", err));
+
+          try {
+            const lazy = await import("@src/services/sdk/namespaces/collections/lazy-services");
+            await Promise.allSettled([
+              lazy.getWorkflowServiceLazy(),
+              lazy.getResponseCacheLazy(),
+              lazy.getPubSubLazy(),
+              lazy.getOutboxLazy(),
+              lazy.getTokenEngineLazy(),
+              lazy.getHistoryServiceLazy(),
+              lazy.getDbModuleLazy(),
+              import("@src/services/security/field-permission-service"),
+              import("@src/content/index.server"),
+              import("@utils/modify-request"),
+              import("@src/databases/tenant-adapter"),
+              import("@src/databases/auth/session-manager").then((m) => m.getDefaultSessionStore()),
+            ]);
+            logger.debug("[System] Lazy write-path modules pre-warmed");
+          } catch (err) {
+            logger.debug("[System] Deferred write-path pre-warm skipped:", err);
+          }
+        }, "Prewarm");
 
         // 🚀 BACKGROUND SERVICES:
         // Decoupled from the API process when SVELTY_BACKGROUND_MODE is "child"
@@ -469,46 +514,6 @@ if (!building) {
             // Housekeeping timers must never keep the event loop alive (clean Ctrl+C exit).
             void initialTelemetryCheck.unref?.();
           }, "Background");
-        }
-
-        // 🚀 PRE-WARM LAZY WRITE-PATH MODULES (cold-start): the first collection
-        // create/update used to pay a dynamic-import stall for workflow,
-        // response-cache, pub-sub, outbox, token-engine, history, the session
-        // store, tenant-adapter, field-permissions, and modify-request. Import
-        // them once at READY so the first write hits warm module singletons.
-        {
-          const lazy = await import("@src/services/sdk/namespaces/collections/lazy-services");
-          await Promise.allSettled([
-            lazy.getWorkflowServiceLazy(),
-            lazy.getResponseCacheLazy(),
-            lazy.getPubSubLazy(),
-            lazy.getOutboxLazy(),
-            lazy.getTokenEngineLazy(),
-            lazy.getHistoryServiceLazy(),
-            lazy.getDbModuleLazy(),
-            import("@src/services/security/field-permission-service"),
-            import("@src/content/index.server"),
-            import("@utils/modify-request"),
-            import("@src/databases/tenant-adapter"),
-            import("@src/databases/auth/session-manager").then((m) => m.getDefaultSessionStore()),
-          ]);
-          logger.debug("[System] Lazy write-path modules pre-warmed");
-        }
-
-        // Pre-build the cached middleware pipelines so the first request skips
-        // sequence() assembly. Do not invoke them here: SvelteKit's sequence()
-        // reads the request AsyncLocalStorage, and a synthetic event has no
-        // store ("Could not get the request store"). The handlers compile on
-        // the first real request.
-        try {
-          await Promise.all([
-            getPipeline(RequestLane.API_READ),
-            getPipeline(RequestLane.API_WRITE),
-            getPipeline(RequestLane.APP_SSR),
-          ]);
-          logger.debug("[System] Middleware pipelines pre-built");
-        } catch (err) {
-          logger.warn("[System] Pipeline pre-build failed (non-fatal):", err);
         }
 
         // Cleanup: Unsubscribe once services are initialized
@@ -999,6 +1004,26 @@ export const handle: Handle = async ({ event, resolve }) => {
       const diagnosticsEnabled = includeDiagnostics && internalDiagnosticsAllowed;
 
       const ready = isSystemReady();
+      if (!diagnosticsEnabled) {
+        const now = Date.now();
+        if (cachedHealthUptimeAt < 0 || now - cachedHealthUptimeAt >= 200) {
+          cachedHealthUptimeAt = now;
+          cachedHealthUptimeStr = String(Math.round(process.uptime() * 1000) / 1000);
+        }
+        const rawDbType = process.env.DB_TYPE || "unknown";
+        if (rawDbType !== cachedHealthDbType) {
+          cachedHealthDbType = rawDbType;
+          cachedHealthDbTypeJson = JSON.stringify(rawDbType);
+        }
+        const rawState = String(state);
+        if (rawState !== cachedHealthState) {
+          cachedHealthState = rawState;
+          cachedHealthStateJson = JSON.stringify(rawState);
+        }
+        const fastBody = `{"status":"${isReady ? "healthy" : "unhealthy"}","overallStatus":${cachedHealthStateJson},"ready":${ready},"database":"${isDbConnected ? "connected" : "disconnected"}","timestamp":${now},"uptime":${cachedHealthUptimeStr},"dbType":${cachedHealthDbTypeJson}}`;
+        return new Response(fastBody, { status: 200, headers: HEALTH_HEADERS_WITH_LANE });
+      }
+
       const health: Record<string, unknown> = {
         status: isReady ? "healthy" : "unhealthy",
         overallStatus: state,

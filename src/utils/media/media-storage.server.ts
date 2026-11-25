@@ -24,7 +24,7 @@ import { getStorageAdapter, getConfig } from "./storage-adapters";
 import { getMimeType } from "./media-utils";
 import type { DerivativeFormat, ResizedImage } from "./media-models";
 import { normalizeDerivativeFormat } from "./media-values";
-import { getSharp, MAX_INPUT_PIXELS } from "./sharp-loader.server";
+import { getSharp, MAX_INPUT_PIXELS, runWithSharpSlot } from "./sharp-loader.server";
 import { FastLRU, generateUUID } from "@utils/native-utils";
 import { nowISODateString } from "@src/utils/date";
 
@@ -268,7 +268,7 @@ export async function saveResized(
 ): Promise<Record<string, ResizedImage>> {
   const sharp = await getSharp();
   const baseInstance = sharp(buffer, { limitInputPixels: MAX_INPUT_PIXELS, failOn: "warning" });
-  const meta = preDecodedMeta ?? (await baseInstance.metadata());
+  const meta = preDecodedMeta ?? (await runWithSharpSlot(() => baseInstance.metadata()));
 
   const formatConfig = getPublicSettingSync("MEDIA_OUTPUT_FORMAT_QUALITY") as
     | { format?: string; quality?: number }
@@ -334,16 +334,18 @@ export async function saveResized(
     // Fallbacks for a source whose height could not be read; a real encode reports its own.
     const fallbackHeight = meta.height ? Math.round((w / (meta.width ?? w)) * meta.height) : w;
 
-    // 2. Encode primary and webp variant in parallel (independent sharp pipelines)
-    const primaryP = instance.toBuffer({ resolveWithObject: true });
-    const webpP = sidecarNeeded
-      ? baseVariant
-          .clone()
-          .webp({ quality: Math.max(quality, 75) })
-          .toBuffer({ resolveWithObject: true })
-      : Promise.resolve(null);
-
-    const [primary, webp] = await Promise.all([primaryP, webpP]);
+    // 2. Encode primary and webp variant in bounded Sharp concurrency slots
+    const [primary, webp] = await Promise.all([
+      runWithSharpSlot(() => instance.toBuffer({ resolveWithObject: true })),
+      sidecarNeeded
+        ? runWithSharpSlot(() =>
+            baseVariant
+              .clone()
+              .webp({ quality: Math.max(quality, 75) })
+              .toBuffer({ resolveWithObject: true }),
+          )
+        : Promise.resolve(null),
+    ]);
 
     // 3. Save files — primary always, WebP if generated
     const url = await saveFile(primary.data, relPath);
@@ -398,9 +400,11 @@ export async function saveAvatar(file: File, userId: string): Promise<string> {
 
   const buf = Buffer.from(await file.arrayBuffer());
   const sharp = await getSharp();
-  const resized = await sharp(buf, { limitInputPixels: MAX_INPUT_PIXELS, failOn: "warning" })
-    .resize(200, 200, { fit: "cover", position: "center" })
-    .toBuffer();
+  const resized = await runWithSharpSlot(() =>
+    sharp(buf, { limitInputPixels: MAX_INPUT_PIXELS, failOn: "warning" })
+      .resize(200, 200, { fit: "cover", position: "center" })
+      .toBuffer(),
+  );
 
   const rel = `avatars/${userId}${ext}`;
   return await saveFile(resized, rel);
@@ -675,12 +679,14 @@ export async function generatePdfThumbnail(buffer: Buffer): Promise<Buffer | nul
         scale: 2,
         render: async (options) => {
           const sharp = await getSharp();
-          return sharp(options.data, {
-            raw: { width: options.width, height: options.height, channels: 4 },
-          })
-            .flatten({ background: "#ffffff" })
-            .jpeg({ quality: 88 })
-            .toBuffer();
+          return runWithSharpSlot(() =>
+            sharp(options.data, {
+              raw: { width: options.width, height: options.height, channels: 4 },
+            })
+              .flatten({ background: "#ffffff" })
+              .jpeg({ quality: 88 })
+              .toBuffer(),
+          );
         },
       });
       return Buffer.from(image.data);
@@ -826,7 +832,7 @@ export async function generateCsvThumbnail(buffer: Buffer): Promise<Buffer | nul
 
   try {
     const sharp = await getSharp();
-    return await sharp(Buffer.from(svg)).png().toBuffer();
+    return await runWithSharpSlot(() => sharp(Buffer.from(svg)).png().toBuffer());
   } catch (err) {
     logger.warn("[Media] CSV preview generation failed", {
       error: err instanceof Error ? err.message : String(err),

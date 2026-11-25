@@ -1,0 +1,187 @@
+---
+path: "docs/guides/content/framework-quickstarts.mdx"
+title: "Framework Quickstarts (@sveltycms/sdk)"
+description: "Connect Next.js, Astro, Nuxt, and SvelteKit frontends to SveltyCMS using the zero-dependency @sveltycms/sdk client, REST, GraphQL, optimistic locking, and temporal reads."
+order: 9
+icon: "mdi:code-braces-box"
+author: "SveltyCMS Team"
+created: "2026-11-25"
+updated: "2026-11-25"
+tags:
+  - "sdk"
+  - "nextjs"
+  - "astro"
+  - "nuxt"
+  - "sveltekit"
+  - "headless"
+---
+
+# Framework Quickstarts (`@sveltycms/sdk`)
+
+Connect external frontends to SveltyCMS over REST or GraphQL with the standalone `@sveltycms/sdk` workspace package (`packages/sdk`). It uses only the standard `fetch` API and works cleanly across **Next.js App Router**, **Astro**, **Nuxt**, and **SvelteKit** consumers without importing server internals.
+
+## 1. Shared Client Setup
+
+Create one helper module in your frontend project and pass your API token (`Authorization: Bearer`) and optional `tenantId`:
+
+```ts
+import { createSveltyClient } from "@sveltycms/sdk";
+
+export interface PostEntry {
+  _id: string;
+  title: string;
+  slug: string;
+  updatedAt: string;
+}
+
+export const cms = createSveltyClient({
+  baseUrl: process.env.SVELTY_CMS_URL ?? "http://127.0.0.1:4173",
+  token: process.env.SVELTY_API_TOKEN,
+  tenantId: process.env.SVELTY_TENANT_ID,
+});
+```
+
+---
+
+## 2. Next.js (App Router)
+
+Fetch published entries in Server Components and forward `Idempotency-Key` or `If-Match` in Route Handlers or Server Actions:
+
+```tsx
+// app/blog/page.tsx
+import { cms, type PostEntry } from "@/lib/cms";
+
+export const revalidate = 60;
+
+export default async function BlogPage() {
+  const posts = await cms.collection<PostEntry>("posts").list({
+    limit: 20,
+    fields: ["_id", "title", "slug", "updatedAt"],
+    publicationFilter: "published",
+  });
+
+  return (
+    <main>
+      <h1>Blog</h1>
+      <ul>
+        {posts.items.map((post) => (
+          <li key={post._id}>{post.title}</li>
+        ))}
+      </ul>
+    </main>
+  );
+}
+```
+
+Safe retries on POST mutations use `idempotencyKey`:
+
+```ts
+await cms
+  .collection<PostEntry>("posts")
+  .create(
+    { title: "Hello Next.js", slug: "hello-nextjs" },
+    { idempotencyKey: "post-create-hello-nextjs-v1" },
+  );
+```
+
+---
+
+## 3. Astro
+
+Query REST or GraphQL directly inside `.astro` frontmatter at build or SSR request time:
+
+```astro
+---
+import { cms, type PostEntry } from "../lib/cms";
+
+const posts = await cms.collection<PostEntry>("posts").list({
+  page: 1,
+  limit: 12,
+  publicationFilter: "published",
+});
+
+// Point-in-time preview via temporal revision reads (?asOf=<revision|ISO>):
+const revisionId = Astro.url.searchParams.get("asOf") ?? undefined;
+const featured = posts.items[0]
+  ? await cms.collection<PostEntry>("posts").findById(posts.items[0]._id, { asOf: revisionId })
+  : null;
+---
+
+<section>
+  {featured && <h2>{featured.title}</h2>}
+  <ul>
+    {posts.items.map((post) => (
+      <li>{post.title}</li>
+    ))}
+  </ul>
+</section>
+```
+
+---
+
+## 4. Nuxt 3 / 4
+
+Wrap SDK calls inside `useAsyncData` on server routes or pages cleanly:
+
+```ts
+// server/api/posts.get.ts
+import { cms, type PostEntry } from "~/utils/cms";
+
+export default defineEventHandler(async () => {
+  return cms.collection<PostEntry>("posts").list({
+    limit: 25,
+    fields: ["_id", "title", "slug", "updatedAt"],
+    publicationFilter: "published",
+  });
+});
+```
+
+For optimistic concurrency updates from Nuxt form actions:
+
+```ts
+await cms
+  .collection<PostEntry>("posts")
+  .update(id, { title: "Revised Title" }, { ifMatch: knownUpdatedAt });
+```
+
+---
+
+## 5. SvelteKit Consumers
+
+Remote SvelteKit frontends can use `@sveltycms/sdk` over HTTP with `event.fetch` passed cleanly to the client (while co-located SvelteKit routes inside the SveltyCMS monolith continue using [`LocalCMS`](../../reference/api/collections.mdx) directly in `.server.ts` for zero-HTTP persistence):
+
+```ts
+// src/routes/blog/+page.server.ts
+import { createSveltyClient } from "@sveltycms/sdk";
+import type { PageServerLoad } from "./$types";
+
+export const load: PageServerLoad = async ({ fetch }) => {
+  const sdk = createSveltyClient({
+    baseUrl: "https://cms.example.com",
+    token: process.env.SVELTY_API_TOKEN,
+    fetch,
+  });
+
+  const result = await sdk.graphql<{ posts: Array<{ _id: string; title: string }> }>(
+    `query { posts(limit: 20) { _id title } }`,
+  );
+
+  return { posts: result.data?.posts ?? [] };
+};
+```
+
+---
+
+## 6. Features Built Into `@sveltycms/sdk`
+
+- **24-hour Idempotent POSTs**: Pass `idempotencyKey` to `create()` so network retries return the stored result (`409 IDEMPOTENCY_KEY_REUSE` on body mismatch).
+- **Optimistic Concurrency**: Pass `ifMatch` to `update()` or `restoreRevision()`, catching `SveltyClientError` with `err.status === 409 && err.code === "VERSION_CONFLICT"`.
+- **Temporal Reads (`?asOf=`)**: Pass `asOf: 3` or `asOf: "2026-11-20T12:00:00Z"` to `findById()` to inspect historical snapshots under normal RBAC, ownership, and `omit` masking.
+- **Draft Rollback**: Call `rollbackDraft(entryId, version)` to load a previous revision into an author's staged draft without mutating the live entry.
+- **CDN Surrogate Tags**: Public collection GET responses carry `Surrogate-Key` (`t:<tenant> c:<collection> [e:<id>]`) and `Cache-Tag` headers for targeted edge purging.
+
+## Related
+
+- [Collections API Reference](../../reference/api/collections.mdx)
+- [GraphQL API Reference](../../reference/api/graphql.mdx)
+- [Scaling Layers & CDN Purging](../deployment/scaling-layers.mdx)

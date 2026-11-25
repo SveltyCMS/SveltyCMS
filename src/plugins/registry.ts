@@ -23,6 +23,7 @@ import { capabilityRegistry } from "@src/services/security/capability-registry";
 import { registerSugarType } from "@src/widgets/desugar-field";
 import { pluginRouteRegistry } from "./plugin-route-registry";
 import { pluginServerRegistry } from "./plugin-server-registry";
+import { validatePluginManifest } from "./sandbox";
 import type { PluginCapability } from "./types";
 import type {
   IPluginService,
@@ -51,6 +52,7 @@ export class PluginRegistry implements IPluginService {
   // Register a new plugin
   async register(plugin: Plugin): Promise<DatabaseResult<void>> {
     try {
+      validatePluginManifest(plugin.metadata.id, plugin.metadata);
       if (this.plugins.has(plugin.metadata.id)) {
         logger.debug(`Plugin ${plugin.metadata.id} is already registered. Overwriting.`);
       }

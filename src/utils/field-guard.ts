@@ -24,8 +24,13 @@ export function fieldDeclaresGuard(field: FieldInstance): boolean {
     if (Array.isArray(permissions.writeRoles) && permissions.writeRoles.length > 0) return true;
     if (permissions.requiredAuth) return true;
   }
-  const extra = field as { hidden?: boolean; visibility?: string };
-  return Boolean(extra.hidden || extra.visibility === "hidden" || extra.visibility === "private");
+  const extra = field as { hidden?: boolean; visibility?: string; omit?: boolean };
+  return Boolean(
+    extra.omit === true ||
+    extra.hidden ||
+    extra.visibility === "hidden" ||
+    extra.visibility === "private",
+  );
 }
 
 /** Child fields of a group/object/repeater (`fields`, or `of.fields` on older shapes). */

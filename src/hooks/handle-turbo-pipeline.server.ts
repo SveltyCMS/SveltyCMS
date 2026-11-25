@@ -107,6 +107,13 @@ const logRequest = (event: RequestEvent, duration: number, status: number) => {
   logger.debug(`[Turbo] ${method} ${path} (${status}) - ${duration.toFixed(2)}ms [ID:${id}]`);
 };
 
+let turboHealthUptimeAt = -1;
+let turboHealthUptimeStr = "0";
+let turboHealthDbType = "";
+let turboHealthDbTypeJson = '"unknown"';
+let turboHealthState = "";
+let turboHealthStateJson = '"SETUP"';
+
 /**
  * Builds a health-check response (de-duplicated from test bypass and regular paths).
  */
@@ -132,6 +139,27 @@ function buildHealthResponse(db: DatabaseAdapter | null, searchParams: URLSearch
   // boot pre-warm settled) — the same pair the dispatcher's health handler emits.
   const overallState = getOverallState();
   const ready = isSystemReady();
+
+  if (!includeDiagnostics) {
+    const now = Date.now();
+    if (turboHealthUptimeAt < 0 || now - turboHealthUptimeAt >= 200) {
+      turboHealthUptimeAt = now;
+      turboHealthUptimeStr = String(Math.round(process.uptime() * 1000) / 1000);
+    }
+    const rawDbType = DB_TYPE || "unknown";
+    if (rawDbType !== turboHealthDbType) {
+      turboHealthDbType = rawDbType;
+      turboHealthDbTypeJson = JSON.stringify(rawDbType);
+    }
+    const rawState = String(overallState);
+    if (rawState !== turboHealthState) {
+      turboHealthState = rawState;
+      turboHealthStateJson = JSON.stringify(rawState);
+    }
+    const fastBody = `{"status":"${ready ? "healthy" : "initializing"}","overallStatus":${turboHealthStateJson},"ready":${ready},"database":${!!db},"timestamp":${now},"uptime":${turboHealthUptimeStr},"dbType":${turboHealthDbTypeJson}}`;
+    return new Response(fastBody, { status: 200, headers: healthHeaders });
+  }
+
   const health: Record<string, unknown> = {
     status: ready ? "healthy" : "initializing",
     overallStatus: overallState,

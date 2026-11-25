@@ -36,11 +36,18 @@
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { logger } from "@utils/logger";
 import { isAdmin } from "@src/databases/auth/constants";
+import { raise } from "@utils/error-handling";
 import { hasOwnProperties } from "@utils/native-utils";
 
+export type AccessRuleOperation = "read" | "create" | "update" | "delete";
 export type AccessRuleScalar = string | number | boolean;
 export type AccessRuleValue = AccessRuleScalar | AccessRuleScalar[];
-export type AccessRule = { read?: Record<string, AccessRuleValue> };
+export type AccessRule = {
+  read?: Record<string, AccessRuleValue>;
+  create?: Record<string, AccessRuleValue>;
+  update?: Record<string, AccessRuleValue>;
+  delete?: Record<string, AccessRuleValue>;
+};
 export type AccessRuleConfig = Record<string, Record<string, AccessRule>>;
 
 export interface AccessRuleContext {
@@ -107,12 +114,13 @@ function resolveScalar(value: AccessRuleScalar, ctx: AccessRuleContext): AccessR
 }
 
 /**
- * Build the read constraint for one collection+role. Returns `null` when the
- * rule set does not restrict this caller (admin, no rule, or an empty rule).
+ * Build the constraint for one collection + role + operation.
+ * Returns `null` when the rule set does not restrict this caller.
  */
-export function buildReadConstraint(
+export function buildOperationConstraint(
   config: AccessRuleConfig | null,
   collection: string,
+  operation: AccessRuleOperation,
   ctx: AccessRuleContext,
 ): Record<string, unknown> | null {
   if (!config || !collection) return null;
@@ -121,17 +129,28 @@ export function buildReadConstraint(
   const role = ctx.role ?? (ctx.user?.role != null ? String(ctx.user.role) : undefined);
   if (!role) return null;
 
-  const readRule = config[collection]?.[role]?.read;
-  if (!readRule || typeof readRule !== "object") return null;
+  const entry = config[collection]?.[role];
+  if (!entry) return null;
+
+  // Operation fallback chain: explicit operation rule -> read rule (so read-only row scopes also protect existing rows on update/delete unless explicitly widened/narrowed; `create` only enforces explicit `create` rule so reading rules don't block creation unexpectedly).
+  const rule =
+    operation === "create"
+      ? entry.create
+      : operation === "update"
+        ? (entry.update ?? entry.read)
+        : operation === "delete"
+          ? (entry.delete ?? entry.update ?? entry.read)
+          : entry.read;
+  if (!rule || typeof rule !== "object") return null;
 
   const constraint: Record<string, unknown> = {};
   let keys = 0;
-  for (const field in readRule) {
-    if (!Object.hasOwn(readRule, field)) continue;
+  for (const field in rule) {
+    if (!Object.hasOwn(rule, field)) continue;
     if (!field || UNSAFE_KEYS.has(field)) continue;
-    const value = (readRule as Record<string, unknown>)[field];
+    const value = (rule as Record<string, unknown>)[field];
     if (Array.isArray(value)) {
-      constraint[field] = { $in: value.map((entry) => resolveScalar(entry, ctx)) };
+      constraint[field] = { $in: value.map((entryVal) => resolveScalar(entryVal, ctx)) };
     } else if (
       typeof value === "string" ||
       typeof value === "number" ||
@@ -146,12 +165,54 @@ export function buildReadConstraint(
   return keys > 0 ? constraint : null;
 }
 
-/** Cached-config wrapper used by the read/write paths. */
+/**
+ * Build the read constraint for one collection+role. Returns `null` when the
+ * rule set does not restrict this caller (admin, no rule, or an empty rule).
+ */
+export function buildReadConstraint(
+  config: AccessRuleConfig | null,
+  collection: string,
+  ctx: AccessRuleContext,
+): Record<string, unknown> | null {
+  return buildOperationConstraint(config, collection, "read", ctx);
+}
+
+/** Cached-config wrapper used by the read path. */
 export function getReadConstraint(
   collection: string,
   ctx: AccessRuleContext,
 ): Record<string, unknown> | null {
-  return buildReadConstraint(getAccessRuleConfig(), collection, ctx);
+  return buildOperationConstraint(getAccessRuleConfig(), collection, "read", ctx);
+}
+
+/** Cached-config wrapper used by update/delete/create write paths. */
+export function getWriteConstraint(
+  collection: string,
+  operation: Exclude<AccessRuleOperation, "read">,
+  ctx: AccessRuleContext,
+): Record<string, unknown> | null {
+  return buildOperationConstraint(getAccessRuleConfig(), collection, operation, ctx);
+}
+
+/**
+ * Fail closed with HTTP 403 when an incoming create payload violates an
+ * explicit `ACCESS_RULES[collection][role].create` constraint.
+ */
+export function assertCreateAccessAllowed(
+  collection: string,
+  payload: unknown,
+  ctx: AccessRuleContext,
+  config: AccessRuleConfig | null = getAccessRuleConfig(),
+): void {
+  const constraint = buildOperationConstraint(config, collection, "create", ctx);
+  if (!constraint) return;
+  if (!rowMatchesConstraint(payload, constraint)) {
+    raise(
+      403,
+      `Access rule forbids creating entry in '${collection}' with the supplied field values.`,
+      "ACCESS_RULE_FORBIDDEN",
+    );
+  }
 }
 
 /**

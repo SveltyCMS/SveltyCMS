@@ -26,8 +26,8 @@ This page dynamically switches between List views and Field editors based on the
 		page_title_suffix
 	} from '@src/paraglide/messages';
 	import EntryList from '@src/components/collection-display/entry-list.svelte';
-	import Fields from '@src/components/collection-display/fields.svelte';
-	import WorkflowActions from '@src/components/collection-display/workflow-actions.svelte';
+	import DraftResumeBanner from '@src/components/collection-display/draft-resume-banner.svelte';
+	import { memoizeLazyLoader } from '@utils/lazy-module';
 	import type { Schema } from '@src/content/types';
 	import { collections } from '@src/stores/collection-store.svelte';
 	import { widgets } from '@src/stores/widget-store.svelte';
@@ -53,8 +53,16 @@ This page dynamically switches between List views and Field editors based on the
 		saveEntryDraft,
 		type DraftResume
 	} from '@utils/entry-drafts';
-	import DraftResumeBanner from '@src/components/collection-display/draft-resume-banner.svelte';
 	import { onMount, untrack } from 'svelte';
+
+	// Lazy-load heavy editor chrome only when entering edit/create mode so collection
+	// list views avoid parsing editor, revision-diff, and collaboration bundles upfront.
+	const loadFieldsEditor = memoizeLazyLoader(
+		() => import('@src/components/collection-display/fields.svelte')
+	);
+	const loadWorkflowActions = memoizeLazyLoader(
+		() => import('@src/components/collection-display/workflow-actions.svelte')
+	);
 	import { beforeNavigate, refreshAll, goto } from '$app/navigation';
 	import { page } from '$app/state';
 
@@ -844,17 +852,21 @@ This page dynamically switches between List views and Field editors based on the
 				</div>
 			{/if}
 			{#if effectiveMode === 'edit' && activeEntryId}
-				<div class="mb-3 shrink-0">
-					<WorkflowActions collectionId={activeCollection._id!} entryId={activeEntryId} />
-				</div>
+				{#await loadWorkflowActions() then { default: WorkflowActions }}
+					<div class="mb-3 shrink-0">
+						<WorkflowActions collectionId={activeCollection._id!} entryId={activeEntryId} />
+					</div>
+				{/await}
 			{/if}
 			<!-- Pass the server-loaded data directly as props -->
-			<Fields
-				collection={activeCollection}
-				fields={activeCollection.fields}
-				{revisions}
-				contentLanguage={serverContentLanguage}
-			/>
+			{#await loadFieldsEditor() then { default: Fields }}
+				<Fields
+					collection={activeCollection}
+					fields={activeCollection.fields}
+					{revisions}
+					contentLanguage={serverContentLanguage}
+				/>
+			{/await}
 		</div>
 	{/if}
 </div>

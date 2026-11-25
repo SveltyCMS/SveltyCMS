@@ -86,7 +86,7 @@ describe("ApiSpecService (Whitebox)", () => {
     const all = Object.keys(ENDPOINT_PERMISSIONS).sort();
     expect(Object.keys(meta.endpointPermissions).sort()).toEqual(all);
     expect([...meta.documentedNamespaces, ...meta.undocumentedNamespaces].sort()).toEqual(all);
-    expect(meta.undocumentedNamespaces.length).toBeGreaterThan(0);
+    expect(meta.undocumentedNamespaces).toEqual([]);
     expect(meta.documentedNamespaces).toContain("webhooks");
     expect(meta.documentedNamespaces).toContain("automations");
   });

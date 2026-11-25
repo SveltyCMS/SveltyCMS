@@ -12,7 +12,7 @@
 
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { logger } from "@utils/logger";
-import { getSharp, MAX_INPUT_PIXELS } from "@utils/media/sharp-loader.server";
+import { getSharp, MAX_INPUT_PIXELS, runWithSharpSlot } from "@utils/media/sharp-loader.server";
 import type { DerivativeFormat } from "@utils/media/media-models";
 import { normalizeDerivativeFormat } from "@utils/media/media-values";
 
@@ -94,34 +94,37 @@ export async function optimizeMedia(
 
   try {
     const sharp = await getSharp();
-    let pipeline = sharp(Buffer.from(buffer), {
-      limitInputPixels: MAX_INPUT_PIXELS,
-      failOn: "warning",
-    }).resize(cfg.maxWidth, cfg.maxHeight, {
-      fit: "inside",
-      withoutEnlargement: true,
+    const { optimized, meta, resolvedFormat } = await runWithSharpSlot(async () => {
+      let pipeline = sharp(Buffer.from(buffer), {
+        limitInputPixels: MAX_INPUT_PIXELS,
+        failOn: "warning",
+      }).resize(cfg.maxWidth, cfg.maxHeight, {
+        fit: "inside",
+        withoutEnlargement: true,
+      });
+
+      if (cfg.stripMetadata) {
+        pipeline = pipeline.withMetadata({});
+      }
+
+      const outputFormat = cfg.convertTo === "original" ? ext : cfg.convertTo;
+      let outBuf: Buffer;
+      let fmt = outputFormat;
+
+      if (outputFormat === "webp") {
+        outBuf = await pipeline.webp({ quality: cfg.quality }).toBuffer();
+      } else if (outputFormat === "avif") {
+        outBuf = await pipeline.avif({ quality: cfg.quality }).toBuffer();
+      } else if (outputFormat === "jpg" || outputFormat === "jpeg") {
+        outBuf = await pipeline.jpeg({ quality: cfg.quality }).toBuffer();
+        fmt = "jpg";
+      } else {
+        outBuf = await pipeline.toBuffer();
+      }
+
+      const outMeta = await sharp(outBuf).metadata();
+      return { optimized: outBuf, meta: outMeta, resolvedFormat: fmt };
     });
-
-    if (cfg.stripMetadata) {
-      pipeline = pipeline.withMetadata({});
-    }
-
-    const outputFormat = cfg.convertTo === "original" ? ext : cfg.convertTo;
-    let optimized: Buffer;
-    let resolvedFormat = outputFormat;
-
-    if (outputFormat === "webp") {
-      optimized = await pipeline.webp({ quality: cfg.quality }).toBuffer();
-    } else if (outputFormat === "avif") {
-      optimized = await pipeline.avif({ quality: cfg.quality }).toBuffer();
-    } else if (outputFormat === "jpg" || outputFormat === "jpeg") {
-      optimized = await pipeline.jpeg({ quality: cfg.quality }).toBuffer();
-      resolvedFormat = "jpg";
-    } else {
-      optimized = await pipeline.toBuffer();
-    }
-
-    const meta = await sharp(optimized).metadata();
     const sizeReduction =
       inputSize > 0 ? Math.max(0, Math.round((1 - optimized.byteLength / inputSize) * 100)) : 0;
 

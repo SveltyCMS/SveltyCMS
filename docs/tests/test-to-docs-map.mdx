@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:file-document-check"
 author: "SveltyCMS Team"
 created: "2026-08-23"
-updated: "2026-11-17"
+updated: "2026-11-25"
 tags:
   - "tests"
   - "documentation"
@@ -21,6 +21,18 @@ tags:
 | Test File                                                               | Documentation                                                                                                                                                                                         |
 | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `tests/unit/api/collections.test.ts`                                    | `docs/tests/api-testing.mdx`, `docs/reference/architecture/collection-store-dataflow.mdx`                                                                                                             |
+| `tests/unit/hooks/ws-bearer-auth.test.ts`                               | `docs/reference/security/api-security.mdx`, `docs/project/achievements-2026.mdx` (§3.85)                                                                                                              |
+| `tests/unit/utils/idempotency.test.ts`                                  | `docs/reference/api/collections.mdx`, `docs/guides/content/framework-quickstarts.mdx`                                                                                                                 |
+| `tests/unit/services/retention-sweep.test.ts`                           | `docs/reference/api/utility.mdx`, `docs/project/achievements-2026.mdx` (§3.85)                                                                                                                        |
+| `tests/unit/cache/cache-service-pg-bus.test.ts`                         | `docs/reference/architecture/cache-system.mdx`, `docs/project/achievements-2026.mdx` (§3.85)                                                                                                          |
+| `tests/unit/cache/public-cdn-tags.test.ts`                              | `docs/guides/deployment/scaling-layers.mdx`, `docs/guides/content/framework-quickstarts.mdx`                                                                                                          |
+| `tests/unit/media/sharp-pool.test.ts`                                   | `docs/reference/architecture/media-system.mdx`, `docs/project/achievements-2026.mdx` (§3.85)                                                                                                          |
+| `tests/unit/utils/logger-ring.test.ts`                                  | `docs/project/achievements-2026.mdx` (§3.85)                                                                                                                                                          |
+| `tests/unit/compilation/zero-compile-fast-path.test.ts`                 | `docs/project/roadmap-2026.mdx` (§11 Zero-compilation boot), `docs/project/achievements-2026.mdx` (§3.85)                                                                                             |
+| `tests/unit/services/pub-sub-bridge.test.ts`                            | `docs/project/achievements-2026.mdx` (§3.85 multi-worker PubSub bridge)                                                                                                                               |
+| `tests/unit/services/bucket2-editorial-integrity.test.ts`               | `docs/project/roadmap-2026.mdx` (§5 SEO cascade), `docs/project/competitive-comparison.mdx`                                                                                                           |
+| `tests/unit/security/bucket3-sandbox-access-temporal.test.ts`           | `docs/project/roadmap-2026.mdx` (§8, §11 temporal reads & sandbox), `docs/project/achievements-2026.mdx` (§3.85)                                                                                      |
+| `tests/unit/sdk/packages-sdk-workspace.test.ts`                         | `docs/guides/content/framework-quickstarts.mdx`, `docs/project/achievements-2026.mdx` (§3.85)                                                                                                         |
 | `tests/unit/api/yjs-acl.test.ts`                                        | `docs/project/achievements-2026.mdx` (§3.16 / §4.6), `docs/reference/security/api-security.mdx`                                                                                                       |
 | `tests/unit/api/authz-bypass-guard.test.ts`                             | `docs/reference/security/api-security.mdx`, `docs/reference/security/tested-security-features.mdx`                                                                                                    |
 | `tests/unit/api/dispatcher-body-limit.test.ts`                          | `docs/reference/security/api-security.mdx`, `docs/reference/api/media.mdx`                                                                                                                            |

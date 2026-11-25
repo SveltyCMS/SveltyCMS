@@ -28,6 +28,8 @@ import type {
 } from "@src/databases/db-interface";
 import type { Schema } from "@src/content/types";
 import type { LocalApiOptions } from "../types";
+import { presentRead, readEncryptionContext } from "./read-pipeline";
+import { ensureSchemaHotFlags } from "./schema-store";
 
 export interface RevisionContext {
   _dbAdapter: IDBAdapter;
@@ -342,7 +344,7 @@ export interface RecordRevisionOptions {
  * `crud.insert`/`getDb` — the only way to put the snapshot on the promotion's
  * transaction connection without editing the shared adapter interface.
  */
-interface TransactionalRevisionStore {
+export interface TransactionalRevisionStore {
   create(
     revision: EntityCreate<ContentRevision>,
     options?: BaseQueryOptions,
@@ -507,4 +509,141 @@ export async function restoreEntryRevision(
     data?: unknown;
     [k: string]: unknown;
   }>;
+}
+
+export interface TemporalReadContext {
+  _dbAdapter: IDBAdapter;
+  schemaOf(collectionId: string, tenantId?: DatabaseId | null): Promise<Schema>;
+  getCollectionName(schemaId: string): string;
+  findById(
+    collectionId: string,
+    entryId: string,
+    options?: LocalApiOptions,
+  ): Promise<{ success: boolean; data?: unknown; message?: string; [k: string]: unknown }>;
+}
+
+/**
+ * Temporal read (`?asOf=<revision|ISO>`): resolves an entry snapshot at a given
+ * revision number or ISO-8601 point-in-time from `content_revisions`.
+ *
+ * Security: runs the live point-read gate first (`findById` without `asOf`) so
+ * tenant scoping, publication clamping, ownership and `ACCESS_RULES` fail closed
+ * cleanly before any revision data is revealed, and shapes the historical snapshot
+ * through `presentRead` (`omit`, FLAC, field decryption).
+ */
+export async function executeFindByIdAsOf(
+  ctx: TemporalReadContext,
+  collectionId: string,
+  entryId: string,
+  asOf: string | number,
+  options: LocalApiOptions = {},
+): Promise<{ success: boolean; data?: unknown; message?: string }> {
+  const schema = await ctx.schemaOf(collectionId, options.tenantId);
+  if (schema.revision !== true) {
+    raise(
+      400,
+      `Collection '${collectionId}' does not track revisions for temporal reads.`,
+      "REVISIONS_DISABLED",
+    );
+  }
+
+  const rawAsOf = String(asOf).trim();
+  const isVersionNumber = /^\d+$/.test(rawAsOf);
+  const targetMs = isVersionNumber ? Number.NaN : Date.parse(rawAsOf);
+  if (!isVersionNumber && !Number.isFinite(targetMs)) {
+    raise(
+      400,
+      `Invalid asOf parameter '${rawAsOf}': expected a positive revision integer or ISO-8601 timestamp.`,
+      "INVALID_AS_OF",
+    );
+  }
+
+  // Run standard access/publication/ownership check against the live entry first.
+  const { asOf: _ignored, ...liveOpts } = options;
+  const live = await ctx.findById(collectionId, entryId, {
+    ...liveOpts,
+    bypassCache: true,
+    bypassRequestCache: true,
+  });
+  if (!live?.success || !live.data) {
+    return { success: true, data: null };
+  }
+
+  const revisionsStore = ctx._dbAdapter.content.revisions as unknown as TransactionalRevisionStore;
+  const queryOpts = options.tenantId ? { tenantId: options.tenantId as DatabaseId } : undefined;
+  let targetVersion = isVersionNumber ? Number(rawAsOf) : 0;
+  let matchedTimestamp: string | undefined;
+
+  if (isVersionNumber) {
+    if (!Number.isInteger(targetVersion) || targetVersion < 1) {
+      raise(400, "A positive revision version is required for asOf.", "INVALID_AS_OF");
+    }
+    const meta = await revisionsStore.get(entryId as DatabaseId, targetVersion, queryOpts);
+    if (meta.success && meta.data) {
+      const rowMeta = meta.data as unknown as Record<string, unknown>;
+      matchedTimestamp =
+        (rowMeta.createdAt as string | undefined) ?? (rowMeta.timestamp as string | undefined);
+    }
+  } else {
+    const history = await revisionsStore.getHistory(entryId as DatabaseId, {
+      page: 1,
+      pageSize: 200,
+      ...queryOpts,
+    });
+    if (!history.success) {
+      raise(500, history.message || "Failed to read revision history.", "REVISION_READ_FAILED");
+    }
+    const candidates = (history.data.items as unknown as Array<Record<string, unknown>>)
+      .map((item) => {
+        const tsRaw = item.createdAt ?? item.timestamp;
+        const ms =
+          typeof tsRaw === "string" || tsRaw instanceof Date
+            ? Date.parse(String(tsRaw))
+            : Number.NaN;
+        return {
+          version: Number(item.version) || 0,
+          ms,
+          ts: tsRaw ? String(tsRaw) : undefined,
+        };
+      })
+      .filter((entry) => entry.version > 0 && Number.isFinite(entry.ms) && entry.ms <= targetMs)
+      .sort((a, b) => b.version - a.version);
+
+    if (candidates.length === 0) {
+      return { success: true, data: null };
+    }
+    targetVersion = candidates[0].version;
+    matchedTimestamp = candidates[0].ts;
+  }
+
+  const snapshot = await reconstructRevisionSnapshot(
+    revisionsStore,
+    entryId as DatabaseId,
+    targetVersion,
+    queryOpts,
+  );
+  if (!snapshot) {
+    return { success: true, data: null };
+  }
+
+  const hot = ensureSchemaHotFlags(schema);
+  const encCtx = readEncryptionContext(schema, options.tenantId, hot);
+  const historicalRow: Record<string, unknown> = {
+    ...snapshot,
+    _id: entryId,
+    _collection: ctx.getCollectionName(schema._id as string),
+    _asOf: rawAsOf,
+    _revisionVersion: targetVersion,
+    ...(matchedTimestamp ? { _revisionAt: matchedTimestamp } : {}),
+  };
+
+  const result = presentRead(
+    { success: true, data: historicalRow },
+    schema,
+    hot,
+    encCtx,
+    options.user,
+    options.system,
+  );
+  return result instanceof Promise ? await result : result;
 }

@@ -17,6 +17,7 @@
  * - Shared pixel-bomb ceiling for metadata + variant + editor pipelines
  */
 
+import { AsyncLocalStorage } from "node:async_hooks";
 import { raise, rethrow } from "@utils/error-handling";
 import { getHardwareProfile } from "@utils/hardware-profile";
 import type sharp from "sharp";
@@ -62,4 +63,74 @@ export function getSharp(): Promise<SharpFactory> {
       });
   }
   return sharpPromise;
+}
+
+const sharpSlotContext = new AsyncLocalStorage<boolean>();
+let sharpActiveCount = 0;
+let sharpWaitQueue: Array<() => void> = [];
+let sharpWaitHead = 0;
+
+function getSharpPoolLimit(): number {
+  const envLimit = Number(process.env.SVELTY_SHARP_POOL_LIMIT);
+  if (Number.isFinite(envLimit) && envLimit >= 1) return Math.floor(envLimit);
+  try {
+    const hw = getHardwareProfile();
+    return Math.max(1, Math.min(4, hw.sharpConcurrency));
+  } catch {
+    return 2;
+  }
+}
+
+function acquireSharpSlot(): Promise<void> {
+  const limit = getSharpPoolLimit();
+  if (sharpActiveCount < limit) {
+    sharpActiveCount++;
+    return Promise.resolve();
+  }
+  return new Promise<void>((resolve) => {
+    sharpWaitQueue.push(resolve);
+  });
+}
+
+function releaseSharpSlot(): void {
+  if (sharpWaitHead < sharpWaitQueue.length) {
+    const next = sharpWaitQueue[sharpWaitHead++];
+    if (sharpWaitHead >= sharpWaitQueue.length) {
+      sharpWaitQueue = [];
+      sharpWaitHead = 0;
+    } else if (sharpWaitHead > 64 && sharpWaitHead * 2 >= sharpWaitQueue.length) {
+      sharpWaitQueue = sharpWaitQueue.slice(sharpWaitHead);
+      sharpWaitHead = 0;
+    }
+    next();
+    return;
+  }
+  if (sharpActiveCount > 0) sharpActiveCount--;
+}
+
+/**
+ * Execute a Sharp image pipeline inside a process-wide bounded concurrency slot.
+ * Prevents simultaneous burst uploads or on-demand transforms from saturating libvips
+ * threads and spiking native memory. Nested calls within the same async chain stay
+ * re-entrant so helper calls cannot self-deadlock.
+ */
+export async function runWithSharpSlot<T>(task: () => Promise<T>): Promise<T> {
+  if (sharpSlotContext.getStore()) {
+    return task();
+  }
+  await acquireSharpSlot();
+  try {
+    return await sharpSlotContext.run(true, task);
+  } finally {
+    releaseSharpSlot();
+  }
+}
+
+/** Inspect active/queued Sharp pool counts for observability and testing. */
+export function getSharpPoolStats(): { active: number; queued: number; limit: number } {
+  return {
+    active: sharpActiveCount,
+    queued: sharpWaitQueue.length - sharpWaitHead,
+    limit: getSharpPoolLimit(),
+  };
 }

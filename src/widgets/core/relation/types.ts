@@ -7,6 +7,9 @@
  * - **Modular**: Separates props for single and multiple relation types.
  */
 
+/** Referential action executed when a referenced entry is deleted. */
+export type RelationOnDeleteAction = "cascade" | "setNull" | "restrict";
+
 // Defines the properties unique to the Relation & RelationList widgets.
 export interface RelationProps {
   // The `_id` of the collection to relate to.
@@ -30,6 +33,14 @@ export interface RelationProps {
    * @default false
    */
   multiple?: boolean;
+
+  /**
+   * Referential action executed when the referenced target entry is deleted.
+   * - `restrict`: reject delete (409) when referenced
+   * - `setNull`: clear/unlink the reference on referencing entries
+   * - `cascade`: delete referencing entries recursively (capped fanout)
+   */
+  onDelete?: RelationOnDeleteAction;
 
   // Index signature to satisfy WidgetProps constraint
   [key: string]: unknown;

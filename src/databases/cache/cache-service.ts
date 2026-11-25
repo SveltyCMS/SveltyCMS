@@ -21,6 +21,11 @@ import { cacheMetrics } from "./cache-metrics";
 import { CacheLockManager, LOCK_ERROR } from "./cache-locks";
 import { NegativeCacheManager } from "./negative-cache";
 import { RedisWriteBatcher, serializeL2Value, deserializeL2Value } from "./redis-pipeline";
+import {
+  PUBSUB_REDIS_CHANNEL,
+  handleRemotePubSubMessage,
+  registerPubSubRemoteTransport,
+} from "@src/services/background/pub-sub";
 
 // Read once at module load so the L1-hit hot path pays a single boolean check
 // instead of a process.env lookup (and zero clock syscalls when sampling is off).
@@ -75,10 +80,16 @@ function collectionEpochCacheKey(collection: string): string {
   return `col-epoch:${collection}`;
 }
 
+export interface FallbackInvalidationTransport {
+  publish(payload: string): Promise<void>;
+  close?(): Promise<void>;
+}
+
 export class CacheService {
   private l1: FastLRU<string, unknown>;
   private l2: any = null;
   private subscriber: any = null;
+  private fallbackTransport: FallbackInvalidationTransport | null = null;
   private nodeId: string;
   private readonly INVALIDATION_CHANNEL = "svelty:cache:invalidation";
 
@@ -368,45 +379,74 @@ export class CacheService {
     await this.batcher.flush(this.l2);
   }
 
+  /**
+   * Register a secondary cross-node invalidation transport (such as PostgreSQL
+   * `LISTEN`/`NOTIFY`) used when Redis L2 is unavailable. Pass `null` on shutdown.
+   */
+  public registerFallbackInvalidationTransport(
+    transport: FallbackInvalidationTransport | null,
+  ): void {
+    this.fallbackTransport = transport;
+  }
+
+  /**
+   * Process a serialized invalidation / collection-epoch payload arriving from
+   * either Redis Pub/Sub or the PostgreSQL LISTEN fallback channel.
+   */
+  public handleInvalidationPayload(message: string): void {
+    try {
+      const { pattern, tags, tenantId, nodeId, collectionEpoch } = JSON.parse(message);
+      if (nodeId === this.nodeId) return;
+      // Epoch propagation (M2 residual): `bumpCollectionEpoch` persists the
+      // new value to L2, but a peer only hydrates it through `getSync` (L1),
+      // so it would keep serving list/GraphQL bodies stamped with its old
+      // local epoch until TTL. Apply the published value to the local map
+      // (monotonic — never regress on an out-of-order message).
+      if (collectionEpoch && typeof collectionEpoch === "object") {
+        const {
+          collection,
+          tenantId: epochTenantId,
+          value,
+        } = collectionEpoch as {
+          collection?: unknown;
+          tenantId?: unknown;
+          value?: unknown;
+        };
+        if (
+          typeof collection === "string" &&
+          collection.length > 0 &&
+          typeof value === "number" &&
+          Number.isFinite(value)
+        ) {
+          const key = `${this.normalizeTenantId(
+            typeof epochTenantId === "string" ? epochTenantId : null,
+          )}:${collection}`;
+          const current = this.collectionEpochs.get(key) ?? 0;
+          if (value > current) this.collectionEpochs.set(key, value);
+        }
+      }
+      if (Array.isArray(tags) && tags.length > 0) {
+        this.negative.invalidateByTags(tags);
+        this.clearLocalL1ByTags(tags, tenantId);
+      }
+      if (pattern) this.clearLocalL1ByPattern(pattern, tenantId);
+    } catch (err) {
+      logger.error("[CacheSync] Failed to process invalidation message:", err);
+    }
+  }
+
   private async subscribeToInvalidations() {
     if (!this.subscriber || !this.subscriber.isOpen) return;
     try {
       await this.subscriber.subscribe(this.INVALIDATION_CHANNEL, (message: string) => {
-        try {
-          const { pattern, tags, tenantId, nodeId, collectionEpoch } = JSON.parse(message);
-          if (nodeId === this.nodeId) return;
-          // Epoch propagation (M2 residual): `bumpCollectionEpoch` persists the
-          // new value to L2, but a peer only hydrates it through `getSync` (L1),
-          // so it would keep serving list/GraphQL bodies stamped with its old
-          // local epoch until TTL. Apply the published value to the local map
-          // (monotonic — never regress on an out-of-order message).
-          if (collectionEpoch && typeof collectionEpoch === "object") {
-            const {
-              collection,
-              tenantId: epochTenantId,
-              value,
-            } = collectionEpoch as {
-              collection?: unknown;
-              tenantId?: unknown;
-              value?: unknown;
-            };
-            if (
-              typeof collection === "string" &&
-              collection.length > 0 &&
-              typeof value === "number" &&
-              Number.isFinite(value)
-            ) {
-              const key = `${this.normalizeTenantId(
-                typeof epochTenantId === "string" ? epochTenantId : null,
-              )}:${collection}`;
-              const current = this.collectionEpochs.get(key) ?? 0;
-              if (value > current) this.collectionEpochs.set(key, value);
-            }
-          }
-          if (tags && tags.length > 0) this.clearLocalL1ByTags(tags, tenantId);
-          if (pattern) this.clearLocalL1ByPattern(pattern, tenantId);
-        } catch (err) {
-          logger.error("[CacheSync] Failed to process invalidation message:", err);
+        this.handleInvalidationPayload(message);
+      });
+      await this.subscriber.subscribe(PUBSUB_REDIS_CHANNEL, (message: string) => {
+        handleRemotePubSubMessage(message);
+      });
+      registerPubSubRemoteTransport((payload) => {
+        if (this.isL2Ready()) {
+          return this.l2.publish(PUBSUB_REDIS_CHANNEL, payload);
         }
       });
     } catch (err) {
@@ -428,7 +468,8 @@ export class CacheService {
     tenantId: string | null | undefined,
     value: number,
   ): Promise<void> {
-    if (!this.isL2Ready()) return;
+    const l2Ready = this.isL2Ready();
+    if (!l2Ready && !this.fallbackTransport) return;
     try {
       const message = JSON.stringify({
         pattern: null,
@@ -441,7 +482,11 @@ export class CacheService {
           value,
         },
       });
-      await this.l2.publish(this.INVALIDATION_CHANNEL, message);
+      if (l2Ready) {
+        await this.l2.publish(this.INVALIDATION_CHANNEL, message);
+      } else if (this.fallbackTransport) {
+        await this.fallbackTransport.publish(message);
+      }
     } catch (err) {
       logger.error("[CacheSync] Failed to publish collection epoch:", err);
     }
@@ -452,7 +497,8 @@ export class CacheService {
     tenantId: string | null = "*",
     tags?: string[],
   ) {
-    if (!this.isL2Ready()) {
+    const l2Ready = this.isL2Ready();
+    if (!l2Ready && !this.fallbackTransport) {
       this.triggerCdnPurge(pattern, tags);
       return;
     }
@@ -464,7 +510,11 @@ export class CacheService {
         nodeId: this.nodeId,
         timestamp: Date.now(),
       });
-      await this.l2.publish(this.INVALIDATION_CHANNEL, message);
+      if (l2Ready) {
+        await this.l2.publish(this.INVALIDATION_CHANNEL, message);
+      } else if (this.fallbackTransport) {
+        await this.fallbackTransport.publish(message);
+      }
       this.triggerCdnPurge(pattern, tags);
     } catch (err) {
       logger.error("[CacheSync] Failed to publish invalidation:", err);
@@ -483,8 +533,17 @@ export class CacheService {
       }
       const { CdnService } = await import("@src/services/cdn/cdn-service");
       const cdn = await CdnService.getInstance();
-      if (tags && tags.length > 0) await cdn.purge({ tags });
-      else if (pattern) await cdn.purge({ everything: true });
+      if (tags && tags.length > 0) {
+        const expanded = new Set<string>(tags);
+        for (const tag of tags) {
+          if (tag.startsWith("collection:")) expanded.add(`c:${tag.slice("collection:".length)}`);
+          else if (tag.startsWith("doc:")) {
+            const lastColon = tag.lastIndexOf(":");
+            if (lastColon > 4) expanded.add(`e:${tag.slice(lastColon + 1)}`);
+          }
+        }
+        await cdn.purge({ tags: Array.from(expanded) });
+      } else if (pattern) await cdn.purge({ everything: true });
     } catch (err) {
       this._cdnResolved = true;
       this._cdnActive = false;
@@ -1023,6 +1082,8 @@ export class CacheService {
       } catch (err) {
         logger.error(`L2 Cache Delete Failure: ${fullKey}`, err);
       }
+    } else if (this.fallbackTransport) {
+      await this.publishInvalidation(key, tenantId);
     }
     return true;
   }
@@ -1285,6 +1346,8 @@ export class CacheService {
 
     if (this.isL2Ready()) {
       await this.executeClearByTagsL2(combinedTags, tenantId);
+    } else if (this.fallbackTransport) {
+      await this.publishInvalidation(null, tenantId, combinedTags);
     }
   }
 
@@ -1420,6 +1483,8 @@ export class CacheService {
       } catch (err) {
         logger.error(`L2 Cache ClearByPattern Failure: ${pattern}`, err);
       }
+    } else if (this.fallbackTransport) {
+      await this.publishInvalidation(pattern, tenantId);
     }
   }
 
@@ -1447,6 +1512,8 @@ export class CacheService {
       } else {
         await this.l2.flushAll();
       }
+      await this.publishInvalidation("*", tenantId);
+    } else if (this.fallbackTransport) {
       await this.publishInvalidation("*", tenantId);
     }
   }
@@ -1493,6 +1560,7 @@ export class CacheService {
   }
 
   async cleanup(): Promise<void> {
+    registerPubSubRemoteTransport(null);
     const pendingKeys = Array.from(this.pendingL2TagClears.keys());
     for (const key of pendingKeys) {
       await this.flushPendingL2TagClear(key);
@@ -1511,6 +1579,16 @@ export class CacheService {
         logger.debug("[cache-service] suppressed error", error);
       }
       this.subscriber = null;
+    }
+
+    if (this.fallbackTransport) {
+      const transport = this.fallbackTransport;
+      this.fallbackTransport = null;
+      if (typeof transport.close === "function") {
+        await transport
+          .close()
+          .catch((error) => logger.debug("[cache-service] fallback transport close failed", error));
+      }
     }
 
     if (this.l2) {

@@ -27,16 +27,9 @@
 import { fastHash } from "../native-utils.ts";
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
+import { createRequire } from "node:module";
 import path from "node:path";
-import {
-  ModuleKind,
-  ModuleResolutionKind,
-  ScriptTarget,
-  preProcessFile,
-  transpileModule,
-  version,
-  type CompilerOptions,
-} from "typescript";
+import type { CompilerOptions } from "typescript";
 // RELATIVE import (not `@utils/...`): vite.config.ts dynamically imports this
 // module, and Vite's config loader (esbuild) cannot resolve path aliases — a
 // bare `@utils/hardware-profile` here breaks `svelte-kit sync` for the project.
@@ -58,11 +51,49 @@ import {
   listCategoryRelativeDirs,
   mergeDiscoveredCategories,
 } from "./category-directories.ts";
-import { createCompositeTransformer } from "./transformers.ts";
 // Relative on purpose: the compilation pipeline runs outside Vite (esbuild/bun),
 // where the `@root` alias is not configured.
 import { pathAliases } from "../../../path-aliases.ts";
 import type { CompilationResult, CompileOptions, Logger, ManifestEntry } from "./types.ts";
+
+// Lazy TypeScript toolchain handles — when every collection matches the
+// compiled manifest cache, zero-compilation boot avoids parsing ~10 MB of TS compiler JS.
+type TypeScriptModule = typeof import("typescript");
+type TransformersModule = typeof import("./transformers.ts");
+
+let tsModulePromise: Promise<TypeScriptModule> | null = null;
+let transformersModulePromise: Promise<TransformersModule> | null = null;
+let cachedTsVersion: string | null = null;
+
+function loadTypeScriptModule(): Promise<TypeScriptModule> {
+  return (tsModulePromise ??= import("typescript"));
+}
+
+function loadTransformersModule(): Promise<TransformersModule> {
+  return (transformersModulePromise ??= import("./transformers.ts"));
+}
+
+async function getTypeScriptVersionFast(): Promise<string> {
+  if (cachedTsVersion) return cachedTsVersion;
+  if (tsModulePromise) {
+    const tsMod = await tsModulePromise;
+    cachedTsVersion = tsMod.version;
+    return cachedTsVersion;
+  }
+  try {
+    const req = createRequire(import.meta.url);
+    const pkg = req("typescript/package.json") as { version?: unknown };
+    if (typeof pkg?.version === "string" && pkg.version.length > 0) {
+      cachedTsVersion = pkg.version;
+      return cachedTsVersion;
+    }
+  } catch {
+    // catch-allow: fallback to importing typescript if package.json lookup fails
+  }
+  const tsMod = await loadTypeScriptModule();
+  cachedTsVersion = tsMod.version;
+  return cachedTsVersion;
+}
 
 // ─── Compile-time aliases (matching transformers.ts) ───────────────────
 const compileAliases: Record<string, string> = Object.fromEntries(
@@ -82,10 +113,13 @@ const MANIFEST_FINGERPRINT_KEY = "__fingerprint";
 const MANIFEST_VERSION_KEY = "__version";
 
 // ─── Compiler options used for fingerprinting ─────────────────────────
+// Numeric enum values mirror ScriptTarget.ESNext (99), ModuleKind.ESNext (99),
+// and ModuleResolutionKind.NodeJs (2) so the fingerprint stays identical without
+// eagerly importing the TypeScript compiler on warm cache hits.
 const COMPILER_OPTIONS: CompilerOptions = {
-  target: ScriptTarget.ESNext,
-  module: ModuleKind.ESNext,
-  moduleResolution: ModuleResolutionKind.NodeJs,
+  target: 99 as CompilerOptions["target"],
+  module: 99 as CompilerOptions["module"],
+  moduleResolution: 2 as CompilerOptions["moduleResolution"],
   allowJs: true,
   checkJs: false,
   skipLibCheck: true,
@@ -97,6 +131,7 @@ const COMPILER_OPTIONS: CompilerOptions = {
 
 // ─── Compiler fingerprint — invalidates manifest when toolchain changes ─
 async function computeFingerprint(): Promise<string> {
+  const version = await getTypeScriptVersionFast();
   const input = JSON.stringify({
     ts: version,
     compilerOptions: COMPILER_OPTIONS,
@@ -488,12 +523,26 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
             );
           }
 
+          // 2b: Load TypeScript compiler + AST transformers ONLY on cache misses
+          const [tsMod, transformersMod] = await Promise.all([
+            loadTypeScriptModule(),
+            loadTransformersModule(),
+          ]);
+
           // 2b: Extract dependencies from source
-          const deps = extractDependencies(content, relativePath, userCollections);
+          const deps = extractDependencies(
+            tsMod.preProcessFile,
+            content,
+            relativePath,
+            userCollections,
+          );
 
           // 5. Transform & compile with single-pass composite transformer
-          const compositeTransformer = createCompositeTransformer(options.tenantId, stableId);
-          const compilation = transpileModule(content, {
+          const compositeTransformer = transformersMod.createCompositeTransformer(
+            options.tenantId,
+            stableId,
+          );
+          const compilation = tsMod.transpileModule(content, {
             compilerOptions: COMPILER_OPTIONS,
             transformers: { before: [compositeTransformer] },
             fileName: sourcePath,
@@ -577,6 +626,7 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
 
 // ─── Dependency extraction ──────────────────────────────────────────────
 function extractDependencies(
+  preProcessFile: TypeScriptModule["preProcessFile"],
   content: string,
   _relativePath: string,
   userCollections: string,

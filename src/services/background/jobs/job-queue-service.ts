@@ -19,6 +19,7 @@ import { webhookDeliveryHandler } from "./webhook-jobs";
 import { importDataHandler } from "./import-jobs";
 import { bulkTranslateHandler } from "./translation-jobs";
 import { scheduledPublishHandler, sessionCleanupHandler } from "./scheduled-jobs";
+import { retentionSweepHandler } from "./retention-sweep";
 
 const HANDLER_IMPORTS: Record<string, () => Promise<JobHandler>> = {
   "process-media": () => Promise.resolve(processMediaHandler),
@@ -27,6 +28,7 @@ const HANDLER_IMPORTS: Record<string, () => Promise<JobHandler>> = {
   "bulk-translate": () => Promise.resolve(bulkTranslateHandler),
   "publish-scheduled": () => Promise.resolve(scheduledPublishHandler),
   "session-cleanup": () => Promise.resolve(sessionCleanupHandler),
+  "retention-sweep": () => Promise.resolve(retentionSweepHandler),
 };
 
 import { getHardwareProfile } from "@utils/hardware-profile";
@@ -48,6 +50,7 @@ interface JobPollerState {
   lastCleanupCheck: number;
   lastReapCheck: number;
   lastPruneCheck: number;
+  lastRetentionSweep: number;
 }
 
 const POLLER: JobPollerState = ((
@@ -58,6 +61,7 @@ const POLLER: JobPollerState = ((
   lastCleanupCheck: 0,
   lastReapCheck: 0,
   lastPruneCheck: 0,
+  lastRetentionSweep: 0,
 });
 
 class JobQueueService {
@@ -78,6 +82,7 @@ class JobQueueService {
     this.handlerLoaders.set("bulk-translate", HANDLER_IMPORTS["bulk-translate"]);
     this.handlerLoaders.set("publish-scheduled", HANDLER_IMPORTS["publish-scheduled"]);
     this.handlerLoaders.set("session-cleanup", HANDLER_IMPORTS["session-cleanup"]);
+    this.handlerLoaders.set("retention-sweep", HANDLER_IMPORTS["retention-sweep"]);
   }
 
   /**
@@ -385,6 +390,16 @@ class JobQueueService {
         POLLER.lastCleanupCheck = now;
         this.dispatch("session-cleanup", {}).catch((err) =>
           logger.error("[JobQueue] Failed to dispatch session cleanup", err),
+        );
+      }
+
+      // 3b. Soft-delete retention & orphaned media sweep (5 min after boot, then every 6h)
+      if (POLLER.lastRetentionSweep === 0) {
+        POLLER.lastRetentionSweep = now - (6 * 60 * 60_000 - 5 * 60_000);
+      } else if (now - POLLER.lastRetentionSweep >= 6 * 60 * 60_000) {
+        POLLER.lastRetentionSweep = now;
+        this.dispatch("retention-sweep", {}).catch((err) =>
+          logger.error("[JobQueue] Failed to dispatch retention sweep", err),
         );
       }
 

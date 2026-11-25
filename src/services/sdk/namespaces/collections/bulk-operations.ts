@@ -41,6 +41,7 @@ import {
 } from "./bulk-validation";
 import { applyWidgetPipeline, encryptWritePayload, prepareWritePayload } from "./write-pipeline";
 import { assertBulkSupportsJunctionFields, deleteJunctionLinksForEntry } from "./junction-fields";
+import { applyOnDeleteAfterDelete, enforceOnDeleteBeforeDelete } from "./relation-integrity";
 import { fieldEncryptionContext, readEncryptionContext, presentRead } from "./read-pipeline";
 import { ensureSchemaHotFlags, type SchemaHotFlags } from "./schema-store";
 import { shouldSkipWriteSideEffects, invalidateCache } from "./post-write";
@@ -541,6 +542,17 @@ export async function executeBulkDelete(
     if (permitted !== wanted.size) throw new AppError("Entry not found", 404, "NOT_FOUND");
   }
 
+  let inboundRules: Awaited<ReturnType<typeof enforceOnDeleteBeforeDelete>> = [];
+  for (const id of ids) {
+    inboundRules = await enforceOnDeleteBeforeDelete({
+      adapter: ctx._dbAdapter,
+      targetSchema: schema,
+      entryId: id,
+      getCollectionName: (colId) => ctx.getCollectionName(colId),
+      tenantId,
+    });
+  }
+
   const result = await ctx._dbAdapter.crud.deleteMany(
     ctx.getCollectionName(schema._id as string),
     { _id: { $in: ids as DatabaseId[] } } as QueryFilter<BaseEntity>,
@@ -558,6 +570,15 @@ export async function executeBulkDelete(
   if (result.success) {
     for (const id of ids) {
       await deleteJunctionLinksForEntry(ctx._dbAdapter, schema, id, tenantId);
+      await applyOnDeleteAfterDelete({
+        adapter: ctx._dbAdapter,
+        targetSchema: schema,
+        entryId: id,
+        getCollectionName: (colId) => ctx.getCollectionName(colId),
+        tenantId,
+        permanent: options.permanent === true,
+        rules: inboundRules,
+      });
     }
   }
 

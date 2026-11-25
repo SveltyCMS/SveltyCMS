@@ -214,12 +214,54 @@ export function tryCollectionNotModified(params: TryCollectionNotModifiedParams)
   });
 }
 
-export function collectionEtagResponseHeaders(etag: string): Record<string, string> {
+export interface PublicCdnTagParams {
+  tenantId?: string | null;
+  collectionId: string;
+  entryId?: string | null;
+}
+
+/**
+ * Build `Surrogate-Key` (Fastly/Varnish) and `Cache-Tag` (Cloudflare) headers
+ * for public/anonymous collection GET responses.
+ */
+export function buildPublicCdnTagHeaders(
+  tenantId: string | null | undefined,
+  collectionId: string,
+  entryId?: string | null,
+): Record<string, string> {
+  const tenantTag = tenantId ? `t:${tenantId}` : "t:global";
+  const collectionTag = `c:${collectionId}`;
+  if (entryId) {
+    const entryTag = `e:${entryId}`;
+    return {
+      "Surrogate-Key": `${tenantTag} ${collectionTag} ${entryTag}`,
+      "Cache-Tag": `${tenantTag},${collectionTag},${entryTag}`,
+    };
+  }
   return {
+    "Surrogate-Key": `${tenantTag} ${collectionTag}`,
+    "Cache-Tag": `${tenantTag},${collectionTag}`,
+  };
+}
+
+export function collectionEtagResponseHeaders(
+  etag: string,
+  publicCdnTags?: PublicCdnTagParams,
+): Record<string, string> {
+  const base: Record<string, string> = {
     ETag: etag,
     "Cache-Control": "private, must-revalidate",
     Vary: "Accept-Encoding, Cookie",
     "X-Cache": "COL-ETAG",
     "X-API-Version": "1",
+  };
+  if (!publicCdnTags) return base;
+  return {
+    ...base,
+    ...buildPublicCdnTagHeaders(
+      publicCdnTags.tenantId,
+      publicCdnTags.collectionId,
+      publicCdnTags.entryId,
+    ),
   };
 }

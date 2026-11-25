@@ -20,7 +20,7 @@ import { FastLRU } from "@utils/native-utils";
 import type { CmsMediaMetadata } from "./media-models";
 import { Readable } from "node:stream";
 import { createHash } from "node:crypto";
-import { getSharp, MAX_INPUT_PIXELS } from "./sharp-loader.server";
+import { getSharp, MAX_INPUT_PIXELS, runWithSharpSlot } from "./sharp-loader.server";
 
 // ─── Hashing ────────────────────────────────────────────────────────────
 
@@ -84,12 +84,14 @@ export async function hashStream(
 export async function extractMetadata(buffer: Buffer): Promise<any> {
   try {
     const sharp = await getSharp();
-    return await sharp(buffer, {
-      limitInputPixels: MAX_INPUT_PIXELS,
-      failOn: "warning",
-    })
-      .rotate()
-      .metadata();
+    return await runWithSharpSlot(() =>
+      sharp(buffer, {
+        limitInputPixels: MAX_INPUT_PIXELS,
+        failOn: "warning",
+      })
+        .rotate()
+        .metadata(),
+    );
   } catch (err: any) {
     logger.error("Metadata extraction failed", { size: buffer.length, error: err.message });
     throw error(500, `Metadata error: ${err.message}`);
@@ -185,65 +187,67 @@ export class MediaProcessingService {
   ): Promise<CmsMediaMetadata> {
     try {
       const sharp = await getSharp();
-      const instance = sharp(buffer, {
-        limitInputPixels: MAX_INPUT_PIXELS,
-        failOn: "warning",
-      });
-      const meta = await instance.metadata();
+      return await runWithSharpSlot(async () => {
+        const instance = sharp(buffer, {
+          limitInputPixels: MAX_INPUT_PIXELS,
+          failOn: "warning",
+        });
+        const meta = await instance.metadata();
 
-      if (options.fastPath) {
-        return {
+        if (options.fastPath) {
+          return {
+            format: meta.format,
+            width: meta.width,
+            height: meta.height,
+            space: meta.space,
+            channels: meta.channels,
+          };
+        }
+
+        const stats = await instance.stats();
+
+        const results: CmsMediaMetadata = {
           format: meta.format,
           width: meta.width,
           height: meta.height,
           space: meta.space,
           channels: meta.channels,
+          density: meta.density,
+          hasProfile: meta.hasProfile,
+          hasAlpha: meta.hasAlpha,
+          orientation: meta.orientation,
+          exif: await parseExif(meta.exif as Buffer | undefined),
+          iptc: this.toRawBase64(meta.iptc as Buffer | undefined),
+          xmp: this.toRawBase64(meta.xmp as Buffer | undefined),
+          dominantColor: stats.dominant
+            ? `rgb(${stats.dominant.r},${stats.dominant.g},${stats.dominant.b})`
+            : undefined,
+          placeholder: await instance
+            .clone()
+            .resize(32, 32, { fit: "inside" })
+            .webp({ quality: 20 })
+            .toBuffer()
+            .then((b: Buffer) => `data:image/webp;base64,${b.toString("base64")}`),
         };
-      }
 
-      const stats = await instance.stats();
+        // Populate DAM-friendly fields from real EXIF data
+        if (results.exif) {
+          const e = results.exif as ExifData;
+          if (e.Make || e.Model) results.camera = `${e.Make ?? ""} ${e.Model ?? ""}`.trim();
+          if (e.software) results.software = e.software;
+          if (e.DateTimeOriginal || e.DateTime)
+            results.uploadTimestamp = e.DateTimeOriginal ?? e.DateTime;
+        }
 
-      const results: CmsMediaMetadata = {
-        format: meta.format,
-        width: meta.width,
-        height: meta.height,
-        space: meta.space,
-        channels: meta.channels,
-        density: meta.density,
-        hasProfile: meta.hasProfile,
-        hasAlpha: meta.hasAlpha,
-        orientation: meta.orientation,
-        exif: await parseExif(meta.exif as Buffer | undefined),
-        iptc: this.toRawBase64(meta.iptc as Buffer | undefined),
-        xmp: this.toRawBase64(meta.xmp as Buffer | undefined),
-        dominantColor: stats.dominant
-          ? `rgb(${stats.dominant.r},${stats.dominant.g},${stats.dominant.b})`
-          : undefined,
-        placeholder: await instance
-          .clone()
-          .resize(32, 32, { fit: "inside" })
-          .webp({ quality: 20 })
-          .toBuffer()
-          .then((b: Buffer) => `data:image/webp;base64,${b.toString("base64")}`),
-      };
+        logger.debug("Deep metadata extracted", {
+          format: results.format,
+          hasExif: !!results.exif,
+          camera: results.camera,
+          dominantColor: results.dominantColor,
+        });
 
-      // Populate DAM-friendly fields from real EXIF data
-      if (results.exif) {
-        const e = results.exif as ExifData;
-        if (e.Make || e.Model) results.camera = `${e.Make ?? ""} ${e.Model ?? ""}`.trim();
-        if (e.software) results.software = e.software;
-        if (e.DateTimeOriginal || e.DateTime)
-          results.uploadTimestamp = e.DateTimeOriginal ?? e.DateTime;
-      }
-
-      logger.debug("Deep metadata extracted", {
-        format: results.format,
-        hasExif: !!results.exif,
-        camera: results.camera,
-        dominantColor: results.dominantColor,
+        return results;
       });
-
-      return results;
     } catch (err) {
       logger.error("Failed to extract deep metadata", err);
       return {};

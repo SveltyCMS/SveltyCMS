@@ -43,7 +43,9 @@ import { nowISODateString } from "@src/utils/date";
 import { redactRecord } from "@utils/field-access";
 import { blockedGuardedNames, stripGuardedFilter, stripGuardedSort } from "@utils/guarded-query";
 import {
+  assertCreateAccessAllowed,
   getReadConstraint,
+  getWriteConstraint,
   mergeAccessConstraint,
 } from "@src/services/security/access-rule-service";
 import { collectionTableName } from "@src/databases/core/collection-name";
@@ -459,8 +461,9 @@ export class CollectionsNamespace {
     tenantId: DatabaseId | null | undefined,
     user: unknown,
     system?: boolean,
+    operation: "update" | "delete" = "update",
   ): void | Promise<void> {
-    const ownership = this.resolveWriteOwnership(schema, tenantId, user, system);
+    const ownership = this.resolveWriteOwnership(schema, tenantId, user, system, operation);
     if (ownership.scope === null) raise(404, "Entry not found", "NOT_FOUND");
     if (ownership.scope === false && !ownership.access) return;
     return this._dbAdapter.crud
@@ -484,10 +487,11 @@ export class CollectionsNamespace {
     tenantId: DatabaseId | null | undefined,
     user: unknown,
     system?: boolean,
+    operation: "update" | "delete" = "update",
   ): WriteOwnershipScope {
     return {
       scope: ownershipFilter(schema, user, system),
-      access: getReadConstraint(schema.name || String(schema._id), {
+      access: getWriteConstraint(schema.name || String(schema._id), operation, {
         user: user as { _id?: unknown; role?: unknown } | null | undefined,
         role: (user as { role?: string } | undefined)?.role,
         tenantId: tenantId ? String(tenantId) : null,
@@ -964,6 +968,21 @@ export class CollectionsNamespace {
   }
 
   async findById(collectionId: string, entryId: string, options: LocalApiOptions = {}) {
+    if (options.asOf !== undefined && options.asOf !== null && String(options.asOf).trim() !== "") {
+      const { executeFindByIdAsOf } = await import("./collections/revisions");
+      return executeFindByIdAsOf(
+        {
+          _dbAdapter: this._dbAdapter,
+          schemaOf: (id, tId) => this.schemaOf(id, tId),
+          getCollectionName: (id) => this.getCollectionName(id),
+          findById: (cId, eId, opts) => executeFindById(this, cId, eId, opts),
+        },
+        collectionId,
+        entryId,
+        options.asOf,
+        options,
+      );
+    }
     return executeFindById(this, collectionId, entryId, options);
   }
 
@@ -1025,6 +1044,14 @@ export class CollectionsNamespace {
     m1?.();
 
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
+
+    if (!system) {
+      assertCreateAccessAllowed(schema.name || String(schema._id), entryData, {
+        user: user as { _id?: unknown; role?: unknown } | null | undefined,
+        role: (user as { role?: string } | undefined)?.role,
+        tenantId: tenantId ? String(tenantId) : null,
+      });
+    }
 
     // 🚪 Publication gate:
     // 1) Workflows with gatePublication block direct publishing of brand-new entries

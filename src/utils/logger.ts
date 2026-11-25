@@ -133,18 +133,35 @@ function formatAnsi(msg: string): string {
   return out;
 }
 
-/** `YYYY-MM-DD HH:mm:ss ±HH:MM` in local time. Vite and Node print local time, and a
- *  bare `toISOString()` put UTC next to it (18:37 beside 16:37) in the dev console. */
-function formatLocalTimestamp(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
+/** `YYYY-MM-DD HH:mm:ss ±HH:MM` in local time, memoized per whole second. */
+let cachedLocalTsSec = -1;
+let cachedLocalTsStr = "";
+
+function formatLocalTimestamp(nowMs: number): string {
+  const sec = Math.floor(nowMs / 1000);
+  if (sec === cachedLocalTsSec) return cachedLocalTsStr;
+  const date = new Date(nowMs);
+  const pad = (n: number) => (n < 10 ? `0${n}` : String(n));
   const offsetMin = -date.getTimezoneOffset();
   const sign = offsetMin >= 0 ? "+" : "-";
   const abs = Math.abs(offsetMin);
-  return (
+  cachedLocalTsStr =
     `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ` +
     `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())} ` +
-    `${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`
-  );
+    `${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`;
+  cachedLocalTsSec = sec;
+  return cachedLocalTsStr;
+}
+
+type LogSinkHook = (level: LogLevel, msg: string, maskedArgs: unknown[]) => void;
+let logSinkHook: LogSinkHook | null = null;
+
+/**
+ * Register a secondary server sink (e.g. file/audit logger) that receives the
+ * already-masked argument list once per emitted log, avoiding double redaction.
+ */
+export function registerLogSinkHook(hook: LogSinkHook | null): void {
+  logSinkHook = hook;
 }
 
 // ── Core log function ──────────────────────────────────────────────────────
@@ -152,10 +169,11 @@ function log(level: LogLevel, msg: string, args: unknown[]) {
   if (PRIORITY[level] > CURRENT_PRIORITY) return;
   if (!IS_BROWSER && IS_QUIET && !IS_BENCHMARK_DEBUG && PRIORITY[level] > PRIORITY.warn) return;
 
-  const ts = formatLocalTimestamp(new Date());
+  const ts = formatLocalTimestamp(Date.now());
   const icon = ICONS[level.toUpperCase()] || "\u25CF";
   const method =
     level === "fatal" || level === "error" ? "error" : level === "warn" ? "warn" : "log";
+  const maskedArgs = args.length > 0 ? args.map((a) => mask(a)) : args;
 
   if (IS_BROWSER) {
     const styles: string[] = [];
@@ -164,7 +182,6 @@ function log(level: LogLevel, msg: string, args: unknown[]) {
       styles.push(pattern?.css || "color:inherit", "color:inherit");
       return `%c${m}%c`;
     });
-    const maskedArgs = args.length > 0 ? args.map((a) => mask(a)) : args;
     console[method](
       `%c${ts}%c ${icon} [${level.toUpperCase()}] %c${formatted}`,
       "color:#9ca3af",
@@ -174,7 +191,6 @@ function log(level: LogLevel, msg: string, args: unknown[]) {
       ...maskedArgs,
     );
   } else {
-    const maskedArgs = args.length > 0 ? args.map((a) => mask(a)) : args;
     const colored = formatAnsi(msg).replace(/\n/g, " ");
     let argsStr = "";
     if (maskedArgs.length > 0) {
@@ -191,6 +207,9 @@ function log(level: LogLevel, msg: string, args: unknown[]) {
     console[method](
       `${pc.dim(ts)} ${pc.bold(icon)} [${level.toUpperCase().padEnd(5)}] ${colored}${argsStr}`,
     );
+    if (logSinkHook) {
+      logSinkHook(level, msg, maskedArgs);
+    }
   }
 }
 

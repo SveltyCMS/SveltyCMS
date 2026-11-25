@@ -25,6 +25,7 @@ vi.mock("@src/hooks/handle-authentication", () => ({
     user: { _id: "user-1", email: "u@example.com", role: "admin", isAdmin: true },
     isSecure: false,
   }),
+  resolveBearerTokenForWebSocket: vi.fn().mockResolvedValue({ ok: false }),
 }));
 
 describe("WebSocket IP Resolution & Rate Limiting", () => {
@@ -43,6 +44,7 @@ describe("WebSocket IP Resolution & Rate Limiting", () => {
     const ctx: WsUpgradeContext = {
       url: "http://localhost/ws",
       headers: {
+        origin: "http://localhost",
         "x-forwarded-for": "1.2.3.4, 5.6.7.8",
         cookie: "auth_sessions=valid-session",
       },
@@ -61,6 +63,7 @@ describe("WebSocket IP Resolution & Rate Limiting", () => {
     const ctx: WsUpgradeContext = {
       url: "http://localhost/ws",
       headers: {
+        origin: "http://localhost",
         cookie: "auth_sessions=valid-session",
       },
     };
@@ -84,9 +87,75 @@ describe("WebSocket IP Resolution & Rate Limiting", () => {
     const ctx: WsUpgradeContext = {
       url: "http://localhost/ws",
       headers: {
+        origin: "http://localhost",
         cookie: "auth_sessions=valid-session",
       },
       getClientAddress: () => ip,
+    };
+
+    const result = await upgrade(ctx);
+    expect(result).toBe(false);
+  });
+
+  it("rejects cookie authentication when Origin header is empty", async () => {
+    const authMod = await import("@src/hooks/handle-authentication");
+    vi.mocked(authMod.resolveSessionForWebSocket).mockClear();
+
+    const ctx: WsUpgradeContext = {
+      url: "http://localhost/ws",
+      headers: {
+        cookie: "auth_sessions=valid-session",
+      },
+      getClientAddress: () => "198.51.100.20",
+    };
+
+    const result = await upgrade(ctx);
+    expect(result).toBe(false);
+    expect(authMod.resolveSessionForWebSocket).not.toHaveBeenCalled();
+  });
+
+  it("accepts Authorization: Bearer authentication when Origin header is empty", async () => {
+    const authMod = await import("@src/hooks/handle-authentication");
+    vi.mocked(authMod.resolveSessionForWebSocket).mockClear();
+    vi.mocked(authMod.resolveBearerTokenForWebSocket).mockResolvedValueOnce({
+      ok: true,
+      user: {
+        _id: "apikey:k1",
+        email: "apikey:sck_test@system.internal",
+        role: "guest",
+        permissions: ["read:collection:posts"],
+      } as never,
+      tenantId: "t1",
+    });
+
+    const ctx: WsUpgradeContext = {
+      url: "http://localhost/ws",
+      headers: {
+        authorization: "Bearer sck_non_browser_machine_token_1234567890123456",
+      },
+      getClientAddress: () => "198.51.100.21",
+    };
+
+    const result = await upgrade(ctx);
+    expect(result).not.toBe(false);
+    expect(authMod.resolveSessionForWebSocket).not.toHaveBeenCalled();
+    expect(authMod.resolveBearerTokenForWebSocket).toHaveBeenCalledTimes(1);
+    if (result) {
+      expect(result.profile._id).toBe("apikey:k1");
+      expect(result.tenantId).toBe("t1");
+    }
+  });
+
+  it("rejects invalid Authorization: Bearer authentication when Origin header is empty", async () => {
+    const authMod = await import("@src/hooks/handle-authentication");
+    vi.mocked(authMod.resolveBearerTokenForWebSocket).mockResolvedValueOnce({ ok: false });
+
+    const ctx: WsUpgradeContext = {
+      url: "http://localhost/ws",
+      headers: {
+        authorization: "Bearer invalid-token",
+      },
+      getClientAddress: () => "198.51.100.22",
     };
 
     const result = await upgrade(ctx);

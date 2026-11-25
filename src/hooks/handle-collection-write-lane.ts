@@ -21,6 +21,11 @@ import type { RequestEvent } from "@sveltejs/kit";
 import type { Handle } from "@sveltejs/kit/hooks";
 import { RequestLane } from "./handle-request-classifier";
 import { AppError, handleApiError, raise } from "@utils/error-handling";
+import {
+  readAndCacheSafeIdempotentBody,
+  readIdempotencyKey,
+  runIdempotentPost,
+} from "@utils/idempotency";
 import { assertSafeJsonObject, JsonGuardError } from "@utils/security/json-guard";
 import { isSecureCookieContext, isAdmin } from "@src/databases/auth/constants";
 import { readSessionCookie } from "@utils/security/session-cookie";
@@ -624,16 +629,43 @@ export async function serveWarmCollectionWrite(
     const res = await handleRateLimit({
       event,
       resolve: async () => {
-        const written = await executeWarmCollectionWrite(event, turbo, prechecked);
-        // Unreachable while `turbo` is supplied and the adapter exists, but the
-        // body may already be consumed here, so answer rather than fall through.
-        if (written) return written;
-        const errRes = handleApiError(
-          new AppError("Write lane unavailable", 503, "WRITE_LANE_UNAVAILABLE"),
-          event,
-        );
-        errRes.headers.set("x-svelty-lane", RequestLane.API_WRITE);
-        return errRes;
+        const executeWrite = async (): Promise<Response> => {
+          const written = await executeWarmCollectionWrite(event, turbo, prechecked);
+          // Unreachable while `turbo` is supplied and the adapter exists, but the
+          // body may already be consumed here, so answer rather than fall through.
+          if (written) return written;
+          const errRes = handleApiError(
+            new AppError("Write lane unavailable", 503, "WRITE_LANE_UNAVAILABLE"),
+            event,
+          );
+          errRes.headers.set("x-svelty-lane", RequestLane.API_WRITE);
+          return errRes;
+        };
+
+        if (event.request.method === "POST" && readIdempotencyKey(event.request)) {
+          const body = await readAndCacheSafeIdempotentBody(event);
+          const tenantId = ((event.locals as { tenantId?: DatabaseId }).tenantId ??
+            null) as DatabaseId;
+          const idempotentRes = await runIdempotentPost(
+            event,
+            tenantId,
+            turbo.user,
+            body,
+            executeWrite,
+          );
+          if (idempotentRes.headers.get("x-idempotency-replayed") === "true") {
+            idempotentRes.headers.set("x-svelty-lane", RequestLane.API_WRITE);
+            applyAllSecurityHeaders(
+              idempotentRes.headers,
+              event.url.protocol === "https:",
+              event.request.headers.get("origin"),
+              event.url.pathname,
+            );
+          }
+          return idempotentRes;
+        }
+
+        return executeWrite();
       },
     });
     statusCode = res.status;

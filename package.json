@@ -50,6 +50,9 @@
   "bin": {
     "create-sveltycms": "./scripts/create-app.js"
   },
+  "workspaces": [
+    "packages/*"
+  ],
   "files": [
     "scripts/create-app.js",
     "README.md",
@@ -191,7 +194,7 @@
     "version:bump": "bun run scripts/version.ts",
     "version:verify": "bun run scripts/version.ts --verify",
     "repair:drizzle": "node -e \"try{require('fs').accessSync('node_modules/drizzle-orm/sql/index.js');process.exit(0)}catch(e){process.exit(1)}\" || (npm remove drizzle-orm 2>/dev/null; npm install drizzle-orm)",
-    "paraglide": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide --output-structure locale-modules --emit-ts-declarations --is-server 'import.meta.env.SSR'",
+    "paraglide": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide --output-structure message-modules --emit-ts-declarations --is-server 'import.meta.env.SSR'",
     "translate": "npx @inlang/cli machine translate --project ./project.inlang",
     "upgrade": "bun run scripts/upgrade.ts",
     "config": "bun run scripts/config-cli.ts",
@@ -204,7 +207,7 @@
     "migrate": "bun run src/plugins/smart-importer/cli.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1175.0",
+    "@aws-sdk/client-s3": "^3.1177.0",
     "@better-svelte-email/components": "^2.4.0",
     "@better-svelte-email/preview": "^2.4.0",
     "@better-svelte-email/server": "^2.4.0",
@@ -241,13 +244,13 @@
     "drizzle-orm": "^0.45.4",
     "google-auth-library": "^11.3.4",
     "graphql": "17.1.0",
-    "graphql-yoga": "^6.1.0",
+    "graphql-yoga": "^6.1.1",
     "hls.js": "^1.7.4",
     "iconify-icon": "^3.0.5",
     "maplibre-gl": "^6.19.0",
     "nodemailer": "^10.6.1",
     "ollama": "^0.6.4",
-    "redis": "^6.3.1",
+    "redis": "^6.4.0",
     "sanitize-html": "^2.18.2",
     "sharp": "^0.35.5",
     "shiki": "^4.6.0",
@@ -262,15 +265,15 @@
     "yjs": "^13.6.33"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.14.0",
+    "@axe-core/playwright": "^4.14.1",
     "@playwright/test": "^1.65.1",
     "@sveltejs/adapter-node": "^6.0.5",
-    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@sveltejs/vite-plugin-svelte": "^7.3.2",
     "@tailwindcss/vite": "^4.3.5",
     "@testing-library/jest-dom": "^8.0.0",
     "@types/bun": "^1.4.5",
     "@types/google.maps": "^3.67.0",
-    "@types/node": "^26.6.6",
+    "@types/node": "^26.6.10",
     "@types/nodemailer": "^8.0.2",
     "@types/sanitize-html": "^2.16.2",
     "@types/ws": "^8.18.2",
@@ -283,8 +286,8 @@
     "jsdom": "^31.0.1",
     "lint-staged": "^17.6.2",
     "mysql2": "^3.24.4",
-    "oxfmt": "^0.79.0",
-    "oxlint": "^1.94.0",
+    "oxfmt": "^0.80.0",
+    "oxlint": "^1.95.0",
     "postgres": "^4.0.0",
     "svelte": "^5.59.1",
     "svelte-adapter-bun": "^1.0.2",
@@ -296,7 +299,7 @@
     "vitest": "^5.1.1"
   },
   "optionalDependencies": {
-    "mongoose": "^9.12.3",
+    "mongoose": "^9.13.1",
     "mysql2": "^3.24.6",
     "postgres": "^4.1.1"
   },

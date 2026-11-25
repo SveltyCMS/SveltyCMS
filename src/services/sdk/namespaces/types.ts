@@ -35,6 +35,8 @@ export interface LocalApiOptions {
   validateFilter?: boolean;
   disableErrors?: boolean;
   populate?: string[];
+  /** Temporal point-read selector: revision number (`"3"`) or ISO-8601 timestamp. */
+  asOf?: string | number | null;
   publicationFilter?: PublicationFilter | string;
   /** Passed through to session creation for device deduplication. */
   sessionMeta?: { userAgent?: string; deviceId?: string; ipAddress?: string };

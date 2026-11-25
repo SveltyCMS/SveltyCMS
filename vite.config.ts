@@ -1038,7 +1038,7 @@ export default defineConfig(() => {
       paraglideVitePlugin({
         project: "./project.inlang",
         outdir: "./src/paraglide",
-        outputStructure: "locale-modules",
+        outputStructure: "message-modules",
         emitTsDeclarations: true,
         isServer: "import.meta.env.SSR",
       }),
@@ -1080,7 +1080,8 @@ export default defineConfig(() => {
         process.env.TEST_MODE === "true" ||
         process.env.PLAYWRIGHT_TEST === "true" ||
         process.env.VITEST === "true",
-      __IS_BENCHMARK__: process.env.BENCHMARK === "true",
+      __IS_BENCHMARK__:
+        process.env.BENCHMARK === "true" || process.env.COMPILE_ALL_ADAPTERS === "true",
       global: "globalThis",
     },
     build: {

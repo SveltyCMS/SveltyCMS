@@ -51,6 +51,12 @@ export function canAccessField(
   const userRole = user?.role || "public";
   const userId = user?._id || null;
 
+  // Fields marked `omit: true` stay writable (subject to field write permissions)
+  // and readable by trusted `system` callers, while being redacted from external read projections.
+  if (operation === "read" && (field as { omit?: boolean }).omit === true && userId !== "system") {
+    return false;
+  }
+
   // 1. System/Admin Bypass. isAdmin() covers the boolean, the SQLite 1 flag, and super-admin.
   if (userId === "system" || isAdmin(user)) {
     return true;

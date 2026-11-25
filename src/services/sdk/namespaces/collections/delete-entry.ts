@@ -21,6 +21,7 @@ import type { LocalApiOptions } from "../types";
 import { persistWithOutbox, schedulePostWrite, shouldSkipWriteSideEffects } from "./post-write";
 import { scheduleDefaultListWarm } from "./list-warm";
 import { deleteJunctionLinksForEntry } from "./junction-fields";
+import { applyOnDeleteAfterDelete, enforceOnDeleteBeforeDelete } from "./relation-integrity";
 
 /** What the delete lane needs from the namespace — no class instance required. */
 export interface DeleteEntryContext {
@@ -33,6 +34,7 @@ export interface DeleteEntryContext {
     tenantId: DatabaseId | null | undefined,
     user: unknown,
     system?: boolean,
+    operation?: "update" | "delete",
   ): void | Promise<void>;
   find(
     collectionId: string,
@@ -51,11 +53,21 @@ export async function executeDelete(
   if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
   const schema = await ctx.schemaOf(collectionId, tenantId);
   if (!system) {
-    const ownP = ctx.assertEntryOwnership(schema, entryId, tenantId, user, system);
+    const ownP = ctx.assertEntryOwnership(schema, entryId, tenantId, user, system, "delete");
     if (ownP) await ownP;
   }
 
   const effectiveUser = system ? { _id: "system", role: "admin" } : user;
+  const transaction = (options as { transaction?: unknown }).transaction;
+
+  const inboundRules = await enforceOnDeleteBeforeDelete({
+    adapter: ctx._dbAdapter,
+    targetSchema: schema,
+    entryId,
+    getCollectionName: (id) => ctx.getCollectionName(id),
+    tenantId,
+    transaction,
+  });
 
   const result = await persistWithOutbox(
     "delete",
@@ -81,13 +93,17 @@ export async function executeDelete(
 
   if (result && result.success) {
     // 🔗 Cascade junction edges on both sides (this row as source and as target).
-    await deleteJunctionLinksForEntry(
-      ctx._dbAdapter,
-      schema,
+    await deleteJunctionLinksForEntry(ctx._dbAdapter, schema, entryId, tenantId, transaction);
+    await applyOnDeleteAfterDelete({
+      adapter: ctx._dbAdapter,
+      targetSchema: schema,
       entryId,
+      getCollectionName: (id) => ctx.getCollectionName(id),
       tenantId,
-      (options as { transaction?: unknown }).transaction,
-    );
+      permanent: options.permanent === true,
+      rules: inboundRules,
+      transaction,
+    });
     // ⚡ Response-path: never await side effects — concurrent delete RPS depends on this
     schedulePostWrite(
       ctx._dbAdapter,

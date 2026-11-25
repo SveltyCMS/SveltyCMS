@@ -249,6 +249,17 @@ export interface FieldInstance {
   encrypt?: boolean;
 
   /**
+   * When true, omit this field from external read projections (`REST` / `GraphQL` / SDK)
+   * unless read by a trusted `system` caller, while still permitting writes.
+   */
+  omit?: boolean;
+
+  /**
+   * Referential integrity policy for Relation fields when the referenced target entry is deleted.
+   */
+  onDelete?: "cascade" | "setNull" | "restrict";
+
+  /**
    * Optional note for AI mapping and scoring. Read only while those prompts
    * are built. Collection reads and writes ignore it.
    */
@@ -394,6 +405,19 @@ export interface Schema {
   formEnabled?: boolean;
   /** Unified Data Hub: virtual enrichment previews in entry editor sidebar */
   federationEnrichments?: FederationEnrichment[];
+  /**
+   * Collection-level SEO defaults cascaded beneath entry-level SEO widget data
+   * (`entry > collection > site`).
+   */
+  seo?: {
+    titleTemplate?: string;
+    defaultDescription?: string;
+    defaultRobotsMeta?: string;
+    defaultOgImage?: string;
+    defaultTwitterCard?: "summary" | "summary_large_image";
+    defaultSchemaType?: "Article" | "BlogPosting" | "NewsArticle" | "Product" | "WebPage";
+  };
+
   /**
    * Natural language guidance for AI agents (and human editors) working with this collection.
    * Explains business context, field relationships, and authoring guidelines.

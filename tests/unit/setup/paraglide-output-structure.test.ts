@@ -16,17 +16,17 @@ import { join } from "node:path";
 const root = process.cwd();
 
 describe("paraglide output structure", () => {
-  it("pins the CLI script to locale-modules", () => {
+  it("pins the CLI script to message-modules", () => {
     const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as {
       scripts: Record<string, string>;
     };
-    expect(pkg.scripts.paraglide).toContain("--output-structure locale-modules");
+    expect(pkg.scripts.paraglide).toContain("--output-structure message-modules");
   });
 
   it("pins the Vite plugin to the same structure", () => {
     const vite = readFileSync(join(root, "vite.config.ts"), "utf8");
     const call = /paraglideVitePlugin\(\{[\s\S]*?\}\)/.exec(vite)?.[0] ?? "";
     expect(call, "paraglideVitePlugin call not found").not.toBe("");
-    expect(call).toMatch(/outputStructure:\s*["']locale-modules["']/);
+    expect(call).toMatch(/outputStructure:\s*["']message-modules["']/);
   });
 });

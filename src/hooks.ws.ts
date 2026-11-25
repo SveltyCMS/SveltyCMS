@@ -24,7 +24,10 @@ import { getTenantIdFromHostname } from "@utils/tenant";
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { getPrivateSettingSync, loadSettingsCache } from "@src/services/core/settings-service";
 import { parseCookies } from "@utils/cookie-utils";
-import { resolveSessionForWebSocket } from "@src/hooks/handle-authentication";
+import {
+  resolveBearerTokenForWebSocket,
+  resolveSessionForWebSocket,
+} from "@src/hooks/handle-authentication";
 import type { User } from "@src/databases/auth/types";
 import type { DatabaseId } from "@src/content/types";
 
@@ -195,7 +198,8 @@ export async function upgrade(ctx: WsUpgradeContext): Promise<WsAuthResult | fal
 
   try {
     const url = normalizeUrl(ctx);
-    if (!websocketOriginAllowed(getHeader(ctx, "origin"), url.host)) {
+    const originHeader = getHeader(ctx, "origin").trim();
+    if (!websocketOriginAllowed(originHeader, url.host)) {
       logger.warn("[WS Upgrade] Origin does not match host");
       return false;
     }
@@ -207,19 +211,27 @@ export async function upgrade(ctx: WsUpgradeContext): Promise<WsAuthResult | fal
     ]);
 
     const cookieHeader = getHeader(ctx, "cookie");
+    const authHeader = getHeader(ctx, "authorization").trim();
+    const bearerMatch = /^Bearer\s+(.+)$/i.exec(authHeader);
+    const bearerToken = bearerMatch?.[1]?.trim() || null;
     const testSecret = getHeader(ctx, "x-test-secret") || url.searchParams.get("secret");
     const tenantIdHeader = getHeader(ctx, "x-tenant-id");
 
     // Cookie name handling (secure prefix)
     const isSecure = isSecureCookieContext(url.protocol, url.hostname);
+    // Security policy: cookies may only authenticate browser upgrades carrying a verified
+    // same-host Origin. Upgrades with an empty Origin must authenticate via Bearer token.
+    const hasOrigin = originHeader.length > 0;
 
-    // Extract session ID
+    // Extract session ID (only when Origin is present)
     let sessionId: string | null = null;
-    if (typeof ctx.cookies?.get === "function") {
-      sessionId = readSessionCookie(ctx.cookies, isSecure) || null;
-    } else if (cookieHeader) {
-      const parsed = parseCookies(cookieHeader);
-      sessionId = readSessionCookie({ get: (name: string) => parsed[name] }, isSecure) || null;
+    if (hasOrigin) {
+      if (typeof ctx.cookies?.get === "function") {
+        sessionId = readSessionCookie(ctx.cookies, isSecure) || null;
+      } else if (cookieHeader) {
+        const parsed = parseCookies(cookieHeader);
+        sessionId = readSessionCookie({ get: (name: string) => parsed[name] }, isSecure) || null;
+      }
     }
 
     // ==================== TEST MODE BYPASS ====================
@@ -235,7 +247,16 @@ export async function upgrade(ctx: WsUpgradeContext): Promise<WsAuthResult | fal
       constantTimeBufferEqual(Buffer.from(testSecret), Buffer.from(actualTestSecret)),
     );
 
-    // ==================== SESSION RESOLUTION ====================
+    if (!hasOrigin && !bearerToken && !isAuthorizedTest) {
+      if (cookieHeader || typeof ctx.cookies?.get === "function") {
+        logger.warn(
+          "[WS Upgrade] Rejected cookie authentication with empty Origin; Authorization: Bearer required",
+        );
+      }
+      return false;
+    }
+
+    // ==================== SESSION / BEARER RESOLUTION ====================
     // Shared pipeline with HTTP auth (handle-authentication): mem LRU →
     // session store → Redis → DB, with negative cache, idle window,
     // blocked-user cutoff and single-flight coalescing.
@@ -249,6 +270,15 @@ export async function upgrade(ctx: WsUpgradeContext): Promise<WsAuthResult | fal
         tenantId: tenantId as DatabaseId,
         clientIp: getWsClientIp(ctx),
         userAgent: getHeader(ctx, "user-agent") || null,
+      });
+      if (resolved.ok) {
+        profile = resolved.user;
+        tenantId = resolved.tenantId ?? tenantId;
+      }
+    } else if (bearerToken) {
+      const resolved = await resolveBearerTokenForWebSocket(bearerToken, {
+        tenantId: tenantId as DatabaseId,
+        clientIp: getWsClientIp(ctx),
       });
       if (resolved.ok) {
         profile = resolved.user;

@@ -42,7 +42,7 @@ import {
 import { getUrl } from "./storage-adapters";
 import { validateEgressUrl, safeFetch } from "../egress-guard";
 import { assertMimeAgreement, resolveRemoteAssetMime, sniffMimeType } from "./slim-sniffer.server";
-import { getSharp, MAX_INPUT_PIXELS } from "./sharp-loader.server";
+import { getSharp, MAX_INPUT_PIXELS, runWithSharpSlot } from "./sharp-loader.server";
 import { MediaReferenceIndex, type MediaReference } from "./media-reference-index";
 import { eventBus, SystemEvents } from "@utils/event-bus";
 import { scheduleVariantJob } from "./variant-job-scheduler.server";
@@ -709,10 +709,12 @@ export class MediaService {
     }
     try {
       const sharp = await getSharp();
-      const imgMeta = await sharp(buffer, {
-        limitInputPixels: MAX_INPUT_PIXELS,
-        failOn: "warning",
-      }).metadata();
+      const imgMeta = await runWithSharpSlot(() =>
+        sharp(buffer, {
+          limitInputPixels: MAX_INPUT_PIXELS,
+          failOn: "warning",
+        }).metadata(),
+      );
       if (imgMeta.width) metadata.width = imgMeta.width;
       if (imgMeta.height) metadata.height = imgMeta.height;
       const dotIdx = filename.lastIndexOf(".");

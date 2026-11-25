@@ -31,6 +31,10 @@ import type {
 } from "@src/databases/db-interface";
 import { StatusTypes, type StatusType } from "@src/content/types";
 import type { CollectionsNamespace } from "./collections-namespace";
+import {
+  reconstructRevisionSnapshot,
+  type TransactionalRevisionStore,
+} from "./collections/revisions";
 import type { TransactionalWriteOptions } from "./collections/transaction-context";
 import type { LocalApiOptions } from "./types";
 
@@ -465,6 +469,76 @@ export class DraftsNamespace {
     } catch (err) {
       rethrow(err);
       logger.debug(`[Drafts] promoteDraft failed for ${collectionId}/${draftId}:`, err);
+      throw err;
+    }
+  }
+
+  /**
+   * Roll back the caller's staged draft for `entryId` to a historical revision
+   * snapshot without mutating the live published entry.
+   */
+  async rollbackDraft(
+    collectionId: string,
+    entryId: string,
+    targetRevisionVersion: number,
+    options: LocalApiOptions = {},
+  ): Promise<DatabaseResult<ContentDraft>> {
+    try {
+      if (typeof entryId !== "string" || entryId.length === 0) {
+        raise(400, "Entry id is required.", "ENTRY_ID_REQUIRED");
+      }
+      if (!Number.isInteger(targetRevisionVersion) || targetRevisionVersion < 1) {
+        raise(400, "A positive revision version is required.", "BAD_REQUEST");
+      }
+      const { tenantId } = options;
+      await this._assertCollectionAccess(collectionId, entryId, options, false);
+
+      const revisionsStore = this._dbAdapter.content
+        .revisions as unknown as TransactionalRevisionStore;
+      const snapshot = await reconstructRevisionSnapshot(
+        revisionsStore,
+        entryId as DatabaseId,
+        targetRevisionVersion,
+        tenantId ? { tenantId: tenantId as DatabaseId } : undefined,
+      );
+      if (!snapshot) {
+        raise(
+          404,
+          `Revision ${targetRevisionVersion} of entry ${entryId} was not found.`,
+          "NOT_FOUND",
+        );
+      }
+
+      const restoredDraftData: Record<string, unknown> = { ...snapshot };
+      for (const key of [
+        "_id",
+        "createdAt",
+        "updatedAt",
+        "tenantId",
+        "isDeleted",
+        "deletedAt",
+        "_scheduled",
+        "_scheduledBy",
+        "status",
+      ]) {
+        delete restoredDraftData[key];
+      }
+
+      return this.saveDraft(
+        collectionId,
+        {
+          entryId,
+          data: restoredDraftData,
+          status: "draft",
+        },
+        options,
+      );
+    } catch (err) {
+      rethrow(err);
+      logger.debug(
+        `[Drafts] rollbackDraft failed for ${collectionId}/${entryId} v${targetRevisionVersion}:`,
+        err,
+      );
       throw err;
     }
   }

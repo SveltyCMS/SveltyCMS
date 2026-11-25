@@ -18,6 +18,7 @@ import { rethrow } from "@utils/error-handling";
 import { resolveMediaPublicPath } from "@utils/media/media-utils";
 import { buildSeoHead, type SeoHeadResult, type SeoWidgetStoredValue } from "./seo-head";
 import { pickSeoLocaleData } from "./seo-head-core";
+import type { SeoDefaultsConfig } from "./seo-cascade";
 
 export interface LoadSeoHeadForPageOptions {
   /** The resolved site page entry (may carry the SEO widget's stored value). */
@@ -30,6 +31,10 @@ export interface LoadSeoHeadForPageOptions {
   siteName?: string;
   /** Force `noindex` (draft/preview renders must never be indexed). */
   noindex?: boolean;
+  /** Site-wide SEO defaults cascaded below collection and entry settings. */
+  siteDefaults?: SeoDefaultsConfig | null;
+  /** Collection-level SEO defaults cascaded below entry settings. */
+  collectionDefaults?: SeoDefaultsConfig | null;
 }
 
 /** Resolves a media file ID to an absolute public URL (best effort). */
@@ -93,12 +98,25 @@ function localizedTitle(title: unknown, lang: string, defaultLang: string): stri
 export async function loadSeoHeadForPage(
   options: LoadSeoHeadForPageOptions,
 ): Promise<SeoHeadResult> {
-  const { page, cms, url, lang, defaultLang, tenantId, siteName, noindex } = options;
+  const {
+    page,
+    cms,
+    url,
+    lang,
+    defaultLang,
+    tenantId,
+    siteName,
+    noindex,
+    siteDefaults,
+    collectionDefaults,
+  } = options;
   const seo = (page?.seo ?? null) as SeoWidgetStoredValue | null;
   const data = pickSeoLocaleData(seo, lang, defaultLang);
+  const effectiveOgMediaId =
+    data?.ogImage || collectionDefaults?.defaultOgImage || siteDefaults?.defaultOgImage;
 
   const [ogImageUrl, twitterImageUrl] = await Promise.all([
-    resolveSeoMediaUrl(cms, data?.ogImage, tenantId, url.origin),
+    resolveSeoMediaUrl(cms, effectiveOgMediaId, tenantId, url.origin),
     resolveSeoMediaUrl(cms, data?.twitterImage, tenantId, url.origin),
   ]);
 
@@ -113,5 +131,7 @@ export async function loadSeoHeadForPage(
     noindex,
     ogImageUrl,
     twitterImageUrl,
+    siteDefaults,
+    collectionDefaults,
   });
 }
