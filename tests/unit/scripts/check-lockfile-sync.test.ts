@@ -8,10 +8,18 @@
  * / non-registry escape hatches) plus the tolerant lockfile parser.
  */
 
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
+  findDuplicateJsonKeys,
   findLockfileOffenders,
+  findOverridesOffenders,
+  findWorkspaceLockfileOffenders,
   parseBunLockContent,
+  parseBunLockData,
+  resolveWorkspaceDirs,
   versionOf,
   type DeclaredDependency,
   type LockEntry,
@@ -120,5 +128,106 @@ describe("findLockfileOffenders", () => {
     expect(offenders).toHaveLength(2);
     expect(offenders[0]).toContain("a@^1.0.0");
     expect(offenders[1]).toContain("b@^2.0.0");
+  });
+});
+
+describe("findDuplicateJsonKeys", () => {
+  it("detects duplicate object keys in package.json while allowing nested identical keys", () => {
+    const raw = JSON.stringify(
+      {
+        name: "root",
+        workspaces: ["packages/*"],
+        nested: { workspaces: ["ignored"] },
+      },
+      null,
+      2,
+    );
+    expect(findDuplicateJsonKeys(raw)).toEqual([]);
+
+    const withDup = `{
+      "name": "root",
+      "workspaces": ["packages/*"],
+      "scripts": {},
+      "workspaces": ["packages/*"]
+    }`;
+    const dups = findDuplicateJsonKeys(withDup);
+    expect(dups).toHaveLength(1);
+    expect(dups[0]).toContain('"workspaces"');
+  });
+
+  it("ignores keys inside array items or string values", () => {
+    const raw = `{
+      "description": "{\\"a\\": 1, \\"a\\": 2}",
+      "items": [{"name": "one"}, {"name": "two"}]
+    }`;
+    expect(findDuplicateJsonKeys(raw)).toEqual([]);
+  });
+});
+
+describe("workspace and override lockfile parity", () => {
+  it("expands workspace globs and detects missing workspace entries in bun.lock", () => {
+    const root = mkdtempSync(join(tmpdir(), "lockfile-ws-"));
+    try {
+      mkdirSync(join(root, "packages", "sdk"), { recursive: true });
+      writeFileSync(
+        join(root, "packages", "sdk", "package.json"),
+        JSON.stringify({ name: "@sveltycms/sdk", version: "0.1.0" }),
+      );
+      expect(resolveWorkspaceDirs(root, ["packages/*"])).toEqual(["packages/sdk"]);
+
+      const emptyLock = parseBunLockData(
+        JSON.stringify({
+          lockfileVersion: 1,
+          workspaces: { "": { name: "root" } },
+          packages: {},
+        }),
+      );
+
+      const missingOffenders = findWorkspaceLockfileOffenders(
+        [
+          {
+            dir: "packages/sdk",
+            raw: '{"name":"@sveltycms/sdk","version":"0.1.0"}',
+            manifest: { name: "@sveltycms/sdk", version: "0.1.0" },
+          },
+        ],
+        emptyLock,
+      );
+      expect(missingOffenders).toEqual([
+        'workspace "packages/sdk" is missing from bun.lock "workspaces"',
+      ]);
+
+      const syncedLock = parseBunLockData(
+        JSON.stringify({
+          lockfileVersion: 1,
+          workspaces: {
+            "": { name: "root" },
+            "packages/sdk": { name: "@sveltycms/sdk", version: "0.1.0" },
+          },
+          packages: {
+            "@sveltycms/sdk": ["@sveltycms/sdk@workspace:packages/sdk"],
+          },
+        }),
+      );
+      expect(
+        findWorkspaceLockfileOffenders(
+          [
+            {
+              dir: "packages/sdk",
+              raw: '{"name":"@sveltycms/sdk","version":"0.1.0"}',
+              manifest: { name: "@sveltycms/sdk", version: "0.1.0" },
+            },
+          ],
+          syncedLock,
+        ),
+      ).toEqual([]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("flags mismatched overrides between package.json and bun.lock", () => {
+    expect(findOverridesOffenders({ foo: "^1.2.0" }, { foo: "^1.0.0" })).toHaveLength(1);
+    expect(findOverridesOffenders({ foo: "^1.2.0" }, { foo: "^1.2.0" })).toEqual([]);
   });
 });

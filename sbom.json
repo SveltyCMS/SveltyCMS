@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:c628f070-31c5-4c20-96d2-6580fbce61aa",
+  "serialNumber": "urn:uuid:dc9c5e19-8c7c-4466-920d-7829fa2a8a63",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-11-25T09:32:36.575Z",
+    "timestamp": "2026-11-25T10:22:21.894Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -10434,6 +10434,13 @@
           "content": "sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A=="
         }
       ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "urn:sveltycms:lock:%40sveltycms%2Fsdk%40workspace%3Apackages%2Fsdk",
+      "name": "@sveltycms/sdk",
+      "version": "0.0.0",
+      "scope": "required"
     }
   ],
   "dependencies": [
@@ -14529,6 +14536,10 @@
     },
     {
       "ref": "pkg:npm/zwitch@2.0.4",
+      "dependsOn": []
+    },
+    {
+      "ref": "urn:sveltycms:lock:%40sveltycms%2Fsdk%40workspace%3Apackages%2Fsdk",
       "dependsOn": []
     }
   ]

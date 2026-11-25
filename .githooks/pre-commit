@@ -30,15 +30,42 @@ require_bun
 # was red: the hook exited before running anything. The hook now runs on every
 # commit; CI remains the authority for the multi-DB/E2E matrix.
 
-TOTAL=7; OK=0
+TOTAL=10; OK=0
 
 # Step 1 — Database & live-config safety (<50ms)
 if run "🛡️  Database safety" pm_run scripts/check/check-test-db-safety.ts; then
   OK=$((OK + 1))
 fi
 
+# Step 1b — Frozen lockfile parity when manifests, lockfile, or patches are staged
+if has_staged_changes '(^|/)package\.json$|^bun\.lock$|^bunfig\.toml$|^\.npmrc$|^patches/'; then
+  if run "🔒  Frozen lockfile" bun install --frozen-lockfile --dry-run; then
+    OK=$((OK + 1))
+  fi
+else
+  OK=$((OK + 1))
+fi
+
+# Step 1c — Paraglide i18n codegen before typecheck/tests when messages change
+if has_staged_changes '^(messages/|project\.inlang/)' || [ ! -f src/paraglide/runtime.js ]; then
+  if run "🗣️  Paraglide codegen" pm_run paraglide && run "🔗  SvelteKit sync" bun x svelte-kit sync; then
+    OK=$((OK + 1))
+  fi
+else
+  OK=$((OK + 1))
+fi
+
 # Step 2 — Lint-staged (auto-formats staged files first so `check` never fails on formatting)
 if run "⚡  Lint-staged" pm_run gate:fast; then
+  OK=$((OK + 1))
+fi
+
+# Step 2b — Full cross-document link, anchor, & compliance lint when docs or doc linter change
+if has_staged_changes '\.(md|mdx)$|^(docs/|src/plugins/.*\.mdx$|tests/lint/docs\.ts)'; then
+  if run "📚  Docs lint" pm_run lint:docs; then
+    OK=$((OK + 1))
+  fi
+else
   OK=$((OK + 1))
 fi
 
@@ -93,7 +120,7 @@ elif run "🧩  Component interactions" pm_run test:unit:components; then
 fi
 
 # Step 7 — SBOM sync (keeps sbom.json in lockstep with bun.lock)
-if has_staged_changes 'bun\.lock|package\.json'; then
+if has_staged_changes 'bun\.lock|(packages/.*/|apps/.*/)?package\.json'; then
   if run "📦  SBOM sync" pm_run audit:sbom; then
     git add sbom.json 2>/dev/null || true
     info "sbom.json regenerated from updated lockfile and staged."

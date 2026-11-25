@@ -110,17 +110,89 @@ fi
 # workflow change could be pushed without even a YAML parse. The normal steps
 # now run; the dedicated YAML step below validates every workflow file.
 if [ "$HAS_CODE_CHANGES" = false ]; then
-  warn "Only docs changed — skipping build and integration tests"
+  DOC_TOTAL=0; DOC_OK=0
+
+  if has_push_changes '(^|/)package\.json$|^bun\.lock$|^bunfig\.toml$|^\.npmrc$|^patches/'; then
+    DOC_TOTAL=$((DOC_TOTAL + 1))
+    if run "🔒  Frozen lockfile" bun install --frozen-lockfile --dry-run; then
+      DOC_OK=$((DOC_OK + 1))
+    fi
+  fi
+
+  if has_push_changes '^\.github/'; then
+    DOC_TOTAL=$((DOC_TOTAL + 1))
+    if run "🧩  Workflow YAML" bun run scripts/check/check-workflow-yaml.ts && run "📌  Pinned actions" bun run scripts/check/check-pinned-actions.ts && run "🔍  Static policy checks" bun run scripts/check/run-fast-checks.ts; then
+      DOC_OK=$((DOC_OK + 1))
+    fi
+  fi
+
+  if has_push_changes '\.(md|mdx)$|^(docs/|src/plugins/.*\.mdx$|tests/lint/docs\.ts)'; then
+    DOC_TOTAL=$((DOC_TOTAL + 1))
+    if run "📚  Docs lint" pm_run lint:docs; then
+      DOC_OK=$((DOC_OK + 1))
+    fi
+  fi
+
+  if [ "$DOC_TOTAL" -eq 0 ]; then
+    warn "No code, docs, manifest, or workflow changes detected — nothing to validate"
+    echo ""
+    summary 1 1
+    exit 0
+  fi
+
   echo ""
-  summary 1 1
-  exit 0
+  summary "$DOC_OK" "$DOC_TOTAL"
+  exit "$([ "$DOC_OK" -eq "$DOC_TOTAL" ] && echo 0 || echo 1)"
 fi
 
 info "Pre-commit already verified: format, lint, unit tests, component interactions."
 info "Pre-push: build + quality + security + backdoor probe + release readiness + SQLite integration + DB parity + E2E contract gate"
 echo ""
 
-TOTAL=14; OK=0
+TOTAL=19; OK=0
+
+# Step 1a — Frozen lockfile parity (catches workspace/package.json <-> bun.lock drift in ~60ms)
+if run "🔒  Frozen lockfile" bun install --frozen-lockfile --dry-run; then
+  OK=$((OK + 1))
+fi
+
+# Step 1b — Workflow YAML & action pinning whenever .github/ files changed
+if has_push_changes '^\.github/'; then
+  if run "🧩  Workflow YAML" bun run scripts/check/check-workflow-yaml.ts && run "📌  Pinned actions" bun run scripts/check/check-pinned-actions.ts; then
+    OK=$((OK + 1))
+  fi
+else
+  OK=$((OK + 1))
+fi
+
+# Step 1c — Paraglide i18n & SvelteKit sync (mirrors CI Bootstrap before build & typecheck)
+if has_push_changes '^(messages/|project\.inlang/|svelte\.config\.js|vite\.config\.ts|package\.json)' || [ ! -f src/paraglide/runtime.js ]; then
+  if run "🗣️  Paraglide codegen" pm_run paraglide && run "🔗  SvelteKit sync" bun x svelte-kit sync; then
+    OK=$((OK + 1))
+  fi
+else
+  OK=$((OK + 1))
+fi
+
+# Step 1d — Docs link, anchor, & compliance lint when docs or doc-checked paths change
+if has_push_changes '\.(md|mdx)$|^(docs/|src/plugins/.*\.mdx$|tests/lint/docs\.ts)'; then
+  if run "📚  Docs lint" pm_run lint:docs; then
+    OK=$((OK + 1))
+  fi
+else
+  OK=$((OK + 1))
+fi
+
+# Step 1e — Security risk, slop, and OSV audit (reuses pre-commit cache when tree matches)
+if gate_cached risk; then
+  info "Risk audit passed on pre-commit — reusing cached result"
+  OK=$((OK + 1))
+else
+  if run "🛡️  Risk audit (security/slop/OSV)" pm_run risk:audit; then
+    OK=$((OK + 1))
+    record_gate risk
+  fi
+fi
 
 # Step 1 — Database & live-config safety (<50ms)
 if run "🛡️  Database safety" pm_run scripts/check/check-test-db-safety.ts; then
@@ -262,6 +334,12 @@ fi
 # cannot silently select zero tests.
 if [ "${SKIP_E2E_SMOKE:-false}" != "true" ]; then
   E2E_TARGETS="tests/e2e/smoke.spec.ts"
+  if has_push_changes '^(src/hooks/|src/routes/api/|src/services/auth/|src/databases/auth/)'; then
+    E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/system/hooks-lane-smoke.spec.ts tests/e2e/routes/system/permission-enforcement.spec.ts"
+  fi
+  if has_push_changes '^src/plugins/'; then
+    E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/config/extensions.spec.ts"
+  fi
   # Any changed E2E spec must run locally too. A spec-only push previously
   # skipped the shard it edited (CI run 1847), and the hook had no mapping for
   # tests/e2e/** at all.

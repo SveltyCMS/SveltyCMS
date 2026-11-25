@@ -146,6 +146,12 @@ export const FAST_CHECKS: readonly CheckSpec[] = [
     owner: "security",
   },
   {
+    id: "check-workflow-yaml",
+    script: "scripts/check/check-workflow-yaml.ts",
+    kind: "policy",
+    owner: "ci",
+  },
+  {
     id: "check-source-lints",
     script: "scripts/check/run-source-lints.ts",
     kind: "ast",
