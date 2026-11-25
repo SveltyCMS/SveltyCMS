@@ -16,6 +16,7 @@ import {
   findDuplicateJsonKeys,
   findLockfileOffenders,
   findOverridesOffenders,
+  findUndeclaredPackageImports,
   findWorkspaceLockfileOffenders,
   parseBunLockContent,
   parseBunLockData,
@@ -229,5 +230,31 @@ describe("workspace and override lockfile parity", () => {
   it("flags mismatched overrides between package.json and bun.lock", () => {
     expect(findOverridesOffenders({ foo: "^1.2.0" }, { foo: "^1.0.0" })).toHaveLength(1);
     expect(findOverridesOffenders({ foo: "^1.2.0" }, { foo: "^1.2.0" })).toEqual([]);
+  });
+
+  it("flags bare third-party imports missing from declared dependencies", () => {
+    const root = mkdtempSync(join(tmpdir(), "lockfile-imports-"));
+    try {
+      mkdirSync(join(root, "src"), { recursive: true });
+      writeFileSync(
+        join(root, "src", "ok.ts"),
+        'import { formatDate } from "@utils/date";\nimport { parseAllDocuments } from "yaml";\nimport fs from "node:fs";\n',
+      );
+      writeFileSync(
+        join(root, "src", "bad.ts"),
+        'import { DOMParser } from "@xmldom/xmldom";\nexport const x = DOMParser;\n',
+      );
+      writeFileSync(
+        join(root, "src", "comp.svelte"),
+        '<script lang="ts">import { readVarUint } from "lib0/decoding";</script><p>import { ghost } from "fake";</p>',
+      );
+
+      const offenders = findUndeclaredPackageImports(root, new Set(["yaml"]), ["src"]);
+      expect(offenders).toHaveLength(2);
+      expect(offenders.some((line) => line.includes("@xmldom/xmldom"))).toBe(true);
+      expect(offenders.some((line) => line.includes('"lib0"'))).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });

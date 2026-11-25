@@ -238,6 +238,7 @@
     "@tiptap/extension-youtube": "^3.35.0",
     "@tiptap/pm": "^3.35.0",
     "@tiptap/starter-kit": "^3.35.0",
+    "@xmldom/xmldom": "^0.9.12",
     "argon2": "^0.45.2",
     "cloudinary": "^2.11.0",
     "dompurify": "^3.5.0",
@@ -247,6 +248,7 @@
     "graphql-yoga": "^6.1.1",
     "hls.js": "^1.7.4",
     "iconify-icon": "^3.0.5",
+    "lib0": "^0.2.120",
     "maplibre-gl": "^6.19.0",
     "nodemailer": "^10.6.1",
     "ollama": "^0.6.4",
@@ -281,6 +283,7 @@
     "@vitest/browser-playwright": "^5.1.1",
     "@vitest/coverage-v8": "^5.1.1",
     "@vitest/ui": "^5.1.1",
+    "devalue": "^5.9.4",
     "esbuild": "^0.28.2",
     "fast-check": "^4.11.0",
     "jsdom": "^31.0.1",
@@ -295,10 +298,13 @@
     "svelte-check": "^4.7.8",
     "tailwindcss": "^4.3.5",
     "ts-morph": "^28.0.0",
+    "undici": "^8.13.1",
     "vite": "^8.3.8",
-    "vitest": "^5.1.1"
+    "vitest": "^5.1.1",
+    "yaml": "^2.9.1"
   },
   "optionalDependencies": {
+    "mongodb": "^7.9.1",
     "mongoose": "^9.13.1",
     "mysql2": "^3.24.6",
     "postgres": "^4.1.1"

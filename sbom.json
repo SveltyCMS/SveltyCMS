@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:dc9c5e19-8c7c-4466-920d-7829fa2a8a63",
+  "serialNumber": "urn:uuid:c575d71d-1ff8-47fd-b7c5-5eef6c75f6a8",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-11-25T10:22:21.894Z",
+    "timestamp": "2026-11-25T13:07:57.324Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -6087,7 +6087,7 @@
       "name": "devalue",
       "version": "5.9.4",
       "purl": "pkg:npm/devalue@5.9.4",
-      "scope": "required",
+      "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",
@@ -7977,7 +7977,7 @@
       "name": "mongodb",
       "version": "7.9.1",
       "purl": "pkg:npm/mongodb@7.9.1",
-      "scope": "required",
+      "scope": "optional",
       "hashes": [
         {
           "alg": "SHA-512",
@@ -9783,7 +9783,7 @@
       "name": "undici",
       "version": "8.13.1",
       "purl": "pkg:npm/undici@8.13.1",
-      "scope": "required",
+      "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",
@@ -10371,7 +10371,7 @@
       "name": "yaml",
       "version": "2.9.1",
       "purl": "pkg:npm/yaml@2.9.1",
-      "scope": "required",
+      "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",

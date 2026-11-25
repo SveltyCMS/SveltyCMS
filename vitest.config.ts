@@ -126,7 +126,9 @@ const localMaxWorkers = process.env.VITEST_MAX_WORKERS
  * runners are 4 vCPU and keep Vitest's own pool.
  */
 const isCoverageRun = process.argv.includes("--coverage");
-const coverageMaxWorkers = Math.min(localMaxWorkers, 2);
+const coverageMaxWorkers = process.env.VITEST_MAX_WORKERS
+  ? localMaxWorkers
+  : Math.min(localMaxWorkers, 2);
 
 export default defineConfig({
   plugins: [svelte({ configFile: false } as any)],

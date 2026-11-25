@@ -68,9 +68,9 @@ export default defineConfig({
       MEDIA_FOLDER: "tests/integration/.media",
       QUIET: "true",
     },
-    // Component tests share one jsdom document; parallel forks are safe but add
-    // startup cost. Keep the suite fast without masking cross-test DOM leaks.
-    pool: "forks",
+    // threads avoids OS fork IPC and duplicates per-worker startup cost across 64 DOM files
+    // while `isolate: true` + afterEach cleanup still keeps module mocks and DOM isolated.
+    pool: "threads",
     isolate: true,
     // Same reason as vitest.config.ts: Node's ML-KEM Web Crypto warning is
     // intentional usage, not a test problem.

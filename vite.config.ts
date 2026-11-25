@@ -126,6 +126,7 @@ const SERVER_EXTERNALS = [
   "jiti",
   "jiti/*",
   "shiki",
+  "undici",
 ];
 
 const SSR_NO_EXTERNAL = [

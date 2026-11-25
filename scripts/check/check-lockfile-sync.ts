@@ -26,7 +26,10 @@
  */
 
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { builtinModules } from "node:module";
+import { extname, join, relative } from "node:path";
+import * as ts from "typescript";
+import { pathAliases } from "../../path-aliases";
 
 const FAIL_PREFIX = "❌ lockfile-sync";
 
@@ -426,6 +429,91 @@ export function findLockfileOffenders(
   return offenders;
 }
 
+const SCAN_ROOTS = ["src", "scripts", "tests", "config"] as const;
+const SOURCE_EXTS = new Set([".ts", ".mts", ".cts", ".js", ".mjs", ".cjs", ".svelte"]);
+const SKIP_DIRS = new Set(["node_modules", ".git", ".svelte-kit", "build", "dist", "paraglide"]);
+const OPTIONAL_RUNTIME_PEERS = new Set(["@mongodb-js/zstd", "snappy"]);
+const BUILTIN_SPECIFIERS = new Set([...builtinModules, ...builtinModules.map((m) => `node:${m}`)]);
+const ALIAS_PREFIXES = Object.keys(pathAliases).map((alias) => alias.replace(/\/\*$/, ""));
+const SVELTE_SCRIPT_RE = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
+
+function extractPackageName(specifier: string): string | null {
+  if (
+    !specifier ||
+    specifier.startsWith(".") ||
+    specifier.startsWith("/") ||
+    specifier.startsWith("$") ||
+    specifier.startsWith("node:") ||
+    specifier.startsWith("bun:") ||
+    specifier.startsWith("virtual:") ||
+    specifier.startsWith("http:") ||
+    specifier.startsWith("https:") ||
+    specifier === "bun"
+  ) {
+    return null;
+  }
+  // Ignore pseudo-specifiers from doc-comment examples (e.g. `typeof import("…")`).
+  if (specifier.includes("…") || /\s/.test(specifier)) return null;
+  const parts = specifier.split("/");
+  const pkgName = specifier.startsWith("@") ? parts.slice(0, 2).join("/") : parts[0];
+  if (!pkgName || BUILTIN_SPECIFIERS.has(pkgName)) return null;
+  if (ALIAS_PREFIXES.some((prefix) => pkgName === prefix || specifier.startsWith(`${prefix}/`))) {
+    return null;
+  }
+  return pkgName;
+}
+
+function collectSourceFiles(dir: string, out: string[]): void {
+  if (!existsSync(dir)) return;
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (SKIP_DIRS.has(entry.name)) continue;
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      collectSourceFiles(full, out);
+    } else if (SOURCE_EXTS.has(extname(entry.name))) {
+      out.push(full);
+    }
+  }
+}
+
+/**
+ * Verifies every bare third-party package imported in source/tests/scripts is declared
+ * in `package.json`, preventing isolated-linker (`bun install --linker=isolated`) CI failures
+ * that hoisted local `node_modules/` directories otherwise mask.
+ */
+export function findUndeclaredPackageImports(
+  rootDir: string,
+  declaredPackages: ReadonlySet<string>,
+  scanRoots: readonly string[] = SCAN_ROOTS,
+): string[] {
+  const files: string[] = [];
+  for (const sub of scanRoots) collectSourceFiles(join(rootDir, sub), files);
+  const offenders: string[] = [];
+
+  for (const file of files) {
+    const raw = readFileSync(file, "utf-8");
+    let code = raw;
+    if (file.endsWith(".svelte")) {
+      const blocks: string[] = [];
+      for (const match of raw.matchAll(SVELTE_SCRIPT_RE)) {
+        blocks.push(match[1] ?? "");
+      }
+      code = blocks.join("\n");
+    }
+    if (!code.trim()) continue;
+    const rel = relative(rootDir, file).replaceAll("\\", "/");
+    const pre = ts.preProcessFile(code, true, true);
+    for (const imp of pre.importedFiles) {
+      const pkgName = extractPackageName(imp.fileName);
+      if (!pkgName) continue;
+      if (declaredPackages.has(pkgName) || OPTIONAL_RUNTIME_PEERS.has(pkgName)) continue;
+      offenders.push(`${rel}: imports undeclared package "${pkgName}" (${imp.fileName})`);
+    }
+  }
+
+  return offenders;
+}
+
 function main(): number {
   const pkgRaw = readFileSync("package.json", "utf-8");
   const lockRaw = readFileSync("bun.lock", "utf-8");
@@ -435,6 +523,7 @@ function main(): number {
     dependencies?: Record<string, string>;
     devDependencies?: Record<string, string>;
     optionalDependencies?: Record<string, string>;
+    peerDependencies?: Record<string, string>;
   };
   const lockData = parseBunLockData(lockRaw);
   const lock = lockData.packages;
@@ -476,6 +565,27 @@ function main(): number {
       `${FAIL_PREFIX}: package.json and bun.lock are out of sync (${offenders.length}):`,
     );
     for (const line of offenders) console.error(`  - ${line}`);
+    return 1;
+  }
+
+  const declaredNames = new Set<string>([
+    ...Object.keys(pkgJson.dependencies ?? {}),
+    ...Object.keys(pkgJson.devDependencies ?? {}),
+    ...Object.keys(pkgJson.optionalDependencies ?? {}),
+    ...Object.keys(pkgJson.peerDependencies ?? {}),
+    ...workspaceInputs
+      .map((ws) => ws.manifest.name)
+      .filter((name): name is string => typeof name === "string"),
+  ]);
+  const importOffenders = findUndeclaredPackageImports(".", declaredNames);
+  if (importOffenders.length > 0) {
+    console.error(
+      `${FAIL_PREFIX}: undeclared third-party package import(s) found (${importOffenders.length}):`,
+    );
+    for (const line of importOffenders) console.error(`  - ${line}`);
+    console.error(
+      "\nAdd each package to package.json so `bun install --linker=isolated` resolves it in CI.",
+    );
     return 1;
   }
 

@@ -4,6 +4,7 @@
  */
 
 import { createRequire } from "node:module";
+import { resolve as resolvePath } from "node:path";
 const require = createRequire(import.meta.url);
 import { CORE_WIDGETS, CUSTOM_WIDGETS } from "./widgets/widget-constants";
 import { widgetNameToFolder } from "@src/widgets/widget-naming";
@@ -1795,10 +1796,37 @@ if (!includesSecurityResponseServiceTest && !isTestTarget("security-response-ser
   (globalThis as any).__SVELTY_SECURITY_INSTANCE__ = mockSecurityResponseService;
   setGlobal("securityResponseService", mockSecurityResponseService);
 }
+const HANDLE_AUTH_FILE_FORWARD = resolvePath(
+  process.cwd(),
+  "src/hooks/handle-authorization.ts",
+).replace(/\\/g, "/");
+
+function wasHandleAuthLoaded(): boolean {
+  if (isBun) return true;
+  const evalMods = (globalThis as any).__vitest_worker__?.evaluatedModules;
+  const fileMap: Map<string, Set<{ evaluated?: boolean; exports?: unknown }>> | undefined =
+    evalMods?.fileToModulesMap;
+  if (!fileMap) return false;
+  const direct = fileMap.get(HANDLE_AUTH_FILE_FORWARD);
+  if (direct) {
+    for (const node of direct) {
+      if (node.evaluated && node.exports !== undefined) return true;
+    }
+  }
+  for (const [key, nodes] of fileMap) {
+    if (key.replace(/\\/g, "/").endsWith("/src/hooks/handle-authorization.ts")) {
+      for (const node of nodes) {
+        if (node.evaluated && node.exports !== undefined) return true;
+      }
+    }
+  }
+  return false;
+}
+
 // This ensures that tests don't pollute each other via globalThis or module-level shared state
 if (typeof (globalThis as any).beforeEach !== "undefined") {
   try {
-    (globalThis as any).beforeEach(async () => {
+    (globalThis as any).beforeEach((): Promise<void> | void => {
       // Reset environment overrides
       (globalThis as any).privateEnv = undefined;
       (globalThis as any).__privateEnv = undefined;
@@ -1833,22 +1861,20 @@ if (typeof (globalThis as any).beforeEach !== "undefined") {
         resetMocks(db);
       }
 
-      // Invalidate authorization caches to prevent state leak in hooks
-      try {
-        const { invalidateUserCountCache, invalidateRolesCache } =
-          await import("@src/hooks/handle-authorization");
-        await invalidateUserCountCache();
-        await invalidateRolesCache();
-      } catch {
-        // Ignore if not available in current test context
-      }
+      // Only invalidate authorization caches in isolates that actually loaded
+      // `handle-authorization.ts`. Unconditionally calling dynamic import() here
+      // forced every isolated unit fork to load & instrument the entire hooks/auth
+      // graph even for pure utility tests.
+      if (!wasHandleAuthLoaded()) return;
 
-      // Restore all spies/mocks if vishim is active
-      /*
-      if ((globalThis as any).vi && (globalThis as any).vi.restoreAllMocks) {
-        (globalThis as any).vi.restoreAllMocks();
-      }
-      */
+      return import("@src/hooks/handle-authorization")
+        .then(async ({ invalidateUserCountCache, invalidateRolesCache }) => {
+          await invalidateUserCountCache();
+          await invalidateRolesCache();
+        })
+        .catch(() => {
+          // Ignore if not available in current test context
+        });
     });
   } catch (e) {
     if (typeof Bun === "undefined") throw e;

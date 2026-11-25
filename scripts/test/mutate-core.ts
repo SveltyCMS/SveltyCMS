@@ -55,7 +55,8 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, isAbsolute, join } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 export interface Mutation {
   /** Stable id used in the summary table. */
@@ -658,17 +659,77 @@ function restoreTarget(relativePath: string): boolean {
   return false;
 }
 
-function runTests(tests: readonly string[]): { status: number; output: string } {
-  const result = spawnSync("node", [VITEST_ENTRY, "run", ...tests], {
-    cwd: ROOT,
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
-    shell: false,
-    env: { ...process.env, TEST_MODE: "true", MEDIA_FOLDER: "tests/integration/.media" },
+interface VitestLike {
+  invalidateFile(filepath: string): void;
+  globTestSpecifications(filters?: string[]): Promise<Array<{ moduleId: string }>>;
+  runTestSpecifications(
+    specifications: unknown[],
+    allTestsRun?: boolean,
+  ): Promise<{
+    testModules: Array<{
+      moduleId: string;
+      ok(): boolean;
+      errors(): unknown[];
+    }>;
+    unhandledErrors: unknown[];
+  }>;
+  close(): Promise<void>;
+}
+
+let activeVitest: VitestLike | null = null;
+
+async function createPersistentVitest(): Promise<VitestLike> {
+  process.env.TEST_MODE = process.env.TEST_MODE || "true";
+  process.env.MEDIA_FOLDER = process.env.MEDIA_FOLDER || "tests/integration/.media";
+  const { createVitest } = await import("vitest/node");
+  const vitest = await createVitest("test", {
+    watch: false,
+    reporters: [],
+    silent: true,
+    coverage: { enabled: false },
+    pool: "threads",
+    maxWorkers: 1,
+    isolate: true,
   });
+  await vitest.standalone();
+  return vitest as unknown as VitestLike;
+}
+
+async function runTests(
+  tests: readonly string[],
+  mutatedFile?: string,
+): Promise<{ status: number; output: string }> {
+  if (!activeVitest) {
+    const result = spawnSync("node", [VITEST_ENTRY, "run", ...tests], {
+      cwd: ROOT,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      shell: false,
+      env: { ...process.env, TEST_MODE: "true", MEDIA_FOLDER: "tests/integration/.media" },
+    });
+    return {
+      status: result.status ?? 1,
+      output: `${result.stdout ?? ""}${result.stderr ?? ""}`,
+    };
+  }
+
+  if (mutatedFile) {
+    activeVitest.invalidateFile(resolve(ROOT, mutatedFile).replaceAll("\\", "/"));
+  }
+  const specs = await activeVitest.globTestSpecifications([...tests]);
+  if (specs.length === 0) {
+    throw new Error(`No Vitest specifications matched: ${tests.join(", ")}`);
+  }
+  const targetIds = new Set(specs.map((spec) => spec.moduleId));
+  const runResult = await activeVitest.runTestSpecifications(specs, true);
+  const matching = runResult.testModules.filter((mod) => targetIds.has(mod.moduleId));
+  const failed =
+    matching.length === 0 ||
+    matching.some((mod) => !mod.ok() || mod.errors().length > 0) ||
+    runResult.unhandledErrors.length > 0;
   return {
-    status: result.status ?? 1,
-    output: `${result.stdout ?? ""}${result.stderr ?? ""}`,
+    status: failed ? 1 : 0,
+    output: failed ? "killed via persistent Vitest runner" : "all mapped tests passed",
   };
 }
 
@@ -747,7 +808,7 @@ function applyMutation(mutation: Mutation): string | null {
   return null;
 }
 
-function runMutation(mutation: Mutation): Outcome {
+async function runMutation(mutation: Mutation): Promise<Outcome> {
   const startedAt = Date.now();
   const elapsed = () => Date.now() - startedAt;
 
@@ -770,7 +831,7 @@ function runMutation(mutation: Mutation): Outcome {
       return { mutation, status: "invalid", durationMs: elapsed(), detail: problem };
     }
 
-    const run = runTests(mutation.tests);
+    const run = await runTests(mutation.tests, mutation.file);
     if (run.status === 0) {
       status = "survived";
       detail = `tests passed with the mutation applied\n${tailLines(run.output, 12)}`;
@@ -779,6 +840,7 @@ function runMutation(mutation: Mutation): Outcome {
     }
   } finally {
     const restored = restoreTarget(mutation.file);
+    activeVitest?.invalidateFile(resolve(ROOT, mutation.file).replaceAll("\\", "/"));
     if (!restored) {
       status = "aborted";
       detail = `${mutation.file} was changed by another writer during the mutation window or could not be restored — leaving it untouched; inspect \`git diff\` immediately`;
@@ -951,7 +1013,7 @@ function emitReport(outcomes: readonly Outcome[], options: CliOptions): void {
   }
 }
 
-function main(): number {
+async function main(): Promise<number> {
   let options: CliOptions;
   try {
     options = parseArgs(process.argv.slice(2));
@@ -1031,10 +1093,11 @@ function main(): number {
   }
 
   const outcomes: Outcome[] = [];
+  activeVitest = await createPersistentVitest();
   try {
     for (const mutation of selected) {
       process.stdout.write(`▶ ${mutation.id} (${mutation.file}) … `);
-      const outcome = runMutation(mutation);
+      const outcome = await runMutation(mutation);
       outcomes.push(outcome);
       console.log(`${outcome.status} [${outcome.durationMs}ms]`);
       if (outcome.status === "aborted") {
@@ -1048,6 +1111,10 @@ function main(): number {
     const dirty = restoreAll();
     if (dirty.length > 0) {
       console.error(`\n🛑 final restore left changes in: ${dirty.join(", ")}`);
+    }
+    if (activeVitest) {
+      await activeVitest.close().catch(() => {});
+      activeVitest = null;
     }
   }
 
@@ -1093,5 +1160,22 @@ process.on("exit", () => {
 });
 
 if (import.meta.main) {
-  process.exit(main());
+  if (typeof Bun !== "undefined") {
+    // Vitest's worker runtime must execute under Node (not Bun, where setup.ts
+    // enters the `bun:test` globals shim). Re-exec once under Node 24's native
+    // TypeScript runner so the persistent Vitest server works for `bun run` too.
+    const selfPath = fileURLToPath(import.meta.url);
+    const reexec = spawnSync("node", [selfPath, ...process.argv.slice(2)], {
+      cwd: ROOT,
+      stdio: "inherit",
+      env: process.env,
+    });
+    process.exit(reexec.status ?? 1);
+  }
+  main()
+    .then((code) => process.exit(code))
+    .catch((err) => {
+      console.error(err);
+      process.exit(1);
+    });
 }
