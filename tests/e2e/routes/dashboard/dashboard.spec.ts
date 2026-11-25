@@ -26,10 +26,6 @@ test.use({ storageState: { cookies: [], origins: [] } });
 
 async function goDashboard(page: Page) {
   await loginAsAdmin(page, "/dashboard");
-  await page.goto("/dashboard", { waitUntil: "domcontentloaded", timeout: 30_000 });
-  if (page.url().includes("/login")) {
-    await loginAsAdmin(page, "/dashboard");
-  }
   // Wait for URL + shell (SYSTEM_IDLE can briefly delay first render)
   await expect(async () => {
     if (page.url().includes("/login")) {
@@ -39,7 +35,7 @@ async function goDashboard(page: Page) {
   }).toPass({ timeout: 30_000 });
 
   const systemError = page.getByRole("heading", { name: /system error/i });
-  if (await systemError.isVisible({ timeout: 1_200 }).catch(() => false)) {
+  if (await systemError.isVisible({ timeout: 50 }).catch(() => false)) {
     const detail = await page
       .locator(".font-mono, pre, code")
       .first()
@@ -307,11 +303,18 @@ test.describe("Dashboard shell (widget-agnostic)", () => {
       timeout: ACTION_TIMEOUT,
     });
 
-    // Reset
-    await expect(page.getByTestId("dashboard-reset-widgets")).toBeVisible({
+    // Reload /dashboard to prove widget preferences persisted server-side before resetting.
+    await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
+    await waitForHydration(page);
+    await expect(page.getByTestId("dashboard-widget-grid")).toBeVisible({
       timeout: ACTION_TIMEOUT,
     });
-    await page.getByTestId("dashboard-reset-widgets").click();
+    expect(await page.locator("[data-widget-id]").count()).toBeGreaterThanOrEqual(1);
+
+    // Reset
+    const resetBtn = page.getByTestId("dashboard-reset-widgets");
+    await expect(resetBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await resetBtn.click();
 
     // After reset: empty state (preferences cleared) — expect auto-waits
     await expect(page.getByTestId("dashboard-empty-state")).toBeVisible({

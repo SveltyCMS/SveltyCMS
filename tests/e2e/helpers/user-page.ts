@@ -133,6 +133,13 @@ export async function ensureUsersAdminTab(page: Page) {
 export async function ensureInvitationsAdminTab(page: Page) {
   const tokensTab = page.getByTestId("admin-tab-tokens");
   await expect(tokensTab).toBeVisible({ timeout: USER_ACTION_TIMEOUT });
+  // Register before clicking so a fast /api/token GET response is never missed.
+  const tokenFetch = page
+    .waitForResponse(
+      (res) => res.url().includes("/api/token") && res.request().method() === "GET",
+      { timeout: 5_000 },
+    )
+    .catch(() => undefined);
   await expect
     .poll(
       async () => {
@@ -143,13 +150,7 @@ export async function ensureInvitationsAdminTab(page: Page) {
       { timeout: USER_ACTION_TIMEOUT, intervals: [200, 500, 1000] },
     )
     .toBe(true);
-  // Wait for token list fetch when possible
-  await page
-    .waitForResponse(
-      (res) => res.url().includes("/api/token") && res.request().method() === "GET",
-      { timeout: USER_ACTION_TIMEOUT },
-    )
-    .catch(() => undefined);
+  await tokenFetch;
 }
 
 /**
@@ -162,11 +163,12 @@ export async function openUserAdminUsers(page: Page) {
   await expect(page.getByTestId("user-bulk-actions-menu")).toBeVisible({
     timeout: USER_ACTION_TIMEOUT,
   });
+  // Do NOT wait on `/api/user` *after* the tab already rendered (that burned 20s waiting for
+  // an already-completed GET). Wait for either the table body/empty marker or show toggle.
   await page
-    .waitForResponse(
-      (res) => res.url().includes("/api/user") && res.request().method() === "GET" && res.ok(),
-      { timeout: USER_ACTION_TIMEOUT },
-    )
+    .locator('tbody tr, [data-testid="user-list-empty"], button:has-text("Show User List")')
+    .first()
+    .waitFor({ state: "visible", timeout: USER_ACTION_TIMEOUT })
     .catch(() => undefined);
 }
 

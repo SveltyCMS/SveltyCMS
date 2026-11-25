@@ -363,21 +363,28 @@ test.describe("Admin table scale", () => {
     // Force user list refresh
     const showUsers = page.getByRole("button", { name: /show user list/i });
     if (await showUsers.isVisible({ timeout: 1_000 }).catch(() => false)) {
+      const listFetch = page
+        .waitForResponse(
+          (res) => res.url().includes("/api/user") && res.request().method() === "GET" && res.ok(),
+          { timeout: ACTION_TIMEOUT },
+        )
+        .catch(() => undefined);
       await showUsers.click();
+      await listFetch;
     }
-
-    await page
-      .waitForResponse(
-        (res) => res.url().includes("/api/user") && res.request().method() === "GET" && res.ok(),
-        { timeout: ACTION_TIMEOUT },
-      )
-      .catch(() => undefined);
 
     // Trigger refetch by toggling list
     const hide = page.getByRole("button", { name: /hide user list/i });
     if (await hide.isVisible({ timeout: 2_000 }).catch(() => false)) {
       await hide.click();
+      const refetch = page
+        .waitForResponse(
+          (res) => res.url().includes("/api/user") && res.request().method() === "GET" && res.ok(),
+          { timeout: ACTION_TIMEOUT },
+        )
+        .catch(() => undefined);
       await page.getByRole("button", { name: /show user list/i }).click();
+      await refetch;
     }
 
     await expect(async () => {

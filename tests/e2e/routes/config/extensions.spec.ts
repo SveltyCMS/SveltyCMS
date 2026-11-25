@@ -9,8 +9,10 @@ import { loginAsAdmin, waitForHydration } from "../../helpers/auth";
 const ACTION_TIMEOUT = 20_000;
 
 async function goExtensions(page: Page) {
-  await loginAsAdmin(page);
-  await page.goto("/config/extensions", { waitUntil: "domcontentloaded", timeout: 30_000 });
+  await loginAsAdmin(page, "/config/extensions");
+  if (!page.url().includes("/config/extensions")) {
+    await page.goto("/config/extensions", { waitUntil: "domcontentloaded", timeout: 30_000 });
+  }
   await expect(page.getByTestId("page-title")).toBeVisible({ timeout: ACTION_TIMEOUT });
   await expect(page.getByTestId("page-title")).toContainText(/extension/i);
   await expect(page.getByTestId("extensions-page")).toBeVisible({ timeout: ACTION_TIMEOUT });

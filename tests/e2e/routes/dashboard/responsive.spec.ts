@@ -44,10 +44,6 @@ test.describe.configure({ mode: "serial" });
 /** Log in as admin and land on a hydrated dashboard shell. */
 async function goDashboard(page: Page): Promise<void> {
   await loginAsAdmin(page, "/dashboard");
-  await page.goto("/dashboard", { waitUntil: "domcontentloaded", timeout: 30_000 });
-  if (page.url().includes("/login")) {
-    await loginAsAdmin(page, "/dashboard");
-  }
   await expect(async () => {
     if (page.url().includes("/login")) {
       await loginAsAdmin(page, "/dashboard");
@@ -147,38 +143,45 @@ async function hasHorizontalOverflow(page: Page): Promise<boolean> {
   return page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
 }
 
-for (const vp of VIEWPORTS) {
-  test.describe(`dashboard responsive grid — ${vp.name} (${vp.viewport.width}×${vp.viewport.height})`, () => {
-    test.use({ storageState: { cookies: [], origins: [] } });
+test.describe("dashboard responsive grid — viewport × theme matrix", () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
 
-    for (const theme of THEMES) {
-      test(`${theme} theme renders ${vp.tracks} column track(s) with no horizontal overflow`, async ({
-        page,
-      }) => {
-        // Set the viewport explicitly (project-level `devices["Desktop Chrome"]`
-        // pins a 1280×720 viewport that a describe-level `test.use({ viewport })`
-        // does not reliably override in this config).
-        await page.setViewportSize(vp.viewport);
-        await seedCookieConsent(page);
+  test("mobile, tablet, and desktop render 1/2/4 columns across light and dark themes with no overflow", async ({
+    page,
+  }) => {
+    await seedCookieConsent(page);
+    await goDashboard(page);
 
-        await goDashboard(page);
+    // Populate the grid once so it mounts for every viewport × theme assertion.
+    const seeded = await ensureNWidgets(page, 2);
+    expect(seeded).toBeGreaterThanOrEqual(2);
 
-        // Populate the grid so it actually renders (the grid node only mounts
-        // when there is at least one widget preference).
-        const seeded = await ensureNWidgets(page, 2);
-        expect(seeded).toBeGreaterThanOrEqual(2);
+    const grid = page.getByTestId("dashboard-widget-grid");
+    await expect(grid).toBeVisible({ timeout: ACTION_TIMEOUT });
 
-        const grid = page.getByTestId("dashboard-widget-grid");
-        await expect(grid).toBeVisible({ timeout: ACTION_TIMEOUT });
+    for (const vp of VIEWPORTS) {
+      // Set the viewport explicitly (project-level `devices["Desktop Chrome"]`
+      // pins a 1280×720 viewport that a describe-level `test.use({ viewport })`
+      // does not reliably override in this config).
+      await page.setViewportSize(vp.viewport);
 
+      for (const theme of THEMES) {
         await setColorScheme(page, theme);
 
         // Functional gate: the resolved grid must expose the expected track
         // count at this viewport, independent of theme.
-        await expect.poll(() => gridTrackCount(page), { timeout: 5_000 }).toBe(vp.tracks);
+        await expect
+          .poll(() => gridTrackCount(page), {
+            timeout: 5_000,
+            message: `${vp.name} (${theme}) expected ${vp.tracks} track(s)`,
+          })
+          .toBe(vp.tracks);
 
         // No horizontal page overflow at this viewport.
-        expect(await hasHorizontalOverflow(page)).toBe(false);
+        expect(
+          await hasHorizontalOverflow(page),
+          `${vp.name} (${theme}) overflowed horizontally`,
+        ).toBe(false);
 
         // Non-blocking screenshot for manual review.
         const screenshotPath = `tests/test-results/dashboard-responsive-${vp.name}-${theme}.png`;
@@ -187,7 +190,7 @@ for (const vp of VIEWPORTS) {
         } catch (err) {
           console.warn(`[responsive] screenshot failed (non-blocking): ${screenshotPath}`, err);
         }
-      });
+      }
     }
   });
-}
+});

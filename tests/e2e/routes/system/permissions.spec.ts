@@ -187,11 +187,13 @@ test.describe("Permission Management Flow", () => {
   test.setTimeout(120_000);
 
   test("toggle permissions and save", async ({ page }) => {
-    await loginAsAdmin(page);
-    await page.goto("/config/access-management", {
-      waitUntil: "networkidle",
-      timeout: 30_000,
-    });
+    await loginAsAdmin(page, "/config/access-management");
+    if (!page.url().includes("/config/access-management")) {
+      await page.goto("/config/access-management", {
+        waitUntil: "domcontentloaded",
+        timeout: 30_000,
+      });
+    }
 
     await expect(page.getByTestId("page-title")).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId("access-mgmt-page")).toBeVisible({ timeout: 15_000 });
@@ -253,7 +255,7 @@ test.describe("Permission Management Flow", () => {
     ).toBe(200);
 
     // ── Reload and verify persistence ──
-    await page.reload({ waitUntil: "networkidle" });
+    await page.reload({ waitUntil: "domcontentloaded" });
     if (page.url().includes("/login")) {
       await loginAsAdmin(page, "/config/access-management");
     }
@@ -279,14 +281,8 @@ test.describe("Permission Management Flow", () => {
       const cb = verifyCheckboxes.nth(i);
       const wasChecked = before.get(i) ?? false;
       const shouldBe = !wasChecked; // we toggled it
-      try {
-        await expect
-          .poll(async () => (await cb.isChecked()) === shouldBe, { timeout: 5_000 })
-          .toBe(true);
+      if ((await cb.isChecked()) === shouldBe) {
         persistenceOk++;
-      } catch {
-        // This checkbox row may have shifted position after reload (role order
-        // can change). Fall back to full-matrix comparison below.
       }
     }
 

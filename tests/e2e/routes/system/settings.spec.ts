@@ -13,16 +13,15 @@ import { fillUntil, runAfterHydration, selectAndWaitForUrl } from "../../helpers
 const ACTION_TIMEOUT = 20_000;
 
 async function goSettings(page: Page, group = "cache") {
+  const target = `/config/system-settings?group=${group}`;
   const currentUrl = page.url();
   if (currentUrl.includes("/login") || currentUrl === "about:blank" || currentUrl === "") {
-    await loginAsAdmin(page);
+    await loginAsAdmin(page, target);
+  } else {
+    await page.goto(target, { waitUntil: "domcontentloaded", timeout: 30_000 });
   }
-  await page.goto(`/config/system-settings?group=${group}`, {
-    waitUntil: "domcontentloaded",
-    timeout: 30_000,
-  });
   if (page.url().includes("/login")) {
-    await loginAsAdmin(page, `/config/system-settings?group=${group}`);
+    await loginAsAdmin(page, target);
   }
   await expect(page).toHaveURL(/\/config\/system-settings/, { timeout: ACTION_TIMEOUT });
   await expect(page).not.toHaveURL(/\/login/, { timeout: ACTION_TIMEOUT });
@@ -190,13 +189,7 @@ test.describe("System Settings shell", () => {
     // state actually enables the group save (same pattern as the cache test).
     await fillUntil(page, input, target, () => expect(groupSave).toBeEnabled({ timeout: 2_000 }));
 
-    const saveRes = page
-      .waitForResponse((res) => res.url().includes("/api/system/settings") && res.status() < 400, {
-        timeout: ACTION_TIMEOUT,
-      })
-      .catch(() => null);
     await groupSave.click();
-    await saveRes;
 
     // Wait for loadSettings refresh to complete before checking disabled state
     await expect(groupSave.getByText("Saved")).toBeVisible({ timeout: ACTION_TIMEOUT });
@@ -365,16 +358,7 @@ test.describe("System Settings shell", () => {
       const pageSave = page.getByTestId("settings-group-save");
       await fillUntil(page, input, target, () => expect(pageSave).toBeEnabled({ timeout: 2_000 }));
 
-      const saveRes = page
-        .waitForResponse(
-          (res) => res.url().includes("/api/system/settings") && res.status() < 400,
-          {
-            timeout: ACTION_TIMEOUT,
-          },
-        )
-        .catch(() => null);
       await pageSave.click();
-      await saveRes;
 
       await expect(pageSave.getByText("Saved")).toBeVisible({ timeout: ACTION_TIMEOUT });
       await expect(pageSave).toBeDisabled({ timeout: ACTION_TIMEOUT });

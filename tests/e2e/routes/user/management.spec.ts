@@ -16,19 +16,19 @@ const ACTION_TIMEOUT = 15_000;
 
 /** Open /user and wait until the admin user table is interactive. */
 async function openUserAdminArea(page: Page) {
-  await page.goto("/user", { waitUntil: "domcontentloaded" });
+  if (!page.url().includes("/user") || page.url().includes("/login")) {
+    await page.goto("/user", { waitUntil: "domcontentloaded" });
+  }
   // AdminArea renders inside the "User Management" tab (Identity is the default).
   await openUserManagement(page);
   await ensureUserListVisible(page);
   await expect(page.getByTestId("user-bulk-actions-menu")).toBeVisible({
     timeout: ACTION_TIMEOUT,
   });
-  // Wait for the initial user-list fetch to settle before row lookups.
   await page
-    .waitForResponse(
-      (res) => res.url().includes("/api/user") && res.request().method() === "GET" && res.ok(),
-      { timeout: ACTION_TIMEOUT },
-    )
+    .locator('tbody tr, [data-testid="user-list-empty"]')
+    .first()
+    .waitFor({ state: "visible", timeout: ACTION_TIMEOUT })
     .catch(() => undefined);
 }
 
@@ -54,15 +54,17 @@ async function developerRow(page: Page, options: DeveloperRowOptions = { useSear
 
     if (useSearch) {
       const searchInput = await openTableSearch(page);
-      const refetch = page
-        .waitForResponse(
-          (res) => res.url().includes("/api/user") && res.request().method() === "GET",
-          { timeout: ACTION_TIMEOUT },
-        )
-        .catch(() => undefined);
-      await searchInput.fill(DEVELOPER_EMAIL);
-      // AdminArea debounces search by 300ms — refetch resolves when it lands
-      await refetch;
+      if ((await searchInput.inputValue()) !== DEVELOPER_EMAIL) {
+        const refetch = page
+          .waitForResponse(
+            (res) => res.url().includes("/api/user") && res.request().method() === "GET",
+            { timeout: ACTION_TIMEOUT },
+          )
+          .catch(() => undefined);
+        await searchInput.fill(DEVELOPER_EMAIL);
+        // AdminArea debounces search by 300ms — refetch resolves when it lands
+        await refetch;
+      }
     } else {
       await clearTableSearch(page);
     }
@@ -273,7 +275,7 @@ test.describe.serial("User Management Flow", () => {
     // partial run cannot leave the developer blocked or deleted.
     await prepareTestUser(page, "developer");
 
-    await loginAsAdmin(page);
+    await loginAsAdmin(page, "/user");
     await openUserAdminArea(page);
 
     // Block/unblock via per-row buttons (stable). Bulk-delete via Multibutton.

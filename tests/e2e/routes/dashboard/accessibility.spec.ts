@@ -82,10 +82,6 @@ test.describe.configure({ mode: "serial" });
 /** Log in as admin and land on a hydrated dashboard shell. */
 async function goDashboard(page: Page): Promise<void> {
   await loginAsAdmin(page, "/dashboard");
-  await page.goto("/dashboard", { waitUntil: "domcontentloaded", timeout: 30_000 });
-  if (page.url().includes("/login")) {
-    await loginAsAdmin(page, "/dashboard");
-  }
   await expect(async () => {
     if (page.url().includes("/login")) {
       await loginAsAdmin(page, "/dashboard");

@@ -339,40 +339,41 @@ async function openEditorFor(page: Page, filename: string) {
   return dialog;
 }
 
-for (const scheme of ["light", "dark"] as const) {
-  test.describe(`Theme visual audit — ${scheme}`, () => {
-    test.use({ colorScheme: scheme });
-    test.setTimeout(180_000);
+const SCHEMES: readonly Scheme[] = ["light", "dark"];
 
-    for (const [label, viewport] of [
-      ["desktop", DESKTOP],
-      ["mobile", MOBILE],
-    ] as const) {
-      test(`image editor, every tool (${label})`, async ({ page }) => {
-        await page.setViewportSize(viewport);
-        await openMediaGallery(page);
-        const filename = `theme-${scheme}-${label}-${Date.now().toString(36)}.png`;
-        const row = await uploadUniqueImage(page, filename);
-        try {
-          await applyScheme(page, scheme);
-          const dialog = await openEditorFor(page, filename);
-          await applyScheme(page, scheme);
+test.describe("Theme visual audit (light + dark)", () => {
+  test.setTimeout(180_000);
 
-          const desktopTabs = dialog.getByRole("tab");
-          const mobileRail = dialog.getByLabel("Editing tools").getByRole("button");
-          const triggers = label === "desktop" ? desktopTabs : mobileRail;
-          await expect(triggers.first()).toBeVisible({ timeout: ACTION_TIMEOUT });
-          const count = await triggers.count();
-          expect(count, "editor must expose its tool triggers").toBeGreaterThanOrEqual(6);
+  for (const [label, viewport] of [
+    ["desktop", DESKTOP],
+    ["mobile", MOBILE],
+  ] as const) {
+    test(`image editor, every tool (${label})`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await openMediaGallery(page);
+      const filename = `theme-${label}-${Date.now().toString(36)}.png`;
+      const row = await uploadUniqueImage(page, filename);
+      try {
+        await applyScheme(page, "light");
+        const dialog = await openEditorFor(page, filename);
 
-          const failures: string[] = [];
-          for (let i = 0; i < count; i++) {
-            const trigger = triggers.nth(i);
-            const name =
-              (await trigger.getAttribute("aria-label")) ??
-              (await trigger.innerText()).trim() ??
-              `tool ${i}`;
-            await trigger.click();
+        const desktopTabs = dialog.getByRole("tab");
+        const mobileRail = dialog.getByLabel("Editing tools").getByRole("button");
+        const triggers = label === "desktop" ? desktopTabs : mobileRail;
+        await expect(triggers.first()).toBeVisible({ timeout: ACTION_TIMEOUT });
+        const count = await triggers.count();
+        expect(count, "editor must expose its tool triggers").toBeGreaterThanOrEqual(6);
+
+        const failures: string[] = [];
+        for (let i = 0; i < count; i++) {
+          const trigger = triggers.nth(i);
+          const name =
+            (await trigger.getAttribute("aria-label")) ??
+            (await trigger.innerText()).trim() ??
+            `tool ${i}`;
+          await trigger.click();
+          for (const scheme of SCHEMES) {
+            await applyScheme(page, scheme);
             try {
               await auditSurface(
                 page,
@@ -385,60 +386,69 @@ for (const scheme of ["light", "dark"] as const) {
               failures.push(err instanceof Error ? err.message : String(err));
             }
           }
-          expect(failures, failures.join("\n\n")).toEqual([]);
-        } finally {
-          await deleteMediaRow(page, row._id);
         }
-      });
-    }
-
-    // The editor's popups are separate components that never render until opened, so a sweep of
-    // the editor screen cannot see them. Each one needs its own open-and-check test.
-    test("editor aspect ratio preview window", async ({ page }) => {
-      await page.setViewportSize(DESKTOP);
-      await openMediaGallery(page);
-      const filename = `theme-aspect-${scheme}-${Date.now().toString(36)}.png`;
-      const row = await uploadUniqueImage(page, filename);
-      try {
-        await applyScheme(page, scheme);
-        const dialog = await openEditorFor(page, filename);
-        await applyScheme(page, scheme);
-
-        await dialog.getByRole("tab", { name: /^focal/i }).click();
-        await dialog
-          .getByRole("button", { name: /focal point and aspect ratio preview/i })
-          .first()
-          .click();
-
-        const preview = page.getByRole("dialog", { name: /aspect ratio preview/i });
-        await expect(preview).toBeVisible({ timeout: ACTION_TIMEOUT });
-        await expect(preview.getByText("21:9")).toBeVisible({ timeout: ACTION_TIMEOUT });
-        // Let the open/scale transition finish so colors are the final ones.
-        // wait-allow: open/scale transition must settle before the colour audit
-        await page.waitForTimeout(400);
-        await auditSurface(
-          page,
-          preview,
-          '[aria-labelledby="aspect-preview-title"]',
-          scheme,
-          "editor/aspect-preview",
-        );
+        expect(failures, failures.join("\n\n")).toEqual([]);
       } finally {
         await deleteMediaRow(page, row._id);
       }
     });
+  }
 
-    test("gallery toolbar, sidebar and table view", async ({ page }) => {
-      await page.setViewportSize(DESKTOP);
-      await openMediaGallery(page);
-      const filename = `theme-gallery-${scheme}-${Date.now().toString(36)}.png`;
-      const row = await uploadUniqueImage(page, filename);
-      try {
+  // The editor's popups are separate components that never render until opened, so a sweep of
+  // the editor screen cannot see them. Each one needs its own open-and-check test.
+  test("editor aspect ratio preview window", async ({ page }) => {
+    await page.setViewportSize(DESKTOP);
+    await openMediaGallery(page);
+    const filename = `theme-aspect-${Date.now().toString(36)}.png`;
+    const row = await uploadUniqueImage(page, filename);
+    try {
+      await applyScheme(page, "light");
+      const dialog = await openEditorFor(page, filename);
+
+      await dialog.getByRole("tab", { name: /^focal/i }).click();
+      await dialog
+        .getByRole("button", { name: /focal point and aspect ratio preview/i })
+        .first()
+        .click();
+
+      const preview = page.getByRole("dialog", { name: /aspect ratio preview/i });
+      await expect(preview).toBeVisible({ timeout: ACTION_TIMEOUT });
+      await expect(preview.getByText("21:9")).toBeVisible({ timeout: ACTION_TIMEOUT });
+      // Let the open/scale transition finish so colors are the final ones.
+      // wait-allow: open/scale transition must settle before the colour audit
+      await page.waitForTimeout(400);
+      const failures: string[] = [];
+      for (const scheme of SCHEMES) {
         await applyScheme(page, scheme);
-        const failures: string[] = [];
+        try {
+          await auditSurface(
+            page,
+            preview,
+            '[aria-labelledby="aspect-preview-title"]',
+            scheme,
+            "editor/aspect-preview",
+          );
+        } catch (err) {
+          failures.push(err instanceof Error ? err.message : String(err));
+        }
+      }
+      expect(failures, failures.join("\n\n")).toEqual([]);
+    } finally {
+      await deleteMediaRow(page, row._id);
+    }
+  });
 
-        const toolbar = page.getByTestId("media-gallery-toolbar");
-        await expect(toolbar).toBeVisible({ timeout: ACTION_TIMEOUT });
+  test("gallery toolbar, sidebar and table view", async ({ page }) => {
+    await page.setViewportSize(DESKTOP);
+    await openMediaGallery(page);
+    const filename = `theme-gallery-${Date.now().toString(36)}.png`;
+    const row = await uploadUniqueImage(page, filename);
+    try {
+      const failures: string[] = [];
+      const toolbar = page.getByTestId("media-gallery-toolbar");
+      await expect(toolbar).toBeVisible({ timeout: ACTION_TIMEOUT });
+      for (const scheme of SCHEMES) {
+        await applyScheme(page, scheme);
         try {
           await auditSurface(
             page,
@@ -450,24 +460,27 @@ for (const scheme of ["light", "dark"] as const) {
         } catch (err) {
           failures.push(err instanceof Error ? err.message : String(err));
         }
+      }
 
-        await page.getByTestId("media-view-table").click();
-        const table = page.getByTestId("media-table");
-        await expect(table).toBeVisible({ timeout: ACTION_TIMEOUT });
-        // The table renders a hidden mobile-card copy of each name; wait for the visible cell.
-        await expect(table.getByText(filename).locator("visible=true").first()).toBeVisible({
-          timeout: ACTION_TIMEOUT,
-        });
+      await page.getByTestId("media-view-table").click();
+      const table = page.getByTestId("media-table");
+      await expect(table).toBeVisible({ timeout: ACTION_TIMEOUT });
+      // The table renders a hidden mobile-card copy of each name; wait for the visible cell.
+      await expect(table.getByText(filename).locator("visible=true").first()).toBeVisible({
+        timeout: ACTION_TIMEOUT,
+      });
+      for (const scheme of SCHEMES) {
+        await applyScheme(page, scheme);
         try {
           await auditSurface(page, table, '[data-testid="media-table"]', scheme, "gallery/table");
         } catch (err) {
           failures.push(err instanceof Error ? err.message : String(err));
         }
-
-        expect(failures, failures.join("\n\n")).toEqual([]);
-      } finally {
-        await deleteMediaRow(page, row._id);
       }
-    });
+
+      expect(failures, failures.join("\n\n")).toEqual([]);
+    } finally {
+      await deleteMediaRow(page, row._id);
+    }
   });
-}
+});

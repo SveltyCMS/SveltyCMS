@@ -179,16 +179,15 @@ test.describe("P0 — Token management with seed", () => {
     });
     expect(token.length).toBeGreaterThan(8);
 
-    // Switch to the Invitations (token) view
-    await openTokenView(page);
-
-    // Wait for table fetch
-    await page
+    // Register listener before switching tab so a fast response is never missed.
+    const tokenFetch = page
       .waitForResponse(
         (res) => res.url().includes("/api/token") && res.request().method() === "GET" && res.ok(),
-        { timeout: ACTION_TIMEOUT },
+        { timeout: 5_000 },
       )
       .catch(() => undefined);
+    await openTokenView(page);
+    await tokenFetch;
 
     // Prefer search for the seeded email when toolbar is available
     const searchToggle = page.getByRole("button", { name: /^search$/i });

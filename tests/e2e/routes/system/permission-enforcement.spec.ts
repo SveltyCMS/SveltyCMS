@@ -22,7 +22,7 @@
 
 import { expect, test, type Page } from "../../fixtures";
 import type { Browser, BrowserContext } from "@playwright/test";
-import { loginAsAdmin, loginAs, ADMIN_CREDENTIALS } from "../../helpers/auth";
+import { loginAsAdmin, loginAs } from "../../helpers/auth";
 import { primeCsrfHeaders, TEST_API_HEADERS } from "../../helpers/api";
 
 const EDITOR_ROLE_ID = "editor";
@@ -238,11 +238,10 @@ test.describe("Permission Enforcement — Remove & Verify Block", () => {
       `phase 1 create answered HTTP ${createRes.status}: ${createRes.body.slice(0, 300)}`,
     ).toBeTruthy();
 
-    // --- Phase 2: Remove write permission ---
-    await loginAs(page, ADMIN_CREDENTIALS.email, ADMIN_CREDENTIALS.password); // back to admin
+    // --- Phase 2: Remove write permission via testing API ---
     await setRolePermissions(page, EDITOR_ROLE_ID, editorReadOnlyGrants()); // write removed
 
-    // --- Phase 3: User is now BLOCKED ---
+    // --- Phase 3: Re-login as test user so role cache reflects removal ---
     await loginAs(page, TEST_USER.email, TEST_USER.password);
     await enforceRealAuthorization(page);
 
@@ -296,8 +295,7 @@ test.describe("Permission Enforcement — Remove & Verify Block", () => {
       );
     }
 
-    // Remove media:write
-    await loginAs(page, ADMIN_CREDENTIALS.email, ADMIN_CREDENTIALS.password);
+    // Remove media:write via testing API, then refresh user session
     await setRolePermissions(page, EDITOR_ROLE_ID, editorReadOnlyGrants()); // write removed
 
     // Verify blocked
@@ -334,12 +332,10 @@ test.describe("Permission Enforcement — Remove & Verify Block", () => {
     });
     expect(probeResult, `pre-refresh probe answered HTTP ${String(probeResult)}`).toBeTruthy();
 
-    // Remove permission as admin
-    await loginAs(page, ADMIN_CREDENTIALS.email, ADMIN_CREDENTIALS.password);
+    // Remove permission via testing API
     await setRolePermissions(page, EDITOR_ROLE_ID, editorReadOnlyGrants()); // write removed
 
     // Refresh and re-login as test user
-    await page.goto("/login", { waitUntil: "domcontentloaded" });
     await loginAs(page, TEST_USER.email, TEST_USER.password);
     await enforceRealAuthorization(page);
 
