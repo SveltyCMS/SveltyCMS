@@ -68,9 +68,10 @@ export default defineConfig({
       MEDIA_FOLDER: "tests/integration/.media",
       QUIET: "true",
     },
-    // threads avoids OS fork IPC and duplicates per-worker startup cost across 64 DOM files
-    // while `isolate: true` + afterEach cleanup still keeps module mocks and DOM isolated.
-    pool: "threads",
+    // Windows fork() IPC adds ~20s overhead across 64 DOM files (`threads`: ~33s vs
+    // `forks`: ~54s); on Linux CI `forks` avoids single-process Vite/jsdom contention
+    // (`forks`: ~35-40s vs `threads`: ~64s). Keep `isolate: true` on both.
+    pool: process.platform === "win32" ? "threads" : "forks",
     isolate: true,
     // Same reason as vitest.config.ts: Node's ML-KEM Web Crypto warning is
     // intentional usage, not a test problem.

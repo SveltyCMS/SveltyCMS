@@ -1,5 +1,9 @@
 [install]
 backend = "copyfile"
+# Workspaces (`packages/*`) otherwise switch Bun to the isolated `.bun` symlink
+# layout, which adds Vitest/Vite module-resolution overhead on Linux CI. Undeclared
+# direct imports are enforced statically by `scripts/check/check-lockfile-sync.ts`.
+linker = "hoisted"
 
 [test]
 # Global preload for Bun test environments

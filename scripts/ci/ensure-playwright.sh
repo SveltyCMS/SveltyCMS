@@ -14,17 +14,40 @@ set -eu
 eval "$(node -e '
   const path = require("node:path");
   const fs = require("node:fs");
-  const pwDir = path.dirname(require.resolve("playwright"));
-  let coreDir = null;
-  for (const spec of ["playwright-core/package.json", "playwright-core"]) {
-    try {
-      const dir = path.dirname(require.resolve(spec, { paths: [pwDir] }));
-      if (fs.existsSync(path.join(dir, "browsers.json"))) {
-        coreDir = dir;
+  const cwd = process.cwd();
+  const resolveRealDirs = (specs, paths) => {
+    const dirs = [];
+    for (const spec of specs) {
+      try {
+        const hit = require.resolve(spec, { paths });
+        dirs.push(path.dirname(hit), path.dirname(fs.realpathSync(hit)));
         break;
+      } catch {
+        // Export blocked or specifier absent — try next candidate.
       }
+    }
+    return dirs;
+  };
+  // Follow realpaths via `@playwright/test` so Bun isolated layouts (`.bun/`)
+  // still find sibling `playwright` -> `playwright-core/browsers.json`.
+  const testDirs = resolveRealDirs(["@playwright/test/package.json", "@playwright/test"], [cwd]);
+  const pwSearchPaths = [...testDirs, cwd];
+  const pwDirs = resolveRealDirs(["playwright/package.json", "playwright"], pwSearchPaths);
+  const coreSearchPaths = [...pwDirs, ...pwSearchPaths];
+  let coreDir = null;
+  for (const spec of ["playwright-core/browsers.json", "playwright-core/package.json", "playwright-core"]) {
+    try {
+      let dir = path.dirname(fs.realpathSync(require.resolve(spec, { paths: coreSearchPaths })));
+      while (dir !== path.dirname(dir)) {
+        if (fs.existsSync(path.join(dir, "browsers.json"))) {
+          coreDir = dir;
+          break;
+        }
+        dir = path.dirname(dir);
+      }
+      if (coreDir) break;
     } catch {
-      // export not allowed (or not installed) - try the next specifier
+      // Export blocked or not installed — try next specifier.
     }
   }
   if (!coreDir) throw new Error("playwright-core/browsers.json not reachable");
