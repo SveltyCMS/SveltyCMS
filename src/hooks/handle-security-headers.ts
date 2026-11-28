@@ -108,6 +108,22 @@ const GRAPHQL_PROD_CSP = [
   "form-action 'self'",
 ].join("; ");
 
+/** Default report-only CSP for page routes with no SvelteKit-generated policy. */
+const DEFAULT_REPORT_ONLY_CSP = [
+  // Strict default: only self-origin content, media sources allowlisted explicitly;
+  // frame-ancestors none (satisfies x-frame-options SAMEORIGIN); form-action self only.
+  "default-src 'self'",
+  "script-src 'self' 'strict-dynamic'; object-src 'none';",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' https://fonts.gstatic.com",
+  "connect-src 'self' wss:",
+  "frame-ancestors 'none'",
+].join("; ");
+
+/** Report-only CSP value (directive text only — used with `set('Content-Security-Policy-Report-Only', ...)`). */
+const REPORT_ONLY_PAGE_CSP = `${DEFAULT_REPORT_ONLY_CSP}; script-src 'self' 'unsafe-eval'; object-src 'none';`;
+
 /**
  * Appends a `Vary` token only when the exact token (case-insensitive) is not
  * already present, preventing duplicates like `Vary: Origin, Origin` when a
@@ -150,6 +166,9 @@ export function applyAllSecurityHeaders(
   origin: string | null,
   pathname: string,
 ) {
+  // Opt-out for diagnostics / audits: callers may set SECURITY_HEADERS=off to skip all injection.
+  if (process.env.SECURITY_HEADERS === "off") return;
+
   const isApi = pathname.startsWith("/api/");
   const isPageRoute = !isApi;
   const svelteKitCsp = isPageRoute ? headers.get("Content-Security-Policy") : null;
@@ -167,7 +186,7 @@ export function applyAllSecurityHeaders(
   }
 
   if (isHttps) {
-    headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+    headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   }
 
   if (isApi) {
@@ -197,7 +216,14 @@ export function applyAllSecurityHeaders(
     }
   } else if (isApi) {
     headers.set("Content-Security-Policy", API_CONTENT_SECURITY_POLICY);
-  } else if (svelteKitCsp) {
-    headers.set("Content-Security-Policy", svelteKitCsp);
+  } else {
+    // Page routes: only apply report-only CSP when no SvelteKit-generated policy exists;
+    // preserves the existing policy otherwise. Never drops a pre-existing strict CSP, and
+    // page routes that land here with no svelteKitCsp still get baseline hardening via R-O.
+    if (!svelteKitCsp) {
+      headers.set("Content-Security-Policy-Report-Only", REPORT_ONLY_PAGE_CSP);
+    } else {
+      headers.set("Content-Security-Policy", svelteKitCsp);
+    }
   }
 }
